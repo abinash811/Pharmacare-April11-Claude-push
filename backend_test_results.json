@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-10-26T06:20:01.936950",
+  "total_tests": 22,
+  "passed_tests": 19,
+  "success_rate": 86.36363636363636,
+  "test_results": [
+    {
+      "test": "User Registration",
+      "success": true,
+      "details": "User created with ID: 15b504dc-21da-46ef-8fe3-f6d72e21d6c9",
+      "response_data": null
+    },
+    {
+      "test": "Auth Me",
+      "success": true,
+      "details": "User info retrieved: Test Admin",
+      "response_data": null
+    },
+    {
+      "test": "Dashboard Stats",
+      "success": true,
+      "details": "Stats retrieved - Today's sales: \u20b90",
+      "response_data": null
+    },
+    {
+      "test": "Add Medicine",
+      "success": false,
+      "details": "Failed to add medicine: {'status_code': 500, 'text': 'Internal Server Error'}",
+      "response_data": null
+    },
+    {
+      "test": "Get Medicines",
+      "success": true,
+      "details": "Retrieved 0 medicines",
+      "response_data": null
+    },
+    {
+      "test": "Search Medicines",
+      "success": true,
+      "details": "Search returned 0 results",
+      "response_data": null
+    },
+    {
+      "test": "Low Stock Alerts",
+      "success": true,
+      "details": "Found 0 low stock items",
+      "response_data": null
+    },
+    {
+      "test": "Expiring Medicines",
+      "success": true,
+      "details": "Found 0 expiring medicines",
+      "response_data": null
+    },
+    {
+      "test": "Add Supplier",
+      "success": true,
+      "details": "Supplier added with ID: 9a1fef67-a6ba-4f1e-8c18-acd435560e9f",
+      "response_data": null
+    },
+    {
+      "test": "Get Suppliers",
+      "success": true,
+      "details": "Retrieved 1 suppliers",
+      "response_data": null
+    },
+    {
+      "test": "Add Customer",
+      "success": true,
+      "details": "Customer added with ID: e432827b-0ace-4b48-b25b-ebc30797b7dd",
+      "response_data": null
+    },
+    {
+      "test": "Get Customers",
+      "success": true,
+      "details": "Retrieved 1 customers",
+      "response_data": null
+    },
+    {
+      "test": "Add Doctor",
+      "success": true,
+      "details": "Doctor added with ID: dbb9ac48-b754-439f-9d89-ca1efddf8afa",
+      "response_data": null
+    },
+    {
+      "test": "Get Doctors",
+      "success": true,
+      "details": "Retrieved 1 doctors",
+      "response_data": null
+    },
+    {
+      "test": "Create Bill",
+      "success": false,
+      "details": "No medicine available for billing",
+      "response_data": null
+    },
+    {
+      "test": "Get Bills",
+      "success": true,
+      "details": "Retrieved 0 bills",
+      "response_data": null
+    },
+    {
+      "test": "Add Purchase",
+      "success": false,
+      "details": "Missing supplier or medicine for purchase",
+      "response_data": null
+    },
+    {
+      "test": "Get Purchases",
+      "success": true,
+      "details": "Retrieved 0 purchases",
+      "response_data": null
+    },
+    {
+      "test": "Sales Report",
+      "success": true,
+      "details": "Report generated - Total bills: 0",
+      "response_data": null
+    },
+    {
+      "test": "Export Data",
+      "success": true,
+      "details": "Data exported successfully",
+      "response_data": null
+    },
+    {
+      "test": "Get Users",
+      "success": true,
+      "details": "Retrieved 1 users",
+      "response_data": null
+    },
+    {
+      "test": "User Logout",
+      "success": true,
+      "details": "Logout successful",
+      "response_data": null
+    }
+  ]
+}

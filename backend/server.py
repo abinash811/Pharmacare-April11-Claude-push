@@ -533,20 +533,34 @@ async def get_low_stock_alerts(current_user: User = Depends(get_current_user)):
 
 @api_router.get("/medicines/alerts/expiring-soon")
 async def get_expiring_medicines(current_user: User = Depends(get_current_user)):
-    thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
-    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
-    
-    expiring_medicines = []
-    for med in medicines:
-        expiry = med['expiry_date']
-        if isinstance(expiry, str):
-            expiry = datetime.fromisoformat(expiry)
+    try:
+        thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
+        medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
         
-        if expiry <= thirty_days_later:
-            med['expiry_date'] = expiry
-            expiring_medicines.append(med)
-    
-    return expiring_medicines
+        expiring_medicines = []
+        for med in medicines:
+            try:
+                expiry = med.get('expiry_date')
+                if not expiry:
+                    continue
+                    
+                if isinstance(expiry, str):
+                    expiry = datetime.fromisoformat(expiry)
+                
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                
+                if expiry <= thirty_days_later:
+                    med['expiry_date'] = expiry
+                    expiring_medicines.append(med)
+            except Exception as e:
+                logger.warning(f"Error processing medicine expiry: {e}")
+                continue
+        
+        return expiring_medicines
+    except Exception as e:
+        logger.error(f"Expiring medicines error: {e}")
+        return []
 
 # ==================== BILLING ROUTES ====================
 

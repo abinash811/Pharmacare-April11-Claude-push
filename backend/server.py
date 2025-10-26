@@ -718,51 +718,75 @@ async def get_doctors(current_user: User = Depends(get_current_user)):
 
 @api_router.get("/reports/dashboard")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    # Get today's sales
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_bills = await db.bills.find(
-        {},
-        {"_id": 0}
-    ).to_list(10000)
-    
-    today_sales = 0
-    total_sales = 0
-    for bill in today_bills:
-        created_at = bill['created_at']
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at)
+    try:
+        # Get today's sales
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_bills = await db.bills.find(
+            {},
+            {"_id": 0}
+        ).to_list(10000)
         
-        total_sales += bill['total_amount']
-        if created_at >= today_start:
-            today_sales += bill['total_amount']
-    
-    # Get stock stats
-    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
-    total_medicines = len(medicines)
-    low_stock_count = len([m for m in medicines if m['quantity'] < 10])
-    
-    thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
-    expiring_count = 0
-    total_stock_value = 0
-    
-    for med in medicines:
-        expiry = med['expiry_date']
-        if isinstance(expiry, str):
-            expiry = datetime.fromisoformat(expiry)
+        today_sales = 0
+        total_sales = 0
+        for bill in today_bills:
+            try:
+                created_at = bill['created_at']
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                
+                total_sales += bill.get('total_amount', 0)
+                if created_at >= today_start:
+                    today_sales += bill.get('total_amount', 0)
+            except Exception as e:
+                logger.warning(f"Error processing bill: {e}")
+                continue
         
-        if expiry <= thirty_days_later:
-            expiring_count += 1
+        # Get stock stats
+        medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+        total_medicines = len(medicines)
+        low_stock_count = len([m for m in medicines if m.get('quantity', 0) < 10])
         
-        total_stock_value += med['quantity'] * med['purchase_rate']
-    
-    return {
-        "today_sales": round(today_sales, 2),
-        "total_sales": round(total_sales, 2),
-        "total_medicines": total_medicines,
-        "low_stock_count": low_stock_count,
-        "expiring_soon_count": expiring_count,
-        "total_stock_value": round(total_stock_value, 2)
-    }
+        thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
+        expiring_count = 0
+        total_stock_value = 0
+        
+        for med in medicines:
+            try:
+                expiry = med.get('expiry_date')
+                if expiry:
+                    if isinstance(expiry, str):
+                        expiry = datetime.fromisoformat(expiry)
+                    if expiry.tzinfo is None:
+                        expiry = expiry.replace(tzinfo=timezone.utc)
+                    
+                    if expiry <= thirty_days_later:
+                        expiring_count += 1
+                
+                total_stock_value += med.get('quantity', 0) * med.get('purchase_rate', 0)
+            except Exception as e:
+                logger.warning(f"Error processing medicine: {e}")
+                continue
+        
+        return {
+            "today_sales": round(today_sales, 2),
+            "total_sales": round(total_sales, 2),
+            "total_medicines": total_medicines,
+            "low_stock_count": low_stock_count,
+            "expiring_soon_count": expiring_count,
+            "total_stock_value": round(total_stock_value, 2)
+        }
+    except Exception as e:
+        logger.error(f"Dashboard stats error: {e}")
+        return {
+            "today_sales": 0,
+            "total_sales": 0,
+            "total_medicines": 0,
+            "low_stock_count": 0,
+            "expiring_soon_count": 0,
+            "total_stock_value": 0
+        }
 
 @api_router.get("/reports/sales")
 async def get_sales_report(

@@ -160,6 +160,7 @@ export default function Purchases() {
             <DialogContent data-testid="add-purchase-dialog">
               <DialogHeader>
                 <DialogTitle>Add New Purchase</DialogTitle>
+                <DialogDescription>Enter purchase order details</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddPurchase} className="space-y-4">
                 <div>

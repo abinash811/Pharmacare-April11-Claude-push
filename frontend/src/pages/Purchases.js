@@ -124,6 +124,7 @@ export default function Purchases() {
             <DialogContent data-testid="add-supplier-dialog">
               <DialogHeader>
                 <DialogTitle>Add New Supplier</DialogTitle>
+                <DialogDescription>Enter supplier details</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddSupplier} className="space-y-4">
                 <div>

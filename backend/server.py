@@ -430,10 +430,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/medicines", response_model=Medicine)
 async def create_medicine(medicine_data: MedicineCreate, current_user: User = Depends(get_current_user)):
-    medicine = Medicine(
-        **medicine_data.model_dump(),
-        expiry_date=datetime.fromisoformat(medicine_data.expiry_date)
-    )
+    data = medicine_data.model_dump()
+    data['expiry_date'] = datetime.fromisoformat(medicine_data.expiry_date)
+    medicine = Medicine(**data)
     
     doc = medicine.model_dump()
     doc['expiry_date'] = doc['expiry_date'].isoformat()

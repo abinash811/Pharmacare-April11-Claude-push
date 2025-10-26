@@ -188,6 +188,7 @@ export default function Customers() {
               <DialogContent data-testid="add-doctor-dialog">
                 <DialogHeader>
                   <DialogTitle>Add New Doctor</DialogTitle>
+                  <DialogDescription>Enter doctor details</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAddDoctor} className="space-y-4">
                   <div>

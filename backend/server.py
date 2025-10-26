@@ -1,15 +1,20 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request, Cookie
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
+from passlib.context import CryptContext
+import jwt
+import httpx
+from decimal import Decimal
+import json
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,54 +24,828 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+# Security
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Create a router with the /api prefix
+# Create the main app
+app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# ==================== MODELS ====================
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+# User Models
+class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    email: EmailStr
+    name: str
+    role: str  # "admin" or "cashier"
+    password_hash: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    is_active: bool = True
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class UserCreate(BaseModel):
+    email: EmailStr
+    name: str
+    password: str
+    role: str
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
+class SessionCreate(BaseModel):
+    user_id: str
+    session_token: str
+    email: str
+    name: str
+    expires_at: datetime
+
+# Medicine Models
+class Medicine(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    batch_number: str
+    expiry_date: datetime
+    mrp: float
+    quantity: int
+    supplier_name: str
+    purchase_rate: float
+    selling_price: float
+    hsn_code: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class MedicineCreate(BaseModel):
+    name: str
+    batch_number: str
+    expiry_date: str
+    mrp: float
+    quantity: int
+    supplier_name: str
+    purchase_rate: float
+    selling_price: float
+    hsn_code: Optional[str] = None
+
+class MedicineUpdate(BaseModel):
+    name: Optional[str] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    mrp: Optional[float] = None
+    quantity: Optional[int] = None
+    supplier_name: Optional[str] = None
+    purchase_rate: Optional[float] = None
+    selling_price: Optional[float] = None
+    hsn_code: Optional[str] = None
+
+# Bill Models
+class BillItem(BaseModel):
+    medicine_id: str
+    medicine_name: str
+    batch_number: str
+    quantity: int
+    rate: float
+    discount: float = 0
+    total: float
+
+class Bill(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    bill_number: str
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    doctor_id: Optional[str] = None
+    doctor_name: Optional[str] = None
+    items: List[Dict[str, Any]]
+    subtotal: float
+    discount: float = 0
+    tax_rate: float
+    tax_amount: float
+    total_amount: float
+    payment_method: str  # cash, card, credit
+    cashier_id: str
+    cashier_name: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class BillCreate(BaseModel):
+    customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
+    doctor_id: Optional[str] = None
+    doctor_name: Optional[str] = None
+    items: List[Dict[str, Any]]
+    discount: float = 0
+    tax_rate: float
+    payment_method: str
+
+# Purchase Models
+class Purchase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    invoice_number: str
+    supplier_id: str
+    supplier_name: str
+    items: List[Dict[str, Any]]
+    total_amount: float
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str
+
+class PurchaseCreate(BaseModel):
+    invoice_number: str
+    supplier_id: str
+    supplier_name: str
+    items: List[Dict[str, Any]]
+    total_amount: float
+
+# Supplier Models
+class Supplier(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    contact: str
+    gstin: Optional[str] = None
+    address: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SupplierCreate(BaseModel):
+    name: str
+    contact: str
+    gstin: Optional[str] = None
+    address: Optional[str] = None
+
+# Customer Models
+class Customer(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    phone: str
+    address: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CustomerCreate(BaseModel):
+    name: str
+    phone: str
+    address: Optional[str] = None
+
+# Doctor Models
+class Doctor(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    contact: Optional[str] = None
+    specialization: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DoctorCreate(BaseModel):
+    name: str
+    contact: Optional[str] = None
+    specialization: Optional[str] = None
+
+# ==================== AUTH HELPERS ====================
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(request: Request, session_token: Optional[str] = Cookie(None)):
+    # Check cookie first
+    token = session_token
     
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
+    # Fallback to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
     
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Check if it's a JWT token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return User(**user)
+    except jwt.ExpiredSignatureError:
+        # Check if it's an Emergent session token
+        session = await db.sessions.find_one({"session_token": token}, {"_id": 0})
+        if not session:
+            raise HTTPException(status_code=401, detail="Token expired")
+        
+        # Check if session expired
+        expires_at = session['expires_at']
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=401, detail="Session expired")
+        
+        user = await db.users.find_one({"id": session['user_id']}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return User(**user)
+    except jwt.InvalidTokenError:
+        # Check if it's an Emergent session token
+        session = await db.sessions.find_one({"session_token": token}, {"_id": 0})
+        if not session:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        expires_at = session['expires_at']
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=401, detail="Session expired")
+        
+        user = await db.users.find_one({"id": session['user_id']}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return User(**user)
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+# ==================== AUTH ROUTES ====================
 
-# Include the router in the main app
+@api_router.post("/auth/register")
+async def register(user_data: UserCreate):
+    # Check if user exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        role=user_data.role,
+        password_hash=hash_password(user_data.password)
+    )
+    
+    doc = user.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.users.insert_one(doc)
+    
+    # Create token
+    token = create_access_token({"sub": user.id, "email": user.email})
+    
+    return {
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role
+        }
+    }
+
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin):
+    user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+    if not user_doc:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if not verify_password(credentials.password, user_doc['password_hash']):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_access_token({"sub": user_doc['id'], "email": user_doc['email']})
+    
+    return {
+        "token": token,
+        "user": {
+            "id": user_doc['id'],
+            "email": user_doc['email'],
+            "name": user_doc['name'],
+            "role": user_doc['role']
+        }
+    }
+
+@api_router.post("/auth/session")
+async def create_session(request: Request, response: Response):
+    session_id = request.headers.get("X-Session-ID")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Session ID required")
+    
+    # Call Emergent auth service
+    async with httpx.AsyncClient() as client:
+        try:
+            auth_response = await client.get(
+                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+                headers={"X-Session-ID": session_id}
+            )
+            auth_response.raise_for_status()
+            session_data = auth_response.json()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to validate session: {str(e)}")
+    
+    # Check if user exists
+    user_doc = await db.users.find_one({"email": session_data['email']}, {"_id": 0})
+    
+    if not user_doc:
+        # Create new user with admin role for first user
+        user_count = await db.users.count_documents({})
+        role = "admin" if user_count == 0 else "cashier"
+        
+        user = User(
+            email=session_data['email'],
+            name=session_data['name'],
+            role=role
+        )
+        doc = user.model_dump()
+        doc['created_at'] = doc['created_at'].isoformat()
+        await db.users.insert_one(doc)
+        user_id = user.id
+    else:
+        user_id = user_doc['id']
+        user = User(**user_doc)
+    
+    # Store session
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    session = SessionCreate(
+        user_id=user_id,
+        session_token=session_data['session_token'],
+        email=session_data['email'],
+        name=session_data['name'],
+        expires_at=expires_at
+    )
+    
+    session_doc = session.model_dump()
+    session_doc['expires_at'] = session_doc['expires_at'].isoformat()
+    await db.sessions.insert_one(session_doc)
+    
+    # Set cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_data['session_token'],
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=60 * 60 * 24 * 7
+    )
+    
+    return {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role
+        }
+    }
+
+@api_router.post("/auth/logout")
+async def logout(response: Response, current_user: User = Depends(get_current_user)):
+    # Delete session from database
+    await db.sessions.delete_many({"user_id": current_user.id})
+    
+    # Clear cookie
+    response.delete_cookie(key="session_token", path="/")
+    
+    return {"message": "Logged out successfully"}
+
+@api_router.get("/auth/me")
+async def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role
+    }
+
+# ==================== MEDICINE ROUTES ====================
+
+@api_router.post("/medicines", response_model=Medicine)
+async def create_medicine(medicine_data: MedicineCreate, current_user: User = Depends(get_current_user)):
+    medicine = Medicine(
+        **medicine_data.model_dump(),
+        expiry_date=datetime.fromisoformat(medicine_data.expiry_date)
+    )
+    
+    doc = medicine.model_dump()
+    doc['expiry_date'] = doc['expiry_date'].isoformat()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    
+    await db.medicines.insert_one(doc)
+    return medicine
+
+@api_router.get("/medicines", response_model=List[Medicine])
+async def get_medicines(current_user: User = Depends(get_current_user)):
+    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+    for med in medicines:
+        if isinstance(med['expiry_date'], str):
+            med['expiry_date'] = datetime.fromisoformat(med['expiry_date'])
+        if isinstance(med['created_at'], str):
+            med['created_at'] = datetime.fromisoformat(med['created_at'])
+        if isinstance(med['updated_at'], str):
+            med['updated_at'] = datetime.fromisoformat(med['updated_at'])
+    return medicines
+
+@api_router.get("/medicines/search")
+async def search_medicines(q: str, current_user: User = Depends(get_current_user)):
+    medicines = await db.medicines.find(
+        {"$or": [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"batch_number": {"$regex": q, "$options": "i"}}
+        ]},
+        {"_id": 0}
+    ).to_list(100)
+    
+    for med in medicines:
+        if isinstance(med['expiry_date'], str):
+            med['expiry_date'] = datetime.fromisoformat(med['expiry_date'])
+        if isinstance(med['created_at'], str):
+            med['created_at'] = datetime.fromisoformat(med['created_at'])
+        if isinstance(med['updated_at'], str):
+            med['updated_at'] = datetime.fromisoformat(med['updated_at'])
+    
+    return medicines
+
+@api_router.get("/medicines/{medicine_id}", response_model=Medicine)
+async def get_medicine(medicine_id: str, current_user: User = Depends(get_current_user)):
+    medicine = await db.medicines.find_one({"id": medicine_id}, {"_id": 0})
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    
+    if isinstance(medicine['expiry_date'], str):
+        medicine['expiry_date'] = datetime.fromisoformat(medicine['expiry_date'])
+    if isinstance(medicine['created_at'], str):
+        medicine['created_at'] = datetime.fromisoformat(medicine['created_at'])
+    if isinstance(medicine['updated_at'], str):
+        medicine['updated_at'] = datetime.fromisoformat(medicine['updated_at'])
+    
+    return Medicine(**medicine)
+
+@api_router.put("/medicines/{medicine_id}")
+async def update_medicine(
+    medicine_id: str,
+    medicine_data: MedicineUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    update_data = {k: v for k, v in medicine_data.model_dump().items() if v is not None}
+    
+    if 'expiry_date' in update_data:
+        update_data['expiry_date'] = datetime.fromisoformat(update_data['expiry_date']).isoformat()
+    
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.medicines.update_one(
+        {"id": medicine_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    
+    return {"message": "Medicine updated successfully"}
+
+@api_router.delete("/medicines/{medicine_id}")
+async def delete_medicine(medicine_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete medicines")
+    
+    result = await db.medicines.delete_one({"id": medicine_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    
+    return {"message": "Medicine deleted successfully"}
+
+@api_router.get("/medicines/alerts/low-stock")
+async def get_low_stock_alerts(current_user: User = Depends(get_current_user)):
+    medicines = await db.medicines.find({"quantity": {"$lt": 10}}, {"_id": 0}).to_list(1000)
+    for med in medicines:
+        if isinstance(med['expiry_date'], str):
+            med['expiry_date'] = datetime.fromisoformat(med['expiry_date'])
+    return medicines
+
+@api_router.get("/medicines/alerts/expiring-soon")
+async def get_expiring_medicines(current_user: User = Depends(get_current_user)):
+    thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
+    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+    
+    expiring_medicines = []
+    for med in medicines:
+        expiry = med['expiry_date']
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry)
+        
+        if expiry <= thirty_days_later:
+            med['expiry_date'] = expiry
+            expiring_medicines.append(med)
+    
+    return expiring_medicines
+
+# ==================== BILLING ROUTES ====================
+
+@api_router.post("/bills", response_model=Bill)
+async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user)):
+    # Generate bill number
+    bill_count = await db.bills.count_documents({})
+    bill_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{bill_count + 1:04d}"
+    
+    # Calculate totals
+    subtotal = sum(item['total'] for item in bill_data.items)
+    tax_amount = subtotal * (bill_data.tax_rate / 100)
+    total_amount = subtotal + tax_amount - bill_data.discount
+    
+    bill = Bill(
+        bill_number=bill_number,
+        customer_id=bill_data.customer_id,
+        customer_name=bill_data.customer_name,
+        doctor_id=bill_data.doctor_id,
+        doctor_name=bill_data.doctor_name,
+        items=bill_data.items,
+        subtotal=subtotal,
+        discount=bill_data.discount,
+        tax_rate=bill_data.tax_rate,
+        tax_amount=tax_amount,
+        total_amount=total_amount,
+        payment_method=bill_data.payment_method,
+        cashier_id=current_user.id,
+        cashier_name=current_user.name
+    )
+    
+    # Update stock
+    for item in bill_data.items:
+        await db.medicines.update_one(
+            {"id": item['medicine_id']},
+            {"$inc": {"quantity": -item['quantity']}}
+        )
+    
+    doc = bill.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.bills.insert_one(doc)
+    
+    return bill
+
+@api_router.get("/bills", response_model=List[Bill])
+async def get_bills(current_user: User = Depends(get_current_user)):
+    bills = await db.bills.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for bill in bills:
+        if isinstance(bill['created_at'], str):
+            bill['created_at'] = datetime.fromisoformat(bill['created_at'])
+    return bills
+
+@api_router.get("/bills/{bill_id}", response_model=Bill)
+async def get_bill(bill_id: str, current_user: User = Depends(get_current_user)):
+    bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    
+    if isinstance(bill['created_at'], str):
+        bill['created_at'] = datetime.fromisoformat(bill['created_at'])
+    
+    return Bill(**bill)
+
+# ==================== PURCHASE ROUTES ====================
+
+@api_router.post("/purchases", response_model=Purchase)
+async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(get_current_user)):
+    purchase = Purchase(
+        **purchase_data.model_dump(),
+        created_by=current_user.id
+    )
+    
+    # Update stock
+    for item in purchase_data.items:
+        # Check if medicine exists
+        existing = await db.medicines.find_one({"id": item['medicine_id']})
+        if existing:
+            await db.medicines.update_one(
+                {"id": item['medicine_id']},
+                {"$inc": {"quantity": item['quantity']}}
+            )
+    
+    doc = purchase.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.purchases.insert_one(doc)
+    
+    return purchase
+
+@api_router.get("/purchases", response_model=List[Purchase])
+async def get_purchases(current_user: User = Depends(get_current_user)):
+    purchases = await db.purchases.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for purchase in purchases:
+        if isinstance(purchase['created_at'], str):
+            purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
+    return purchases
+
+# ==================== SUPPLIER ROUTES ====================
+
+@api_router.post("/suppliers", response_model=Supplier)
+async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(get_current_user)):
+    supplier = Supplier(**supplier_data.model_dump())
+    
+    doc = supplier.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.suppliers.insert_one(doc)
+    
+    return supplier
+
+@api_router.get("/suppliers", response_model=List[Supplier])
+async def get_suppliers(current_user: User = Depends(get_current_user)):
+    suppliers = await db.suppliers.find({}, {"_id": 0}).to_list(1000)
+    for supplier in suppliers:
+        if isinstance(supplier['created_at'], str):
+            supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
+    return suppliers
+
+# ==================== CUSTOMER ROUTES ====================
+
+@api_router.post("/customers", response_model=Customer)
+async def create_customer(customer_data: CustomerCreate, current_user: User = Depends(get_current_user)):
+    customer = Customer(**customer_data.model_dump())
+    
+    doc = customer.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.customers.insert_one(doc)
+    
+    return customer
+
+@api_router.get("/customers", response_model=List[Customer])
+async def get_customers(current_user: User = Depends(get_current_user)):
+    customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+    for customer in customers:
+        if isinstance(customer['created_at'], str):
+            customer['created_at'] = datetime.fromisoformat(customer['created_at'])
+    return customers
+
+@api_router.get("/customers/search")
+async def search_customers(q: str, current_user: User = Depends(get_current_user)):
+    customers = await db.customers.find(
+        {"$or": [
+            {"name": {"$regex": q, "$options": "i"}},
+            {"phone": {"$regex": q, "$options": "i"}}
+        ]},
+        {"_id": 0}
+    ).to_list(100)
+    return customers
+
+# ==================== DOCTOR ROUTES ====================
+
+@api_router.post("/doctors", response_model=Doctor)
+async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(get_current_user)):
+    doctor = Doctor(**doctor_data.model_dump())
+    
+    doc = doctor.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.doctors.insert_one(doc)
+    
+    return doctor
+
+@api_router.get("/doctors", response_model=List[Doctor])
+async def get_doctors(current_user: User = Depends(get_current_user)):
+    doctors = await db.doctors.find({}, {"_id": 0}).to_list(1000)
+    for doctor in doctors:
+        if isinstance(doctor['created_at'], str):
+            doctor['created_at'] = datetime.fromisoformat(doctor['created_at'])
+    return doctors
+
+# ==================== REPORTS ====================
+
+@api_router.get("/reports/dashboard")
+async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
+    # Get today's sales
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_bills = await db.bills.find(
+        {},
+        {"_id": 0}
+    ).to_list(10000)
+    
+    today_sales = 0
+    total_sales = 0
+    for bill in today_bills:
+        created_at = bill['created_at']
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+        
+        total_sales += bill['total_amount']
+        if created_at >= today_start:
+            today_sales += bill['total_amount']
+    
+    # Get stock stats
+    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+    total_medicines = len(medicines)
+    low_stock_count = len([m for m in medicines if m['quantity'] < 10])
+    
+    thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
+    expiring_count = 0
+    total_stock_value = 0
+    
+    for med in medicines:
+        expiry = med['expiry_date']
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry)
+        
+        if expiry <= thirty_days_later:
+            expiring_count += 1
+        
+        total_stock_value += med['quantity'] * med['purchase_rate']
+    
+    return {
+        "today_sales": round(today_sales, 2),
+        "total_sales": round(total_sales, 2),
+        "total_medicines": total_medicines,
+        "low_stock_count": low_stock_count,
+        "expiring_soon_count": expiring_count,
+        "total_stock_value": round(total_stock_value, 2)
+    }
+
+@api_router.get("/reports/sales")
+async def get_sales_report(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    query = {}
+    bills = await db.bills.find(query, {"_id": 0}).to_list(10000)
+    
+    # Filter by date if provided
+    if start_date:
+        start = datetime.fromisoformat(start_date)
+        bills = [b for b in bills if datetime.fromisoformat(b['created_at'] if isinstance(b['created_at'], str) else b['created_at'].isoformat()) >= start]
+    
+    if end_date:
+        end = datetime.fromisoformat(end_date)
+        bills = [b for b in bills if datetime.fromisoformat(b['created_at'] if isinstance(b['created_at'], str) else b['created_at'].isoformat()) <= end]
+    
+    total_sales = sum(b['total_amount'] for b in bills)
+    total_tax = sum(b['tax_amount'] for b in bills)
+    
+    return {
+        "bills": bills,
+        "summary": {
+            "total_bills": len(bills),
+            "total_sales": round(total_sales, 2),
+            "total_tax": round(total_tax, 2)
+        }
+    }
+
+# ==================== USER MANAGEMENT ====================
+
+@api_router.get("/users", response_model=List[User])
+async def get_users(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view users")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    for user in users:
+        if isinstance(user['created_at'], str):
+            user['created_at'] = datetime.fromisoformat(user['created_at'])
+    return users
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete users")
+    
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deleted successfully"}
+
+# ==================== BACKUP ====================
+
+@api_router.get("/backup/export")
+async def export_data(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can export data")
+    
+    medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+    bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
+    purchases = await db.purchases.find({}, {"_id": 0}).to_list(10000)
+    customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+    doctors = await db.doctors.find({}, {"_id": 0}).to_list(10000)
+    suppliers = await db.suppliers.find({}, {"_id": 0}).to_list(10000)
+    
+    return {
+        "export_date": datetime.now(timezone.utc).isoformat(),
+        "medicines": medicines,
+        "bills": bills,
+        "purchases": purchases,
+        "customers": customers,
+        "doctors": doctors,
+        "suppliers": suppliers
+    }
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,7 +856,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'

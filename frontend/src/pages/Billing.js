@@ -189,44 +189,54 @@ export default function Billing() {
   const totals = calculateTotals();
 
   return (
-    <div className="p-8" data-testid="billing-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Billing</h1>
-        <p className="text-gray-600 mt-1">Create new invoice</p>
+    <div className="p-4" data-testid="billing-page">
+      <div className="mb-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Billing</h1>
+          <p className="text-sm text-gray-600">Create new invoice</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="counter-sale"
+            checked={isCounterSale}
+            onCheckedChange={setIsCounterSale}
+            data-testid="counter-sale-checkbox"
+          />
+          <label htmlFor="counter-sale" className="text-sm font-medium cursor-pointer">
+            Counter Sale
+          </label>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Medicine Search & Bill Items */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Search */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left: Medicine Search & Bill Items - Takes 2/3 width */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Compact Search */}
           <Card>
-            <CardHeader>
-              <CardTitle>Add Medicines</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-3">
               <div className="relative">
-                <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Search medicine by name or batch number..."
+                  placeholder="Search medicine..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
+                  className="pl-9 h-9 text-sm"
                   data-testid="medicine-search-input"
                 />
               </div>
               
               {searchResults.length > 0 && (
-                <div className="mt-2 border rounded-lg divide-y max-h-60 overflow-auto">
+                <div className="mt-2 border rounded-lg divide-y max-h-48 overflow-auto bg-white">
                   {searchResults.map((med) => (
                     <div
                       key={med.id}
-                      className="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                      className="p-2 hover:bg-gray-50 cursor-pointer flex justify-between items-center text-sm"
                       onClick={() => addToBill(med)}
                       data-testid={`search-result-${med.id}`}
                     >
                       <div>
                         <p className="font-medium text-gray-800">{med.name}</p>
-                        <p className="text-sm text-gray-600">Batch: {med.batch_number} | Stock: {med.quantity}</p>
+                        <p className="text-xs text-gray-600">Batch: {med.batch_number} | Stock: {med.quantity} | Mfr: {med.supplier_name}</p>
                       </div>
                       <p className="font-semibold text-blue-600">₹{med.selling_price}</p>
                     </div>
@@ -236,111 +246,194 @@ export default function Billing() {
             </CardContent>
           </Card>
 
-          {/* Bill Items */}
+          {/* Bill Items Table */}
           <Card>
-            <CardHeader>
-              <CardTitle>Bill Items</CardTitle>
+            <CardHeader className="p-3">
+              <CardTitle className="text-base">Bill Items</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {billItems.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No items added yet</p>
+                <p className="text-gray-500 text-center py-6 text-sm">No items added yet</p>
               ) : (
-                <div className="space-y-3" data-testid="bill-items-list">
-                  {billItems.map((item) => (
-                    <div
-                      key={item.medicine_id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                      data-testid={`bill-item-${item.medicine_id}`}
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-800">{item.medicine_name}</p>
-                        <p className="text-sm text-gray-600">Batch: {item.batch_number}</p>
-                      </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.medicine_id, item.quantity - 1)}
-                            data-testid={`decrease-qty-${item.medicine_id}`}
-                          >
-                            -
-                          </Button>
-                          <span className="w-12 text-center font-medium" data-testid={`qty-${item.medicine_id}`}>
-                            {item.quantity}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.medicine_id, item.quantity + 1)}
-                            data-testid={`increase-qty-${item.medicine_id}`}
-                          >
-                            +
-                          </Button>
-                        </div>
-                        
-                        <div className="w-24 text-right">
-                          <p className="font-semibold text-gray-800" data-testid={`item-total-${item.medicine_id}`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" data-testid="bill-items-list">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Medicine</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Mfr</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Expiry</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">MRP</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Disc</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">GST%</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Total</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {billItems.map((item) => (
+                        <tr key={item.medicine_id} className="hover:bg-gray-50" data-testid={`bill-item-${item.medicine_id}`}>
+                          <td className="px-3 py-2">
+                            <div>
+                              <p className="font-medium text-gray-800 text-xs">{item.medicine_name}</p>
+                              <p className="text-xs text-gray-500">Batch: {item.batch_number}</p>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-600">{item.manufacturer}</td>
+                          <td className="px-3 py-2">
+                            {editingItemId === item.medicine_id ? (
+                              <Input
+                                type="month"
+                                value={item.expiry_date}
+                                onChange={(e) => updateItemField(item.medicine_id, 'expiry_date', e.target.value)}
+                                className="h-7 w-28 text-xs"
+                                data-testid={`expiry-input-${item.medicine_id}`}
+                              />
+                            ) : (
+                              <span className="text-xs">{item.expiry_date}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {editingItemId === item.medicine_id ? (
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateItemField(item.medicine_id, 'quantity', e.target.value)}
+                                className="h-7 w-16 text-xs"
+                                min="1"
+                                data-testid={`qty-input-${item.medicine_id}`}
+                              />
+                            ) : (
+                              <span className="text-xs font-medium" data-testid={`qty-${item.medicine_id}`}>{item.quantity}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-xs">₹{item.mrp}</td>
+                          <td className="px-3 py-2">
+                            {editingItemId === item.medicine_id ? (
+                              <Input
+                                type="number"
+                                value={item.discount}
+                                onChange={(e) => updateItemField(item.medicine_id, 'discount', e.target.value)}
+                                className="h-7 w-16 text-xs"
+                                min="0"
+                                data-testid={`discount-input-${item.medicine_id}`}
+                              />
+                            ) : (
+                              <span className="text-xs">₹{item.discount || 0}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-xs">{item.gst_rate}%</td>
+                          <td className="px-3 py-2 font-semibold text-gray-800 text-xs" data-testid={`item-total-${item.medicine_id}`}>
                             ₹{item.total.toFixed(2)}
-                          </p>
-                        </div>
-                        
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removeItem(item.medicine_id)}
-                          data-testid={`remove-item-${item.medicine_id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex space-x-1">
+                              {editingItemId === item.medicine_id ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={stopEditing}
+                                  className="h-7 w-7 p-0"
+                                  data-testid={`save-edit-${item.medicine_id}`}
+                                >
+                                  <Save className="w-3 h-3" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditing(item.medicine_id)}
+                                  className="h-7 w-7 p-0"
+                                  data-testid={`edit-item-${item.medicine_id}`}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeItem(item.medicine_id)}
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                data-testid={`remove-item-${item.medicine_id}`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right: Bill Summary */}
-        <div className="space-y-6">
+        {/* Right: Customer Details & Summary - Takes 1/3 width */}
+        <div className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Customer Details</CardTitle>
+            <CardHeader className="p-3">
+              <CardTitle className="text-base">Customer Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Customer Name (Optional)</Label>
-                <Input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Walk-in Customer"
-                  data-testid="customer-name-input"
-                />
-              </div>
+            <CardContent className="p-3 space-y-3">
+              {!isCounterSale && (
+                <>
+                  <div>
+                    <Label className="text-xs">Customer Name *</Label>
+                    <Input
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Enter name"
+                      className="h-8 text-sm"
+                      data-testid="customer-name-input"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs">Doctor Name</Label>
+                    <Input
+                      value={doctorName}
+                      onChange={(e) => setDoctorName(e.target.value)}
+                      placeholder="Enter doctor name"
+                      className="h-8 text-sm"
+                      data-testid="doctor-name-input"
+                    />
+                  </div>
+                </>
+              )}
               
               <div>
-                <Label>Doctor Name (Optional)</Label>
-                <Input
-                  value={doctorName}
-                  onChange={(e) => setDoctorName(e.target.value)}
-                  placeholder="Doctor name"
-                  data-testid="doctor-name-input"
-                />
+                <Label className="text-xs">Payment Method</Label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                  data-testid="payment-method-select"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="upi">UPI</option>
+                  <option value="card">Card</option>
+                  <option value="credit">Credit</option>
+                </select>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Bill Summary</CardTitle>
+            <CardHeader className="p-3">
+              <CardTitle className="text-base">Bill Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+            <CardContent className="p-3 space-y-2">
+              <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium" data-testid="subtotal">₹{totals.subtotal.toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Discount</span>
+                  <span className="font-medium text-green-600" data-testid="total-discount">-₹{totals.totalDiscount.toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -348,20 +441,9 @@ export default function Billing() {
                   <span className="font-medium" data-testid="tax-amount">₹{totals.taxAmount.toFixed(2)}</span>
                 </div>
                 
-                <div>
-                  <Label>Discount</Label>
-                  <Input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    min="0"
-                    data-testid="discount-input"
-                  />
-                </div>
-                
                 <div className="pt-2 border-t">
-                  <div className="flex justify-between text-lg">
-                    <span className="font-semibold text-gray-800">Total</span>
+                  <div className="flex justify-between text-base">
+                    <span className="font-semibold text-gray-800">Grand Total</span>
                     <span className="font-bold text-blue-600" data-testid="total-amount">
                       ₹{totals.total.toFixed(2)}
                     </span>
@@ -369,28 +451,26 @@ export default function Billing() {
                 </div>
               </div>
 
-              <div>
-                <Label>Payment Method</Label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  data-testid="payment-method-select"
+              <div className="pt-3 space-y-2">
+                <Button
+                  className="w-full h-9"
+                  onClick={() => handleSaveBill('draft')}
+                  disabled={loading || billItems.length === 0}
+                  variant="outline"
+                  data-testid="save-draft-btn"
                 >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="credit">Credit</option>
-                </select>
+                  Save as Draft
+                </Button>
+                <Button
+                  className="w-full h-9"
+                  onClick={() => handleSaveBill('print')}
+                  disabled={loading || billItems.length === 0}
+                  data-testid="save-print-btn"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  Save & Print
+                </Button>
               </div>
-
-              <Button
-                className="w-full"
-                onClick={handleCreateBill}
-                disabled={loading || billItems.length === 0}
-                data-testid="create-bill-btn"
-              >
-                {loading ? 'Processing...' : 'Create Bill'}
-              </Button>
             </CardContent>
           </Card>
         </div>

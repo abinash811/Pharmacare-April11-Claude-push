@@ -109,26 +109,47 @@ export default function Billing() {
   };
 
   const calculateTotals = () => {
-    const subtotal = billItems.reduce((sum, item) => sum + item.total, 0);
-    const taxAmount = (subtotal * TAX_RATE) / 100;
-    const total = subtotal + taxAmount - discount;
-    return { subtotal, taxAmount, total };
+    const subtotal = billItems.reduce((sum, item) => {
+      const baseAmount = item.mrp * item.quantity;
+      return sum + baseAmount;
+    }, 0);
+    
+    const totalDiscount = billItems.reduce((sum, item) => sum + (item.discount || 0), 0);
+    const afterDiscount = subtotal - totalDiscount;
+    const taxAmount = (afterDiscount * TAX_RATE) / 100;
+    const total = afterDiscount + taxAmount;
+    
+    return { subtotal, totalDiscount, taxAmount, total };
   };
 
-  const handleCreateBill = async () => {
+  const handleSaveBill = async (saveType) => {
     if (billItems.length === 0) {
       toast.error('Please add items to the bill');
+      return;
+    }
+
+    if (!isCounterSale && !customerName) {
+      toast.error('Please enter customer name or select counter sale');
       return;
     }
 
     setLoading(true);
     const token = localStorage.getItem('token');
 
+    const totals = calculateTotals();
     const billData = {
-      customer_name: customerName || 'Walk-in Customer',
+      customer_name: isCounterSale ? 'Counter Sale' : customerName,
       doctor_name: doctorName || null,
-      items: billItems,
-      discount: discount,
+      items: billItems.map(item => ({
+        medicine_id: item.medicine_id,
+        medicine_name: item.medicine_name,
+        batch_number: item.batch_number,
+        quantity: item.quantity,
+        rate: item.mrp,
+        discount: item.discount || 0,
+        total: item.mrp * item.quantity - (item.discount || 0)
+      })),
+      discount: totals.totalDiscount,
       tax_rate: TAX_RATE,
       payment_method: paymentMethod
     };
@@ -139,14 +160,19 @@ export default function Billing() {
       });
       
       setCurrentBill(response.data);
-      setShowPrint(true);
-      toast.success('Bill created successfully');
+      
+      if (saveType === 'print') {
+        setShowPrint(true);
+        toast.success('Bill created successfully');
+      } else {
+        toast.success('Bill saved as draft');
+      }
       
       // Reset form
       setBillItems([]);
       setCustomerName('');
       setDoctorName('');
-      setDiscount(0);
+      setIsCounterSale(false);
       
       // Refresh medicines to update stock
       fetchMedicines();

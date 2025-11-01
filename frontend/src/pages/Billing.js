@@ -61,34 +61,47 @@ export default function Billing() {
   };
 
   const addToBill = (medicine) => {
-    const existingItem = billItems.find(item => item.medicine_id === medicine.id);
-    
-    if (existingItem) {
-      updateQuantity(medicine.id, existingItem.quantity + 1);
-    } else {
-      const newItem = {
-        medicine_id: medicine.id,
-        medicine_name: medicine.name,
-        batch_number: medicine.batch_number,
-        quantity: 1,
-        rate: medicine.selling_price,
-        discount: 0,
-        total: medicine.selling_price
-      };
-      setBillItems([...billItems, newItem]);
-    }
+    const newItem = {
+      medicine_id: medicine.id,
+      medicine_name: medicine.name,
+      manufacturer: medicine.supplier_name,
+      batch_number: medicine.batch_number,
+      expiry_date: new Date(medicine.expiry_date).toISOString().substring(0, 7), // YYYY-MM format
+      quantity: 1,
+      mrp: medicine.selling_price,
+      discount: 0,
+      gst_rate: TAX_RATE,
+      rate: medicine.selling_price,
+      total: medicine.selling_price
+    };
+    setBillItems([...billItems, newItem]);
     setSearchQuery('');
     setSearchResults([]);
   };
 
-  const updateQuantity = (medicineId, newQuantity) => {
-    if (newQuantity < 1) return;
-    
-    setBillItems(billItems.map(item =>
-      item.medicine_id === medicineId
-        ? { ...item, quantity: newQuantity, total: item.rate * newQuantity - item.discount }
-        : item
-    ));
+  const updateItemField = (medicineId, field, value) => {
+    setBillItems(billItems.map(item => {
+      if (item.medicine_id === medicineId) {
+        const updatedItem = { ...item, [field]: parseFloat(value) || value };
+        
+        // Recalculate total
+        const baseAmount = updatedItem.mrp * updatedItem.quantity;
+        const afterDiscount = baseAmount - (updatedItem.discount || 0);
+        const gstAmount = (afterDiscount * updatedItem.gst_rate) / 100;
+        updatedItem.total = afterDiscount + gstAmount;
+        
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
+  const startEditing = (medicineId) => {
+    setEditingItemId(medicineId);
+  };
+
+  const stopEditing = () => {
+    setEditingItemId(null);
   };
 
   const removeItem = (medicineId) => {

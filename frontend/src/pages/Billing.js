@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, Search, Printer } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Trash2, Search, Printer, Edit2, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,11 +21,12 @@ export default function Billing() {
   const [billItems, setBillItems] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [doctorName, setDoctorName] = useState('');
-  const [discount, setDiscount] = useState(0);
+  const [isCounterSale, setIsCounterSale] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
   const [currentBill, setCurrentBill] = useState(null);
+  const [editingItemId, setEditingItemId] = useState(null);
 
   const TAX_RATE = 5; // 5% GST
 

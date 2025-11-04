@@ -92,7 +92,7 @@ export default function SalesReturnsList() {
   const getStatusBadge = (status) => {
     const styles = {
       paid: 'bg-green-100 text-green-700',
-      due: 'bg-orange-100 text-orange-700',
+      refunded: 'bg-blue-100 text-blue-700',
       draft: 'bg-gray-200 text-gray-700'
     };
     return (

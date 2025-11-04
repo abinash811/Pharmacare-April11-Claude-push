@@ -49,25 +49,25 @@ export default function SalesReturnsList() {
   };
 
   const applyFilters = () => {
-    let filtered = [...bills];
+    let filtered = [...returns];
 
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(bill =>
-        bill.bill_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        bill.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        bill.customer_mobile?.includes(searchQuery)
+      filtered = filtered.filter(ret =>
+        ret.bill_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ret.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ret.customer_mobile?.includes(searchQuery)
       );
     }
 
     // Status filter
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(bill => bill.status === filterStatus);
+      filtered = filtered.filter(ret => ret.status === filterStatus);
     }
 
     // Payment method filter
     if (filterMethod !== 'all') {
-      filtered = filtered.filter(bill => bill.payment_method === filterMethod);
+      filtered = filtered.filter(ret => ret.payment_method === filterMethod);
     }
 
     // Time filter
@@ -77,16 +77,16 @@ export default function SalesReturnsList() {
       const week = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const month = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      filtered = filtered.filter(bill => {
-        const billDate = new Date(bill.created_at);
-        if (filterTime === 'today') return billDate >= today;
-        if (filterTime === 'week') return billDate >= week;
-        if (filterTime === 'month') return billDate >= month;
+      filtered = filtered.filter(ret => {
+        const returnDate = new Date(ret.created_at);
+        if (filterTime === 'today') return returnDate >= today;
+        if (filterTime === 'week') return returnDate >= week;
+        if (filterTime === 'month') return returnDate >= month;
         return true;
       });
     }
 
-    setFilteredBills(filtered);
+    setFilteredReturns(filtered);
   };
 
   const getStatusBadge = (status) => {

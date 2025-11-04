@@ -330,7 +330,19 @@ export default function Billing() {
                           <td className="py-3 px-3 text-sm font-medium text-gray-800">{item.medicine_name}</td>
                           <td className="py-3 px-3 text-sm text-gray-600">{item.manufacturer}</td>
                           <td className="py-3 px-3 text-sm text-gray-600">{item.batch_number}</td>
-                          <td className="py-3 px-3 text-sm text-gray-600">{item.expiry_date}</td>
+                          <td className="py-3 px-3">
+                            {editingItemId === item.medicine_id ? (
+                              <Input
+                                type="text"
+                                value={item.expiry_date}
+                                onChange={(e) => updateItemField(item.medicine_id, 'expiry_date', e.target.value)}
+                                className="w-32 h-8 text-sm"
+                                placeholder="MM/YYYY"
+                              />
+                            ) : (
+                              <span className="text-sm">{item.expiry_date}</span>
+                            )}
+                          </td>
                           <td className="py-3 px-3">
                             {editingItemId === item.medicine_id ? (
                               <Input
@@ -359,7 +371,20 @@ export default function Billing() {
                               <span className="text-sm">{item.discount_percent}%</span>
                             )}
                           </td>
-                          <td className="py-3 px-3 text-sm text-gray-600">{item.gst_rate}%</td>
+                          <td className="py-3 px-3">
+                            {editingItemId === item.medicine_id ? (
+                              <Input
+                                type="number"
+                                value={item.gst_rate}
+                                onChange={(e) => updateItemField(item.medicine_id, 'gst_rate', e.target.value)}
+                                className="w-16 h-8 text-sm"
+                                min="0"
+                                max="100"
+                              />
+                            ) : (
+                              <span className="text-sm">{item.gst_rate}%</span>
+                            )}
+                          </td>
                           <td className="py-3 px-3 text-sm font-semibold text-gray-800">₹{item.total.toFixed(2)}</td>
                           <td className="py-3 px-3">
                             <div className="flex gap-1">

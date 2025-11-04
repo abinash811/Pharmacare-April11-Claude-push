@@ -598,8 +598,9 @@ async def get_expiring_medicines(current_user: User = Depends(get_current_user))
 @api_router.post("/bills", response_model=Bill)
 async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user)):
     # Generate bill number
-    bill_count = await db.bills.count_documents({})
-    bill_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{bill_count + 1:04d}"
+    prefix = "RTN" if bill_data.invoice_type == "SALES_RETURN" else "INV"
+    bill_count = await db.bills.count_documents({"invoice_type": bill_data.invoice_type})
+    bill_number = f"{prefix}-{datetime.now().strftime('%Y%m%d')}-{bill_count + 1:04d}"
     
     # Calculate totals
     subtotal = sum(item['total'] for item in bill_data.items)
@@ -608,8 +609,12 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     
     bill = Bill(
         bill_number=bill_number,
+        invoice_type=bill_data.invoice_type,
+        ref_invoice_id=bill_data.ref_invoice_id,
+        status=bill_data.status,
         customer_id=bill_data.customer_id,
         customer_name=bill_data.customer_name,
+        customer_mobile=bill_data.customer_mobile,
         doctor_id=bill_data.doctor_id,
         doctor_name=bill_data.doctor_name,
         items=bill_data.items,
@@ -623,12 +628,28 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         cashier_name=current_user.name
     )
     
-    # Update stock
+    # Update stock and create stock movements
     for item in bill_data.items:
+        quantity_change = -item['quantity'] if bill_data.invoice_type == "SALE" else item['quantity']
+        
+        # Update medicine stock
         await db.medicines.update_one(
             {"id": item['medicine_id']},
-            {"$inc": {"quantity": -item['quantity']}}
+            {"$inc": {"quantity": quantity_change}}
         )
+        
+        # Create stock movement record
+        movement = StockMovement(
+            medicine_id=item['medicine_id'],
+            medicine_name=item['medicine_name'],
+            batch_number=item.get('batch_number', 'N/A'),
+            quantity=quantity_change,
+            movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
+            ref_id=bill.id
+        )
+        movement_doc = movement.model_dump()
+        movement_doc['created_at'] = movement_doc['created_at'].isoformat()
+        await db.stock_movements.insert_one(movement_doc)
     
     doc = bill.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()

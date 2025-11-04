@@ -221,8 +221,8 @@ export default function Billing() {
       <div className="p-8">
         <Card>
           <CardContent className="p-6">
-            {/* Top Row - Customer Details */}
-            <div className="grid grid-cols-5 gap-4 mb-6">
+            {/* Top Row - Customer Details (4 fields) */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Patient Name *</label>
                 <Input
@@ -264,35 +264,37 @@ export default function Billing() {
                   <option value="credit">Credit</option>
                 </select>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Search Medicine</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="pl-10"
-                    data-testid="medicine-search"
-                  />
-                  {searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {searchResults.map((med) => (
-                        <div
-                          key={med.id}
-                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0"
-                          onClick={() => addToBill(med)}
-                          data-testid={`search-result-${med.id}`}
-                        >
-                          <div className="font-medium text-gray-800">{med.name}</div>
-                          <div className="text-xs text-gray-600">
-                            Batch: {med.batch_number} | Stock: {med.quantity} | ₹{med.selling_price}
-                          </div>
+            </div>
+
+            {/* Search Medicine - Main Focus */}
+            <div className="mb-6">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Search Medicine</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Type medicine name or batch number to search..."
+                  className="pl-10 h-12 text-base"
+                  data-testid="medicine-search"
+                />
+                {searchResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {searchResults.map((med) => (
+                      <div
+                        key={med.id}
+                        className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0"
+                        onClick={() => addToBill(med)}
+                        data-testid={`search-result-${med.id}`}
+                      >
+                        <div className="font-medium text-gray-800">{med.name}</div>
+                        <div className="text-xs text-gray-600">
+                          Batch: {med.batch_number} | Stock: {med.quantity} | ₹{med.selling_price}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -224,38 +224,38 @@ export default function SalesReturnsList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBills.length === 0 ? (
+                  {filteredReturns.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="text-center py-12 text-gray-500">
-                        No bills found
+                        No sales returns yet. Add your first return.
                       </td>
                     </tr>
                   ) : (
-                    filteredBills.map((bill) => (
-                      <tr key={bill.id} className="border-b hover:bg-gray-50">
+                    filteredReturns.map((ret) => (
+                      <tr key={ret.id} className="border-b hover:bg-gray-50">
                         <td className="py-4 px-4">
-                          <div className="font-medium text-blue-600">{bill.bill_number}</div>
+                          <div className="font-medium text-blue-600">{ret.bill_number}</div>
                         </td>
                         <td className="py-4 px-4">
                           <div className="font-medium text-gray-800">
-                            {bill.customer_name || 'Walk-in'}
+                            {ret.customer_name || 'Walk-in'}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {bill.customer_mobile || 'N/A'}
+                            {ret.customer_mobile || 'N/A'}
                           </div>
                         </td>
                         <td className="py-4 px-4 text-sm text-gray-600">
-                          {new Date(bill.created_at).toLocaleDateString()}
+                          {new Date(ret.created_at).toLocaleDateString()}
                         </td>
                         <td className="py-4 px-4 font-semibold text-gray-800">
-                          ₹{bill.total_amount.toFixed(2)}
+                          ₹{ret.total_amount.toFixed(2)}
                         </td>
                         <td className="py-4 px-4">
                           <span className="capitalize text-sm text-gray-600">
-                            {bill.payment_method}
+                            {ret.payment_method}
                           </span>
                         </td>
-                        <td className="py-4 px-4">{getStatusBadge(bill.status)}</td>
+                        <td className="py-4 px-4">{getStatusBadge(ret.status)}</td>
                         <td className="py-4 px-4">
                           <div className="flex gap-2">
                             <button className="p-2 hover:bg-gray-100 rounded">

@@ -128,17 +128,17 @@ export default function SalesReturnsList() {
         <div className="grid grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Revenue</div>
-              <div className="text-2xl font-bold text-green-600">
-                ₹{analytics?.gross_sales?.toLocaleString() || 0}
+              <div className="text-sm text-gray-600">Total Returns</div>
+              <div className="text-2xl font-bold text-red-600">
+                ₹{analytics?.returns?.toLocaleString() || 0}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Pending</div>
+              <div className="text-sm text-gray-600">Pending Refunds</div>
               <div className="text-2xl font-bold text-orange-600">
-                ₹{analytics?.pending_amount?.toLocaleString() || 0}
+                ₹0
               </div>
             </CardContent>
           </Card>
@@ -146,7 +146,7 @@ export default function SalesReturnsList() {
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Today</div>
               <div className="text-2xl font-bold text-blue-600">
-                ₹{analytics?.today_sales?.toLocaleString() || 0}
+                ₹0
               </div>
             </CardContent>
           </Card>
@@ -154,7 +154,7 @@ export default function SalesReturnsList() {
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Drafts</div>
               <div className="text-2xl font-bold text-gray-600">
-                {analytics?.draft_count || 0}
+                0
               </div>
             </CardContent>
           </Card>

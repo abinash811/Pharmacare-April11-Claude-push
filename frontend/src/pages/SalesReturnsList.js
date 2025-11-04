@@ -170,7 +170,7 @@ export default function SalesReturnsList() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <Input
-                  placeholder="Search patient, mobile, bill #..."
+                  placeholder="Search patient, mobile, return ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"

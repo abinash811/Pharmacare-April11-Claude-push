@@ -214,7 +214,7 @@ export default function SalesReturnsList() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Bill #</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Return #</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Patient Details</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Date</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>

@@ -193,8 +193,7 @@ export default function SalesReturnsList() {
                 className="px-4 py-2 border rounded-lg text-sm"
               >
                 <option value="all">All Status</option>
-                <option value="paid">Paid</option>
-                <option value="due">Due</option>
+                <option value="refunded">Refunded</option>
                 <option value="draft">Draft</option>
               </select>
               <select

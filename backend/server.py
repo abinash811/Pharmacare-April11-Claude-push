@@ -658,11 +658,26 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     return bill
 
 @api_router.get("/bills", response_model=List[Bill])
-async def get_bills(current_user: User = Depends(get_current_user)):
-    bills = await db.bills.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+async def get_bills(
+    invoice_type: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    query = {}
+    if invoice_type:
+        query["invoice_type"] = invoice_type
+    if status:
+        query["status"] = status
+        
+    bills = await db.bills.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     for bill in bills:
         if isinstance(bill['created_at'], str):
             bill['created_at'] = datetime.fromisoformat(bill['created_at'])
+        # Set default values for new fields if not present
+        if 'invoice_type' not in bill:
+            bill['invoice_type'] = 'SALE'
+        if 'status' not in bill:
+            bill['status'] = 'paid'
     return bills
 
 @api_router.get("/bills/{bill_id}", response_model=Bill)

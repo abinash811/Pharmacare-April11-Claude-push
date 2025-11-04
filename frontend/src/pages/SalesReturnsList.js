@@ -32,15 +32,15 @@ export default function SalesReturnsList() {
   const fetchData = async () => {
     const token = localStorage.getItem('token');
     try {
-      const [billsRes, analyticsRes] = await Promise.all([
-        axios.get(`${API}/bills?invoice_type=SALE`, {
+      const [returnsRes, analyticsRes] = await Promise.all([
+        axios.get(`${API}/bills?invoice_type=SALES_RETURN`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API}/analytics/summary`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
-      setBills(billsRes.data);
+      setReturns(returnsRes.data);
       setAnalytics(analyticsRes.data);
     } catch (error) {
       toast.error('Failed to load data');

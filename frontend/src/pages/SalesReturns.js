@@ -175,7 +175,7 @@ export default function Billing() {
 
   const handlePrint = () => {
     window.print();
-    navigate("/sales-returns")');
+    navigate("/sales-returns");
   };
 
   const totals = calculateTotals();

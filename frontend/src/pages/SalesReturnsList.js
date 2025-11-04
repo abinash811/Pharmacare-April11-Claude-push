@@ -12,8 +12,8 @@ const API = `${BACKEND_URL}/api`;
 
 export default function SalesReturnsList() {
   const navigate = useNavigate();
-  const [bills, setBills] = useState([]);
-  const [filteredBills, setFilteredBills] = useState([]);
+  const [returns, setReturns] = useState([]);
+  const [filteredReturns, setFilteredReturns] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

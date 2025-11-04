@@ -106,18 +106,25 @@ class MedicineUpdate(BaseModel):
 class BillItem(BaseModel):
     medicine_id: str
     medicine_name: str
+    manufacturer: str
     batch_number: str
+    expiry_date: str
     quantity: int
-    rate: float
+    mrp: float
     discount: float = 0
+    gst_rate: float
     total: float
 
 class Bill(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     bill_number: str
+    invoice_type: str = "SALE"  # SALE or SALES_RETURN
+    ref_invoice_id: Optional[str] = None  # for returns
+    status: str = "paid"  # draft, paid, due, refunded
     customer_id: Optional[str] = None
     customer_name: Optional[str] = None
+    customer_mobile: Optional[str] = None
     doctor_id: Optional[str] = None
     doctor_name: Optional[str] = None
     items: List[Dict[str, Any]]
@@ -126,7 +133,7 @@ class Bill(BaseModel):
     tax_rate: float
     tax_amount: float
     total_amount: float
-    payment_method: str  # cash, card, credit
+    payment_method: str  # cash, upi, card, credit
     cashier_id: str
     cashier_name: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -134,12 +141,36 @@ class Bill(BaseModel):
 class BillCreate(BaseModel):
     customer_id: Optional[str] = None
     customer_name: Optional[str] = None
+    customer_mobile: Optional[str] = None
     doctor_id: Optional[str] = None
     doctor_name: Optional[str] = None
     items: List[Dict[str, Any]]
     discount: float = 0
     tax_rate: float
     payment_method: str
+    status: str = "paid"  # draft or paid
+    invoice_type: str = "SALE"
+    ref_invoice_id: Optional[str] = None
+
+# Stock Movement Models
+class StockMovement(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    medicine_id: str
+    medicine_name: str
+    batch_number: str
+    quantity: int  # negative for sales, positive for returns
+    movement_type: str  # sale, sales_return, purchase
+    ref_id: str  # bill_id or purchase_id
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StockMovementCreate(BaseModel):
+    medicine_id: str
+    medicine_name: str
+    batch_number: str
+    quantity: int
+    movement_type: str
+    ref_id: str
 
 # Purchase Models
 class Purchase(BaseModel):

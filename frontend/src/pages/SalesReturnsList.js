@@ -27,7 +27,7 @@ export default function SalesReturnsList() {
 
   useEffect(() => {
     applyFilters();
-  }, [bills, searchQuery, filterStatus, filterMethod, filterTime]);
+  }, [returns, searchQuery, filterStatus, filterMethod, filterTime]);
 
   const fetchData = async () => {
     const token = localStorage.getItem('token');

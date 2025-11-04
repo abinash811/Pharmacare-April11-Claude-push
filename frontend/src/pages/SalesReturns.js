@@ -165,7 +165,7 @@ export default function Billing() {
         setShowConfirm(true);
       } else {
         toast.success('Bill saved as draft');
-        navigate("/sales-returns")');
+        navigate("/sales-returns");
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create bill');

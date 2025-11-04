@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-export default function BillingList() {
+export default function SalesReturnsList() {
   const navigate = useNavigate();
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);

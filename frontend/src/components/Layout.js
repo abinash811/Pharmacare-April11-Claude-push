@@ -10,7 +10,8 @@ import {
   Users,
   FileText,
   Settings,
-  LogOut
+  LogOut,
+  CornerUpLeft
 } from 'lucide-react';
 
 export default function Layout() {
@@ -19,6 +20,7 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Billing', path: '/billing', icon: ShoppingCart },
+    { name: 'Sales Returns', path: '/sales-returns', icon: CornerUpLeft },
     { name: 'Inventory', path: '/inventory', icon: Package },
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag },
     { name: 'Customers', path: '/customers', icon: Users },
@@ -28,9 +30,9 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar - More compact */}
-      <aside className="w-56 bg-white border-r border-gray-200 flex flex-col" data-testid="sidebar">
-        <div className="p-4 border-b border-gray-200">
+      {/* Sidebar - Dark Blue Theme */}
+      <aside className="w-56 bg-[#001F3F] flex flex-col" data-testid="sidebar">
+        <div className="p-4 border-b border-blue-900">
           <div className="flex items-center space-x-2">
             <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,8 +40,8 @@ export default function Layout() {
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-semibold text-gray-800">PharmaCare</h2>
-              <p className="text-xs text-gray-500">v1.0</p>
+              <h2 className="text-base font-semibold text-white">PharmaCare</h2>
+              <p className="text-xs text-blue-300">v1.0</p>
             </div>
           </div>
         </div>
@@ -52,33 +54,33 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors text-sm ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-[#4682B4] text-white font-semibold'
+                    : 'text-blue-100 hover:bg-blue-900'
                 }`
               }
-              data-testid={`nav-${item.name.toLowerCase()}`}
+              data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={`w-4 h-4 ${isActive ? 'text-blue-700' : 'text-gray-500'}`} />
-                  <span className="font-medium">{item.name}</span>
+                  <item.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-blue-300'}`} />
+                  <span>{item.name}</span>
                 </>
               )}
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-3 border-t border-gray-200">
+        <div className="p-3 border-t border-blue-900">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <p className="text-xs font-medium text-gray-800" data-testid="user-name">{user?.name}</p>
-              <p className="text-xs text-gray-500" data-testid="user-role">{user?.role}</p>
+              <p className="text-xs font-medium text-white" data-testid="user-name">{user?.name}</p>
+              <p className="text-xs text-blue-300" data-testid="user-role">{user?.role}</p>
             </div>
           </div>
           <Button
             variant="outline"
             size="sm"
-            className="w-full text-xs h-8"
+            className="w-full text-xs h-8 bg-transparent border-blue-700 text-blue-100 hover:bg-blue-900 hover:text-white"
             onClick={logout}
             data-testid="logout-btn"
           >

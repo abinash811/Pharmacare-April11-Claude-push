@@ -899,6 +899,126 @@ async def get_sales_report(
         }
     }
 
+# ==================== ANALYTICS ====================
+
+@api_router.get("/analytics/summary")
+async def get_analytics_summary(current_user: User = Depends(get_current_user)):
+    try:
+        # Get all bills (sales and returns)
+        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
+        
+        gross_sales = 0
+        returns = 0
+        pending_amount = 0
+        draft_count = 0
+        today_sales = 0
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        for bill in all_bills:
+            try:
+                invoice_type = bill.get('invoice_type', 'SALE')
+                status = bill.get('status', 'paid')
+                amount = bill.get('total_amount', 0)
+                
+                created_at = bill['created_at']
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                
+                if invoice_type == 'SALE':
+                    if status in ['paid', 'due']:
+                        gross_sales += amount
+                        if created_at >= today_start and status == 'paid':
+                            today_sales += amount
+                    if status == 'due':
+                        pending_amount += amount
+                    elif status == 'draft':
+                        draft_count += 1
+                elif invoice_type == 'SALES_RETURN':
+                    if status in ['paid', 'refunded']:
+                        returns += amount
+                        
+            except Exception as e:
+                logger.warning(f"Error processing bill for analytics: {e}")
+                continue
+        
+        net_sales = gross_sales - returns
+        return_percentage = (returns / gross_sales * 100) if gross_sales > 0 else 0
+        
+        return {
+            "gross_sales": round(gross_sales, 2),
+            "returns": round(returns, 2),
+            "net_sales": round(net_sales, 2),
+            "return_percentage": round(return_percentage, 2),
+            "pending_amount": round(pending_amount, 2),
+            "today_sales": round(today_sales, 2),
+            "draft_count": draft_count
+        }
+    except Exception as e:
+        logger.error(f"Analytics summary error: {e}")
+        return {
+            "gross_sales": 0,
+            "returns": 0,
+            "net_sales": 0,
+            "return_percentage": 0,
+            "pending_amount": 0,
+            "today_sales": 0,
+            "draft_count": 0
+        }
+
+@api_router.get("/analytics/daily")
+async def get_daily_analytics(days: int = 7, current_user: User = Depends(get_current_user)):
+    try:
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
+        
+        # Group by date
+        daily_data = {}
+        
+        for bill in all_bills:
+            try:
+                created_at = bill['created_at']
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                
+                if created_at < start_date:
+                    continue
+                
+                date_key = created_at.strftime('%Y-%m-%d')
+                if date_key not in daily_data:
+                    daily_data[date_key] = {'sales': 0, 'returns': 0, 'net': 0}
+                
+                invoice_type = bill.get('invoice_type', 'SALE')
+                amount = bill.get('total_amount', 0)
+                
+                if invoice_type == 'SALE' and bill.get('status') in ['paid', 'due']:
+                    daily_data[date_key]['sales'] += amount
+                elif invoice_type == 'SALES_RETURN' and bill.get('status') in ['paid', 'refunded']:
+                    daily_data[date_key]['returns'] += amount
+                
+                daily_data[date_key]['net'] = daily_data[date_key]['sales'] - daily_data[date_key]['returns']
+            except Exception as e:
+                logger.warning(f"Error processing bill for daily analytics: {e}")
+                continue
+        
+        # Convert to list
+        result = []
+        for date_str in sorted(daily_data.keys()):
+            result.append({
+                "date": date_str,
+                "sales": round(daily_data[date_str]['sales'], 2),
+                "returns": round(daily_data[date_str]['returns'], 2),
+                "net": round(daily_data[date_str]['net'], 2)
+            })
+        
+        return result
+    except Exception as e:
+        logger.error(f"Daily analytics error: {e}")
+        return []
+
 # ==================== USER MANAGEMENT ====================
 
 @api_router.get("/users", response_model=List[User])

@@ -112,16 +112,16 @@ export default function SalesReturnsList() {
       <div className="bg-white border-b px-8 py-4">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Bills & Invoices</h1>
-            <p className="text-sm text-gray-600">Track and manage billing</p>
+            <h1 className="text-2xl font-bold text-gray-800">Sales Returns</h1>
+            <p className="text-sm text-gray-600">Track and manage product returns</p>
           </div>
           <Button
-            onClick={() => navigate('/billing/create')}
+            onClick={() => navigate('/sales-returns/create')}
             className="bg-blue-600 hover:bg-blue-700"
-            data-testid="new-bill-btn"
+            data-testid="new-return-btn"
           >
             <Plus className="w-4 h-4 mr-2" />
-            New Bill
+            New Sales Return
           </Button>
         </div>
 

@@ -1456,6 +1456,26 @@ async def create_payment(payment_data: PaymentCreate, current_user: User = Depen
         }}
     )
     
+    # Audit log for payment
+    await create_audit_log(
+        entity_type='payment',
+        entity_id=payment.id,
+        action='create',
+        user=current_user,
+        new_value=payment_doc
+    )
+    
+    # Audit log for invoice status change
+    if invoice.get('status') != new_status:
+        await create_audit_log(
+            entity_type='invoice',
+            entity_id=payment_data.invoice_id,
+            action='status_change',
+            user=current_user,
+            old_value={'status': invoice.get('status'), 'due_amount': invoice.get('due_amount', 0)},
+            new_value={'status': new_status, 'due_amount': new_due_amount}
+        )
+    
     return payment
 
 @api_router.get("/payments")

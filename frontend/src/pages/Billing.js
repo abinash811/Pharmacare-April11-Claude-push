@@ -274,6 +274,38 @@ export default function Billing() {
       <div className="p-8">
         <Card>
           <CardContent className="p-6">
+            {/* Original Bill Selector - For Returns Only */}
+            {billType === 'return' && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Select Original Bill to Return *
+                </label>
+                <div className="flex gap-4">
+                  <select
+                    value={originalBillId}
+                    onChange={(e) => {
+                      setOriginalBillId(e.target.value);
+                      loadOriginalBill(e.target.value);
+                    }}
+                    className="flex-1 h-10 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                    data-testid="original-bill-select"
+                  >
+                    <option value="">Choose original bill...</option>
+                    {bills.map((bill) => (
+                      <option key={bill.id} value={bill.id}>
+                        {bill.bill_number} - {bill.customer_name} - ₹{bill.total_amount.toFixed(2)} ({new Date(bill.created_at).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {originalBill && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    ✓ Loaded: {originalBill.items.length} items from {originalBill.bill_number}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Top Row - Customer Details (4 fields) */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div>

@@ -171,16 +171,18 @@ class MedicineUpdate(BaseModel):
 
 # Bill Models
 class BillItem(BaseModel):
-    medicine_id: str
-    medicine_name: str
-    manufacturer: str
-    batch_number: str
+    product_id: str  # Updated from medicine_id
+    batch_id: str  # New field for batch tracking
+    product_name: str  # Updated from medicine_name
+    brand: Optional[str] = None
+    batch_no: str  # Updated from batch_number
     expiry_date: str
     quantity: int
+    unit_price: float  # The actual selling price
     mrp: float
     discount: float = 0
-    gst_rate: float
-    total: float
+    gst_percent: float  # Updated from gst_rate
+    line_total: float  # Updated from total
 
 class Bill(BaseModel):
     model_config = ConfigDict(extra="ignore")

@@ -1245,9 +1245,41 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             movement_doc['created_at'] = movement_doc['created_at'].isoformat()
             await db.stock_movements.insert_one(movement_doc)
     
+    # Save bill first
     doc = bill.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     await db.bills.insert_one(doc)
+    
+    # Create payment records if payments provided
+    if bill_data.payments and len(bill_data.payments) > 0:
+        for payment_data in bill_data.payments:
+            payment = Payment(
+                invoice_id=bill.id,
+                amount=payment_data.get('amount', 0),
+                payment_method=payment_data.get('method', 'cash'),
+                reference_number=payment_data.get('reference', None),
+                notes=payment_data.get('notes', None),
+                created_by=current_user.id
+            )
+            payment_doc = payment.model_dump()
+            payment_doc['created_at'] = payment_doc['created_at'].isoformat()
+            await db.payments.insert_one(payment_doc)
+    
+    # Create refund record for sales returns if refund data provided
+    if bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
+        refund = Refund(
+            return_invoice_id=bill.id,
+            original_invoice_id=bill_data.ref_invoice_id,
+            amount=bill_data.refund.get('amount', total_amount),
+            refund_method=bill_data.refund.get('method', 'cash'),
+            reference_number=bill_data.refund.get('reference', None),
+            reason=bill_data.refund.get('reason', None),
+            notes=bill_data.refund.get('notes', None),
+            created_by=current_user.id
+        )
+        refund_doc = refund.model_dump()
+        refund_doc['created_at'] = refund_doc['created_at'].isoformat()
+        await db.refunds.insert_one(refund_doc)
     
     return bill
 

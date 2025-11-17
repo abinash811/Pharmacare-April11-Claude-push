@@ -873,6 +873,41 @@ async def update_stock_batch(
 @api_router.get("/stock/summary")
 async def get_stock_summary(
     product_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get stock summary by product (total qty across all batches)"""
+    query = {}
+    if product_id:
+        query["product_id"] = product_id
+    
+    batches = await db.stock_batches.find(query, {"_id": 0}).to_list(10000)
+    
+    # Group by product
+    summary = {}
+    for batch in batches:
+        pid = batch['product_id']
+        if pid not in summary:
+            product = await db.products.find_one({"id": pid}, {"_id": 0})
+            summary[pid] = {
+                "product_id": pid,
+                "product_name": product['name'] if product else "Unknown",
+                "product_sku": product['sku'] if product else "",
+                "total_qty": 0,
+                "batches_count": 0,
+                "earliest_expiry": None
+            }
+        
+        summary[pid]["total_qty"] += batch['qty_on_hand']
+        summary[pid]["batches_count"] += 1
+        
+        expiry = batch['expiry_date']
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry)
+        
+        if summary[pid]["earliest_expiry"] is None or expiry < summary[pid]["earliest_expiry"]:
+            summary[pid]["earliest_expiry"] = expiry
+    
+    return list(summary.values())
 
 @api_router.get("/products/search-with-batches")
 async def search_products_with_batches(

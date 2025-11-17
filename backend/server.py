@@ -64,7 +64,74 @@ class SessionCreate(BaseModel):
     name: str
     expires_at: datetime
 
-# Medicine Models
+# Product Models (Master Data)
+class Product(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku: str  # Unique product code
+    name: str
+    brand: Optional[str] = None
+    pack_size: Optional[str] = None  # e.g., "10 tablets", "100ml"
+    category: Optional[str] = None
+    default_mrp: float
+    gst_percent: float = 5.0
+    hsn_code: Optional[str] = None
+    description: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ProductCreate(BaseModel):
+    sku: str
+    name: str
+    brand: Optional[str] = None
+    pack_size: Optional[str] = None
+    category: Optional[str] = None
+    default_mrp: float
+    gst_percent: float = 5.0
+    hsn_code: Optional[str] = None
+    description: Optional[str] = None
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    brand: Optional[str] = None
+    pack_size: Optional[str] = None
+    category: Optional[str] = None
+    default_mrp: Optional[float] = None
+    gst_percent: Optional[float] = None
+    hsn_code: Optional[str] = None
+    description: Optional[str] = None
+
+# Stock Batch Models (Inventory)
+class StockBatch(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    product_id: str
+    batch_no: str
+    expiry_date: datetime
+    qty_on_hand: int
+    cost_price: float  # Purchase price
+    mrp: float
+    supplier_name: Optional[str] = None
+    location_id: Optional[str] = "default"  # For multi-location support
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StockBatchCreate(BaseModel):
+    product_id: str
+    batch_no: str
+    expiry_date: str
+    qty_on_hand: int
+    cost_price: float
+    mrp: float
+    supplier_name: Optional[str] = None
+    location_id: Optional[str] = "default"
+
+class StockBatchUpdate(BaseModel):
+    qty_on_hand: Optional[int] = None
+    cost_price: Optional[float] = None
+    mrp: Optional[float] = None
+
+# Legacy Medicine Models (for backward compatibility during migration)
 class Medicine(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

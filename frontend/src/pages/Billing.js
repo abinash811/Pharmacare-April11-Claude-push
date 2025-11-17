@@ -232,7 +232,14 @@ export default function Billing() {
       <div className="bg-white border-b px-8 py-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Create New Bill</h1>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {billType === 'return' ? 'Create New Return' : 'Create New Bill'}
+            </h1>
+            {billType === 'return' && (
+              <p className="text-sm text-red-600 mt-1">
+                ⚠️ This will increase stock and process refund
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -257,7 +264,7 @@ export default function Billing() {
               data-testid="save-print-btn"
             >
               <Printer className="w-4 h-4 mr-2" />
-              Save & Print
+              {billType === 'return' ? 'Process Return' : 'Save & Print'}
             </Button>
           </div>
         </div>

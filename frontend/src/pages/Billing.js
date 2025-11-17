@@ -15,7 +15,11 @@ const API = `${BACKEND_URL}/api`;
 export default function Billing() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const [searchParams] = useSearchParams();
+  const billType = searchParams.get('type') || 'sale'; // 'sale' or 'return'
+  
   const [medicines, setMedicines] = useState([]);
+  const [bills, setBills] = useState([]); // For linking returns to original bills
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [billItems, setBillItems] = useState([]);
@@ -23,6 +27,8 @@ export default function Billing() {
   const [customerMobile, setCustomerMobile] = useState('');
   const [doctorName, setDoctorName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [originalBillId, setOriginalBillId] = useState(''); // For returns
+  const [originalBill, setOriginalBill] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [currentBill, setCurrentBill] = useState(null);
@@ -32,7 +38,10 @@ export default function Billing() {
 
   useEffect(() => {
     fetchMedicines();
-  }, []);
+    if (billType === 'return') {
+      fetchBills();
+    }
+  }, [billType]);
 
   const fetchMedicines = async () => {
     const token = localStorage.getItem('token');

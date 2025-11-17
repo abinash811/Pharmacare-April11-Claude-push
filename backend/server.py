@@ -873,6 +873,112 @@ async def update_stock_batch(
 @api_router.get("/stock/summary")
 async def get_stock_summary(
     product_id: Optional[str] = None,
+
+# ==================== MIGRATION ROUTE ====================
+
+@api_router.post("/migrate/medicines-to-products")
+async def migrate_medicines_to_products(current_user: User = Depends(get_current_user)):
+    """
+    One-time migration: Convert old Medicine documents to Product + StockBatch model
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can run migrations")
+    
+    try:
+        medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
+        
+        if not medicines:
+            return {
+                "message": "No medicines to migrate",
+                "products_created": 0,
+                "batches_created": 0
+            }
+        
+        products_created = 0
+        batches_created = 0
+        errors = []
+        
+        for med in medicines:
+            try:
+                # Generate SKU from name if not exists
+                sku = med.get('hsn_code') or f"MED-{med['id'][:8]}"
+                
+                # Check if product already exists
+                existing_product = await db.products.find_one({"sku": sku}, {"_id": 0})
+                
+                if not existing_product:
+                    # Create Product
+                    product = Product(
+                        id=med['id'],  # Keep same ID for consistency
+                        sku=sku,
+                        name=med['name'],
+                        brand=None,
+                        pack_size=None,
+                        category=None,
+                        default_mrp=med.get('mrp', 0),
+                        gst_percent=5.0,
+                        hsn_code=med.get('hsn_code'),
+                        description=None
+                    )
+                    
+                    product_doc = product.model_dump()
+                    product_doc['created_at'] = med.get('created_at', datetime.now(timezone.utc).isoformat())
+                    if isinstance(product_doc['created_at'], datetime):
+                        product_doc['created_at'] = product_doc['created_at'].isoformat()
+                    product_doc['updated_at'] = med.get('updated_at', datetime.now(timezone.utc).isoformat())
+                    if isinstance(product_doc['updated_at'], datetime):
+                        product_doc['updated_at'] = product_doc['updated_at'].isoformat()
+                    
+                    await db.products.insert_one(product_doc)
+                    products_created += 1
+                    product_id = med['id']
+                else:
+                    product_id = existing_product['id']
+                
+                # Create StockBatch
+                expiry = med.get('expiry_date')
+                if isinstance(expiry, str):
+                    expiry = datetime.fromisoformat(expiry)
+                elif not isinstance(expiry, datetime):
+                    expiry = datetime.now(timezone.utc) + timedelta(days=365)
+                
+                batch = StockBatch(
+                    product_id=product_id,
+                    batch_no=med.get('batch_number', 'BATCH-001'),
+                    expiry_date=expiry,
+                    qty_on_hand=med.get('quantity', 0),
+                    cost_price=med.get('purchase_rate', 0),
+                    mrp=med.get('mrp', 0),
+                    supplier_name=med.get('supplier_name'),
+                    location_id="default"
+                )
+                
+                batch_doc = batch.model_dump()
+                batch_doc['created_at'] = batch_doc['created_at'].isoformat()
+                batch_doc['updated_at'] = batch_doc['updated_at'].isoformat()
+                batch_doc['expiry_date'] = batch_doc['expiry_date'].isoformat()
+                
+                await db.stock_batches.insert_one(batch_doc)
+                batches_created += 1
+                
+            except Exception as e:
+                errors.append(f"Error migrating medicine {med.get('id', 'unknown')}: {str(e)}")
+                logger.error(f"Migration error for medicine {med.get('id')}: {e}")
+                continue
+        
+        return {
+            "message": "Migration completed",
+            "products_created": products_created,
+            "batches_created": batches_created,
+            "total_medicines_processed": len(medicines),
+            "errors": errors
+        }
+    
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+
+
     current_user: User = Depends(get_current_user)
 ):
     """Get stock summary by product (total qty across all batches)"""

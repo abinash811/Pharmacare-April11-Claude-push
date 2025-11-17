@@ -309,11 +309,29 @@ export default function BillingNew() {
       })),
       discount: billDiscount,
       tax_rate: TAX_RATE,
-      payment_method: paymentMethod,
       status: status,
       invoice_type: billType === 'return' ? 'SALES_RETURN' : 'SALE',
       ref_invoice_id: billType === 'return' ? originalBillId : null
     };
+    
+    // Add payments if status is paid
+    if (status === 'paid') {
+      billData.payments = payments.map(p => ({
+        method: p.method,
+        amount: p.amount,
+        reference: p.reference || null
+      }));
+    }
+    
+    // Add refund for returns
+    if (billType === 'return' && status === 'paid') {
+      billData.refund = {
+        method: refundMethod,
+        amount: totals.total,
+        reason: refundReason || 'customer_request',
+        reference: refundReference || null
+      };
+    }
 
     try {
       const response = await axios.post(`${API}/bills`, billData, {

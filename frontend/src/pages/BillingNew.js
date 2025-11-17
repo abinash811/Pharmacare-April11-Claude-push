@@ -445,56 +445,24 @@ export default function BillingNew() {
                 <Button
                   type="button"
                   size="sm"
-                  variant={scanMode ? "default" : "outline"}
-                  onClick={() => {
-                    setScanMode(!scanMode);
-                    if (!scanMode) {
-                      setTimeout(() => {
-                        document.getElementById('barcode-input')?.focus();
-                      }, 100);
-                    }
-                  }}
+                  variant="outline"
+                  onClick={() => setShowBarcodeScanner(true)}
                   className="gap-2"
                 >
-                  <Package className="w-4 h-4" />
-                  {scanMode ? 'Scanning...' : 'Scan Barcode'}
+                  <Camera className="w-4 h-4" />
+                  Scan Barcode
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {/* Barcode Scanner Input */}
-                {scanMode && (
-                  <div className="relative">
-                    <Package className="absolute left-3 top-3 h-4 w-4 text-green-600 animate-pulse" />
-                    <Input
-                      id="barcode-input"
-                      placeholder="Scan barcode or type SKU and press Enter..."
-                      value={barcodeInput}
-                      onChange={(e) => setBarcodeInput(e.target.value)}
-                      onKeyDown={handleBarcodeInput}
-                      className="pl-9 border-green-500 focus:border-green-600 bg-green-50"
-                      autoFocus
-                    />
-                    {lastScannedCode && (
-                      <div className="absolute right-3 top-3 text-xs text-green-600 font-medium">
-                        Last: {lastScannedCode}
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Manual Search Input */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search by product name, SKU, or brand..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-9"
-                    disabled={scanMode}
-                  />
-                </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by product name, SKU, or brand..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-9"
+                />
               </div>
               
               {/* Search Results */}

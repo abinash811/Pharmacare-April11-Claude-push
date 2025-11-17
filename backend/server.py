@@ -1517,6 +1517,57 @@ async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
     await db.refunds.insert_one(refund_doc)
     
     # Update return invoice status to refunded
+
+
+# ==================== AUDIT LOG ROUTES ====================
+
+@api_router.get("/audit-logs")
+async def get_audit_logs(
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    action: Optional[str] = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user)
+):
+    """Get audit logs with optional filters"""
+    query = {}
+    if entity_type:
+        query["entity_type"] = entity_type
+    if entity_id:
+        query["entity_id"] = entity_id
+    if action:
+        query["action"] = action
+    
+    logs = await db.audit_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    for log in logs:
+        if isinstance(log['created_at'], str):
+            log['created_at'] = datetime.fromisoformat(log['created_at'])
+    
+    return logs
+
+@api_router.get("/audit-logs/entity/{entity_type}/{entity_id}")
+async def get_entity_audit_trail(
+    entity_type: str,
+    entity_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get complete audit trail for a specific entity"""
+    logs = await db.audit_logs.find(
+        {
+            "entity_type": entity_type,
+            "entity_id": entity_id
+        },
+        {"_id": 0}
+    ).sort("created_at", 1).to_list(1000)
+    
+    for log in logs:
+        if isinstance(log['created_at'], str):
+            log['created_at'] = datetime.fromisoformat(log['created_at'])
+    
+    return logs
+
+
     await db.bills.update_one(
         {"id": refund_data.return_invoice_id},
         {"$set": {"status": "refunded"}}

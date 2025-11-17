@@ -1026,7 +1026,7 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     bill_number = f"{prefix}-{datetime.now().strftime('%Y%m%d')}-{bill_count + 1:04d}"
     
     # Calculate totals
-    subtotal = sum(item['total'] for item in bill_data.items)
+    subtotal = sum(item.get('line_total', item.get('total', 0)) for item in bill_data.items)
     tax_amount = subtotal * (bill_data.tax_rate / 100)
     total_amount = subtotal + tax_amount - bill_data.discount
     
@@ -1051,28 +1051,62 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         cashier_name=current_user.name
     )
     
-    # Update stock and create stock movements
-    for item in bill_data.items:
-        quantity_change = -item['quantity'] if bill_data.invoice_type == "SALE" else item['quantity']
-        
-        # Update medicine stock
-        await db.medicines.update_one(
-            {"id": item['medicine_id']},
-            {"$inc": {"quantity": quantity_change}}
-        )
-        
-        # Create stock movement record
-        movement = StockMovement(
-            medicine_id=item['medicine_id'],
-            medicine_name=item['medicine_name'],
-            batch_number=item.get('batch_number', 'N/A'),
-            quantity=quantity_change,
-            movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
-            ref_id=bill.id
-        )
-        movement_doc = movement.model_dump()
-        movement_doc['created_at'] = movement_doc['created_at'].isoformat()
-        await db.stock_movements.insert_one(movement_doc)
+    # Only update stock if status is 'paid' (not draft)
+    if bill_data.status == "paid":
+        for item in bill_data.items:
+            # Support both old (medicine_id) and new (product_id/batch_id) format
+            batch_id = item.get('batch_id')
+            product_id = item.get('product_id') or item.get('medicine_id')
+            
+            if not batch_id and product_id:
+                # Legacy support: if batch_id not provided, try to find a batch for this product
+                batches = await db.stock_batches.find(
+                    {"product_id": product_id, "qty_on_hand": {"$gt": 0}},
+                    {"_id": 0}
+                ).sort("expiry_date", 1).to_list(1)
+                
+                if batches:
+                    batch_id = batches[0]['id']
+                else:
+                    # No batch found, skip stock update for this item
+                    logger.warning(f"No batch found for product {product_id}")
+                    continue
+            
+            if not batch_id:
+                continue
+            
+            # Determine quantity change based on invoice type
+            quantity_change = -item['quantity'] if bill_data.invoice_type == "SALE" else item['quantity']
+            
+            # Update batch stock
+            result = await db.stock_batches.update_one(
+                {"id": batch_id},
+                {"$inc": {"qty_on_hand": quantity_change}}
+            )
+            
+            if result.matched_count == 0:
+                logger.error(f"Batch {batch_id} not found")
+                continue
+            
+            # Create stock movement record
+            batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+            product = await db.products.find_one({"id": product_id}, {"_id": 0})
+            
+            movement = StockMovement(
+                product_id=product_id,
+                batch_id=batch_id,
+                product_name=product['name'] if product else item.get('product_name', item.get('medicine_name', 'Unknown')),
+                batch_no=batch['batch_no'] if batch else item.get('batch_no', item.get('batch_number', 'N/A')),
+                quantity=quantity_change,
+                movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
+                ref_entity="invoice",
+                ref_id=bill.id,
+                location_id="default",
+                created_by=current_user.id
+            )
+            movement_doc = movement.model_dump()
+            movement_doc['created_at'] = movement_doc['created_at'].isoformat()
+            await db.stock_movements.insert_one(movement_doc)
     
     doc = bill.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()

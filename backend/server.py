@@ -218,10 +218,12 @@ class BillCreate(BaseModel):
     items: List[Dict[str, Any]]
     discount: float = 0
     tax_rate: float
-    payment_method: str
+    payments: Optional[List[Dict[str, Any]]] = None  # List of payment objects
+    payment_method: Optional[str] = None  # Legacy support: single payment method
     status: str = "paid"  # draft or paid
     invoice_type: str = "SALE"
     ref_invoice_id: Optional[str] = None
+    refund: Optional[Dict[str, Any]] = None  # For returns with refund
 
 # Stock Movement Models (Enhanced Ledger)
 class StockMovement(BaseModel):

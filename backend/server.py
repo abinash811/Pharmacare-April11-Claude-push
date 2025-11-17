@@ -1317,6 +1317,113 @@ async def get_bill(bill_id: str, current_user: User = Depends(get_current_user))
     
     return Bill(**bill)
 
+
+# ==================== PAYMENT ROUTES ====================
+
+@api_router.post("/payments", response_model=Payment)
+async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(get_current_user)):
+    """Record a payment against an invoice"""
+    # Verify invoice exists
+    invoice = await db.bills.find_one({"id": payment_data.invoice_id}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    payment = Payment(
+        **payment_data.model_dump(),
+        created_by=current_user.id
+    )
+    
+    payment_doc = payment.model_dump()
+    payment_doc['created_at'] = payment_doc['created_at'].isoformat()
+    await db.payments.insert_one(payment_doc)
+    
+    # Update invoice paid_amount and due_amount
+    total_paid = await db.payments.aggregate([
+        {"$match": {"invoice_id": payment_data.invoice_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    
+    new_paid_amount = total_paid[0]['total'] if total_paid else 0
+    new_due_amount = invoice['total_amount'] - new_paid_amount
+    new_status = "paid" if new_due_amount <= 0 else "due"
+    
+    await db.bills.update_one(
+        {"id": payment_data.invoice_id},
+        {"$set": {
+            "paid_amount": new_paid_amount,
+            "due_amount": new_due_amount,
+            "status": new_status
+        }}
+    )
+    
+    return payment
+
+@api_router.get("/payments")
+async def get_payments(
+    invoice_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get payments, optionally filtered by invoice"""
+    query = {}
+    if invoice_id:
+        query["invoice_id"] = invoice_id
+    
+    payments = await db.payments.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for payment in payments:
+        if isinstance(payment['created_at'], str):
+            payment['created_at'] = datetime.fromisoformat(payment['created_at'])
+    return payments
+
+# ==================== REFUND ROUTES ====================
+
+@api_router.post("/refunds", response_model=Refund)
+async def create_refund(refund_data: RefundCreate, current_user: User = Depends(get_current_user)):
+    """Record a refund for a sales return"""
+    # Verify return invoice exists
+    return_invoice = await db.bills.find_one({"id": refund_data.return_invoice_id}, {"_id": 0})
+    if not return_invoice:
+        raise HTTPException(status_code=404, detail="Return invoice not found")
+    
+    if return_invoice.get('invoice_type') != 'SALES_RETURN':
+        raise HTTPException(status_code=400, detail="Invoice is not a sales return")
+    
+    refund = Refund(
+        **refund_data.model_dump(),
+        created_by=current_user.id
+    )
+    
+    refund_doc = refund.model_dump()
+    refund_doc['created_at'] = refund_doc['created_at'].isoformat()
+    await db.refunds.insert_one(refund_doc)
+    
+    # Update return invoice status to refunded
+    await db.bills.update_one(
+        {"id": refund_data.return_invoice_id},
+        {"$set": {"status": "refunded"}}
+    )
+    
+    return refund
+
+@api_router.get("/refunds")
+async def get_refunds(
+    return_invoice_id: Optional[str] = None,
+    original_invoice_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get refunds, optionally filtered by invoice"""
+    query = {}
+    if return_invoice_id:
+        query["return_invoice_id"] = return_invoice_id
+    if original_invoice_id:
+        query["original_invoice_id"] = original_invoice_id
+    
+    refunds = await db.refunds.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for refund in refunds:
+        if isinstance(refund['created_at'], str):
+            refund['created_at'] = datetime.fromisoformat(refund['created_at'])
+    return refunds
+
+
 # ==================== PURCHASE ROUTES ====================
 
 @api_router.post("/purchases", response_model=Purchase)

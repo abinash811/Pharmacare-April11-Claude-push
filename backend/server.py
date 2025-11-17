@@ -250,6 +250,48 @@ class StockMovementCreate(BaseModel):
     location_id: Optional[str] = "default"
     reason: Optional[str] = None
 
+# Payment Models (for multiple payment methods support)
+class Payment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    invoice_id: str
+    amount: float
+    payment_method: str  # cash, card, upi, credit
+    reference_number: Optional[str] = None  # for card/UPI transactions
+    notes: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PaymentCreate(BaseModel):
+    invoice_id: str
+    amount: float
+    payment_method: str
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
+
+# Refund Models (for sales returns)
+class Refund(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    return_invoice_id: str  # ID of the return invoice
+    original_invoice_id: Optional[str] = None  # Original sale invoice if linked
+    amount: float
+    refund_method: str  # cash, card, upi, credit_note
+    reference_number: Optional[str] = None
+    reason: Optional[str] = None  # damaged, expired, wrong_item, customer_request
+    notes: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class RefundCreate(BaseModel):
+    return_invoice_id: str
+    original_invoice_id: Optional[str] = None
+    amount: float
+    refund_method: str
+    reference_number: Optional[str] = None
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+
 # Purchase Models
 class Purchase(BaseModel):
     model_config = ConfigDict(extra="ignore")

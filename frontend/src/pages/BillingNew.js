@@ -678,34 +678,155 @@ export default function BillingNew() {
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent>
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Confirm Payment</DialogTitle>
+            <DialogTitle>{billType === 'return' ? 'Process Refund' : 'Process Payment'}</DialogTitle>
             <DialogDescription>
-              Review the bill details before confirming payment
+              {billType === 'return' 
+                ? 'Select refund method and confirm the return' 
+                : 'Enter payment details. You can split payment across multiple methods.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Bill Summary */}
             <div className="bg-gray-50 p-4 rounded-md space-y-2">
               <div className="flex justify-between">
-                <span>Total Items:</span>
-                <span className="font-medium">{billItems.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total Amount:</span>
+                <span className="font-medium">Total Amount:</span>
                 <span className="font-bold text-lg">₹{totals.total.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Payment Method:</span>
-                <span className="font-medium capitalize">{paymentMethod}</span>
-              </div>
             </div>
+
+            {billType === 'return' ? (
+              /* Refund Section for Returns */
+              <div className="space-y-3">
+                <Label>Refund Method</Label>
+                <select
+                  value={refundMethod}
+                  onChange={(e) => setRefundMethod(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+                >
+                  <option value="cash">Cash Refund</option>
+                  <option value="card">Card Refund</option>
+                  <option value="upi">UPI Refund</option>
+                  <option value="credit_note">Credit Note (Store Credit)</option>
+                </select>
+
+                <div>
+                  <Label>Reason for Return</Label>
+                  <select
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+                  >
+                    <option value="">Select reason</option>
+                    <option value="damaged">Damaged Product</option>
+                    <option value="expired">Expired</option>
+                    <option value="wrong_item">Wrong Item</option>
+                    <option value="customer_request">Customer Changed Mind</option>
+                  </select>
+                </div>
+
+                {(refundMethod === 'card' || refundMethod === 'upi') && (
+                  <div>
+                    <Label>Transaction Reference</Label>
+                    <Input
+                      value={refundReference}
+                      onChange={(e) => setRefundReference(e.target.value)}
+                      placeholder="Enter transaction ID"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Payment Section for Sales */
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <Label>Payment Methods</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addPaymentLine}
+                  >
+                    + Add Payment Method
+                  </Button>
+                </div>
+
+                {payments.map((payment, index) => (
+                  <div key={index} className="flex gap-2 items-end border-b pb-3">
+                    <div className="flex-1">
+                      <Label className="text-xs">Method</Label>
+                      <select
+                        value={payment.method}
+                        onChange={(e) => updatePayment(index, 'method', e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="upi">UPI</option>
+                        <option value="credit">Credit (On Account)</option>
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <Label className="text-xs">Amount</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={payment.amount}
+                        onChange={(e) => updatePayment(index, 'amount', e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    {(payment.method === 'card' || payment.method === 'upi') && (
+                      <div className="flex-1">
+                        <Label className="text-xs">Reference</Label>
+                        <Input
+                          value={payment.reference}
+                          onChange={(e) => updatePayment(index, 'reference', e.target.value)}
+                          placeholder="TXN ID"
+                          className="h-9"
+                        />
+                      </div>
+                    )}
+                    {payments.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removePayment(index)}
+                        className="h-9"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+
+                <div className="bg-blue-50 p-3 rounded-md space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>Total to Pay:</span>
+                    <span className="font-medium">₹{totals.total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Total Paid:</span>
+                    <span className="font-medium">₹{getTotalPaid().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold">
+                    <span>Balance:</span>
+                    <span className={getTotalPaid() < totals.total ? 'text-red-600' : 'text-green-600'}>
+                      ₹{(totals.total - getTotalPaid()).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowConfirm(false)}
+                onClick={() => setShowPaymentDialog(false)}
                 className="flex-1"
                 disabled={loading}
               >
@@ -716,7 +837,7 @@ export default function BillingNew() {
                 className="flex-1"
                 disabled={loading}
               >
-                {loading ? 'Processing...' : 'Confirm Payment'}
+                {loading ? 'Processing...' : (billType === 'return' ? 'Process Refund' : 'Confirm Payment')}
               </Button>
             </div>
           </div>

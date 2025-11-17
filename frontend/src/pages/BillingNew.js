@@ -629,25 +629,6 @@ export default function BillingNew() {
             </CardContent>
           </Card>
 
-          {/* Payment Method */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Payment Method</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="upi">UPI</option>
-                <option value="credit">Credit (On Account)</option>
-              </select>
-            </CardContent>
-          </Card>
-
           {/* Action Buttons */}
           <div className="space-y-2">
             <Button

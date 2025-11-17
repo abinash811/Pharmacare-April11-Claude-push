@@ -15,8 +15,6 @@ import Purchases from '@/pages/Purchases';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
-import SalesReturnsList from '@/pages/SalesReturnsList';
-import SalesReturns from '@/pages/SalesReturns';
 import Layout from '@/components/Layout';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;

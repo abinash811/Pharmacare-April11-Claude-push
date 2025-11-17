@@ -345,7 +345,7 @@ export default function BillingNew() {
         navigate('/billing');
       } else {
         toast.success('Bill created successfully!');
-        setShowConfirm(false);
+        setShowPaymentDialog(false);
         // Could show print dialog here
         setTimeout(() => navigate('/billing'), 1500);
       }

@@ -10,8 +10,7 @@ import {
   Users,
   FileText,
   Settings,
-  LogOut,
-  CornerUpLeft
+  LogOut
 } from 'lucide-react';
 
 export default function Layout() {

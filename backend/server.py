@@ -1353,6 +1353,33 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         refund_doc = refund.model_dump()
         refund_doc['created_at'] = refund_doc['created_at'].isoformat()
         await db.refunds.insert_one(refund_doc)
+        
+        # Audit log for refund
+        await create_audit_log(
+            entity_type='refund',
+            entity_id=refund.id,
+            action='create',
+            user=current_user,
+            new_value=refund_doc,
+            reason=bill_data.refund.get('reason')
+        )
+    
+    # Audit log for invoice creation
+    await create_audit_log(
+        entity_type='invoice',
+        entity_id=bill.id,
+        action='create',
+        user=current_user,
+        new_value={
+            'bill_number': bill.bill_number,
+            'invoice_type': bill.invoice_type,
+            'status': bill.status,
+            'customer_name': bill.customer_name,
+            'total_amount': bill.total_amount,
+            'paid_amount': bill.paid_amount,
+            'due_amount': bill.due_amount
+        }
+    )
     
     return bill
 

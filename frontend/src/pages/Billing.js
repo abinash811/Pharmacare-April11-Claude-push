@@ -55,6 +55,37 @@ export default function Billing() {
     }
   };
 
+  const fetchBills = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/bills?invoice_type=SALE&status=paid`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBills(response.data);
+    } catch (error) {
+      toast.error('Failed to load bills');
+    }
+  };
+
+  const loadOriginalBill = async (billId) => {
+    if (!billId) return;
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/bills/${billId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const bill = response.data;
+      setOriginalBill(bill);
+      setCustomerName(bill.customer_name);
+      setCustomerMobile(bill.customer_mobile || '');
+      setDoctorName(bill.doctor_name || '');
+      setPaymentMethod(bill.payment_method);
+      toast.success('Original bill loaded');
+    } catch (error) {
+      toast.error('Failed to load original bill');
+    }
+  };
+
   const handleSearch = (query) => {
     setSearchQuery(query);
     if (query.length < 2) {

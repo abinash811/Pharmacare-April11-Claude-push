@@ -118,6 +118,50 @@ export default function BillingNew() {
     }
   };
 
+  // Handle barcode scanner input
+  const handleBarcodeInput = async (e) => {
+    if (e.key === 'Enter' && barcodeInput.trim()) {
+      e.preventDefault();
+      const code = barcodeInput.trim();
+      
+      setLastScannedCode(code);
+      setSearchLoading(true);
+      
+      const token = localStorage.getItem('token');
+      try {
+        // Search by SKU (barcode is typically stored in SKU field)
+        const response = await axios.get(`${API}/products/search-with-batches?q=${encodeURIComponent(code)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (response.data && response.data.length > 0) {
+          // Auto-add first matching product
+          const product = response.data[0];
+          addToBill(product);
+          toast.success(`Added: ${product.name}`);
+          
+          // Clear input for next scan
+          setBarcodeInput('');
+          
+          // Auto-focus back to barcode input
+          setTimeout(() => {
+            document.getElementById('barcode-input')?.focus();
+          }, 100);
+        } else {
+          toast.error(`No product found for barcode: ${code}`);
+          setBarcodeInput('');
+        }
+      } catch (error) {
+        console.error('Barcode search error:', error);
+        toast.error('Failed to find product');
+        setBarcodeInput('');
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+  };
+
+
   // Add item to bill with FEFO batch selection
   const addToBill = (product, selectedBatch = null) => {
     // Use suggested batch (FEFO) if not specified

@@ -10,7 +10,7 @@ import AuthPage from '@/pages/AuthPage';
 import Dashboard from '@/pages/Dashboard';
 import BillingList from '@/pages/BillingList';
 import Billing from '@/pages/Billing';
-import Inventory from '@/pages/Inventory';
+import Inventory from '@/pages/InventoryNew';
 import Purchases from '@/pages/Purchases';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';

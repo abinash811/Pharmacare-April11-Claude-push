@@ -671,6 +671,245 @@ async def get_expiring_medicines(current_user: User = Depends(get_current_user))
         logger.error(f"Expiring medicines error: {e}")
         return []
 
+
+# ==================== PRODUCT ROUTES ====================
+
+@api_router.post("/products", response_model=Product)
+async def create_product(product_data: ProductCreate, current_user: User = Depends(get_current_user)):
+    # Check if SKU already exists
+    existing = await db.products.find_one({"sku": product_data.sku}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    
+    product = Product(**product_data.model_dump())
+    doc = product.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    await db.products.insert_one(doc)
+    
+    return product
+
+@api_router.get("/products", response_model=List[Product])
+async def get_products(
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"sku": {"$regex": search, "$options": "i"}},
+            {"brand": {"$regex": search, "$options": "i"}}
+        ]
+    if category:
+        query["category"] = category
+        
+    products = await db.products.find(query, {"_id": 0}).sort("name", 1).to_list(10000)
+    for prod in products:
+        if isinstance(prod['created_at'], str):
+            prod['created_at'] = datetime.fromisoformat(prod['created_at'])
+        if isinstance(prod['updated_at'], str):
+            prod['updated_at'] = datetime.fromisoformat(prod['updated_at'])
+    return products
+
+@api_router.get("/products/{product_id}", response_model=Product)
+async def get_product(product_id: str, current_user: User = Depends(get_current_user)):
+    product = await db.products.find_one({"id": product_id}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    if isinstance(product['created_at'], str):
+        product['created_at'] = datetime.fromisoformat(product['created_at'])
+    if isinstance(product['updated_at'], str):
+        product['updated_at'] = datetime.fromisoformat(product['updated_at'])
+    
+    return Product(**product)
+
+@api_router.put("/products/{product_id}")
+async def update_product(
+    product_id: str,
+    product_data: ProductUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update products")
+    
+    update_dict = {k: v for k, v in product_data.model_dump().items() if v is not None}
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_dict['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.products.update_one(
+        {"id": product_id},
+        {"$set": update_dict}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    return {"message": "Product updated successfully"}
+
+@api_router.delete("/products/{product_id}")
+async def delete_product(product_id: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete products")
+    
+    # Check if product has batches
+    batches = await db.stock_batches.count_documents({"product_id": product_id})
+    if batches > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete product with existing batches")
+    
+    result = await db.products.delete_one({"id": product_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    return {"message": "Product deleted successfully"}
+
+# ==================== STOCK BATCH ROUTES ====================
+
+@api_router.post("/stock/batches", response_model=StockBatch)
+async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(get_current_user)):
+    # Verify product exists
+    product = await db.products.find_one({"id": batch_data.product_id}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Check if batch already exists
+    existing = await db.stock_batches.find_one({
+        "product_id": batch_data.product_id,
+        "batch_no": batch_data.batch_no,
+        "location_id": batch_data.location_id or "default"
+    }, {"_id": 0})
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Batch with this number already exists for this product at this location")
+    
+    data = batch_data.model_dump()
+    data['expiry_date'] = datetime.fromisoformat(batch_data.expiry_date)
+    
+    batch = StockBatch(**data)
+    doc = batch.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    doc['expiry_date'] = doc['expiry_date'].isoformat()
+    await db.stock_batches.insert_one(doc)
+    
+    return batch
+
+@api_router.get("/stock/batches")
+async def get_stock_batches(
+    product_id: Optional[str] = None,
+    location_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    query = {}
+    if product_id:
+        query["product_id"] = product_id
+    if location_id:
+        query["location_id"] = location_id
+    
+    batches = await db.stock_batches.find(query, {"_id": 0}).sort("expiry_date", 1).to_list(10000)
+    
+    # Enrich with product info
+    for batch in batches:
+        if isinstance(batch['created_at'], str):
+            batch['created_at'] = datetime.fromisoformat(batch['created_at'])
+        if isinstance(batch['updated_at'], str):
+            batch['updated_at'] = datetime.fromisoformat(batch['updated_at'])
+        if isinstance(batch['expiry_date'], str):
+            batch['expiry_date'] = datetime.fromisoformat(batch['expiry_date'])
+        
+        # Add product info
+        product = await db.products.find_one({"id": batch['product_id']}, {"_id": 0, "name": 1, "brand": 1, "sku": 1})
+        if product:
+            batch['product_name'] = product.get('name', '')
+            batch['product_brand'] = product.get('brand', '')
+            batch['product_sku'] = product.get('sku', '')
+    
+    return batches
+
+@api_router.get("/stock/batches/{batch_id}")
+async def get_stock_batch(batch_id: str, current_user: User = Depends(get_current_user)):
+    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    if isinstance(batch['created_at'], str):
+        batch['created_at'] = datetime.fromisoformat(batch['created_at'])
+    if isinstance(batch['updated_at'], str):
+        batch['updated_at'] = datetime.fromisoformat(batch['updated_at'])
+    if isinstance(batch['expiry_date'], str):
+        batch['expiry_date'] = datetime.fromisoformat(batch['expiry_date'])
+    
+    return batch
+
+@api_router.put("/stock/batches/{batch_id}")
+async def update_stock_batch(
+    batch_id: str,
+    batch_data: StockBatchUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can update stock batches")
+    
+    update_dict = {k: v for k, v in batch_data.model_dump().items() if v is not None}
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_dict['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.stock_batches.update_one(
+        {"id": batch_id},
+        {"$set": update_dict}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return {"message": "Batch updated successfully"}
+
+@api_router.get("/stock/summary")
+async def get_stock_summary(
+    product_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get stock summary by product (total qty across all batches)"""
+    query = {}
+    if product_id:
+        query["product_id"] = product_id
+    
+    batches = await db.stock_batches.find(query, {"_id": 0}).to_list(10000)
+    
+    # Group by product
+    summary = {}
+    for batch in batches:
+        pid = batch['product_id']
+        if pid not in summary:
+            product = await db.products.find_one({"id": pid}, {"_id": 0})
+            summary[pid] = {
+                "product_id": pid,
+                "product_name": product['name'] if product else "Unknown",
+                "product_sku": product['sku'] if product else "",
+                "total_qty": 0,
+                "batches_count": 0,
+                "earliest_expiry": None
+            }
+        
+        summary[pid]["total_qty"] += batch['qty_on_hand']
+        summary[pid]["batches_count"] += 1
+        
+        expiry = batch['expiry_date']
+        if isinstance(expiry, str):
+            expiry = datetime.fromisoformat(expiry)
+        
+        if summary[pid]["earliest_expiry"] is None or expiry < summary[pid]["earliest_expiry"]:
+            summary[pid]["earliest_expiry"] = expiry
+    
+    return list(summary.values())
+
+
 # ==================== BILLING ROUTES ====================
 
 @api_router.post("/bills", response_model=Bill)

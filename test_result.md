@@ -101,3 +101,130 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Build PharmaCare v1.0 - Complete SaaS Pharmacy Management Software
+  Phase 1: Batch-Level Inventory Foundation (IN PROGRESS)
+  
+  Goal: Implement batch-aware inventory system with:
+  - Product master (SKU, name, brand, pack, MRP, GST)
+  - StockBatch (batch_no, expiry, qty_on_hand, cost, mrp, location)
+  - FEFO logic for batch selection
+  - Enhanced stock movement ledger
+  - Migration from flat medicine model
+
+backend:
+  - task: "Product Model & CRUD API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created Product model with fields: id, sku, name, brand, pack_size, category, default_mrp, gst_percent, hsn_code. Implemented CRUD endpoints: POST/GET/PUT/DELETE /api/products with search support."
+  
+  - task: "StockBatch Model & CRUD API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created StockBatch model with: id, product_id, batch_no, expiry_date, qty_on_hand, cost_price, mrp, supplier_name, location_id. Implemented endpoints: POST/GET/PUT /api/stock/batches. Added GET /api/stock/summary for aggregated stock view."
+  
+  - task: "Search with FEFO Logic"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented GET /api/products/search-with-batches endpoint. Returns products with batches sorted by expiry (FEFO). Includes suggested_batch field pointing to earliest expiry. Shows qty_on_hand, expiry_date, mrp for each batch."
+  
+  - task: "Migration Script (Medicine -> Product + Batch)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Created POST /api/migrate/medicines-to-products endpoint. Successfully migrated 8 medicines to 4 products + 8 batches. Preserves all data. Tested and verified: Products: 4, Batches: 8."
+  
+  - task: "Enhanced Billing with Batch Support"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Updated POST /api/bills to work with batch_id. Supports both legacy (medicine_id) and new (product_id + batch_id) format. Only commits stock when status='paid'. Enhanced StockMovement logging with batch_id, ref_entity, reason fields."
+
+frontend:
+  - task: "Inventory Page - Product + Batch View"
+    implemented: false
+    working: "NA"
+    file: "frontend/src/pages/Inventory.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NOT YET IMPLEMENTED. Need to update Inventory.js to show products with expandable batch view. Should display batch_no, expiry, qty_on_hand for each batch."
+  
+  - task: "Billing Page - Batch Selector"
+    implemented: false
+    working: "NA"
+    file: "frontend/src/pages/Billing.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NOT YET IMPLEMENTED. Need to update Billing.js to use /api/products/search-with-batches. Show batch selector dropdown with expiry and available qty. Auto-select suggested_batch (FEFO)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+  phase: "Phase 1 - Batch Inventory Foundation"
+  phase_status: "Backend Complete, Frontend Pending"
+
+test_plan:
+  current_focus:
+    - "Frontend - Inventory page batch view"
+    - "Frontend - Billing page batch selector"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Phase 1 Backend Implementation Complete:
+      ✅ Product and StockBatch models created
+      ✅ All CRUD APIs functional
+      ✅ FEFO search endpoint working
+      ✅ Migration successful (8 medicines → 4 products + 8 batches)
+      ✅ Billing updated with batch support
+      
+      Next: Update Frontend to use new batch-based APIs
+      - Inventory.js: Product list with expandable batch details
+      - Billing.js: Batch selector with FEFO auto-selection

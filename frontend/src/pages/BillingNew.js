@@ -32,9 +32,14 @@ export default function BillingNew() {
   const [customerMobile, setCustomerMobile] = useState('');
   const [doctorName, setDoctorName] = useState('');
   
-  // Payment
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  // Payment - Multiple payments support
+  const [payments, setPayments] = useState([{ method: 'cash', amount: 0, reference: '' }]);
   const [billDiscount, setBillDiscount] = useState(0);
+  
+  // Refund (for returns)
+  const [refundMethod, setRefundMethod] = useState('cash');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundReference, setRefundReference] = useState('');
   
   // Returns specific
   const [bills, setBills] = useState([]);
@@ -44,6 +49,7 @@ export default function BillingNew() {
   // UI State
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [currentBill, setCurrentBill] = useState(null);
 
   const TAX_RATE = 5; // 5% GST

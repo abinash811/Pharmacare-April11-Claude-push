@@ -167,6 +167,11 @@ export default function Billing() {
       return;
     }
 
+    if (billType === 'return' && !originalBillId) {
+      toast.error('Please select original bill for return');
+      return;
+    }
+
     setLoading(true);
     const token = localStorage.getItem('token');
     const totals = calculateTotals();
@@ -190,8 +195,9 @@ export default function Billing() {
       discount: totals.totalDiscount,
       tax_rate: TAX_RATE,
       payment_method: paymentMethod,
-      status: saveType === 'draft' ? 'draft' : 'paid',
-      invoice_type: 'SALE'
+      status: saveType === 'draft' ? 'draft' : (billType === 'return' ? 'refunded' : 'paid'),
+      invoice_type: billType === 'return' ? 'SALES_RETURN' : 'SALE',
+      ref_invoice_id: billType === 'return' ? originalBillId : null
     };
 
     try {
@@ -204,11 +210,11 @@ export default function Billing() {
       if (saveType === 'print') {
         setShowConfirm(true);
       } else {
-        toast.success('Bill saved as draft');
+        toast.success(billType === 'return' ? 'Return saved as draft' : 'Bill saved as draft');
         navigate('/billing');
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create bill');
+      toast.error(error.response?.data?.detail || `Failed to create ${billType}`);
     }
     setLoading(false);
   };

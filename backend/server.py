@@ -190,7 +190,7 @@ class Bill(BaseModel):
     bill_number: str
     invoice_type: str = "SALE"  # SALE or SALES_RETURN
     ref_invoice_id: Optional[str] = None  # for returns
-    status: str = "paid"  # draft, paid, due, refunded
+    status: str = "paid"  # draft, paid, due, refunded, cancelled
     customer_id: Optional[str] = None
     customer_name: Optional[str] = None
     customer_mobile: Optional[str] = None
@@ -202,7 +202,9 @@ class Bill(BaseModel):
     tax_rate: float
     tax_amount: float
     total_amount: float
-    payment_method: str  # cash, upi, card, credit
+    paid_amount: float = 0  # Total amount paid so far
+    due_amount: float = 0  # Remaining amount to be paid
+    payment_method: Optional[str] = None  # Deprecated: use payments table instead
     cashier_id: str
     cashier_name: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

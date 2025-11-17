@@ -154,7 +154,12 @@ export default function BillingList() {
             data.map((item) => (
               <tr key={item.id} className="border-b hover:bg-gray-50">
                 <td className="py-4 px-4">
-                  <div className="font-medium text-blue-600">{item.bill_number}</div>
+                  <div 
+                    className="font-medium text-blue-600 cursor-pointer hover:underline"
+                    onClick={() => navigate(`/billing/${item.id}`)}
+                  >
+                    {item.bill_number}
+                  </div>
                 </td>
                 <td className="py-4 px-4">
                   <div className="font-medium text-gray-800">

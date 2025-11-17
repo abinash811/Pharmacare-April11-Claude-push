@@ -868,6 +868,13 @@ export default function BillingNew() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+      />
     </div>
   );
 }

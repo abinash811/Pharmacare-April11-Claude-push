@@ -135,8 +135,6 @@ function AppRoutes({ user }) {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="billing" element={<BillingList />} />
         <Route path="billing/create" element={<Billing />} />
-        <Route path="sales-returns" element={<SalesReturnsList />} />
-        <Route path="sales-returns/create" element={<SalesReturns />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="purchases" element={<Purchases />} />
         <Route path="customers" element={<Customers />} />

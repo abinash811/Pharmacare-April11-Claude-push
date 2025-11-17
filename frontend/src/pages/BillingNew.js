@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trash2, Search, Save, Printer, AlertCircle, Package } from 'lucide-react';
+import { Trash2, Search, Save, Printer, AlertCircle, Package, Camera } from 'lucide-react';
 import { toast } from 'sonner';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;

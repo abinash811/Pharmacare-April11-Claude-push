@@ -245,10 +245,41 @@ export default function BillingNew() {
       return;
     }
 
-    setShowConfirm(true);
+    // Initialize payment amount with total
+    const totals = calculateTotals();
+    setPayments([{ method: 'cash', amount: totals.total, reference: '' }]);
+    setShowPaymentDialog(true);
+  };
+
+  const addPaymentLine = () => {
+    setPayments([...payments, { method: 'cash', amount: 0, reference: '' }]);
+  };
+
+  const updatePayment = (index, field, value) => {
+    const updatedPayments = [...payments];
+    updatedPayments[index][field] = field === 'amount' ? parseFloat(value) || 0 : value;
+    setPayments(updatedPayments);
+  };
+
+  const removePayment = (index) => {
+    if (payments.length > 1) {
+      setPayments(payments.filter((_, i) => i !== index));
+    }
+  };
+
+  const getTotalPaid = () => {
+    return payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   };
 
   const handleConfirmPayment = async () => {
+    const totals = calculateTotals();
+    const totalPaid = getTotalPaid();
+    
+    if (totalPaid > totals.total) {
+      toast.error(`Payment (₹${totalPaid}) exceeds bill total (₹${totals.total})`);
+      return;
+    }
+    
     await saveBill('paid');
   };
 

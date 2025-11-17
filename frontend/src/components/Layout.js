@@ -20,7 +20,6 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Billing', path: '/billing', icon: ShoppingCart },
-    { name: 'Sales Returns', path: '/sales-returns', icon: CornerUpLeft },
     { name: 'Inventory', path: '/inventory', icon: Package },
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag },
     { name: 'Customers', path: '/customers', icon: Users },

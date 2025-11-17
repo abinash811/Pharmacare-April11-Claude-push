@@ -221,25 +221,34 @@ class BillCreate(BaseModel):
     invoice_type: str = "SALE"
     ref_invoice_id: Optional[str] = None
 
-# Stock Movement Models
+# Stock Movement Models (Enhanced Ledger)
 class StockMovement(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    medicine_id: str
-    medicine_name: str
-    batch_number: str
-    quantity: int  # negative for sales, positive for returns
-    movement_type: str  # sale, sales_return, purchase
+    product_id: str
+    batch_id: str
+    product_name: str
+    batch_no: str
+    quantity: int  # positive for IN (purchase, return), negative for OUT (sale)
+    movement_type: str  # 'sale', 'sales_return', 'purchase', 'adjustment'
+    ref_entity: str  # 'invoice', 'purchase', 'adjustment'
     ref_id: str  # bill_id or purchase_id
+    location_id: Optional[str] = "default"
+    reason: Optional[str] = None
+    created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StockMovementCreate(BaseModel):
-    medicine_id: str
-    medicine_name: str
-    batch_number: str
+    product_id: str
+    batch_id: str
+    product_name: str
+    batch_no: str
     quantity: int
     movement_type: str
+    ref_entity: str
     ref_id: str
+    location_id: Optional[str] = "default"
+    reason: Optional[str] = None
 
 # Purchase Models
 class Purchase(BaseModel):

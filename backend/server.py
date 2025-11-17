@@ -1144,11 +1144,32 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     tax_amount = subtotal * (bill_data.tax_rate / 100)
     total_amount = subtotal + tax_amount - bill_data.discount
     
+    # Calculate paid and due amounts
+    paid_amount = 0
+    if bill_data.payments:
+        # Multiple payments provided
+        paid_amount = sum(p.get('amount', 0) for p in bill_data.payments)
+    elif bill_data.payment_method:
+        # Legacy: single payment method, assume full payment
+        paid_amount = total_amount if bill_data.status == "paid" else 0
+    
+    due_amount = total_amount - paid_amount
+    
+    # Determine status based on payments
+    if bill_data.status == "draft":
+        status = "draft"
+    elif due_amount <= 0:
+        status = "paid"
+    elif paid_amount > 0:
+        status = "due"  # Partially paid
+    else:
+        status = "due"  # Not paid at all but not draft
+    
     bill = Bill(
         bill_number=bill_number,
         invoice_type=bill_data.invoice_type,
         ref_invoice_id=bill_data.ref_invoice_id,
-        status=bill_data.status,
+        status=status,
         customer_id=bill_data.customer_id,
         customer_name=bill_data.customer_name,
         customer_mobile=bill_data.customer_mobile,
@@ -1160,7 +1181,9 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         tax_rate=bill_data.tax_rate,
         tax_amount=tax_amount,
         total_amount=total_amount,
-        payment_method=bill_data.payment_method,
+        paid_amount=paid_amount,
+        due_amount=due_amount,
+        payment_method=bill_data.payment_method,  # Legacy field
         cashier_id=current_user.id,
         cashier_name=current_user.name
     )

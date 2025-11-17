@@ -296,6 +296,30 @@ class RefundCreate(BaseModel):
     reason: Optional[str] = None
     notes: Optional[str] = None
 
+# Audit Log Models (for compliance and tracking)
+class AuditLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    entity_type: str  # 'invoice', 'payment', 'refund', 'product', 'batch'
+    entity_id: str
+    action: str  # 'create', 'update', 'delete', 'status_change'
+    old_value: Optional[dict] = None
+    new_value: Optional[dict] = None
+    changes: Optional[dict] = None  # Specific fields that changed
+    performed_by: str  # User ID
+    performed_by_name: str  # User name for easy display
+    reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AuditLogCreate(BaseModel):
+    entity_type: str
+    entity_id: str
+    action: str
+    old_value: Optional[dict] = None
+    new_value: Optional[dict] = None
+    changes: Optional[dict] = None
+    reason: Optional[str] = None
+
 # Purchase Models
 class Purchase(BaseModel):
     model_config = ConfigDict(extra="ignore")

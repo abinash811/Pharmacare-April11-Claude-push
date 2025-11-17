@@ -24,6 +24,11 @@ export default function BillingNew() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   
+  // Barcode Scanner
+  const [scanMode, setScanMode] = useState(false);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [lastScannedCode, setLastScannedCode] = useState('');
+  
   // Bill Items
   const [billItems, setBillItems] = useState([]);
   

@@ -742,6 +742,55 @@ async def get_expiring_medicines(current_user: User = Depends(get_current_user))
         return []
 
 
+# ==================== AUDIT LOG HELPER ====================
+
+async def create_audit_log(
+    entity_type: str,
+    entity_id: str,
+    action: str,
+    user: User,
+    old_value: Optional[dict] = None,
+    new_value: Optional[dict] = None,
+    reason: Optional[str] = None
+):
+    """Helper function to create audit log entries"""
+    
+    # Calculate changes if both old and new values provided
+    changes = None
+    if old_value and new_value:
+        changes = {}
+        for key in new_value:
+            if key not in old_value or old_value[key] != new_value[key]:
+                changes[key] = {
+                    'old': old_value.get(key),
+                    'new': new_value[key]
+                }
+    
+    audit_log = AuditLog(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        action=action,
+        old_value=old_value,
+        new_value=new_value,
+        changes=changes,
+        performed_by=user.id,
+        performed_by_name=user.name,
+        reason=reason
+    )
+    
+    audit_doc = audit_log.model_dump()
+    audit_doc['created_at'] = audit_doc['created_at'].isoformat()
+    
+    try:
+        await db.audit_logs.insert_one(audit_doc)
+    except Exception as e:
+        logger.error(f"Failed to create audit log: {e}")
+        # Don't fail the main operation if audit log fails
+    
+    return audit_log
+
+
+
 # ==================== PRODUCT ROUTES ====================
 
 @api_router.post("/products", response_model=Product)

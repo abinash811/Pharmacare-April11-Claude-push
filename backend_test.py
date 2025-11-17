@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 class PharmacyAPITester:
-    def __init__(self, base_url: str = "https://pharmera.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://rxmanage-5.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.token = None

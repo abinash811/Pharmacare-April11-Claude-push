@@ -1101,6 +1101,73 @@ async def get_stock_summary(
         
         if summary[pid]["earliest_expiry"] is None or expiry < summary[pid]["earliest_expiry"]:
             summary[pid]["earliest_expiry"] = expiry
+
+
+@api_router.delete("/stock/batches/{batch_id}")
+async def delete_stock_batch(batch_id: str, current_user: User = Depends(get_current_user)):
+    """Delete a stock batch (only if qty_on_hand = 0)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete stock batches")
+    
+    # Check if batch exists and has zero quantity
+    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    if batch.get('qty_on_hand', 0) > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete batch with stock. Adjust quantity to 0 first.")
+    
+    result = await db.stock_batches.delete_one({"id": batch_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return {"message": "Batch deleted successfully"}
+
+# ==================== STOCK MOVEMENT ROUTES ====================
+
+@api_router.post("/stock-movements")
+async def create_stock_movement(
+    movement_data: StockMovementCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a stock movement record"""
+    movement = StockMovement(
+        **movement_data.model_dump(),
+        created_by=current_user.id
+    )
+    
+    movement_doc = movement.model_dump()
+    movement_doc['created_at'] = movement_doc['created_at'].isoformat()
+    await db.stock_movements.insert_one(movement_doc)
+    
+    return {"message": "Stock movement recorded", "id": movement.id}
+
+@api_router.get("/stock-movements")
+async def get_stock_movements(
+    product_id: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    movement_type: Optional[str] = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user)
+):
+    """Get stock movements with filters"""
+    query = {}
+    if product_id:
+        query["product_id"] = product_id
+    if batch_id:
+        query["batch_id"] = batch_id
+    if movement_type:
+        query["movement_type"] = movement_type
+    
+    movements = await db.stock_movements.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    for movement in movements:
+        if isinstance(movement['created_at'], str):
+            movement['created_at'] = datetime.fromisoformat(movement['created_at'])
+    
+    return movements
+
+
     
     return list(summary.values())
 

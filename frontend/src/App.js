@@ -11,7 +11,7 @@ import Dashboard from '@/pages/Dashboard';
 import BillingList from '@/pages/BillingList';
 import Billing from '@/pages/BillingNew';
 import BillDetail from '@/pages/BillDetail';
-import Inventory from '@/pages/InventoryNew';
+import Inventory from '@/pages/InventoryImproved';
 import Purchases from '@/pages/Purchases';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';

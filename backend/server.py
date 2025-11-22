@@ -77,6 +77,8 @@ class Product(BaseModel):
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
+    low_stock_threshold: int = 10  # Alert when stock falls below this
+    status: str = "active"  # active, inactive
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

@@ -92,6 +92,8 @@ class ProductCreate(BaseModel):
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
+    low_stock_threshold: int = 10
+    status: str = "active"
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
@@ -102,6 +104,8 @@ class ProductUpdate(BaseModel):
     gst_percent: Optional[float] = None
     hsn_code: Optional[str] = None
     description: Optional[str] = None
+    low_stock_threshold: Optional[int] = None
+    status: Optional[str] = None
 
 # Stock Batch Models (Inventory)
 class StockBatch(BaseModel):

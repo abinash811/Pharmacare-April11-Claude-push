@@ -2792,11 +2792,6 @@ async def get_purchase(
     
     return purchase
 
-
-
-
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

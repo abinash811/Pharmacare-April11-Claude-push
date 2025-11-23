@@ -725,24 +725,49 @@ export default function InventoryImproved() {
                   <Input name="batch_no" id="batch_no" required />
                 </div>
                 <div>
+                  <Label htmlFor="manufacture_date">Manufacture Date</Label>
+                  <Input name="manufacture_date" id="manufacture_date" type="date" />
+                </div>
+                <div>
                   <Label htmlFor="expiry_date">Expiry Date *</Label>
                   <Input name="expiry_date" id="expiry_date" type="date" required />
                 </div>
                 <div>
-                  <Label htmlFor="qty_on_hand">Opening Quantity *</Label>
+                  <Label htmlFor="qty_on_hand">Quantity (Packs) *</Label>
                   <Input name="qty_on_hand" id="qty_on_hand" type="number" required />
+                  <p className="text-xs text-gray-500 mt-1">Total units: {selectedProduct.units_per_pack} per pack</p>
                 </div>
                 <div>
-                  <Label htmlFor="cost_price">Cost Price (PTR/PTS) *</Label>
-                  <Input name="cost_price" id="cost_price" type="number" step="0.01" required />
+                  <Label htmlFor="cost_price_per_unit">Cost Price Per Unit *</Label>
+                  <Input name="cost_price_per_unit" id="cost_price_per_unit" type="number" step="0.01" required />
                 </div>
                 <div>
-                  <Label htmlFor="mrp">MRP</Label>
-                  <Input name="mrp" id="mrp" type="number" step="0.01" placeholder={`Default: ₹${selectedProduct.default_mrp}`} />
+                  <Label htmlFor="mrp_per_unit">MRP Per Unit</Label>
+                  <Input name="mrp_per_unit" id="mrp_per_unit" type="number" step="0.01" placeholder={`Default: ₹${selectedProduct.default_mrp_per_unit}`} />
                 </div>
                 <div>
                   <Label htmlFor="supplier_name">Supplier</Label>
                   <Input name="supplier_name" id="supplier_name" />
+                </div>
+                <div>
+                  <Label htmlFor="supplier_invoice_no">Supplier Invoice No</Label>
+                  <Input name="supplier_invoice_no" id="supplier_invoice_no" />
+                </div>
+                <div>
+                  <Label htmlFor="received_date">Received Date</Label>
+                  <Input name="received_date" id="received_date" type="date" />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input name="location" id="location" defaultValue="default" />
+                </div>
+                <div>
+                  <Label htmlFor="free_qty_units">Free Qty (Units)</Label>
+                  <Input name="free_qty_units" id="free_qty_units" type="number" defaultValue="0" />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Input name="notes" id="notes" placeholder="Any additional notes" />
                 </div>
               </div>
               <div className="flex justify-end gap-2">

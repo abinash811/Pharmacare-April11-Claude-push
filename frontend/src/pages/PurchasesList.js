@@ -70,6 +70,10 @@ export default function PurchasesList() {
 
   const fetchPurchases = async () => {
     const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams();

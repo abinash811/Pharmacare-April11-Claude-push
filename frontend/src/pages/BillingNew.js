@@ -257,9 +257,18 @@ export default function BillingNew() {
       return sum + (afterDiscount * item.gst_percent) / 100;
     }, 0);
     
-    const total = subtotal + taxAmount - billDiscount;
+    const totalBeforeRoundOff = subtotal + taxAmount - billDiscount;
+    const roundedTotal = Math.round(totalBeforeRoundOff);
+    const roundOff = roundedTotal - totalBeforeRoundOff;
     
-    return { subtotal, totalDiscount, taxAmount, total: Math.round(total * 100) / 100 };
+    return { 
+      subtotal, 
+      totalDiscount, 
+      taxAmount, 
+      totalBeforeRoundOff: Math.round(totalBeforeRoundOff * 100) / 100,
+      roundOff: Math.round(roundOff * 100) / 100,
+      total: roundedTotal 
+    };
   };
 
   const handleSaveDraft = async () => {

@@ -3261,3 +3261,280 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+# ==================== PURCHASE RETURN ROUTES ====================
+
+async def generate_return_number():
+    """Generate unique return number: PRET-2024-0001"""
+    current_year = datetime.now(timezone.utc).year
+    prefix = f"PRET-{current_year}-"
+    
+    last_return = await db.purchase_returns.find_one(
+        {"return_number": {"$regex": f"^{prefix}"}},
+        {"_id": 0, "return_number": 1},
+        sort=[("return_number", -1)]
+    )
+    
+    if last_return:
+        last_num = int(last_return['return_number'].split('-')[-1])
+        new_num = last_num + 1
+    else:
+        new_num = 1
+    
+    return f"{prefix}{new_num:04d}"
+
+async def generate_credit_number():
+    """Generate unique credit number: SCRED-2024-0001"""
+    current_year = datetime.now(timezone.utc).year
+    prefix = f"SCRED-{current_year}-"
+    
+    last_credit = await db.supplier_credits.find_one(
+        {"credit_number": {"$regex": f"^{prefix}"}},
+        {"_id": 0, "credit_number": 1},
+        sort=[("credit_number", -1)]
+    )
+    
+    if last_credit:
+        last_num = int(last_credit['credit_number'].split('-')[-1])
+        new_num = last_num + 1
+    else:
+        new_num = 1
+    
+    return f"{prefix}{new_num:04d}"
+
+@api_router.post("/purchase-returns", response_model=PurchaseReturn)
+async def create_purchase_return(
+    return_data: PurchaseReturnCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create purchase return draft"""
+    supplier = await db.suppliers.find_one({"id": return_data.supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    purchase_number = None
+    if return_data.purchase_id:
+        purchase = await db.purchases.find_one({"id": return_data.purchase_id}, {"_id": 0})
+        if purchase:
+            purchase_number = purchase['purchase_number']
+    
+    return_number = await generate_return_number()
+    
+    items = []
+    total_value = 0
+    
+    for item_data in return_data.items:
+        batch = await db.stock_batches.find_one({"id": item_data.batch_id}, {"_id": 0})
+        if not batch:
+            raise HTTPException(status_code=404, detail=f"Batch {item_data.batch_id} not found")
+        
+        product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
+        
+        units_per_pack = product.get('units_per_pack', 1)
+        qty_packs = item_data.qty_units / units_per_pack
+        
+        if batch['qty_on_hand'] < qty_packs:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock in batch {item_data.batch_no}. Available: {int(batch['qty_on_hand'] * units_per_pack)} units"
+            )
+        
+        line_total = item_data.qty_units * item_data.cost_price_per_unit
+        
+        item = PurchaseReturnItem(**item_data.model_dump(), line_total=line_total)
+        items.append(item)
+        total_value += line_total
+    
+    purchase_return = PurchaseReturn(
+        return_number=return_number,
+        supplier_id=return_data.supplier_id,
+        supplier_name=supplier['name'],
+        purchase_id=return_data.purchase_id,
+        purchase_number=purchase_number,
+        return_date=datetime.fromisoformat(return_data.return_date),
+        items=items,
+        total_value=total_value,
+        note=return_data.note,
+        created_by=current_user.id
+    )
+    
+    doc = purchase_return.model_dump()
+    doc['return_date'] = doc['return_date'].isoformat()
+    doc['created_at'] = doc['created_at'].isoformat()
+    
+    await db.purchase_returns.insert_one(doc)
+    
+    return purchase_return
+
+@api_router.get("/purchase-returns", response_model=List[PurchaseReturn])
+async def get_purchase_returns(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get purchase returns with filters"""
+    query = {}
+    
+    if from_date:
+        query["return_date"] = {"$gte": from_date}
+    if to_date:
+        if "return_date" in query:
+            query["return_date"]["$lte"] = to_date
+        else:
+            query["return_date"] = {"$lte": to_date}
+    
+    if supplier_id:
+        query["supplier_id"] = supplier_id
+    
+    if status:
+        query["status"] = status
+    
+    returns = await db.purchase_returns.find(query, {"_id": 0}).sort("return_date", -1).to_list(1000)
+    
+    for ret in returns:
+        if isinstance(ret.get('return_date'), str):
+            ret['return_date'] = datetime.fromisoformat(ret['return_date'])
+        if isinstance(ret.get('created_at'), str):
+            ret['created_at'] = datetime.fromisoformat(ret['created_at'])
+        if isinstance(ret.get('confirmed_at'), str):
+            ret['confirmed_at'] = datetime.fromisoformat(ret['confirmed_at'])
+    
+    return returns
+
+@api_router.post("/purchase-returns/{return_id}/confirm")
+async def confirm_purchase_return(
+    return_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Confirm purchase return: deduct stock, create movements, create supplier credit"""
+    purchase_return = await db.purchase_returns.find_one({"id": return_id}, {"_id": 0})
+    if not purchase_return:
+        raise HTTPException(status_code=404, detail="Purchase return not found")
+    
+    if purchase_return['status'] != 'draft':
+        raise HTTPException(status_code=400, detail="Return is already confirmed")
+    
+    stock_movements = []
+    
+    for item in purchase_return['items']:
+        batch = await db.stock_batches.find_one({"id": item['batch_id']}, {"_id": 0})
+        if not batch:
+            raise HTTPException(status_code=404, detail=f"Batch {item['batch_id']} not found")
+        
+        product = await db.products.find_one({"sku": item['product_sku']}, {"_id": 0})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item['product_sku']} not found")
+        
+        units_per_pack = product.get('units_per_pack', 1)
+        qty_packs = item['qty_units'] / units_per_pack
+        
+        if batch['qty_on_hand'] < qty_packs:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock in batch {item['batch_no']}. Available: {int(batch['qty_on_hand'] * units_per_pack)} units"
+            )
+        
+        new_qty = batch['qty_on_hand'] - qty_packs
+        
+        await db.stock_batches.update_one(
+            {"id": item['batch_id']},
+            {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}}
+        )
+        
+        movement = {
+            "id": str(uuid.uuid4()),
+            "product_sku": item['product_sku'],
+            "batch_id": item['batch_id'],
+            "product_name": item['product_name'],
+            "batch_no": item['batch_no'],
+            "qty_delta_units": -item['qty_units'],
+            "movement_type": "purchase_return",
+            "ref_type": "purchase_return",
+            "ref_id": return_id,
+            "location": "default",
+            "reason": f"Purchase return - {item['reason']}",
+            "performed_by": current_user.id,
+            "performed_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.stock_movements.insert_one(movement)
+        stock_movements.append(movement)
+    
+    credit_number = await generate_credit_number()
+    
+    supplier_credit = SupplierCredit(
+        supplier_id=purchase_return['supplier_id'],
+        supplier_name=purchase_return['supplier_name'],
+        credit_number=credit_number,
+        amount=purchase_return['total_value'],
+        reference=return_id,
+        reference_type="purchase_return",
+        created_by=current_user.id
+    )
+    
+    credit_doc = supplier_credit.model_dump()
+    credit_doc['created_at'] = credit_doc['created_at'].isoformat()
+    
+    await db.supplier_credits.insert_one(credit_doc)
+    
+    await db.purchase_returns.update_one(
+        {"id": return_id},
+        {"$set": {"status": "confirmed", "confirmed_at": datetime.now(timezone.utc).isoformat(), "confirmed_by": current_user.id}}
+    )
+    
+    return {
+        "message": "Purchase return confirmed successfully",
+        "credit_number": credit_number,
+        "credit_amount": purchase_return['total_value'],
+        "stock_movements_created": len(stock_movements)
+    }
+
+@api_router.get("/analytics/purchases")
+async def get_purchase_analytics(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get purchase analytics"""
+    query = {}
+    if from_date:
+        query["purchase_date"] = {"$gte": from_date}
+    if to_date:
+        if "purchase_date" in query:
+            query["purchase_date"]["$lte"] = to_date
+        else:
+            query["purchase_date"] = {"$lte": to_date}
+    
+    query["status"] = {"$nin": ["cancelled", "draft"]}
+    purchases = await db.purchases.find(query, {"_id": 0}).to_list(10000)
+    total_purchases_value = sum(p.get('total_value', 0) for p in purchases)
+    
+    return_query = {}
+    if from_date:
+        return_query["return_date"] = {"$gte": from_date}
+    if to_date:
+        if "return_date" in return_query:
+            return_query["return_date"]["$lte"] = to_date
+        else:
+            return_query["return_date"] = {"$lte": to_date}
+    
+    return_query["status"] = "confirmed"
+    purchase_returns = await db.purchase_returns.find(return_query, {"_id": 0}).to_list(10000)
+    total_purchase_returns_value = sum(r.get('total_value', 0) for r in purchase_returns)
+    
+    net_purchases = total_purchases_value - total_purchase_returns_value
+    
+    return {
+        "total_purchases_value": total_purchases_value,
+        "total_purchase_returns_value": total_purchase_returns_value,
+        "net_purchases": net_purchases,
+        "total_purchases_count": len(purchases),
+        "total_returns_count": len(purchase_returns)
+    }
+
+

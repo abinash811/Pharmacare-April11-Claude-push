@@ -579,6 +579,10 @@ export default function InventoryImproved() {
                 <Input name="name" id="name" required />
               </div>
               <div>
+                <Label htmlFor="manufacturer">Manufacturer</Label>
+                <Input name="manufacturer" id="manufacturer" placeholder="Company name" />
+              </div>
+              <div>
                 <Label htmlFor="brand">Brand</Label>
                 <Input name="brand" id="brand" />
               </div>
@@ -591,6 +595,10 @@ export default function InventoryImproved() {
                 <Input name="units_per_pack" id="units_per_pack" type="number" defaultValue="1" placeholder="e.g., 10 tablets per strip" required />
               </div>
               <div>
+                <Label htmlFor="uom">Unit of Measure</Label>
+                <Input name="uom" id="uom" defaultValue="units" placeholder="units, ml, gm" />
+              </div>
+              <div>
                 <Label htmlFor="category">Category</Label>
                 <Input name="category" id="category" />
               </div>
@@ -599,15 +607,19 @@ export default function InventoryImproved() {
                 <Input name="hsn_code" id="hsn_code" />
               </div>
               <div>
-                <Label htmlFor="default_mrp">MRP *</Label>
-                <Input name="default_mrp" id="default_mrp" type="number" step="0.01" required />
+                <Label htmlFor="default_mrp_per_unit">MRP Per Unit *</Label>
+                <Input name="default_mrp_per_unit" id="default_mrp_per_unit" type="number" step="0.01" required />
+              </div>
+              <div>
+                <Label htmlFor="default_ptr_per_unit">PTR Per Unit</Label>
+                <Input name="default_ptr_per_unit" id="default_ptr_per_unit" type="number" step="0.01" placeholder="Price to Retailer" />
               </div>
               <div>
                 <Label htmlFor="gst_percent">GST % *</Label>
                 <Input name="gst_percent" id="gst_percent" type="number" step="0.01" defaultValue="5" required />
               </div>
               <div>
-                <Label htmlFor="low_stock_threshold">Low Stock Threshold</Label>
+                <Label htmlFor="low_stock_threshold_units">Low Stock Threshold (Units)</Label>
                 <Input name="low_stock_threshold" id="low_stock_threshold" type="number" defaultValue="10" />
               </div>
               <div>

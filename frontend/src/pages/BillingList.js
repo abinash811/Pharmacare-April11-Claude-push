@@ -255,9 +255,9 @@ export default function BillingList() {
           </div>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               {/* Filters */}
-              <div className="flex gap-4 mb-6">
+              <div className="flex gap-3 mb-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                   <Input

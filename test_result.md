@@ -230,8 +230,7 @@ metadata:
   phase_status: "Backend Complete, Frontend Pending"
 
 test_plan:
-  current_focus:
-    - "CreatePurchase Page - Load Suppliers and Products"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

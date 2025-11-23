@@ -935,11 +935,15 @@ async def search_products_with_batches(
     
     results = []
     for product in products:
+        # Backward compatibility for field names
+        if 'default_mrp' in product and 'default_mrp_per_unit' not in product:
+            product['default_mrp_per_unit'] = product['default_mrp']
+        
         # Get batches for this product (FEFO - earliest expiry first)
         batches = await db.stock_batches.find(
             {
-                "product_id": product['id'],
-                "location_id": location_id,
+                "product_sku": product['sku'],
+                "location": location_id,
                 "qty_on_hand": {"$gt": 0}
             },
             {"_id": 0}

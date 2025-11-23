@@ -107,15 +107,18 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
+    manufacturer: Optional[str] = None
     brand: Optional[str] = None
     units_per_pack: Optional[int] = None
     pack_size: Optional[str] = None
+    uom: Optional[str] = None
     category: Optional[str] = None
-    default_mrp: Optional[float] = None
+    default_mrp_per_unit: Optional[float] = None
+    default_ptr_per_unit: Optional[float] = None
     gst_percent: Optional[float] = None
     hsn_code: Optional[str] = None
     description: Optional[str] = None
-    low_stock_threshold: Optional[int] = None
+    low_stock_threshold_units: Optional[int] = None
     status: Optional[str] = None
 
 # Stock Batch Models (Inventory)

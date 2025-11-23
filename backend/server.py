@@ -100,12 +100,14 @@ class ProductCreate(BaseModel):
     units_per_pack: int = 1  # How many units (tablets) in one pack (strip)
     uom: Optional[str] = "units"
     category: Optional[str] = None
-    default_mrp_per_unit: float
+    default_mrp_per_unit: Optional[float] = None  # Phase 0 field
+    default_mrp: Optional[float] = None  # Legacy support
     default_ptr_per_unit: Optional[float] = None
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
-    low_stock_threshold_units: int = 10
+    low_stock_threshold_units: Optional[int] = 10
+    low_stock_threshold: Optional[int] = None  # Legacy support
     status: str = "active"
 
 class ProductUpdate(BaseModel):

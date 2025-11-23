@@ -640,7 +640,7 @@ export default function BillingNew() {
         </div>
 
         {/* Right Column - Customer & Summary */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           
           {/* Customer Details */}
           <Card>

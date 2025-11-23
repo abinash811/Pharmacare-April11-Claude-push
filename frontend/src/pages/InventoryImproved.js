@@ -286,22 +286,12 @@ export default function InventoryImproved() {
     try {
       // Use the new Phase 0 adjustment endpoint
       const response = await axios.post(`${API}/batches/${selectedBatch.id}/adjust`, adjustmentData, {
-        product_id: selectedBatch.product_id,
-        batch_id: selectedBatch.id,
-        product_name: product?.name || 'Unknown',
-        batch_no: selectedBatch.batch_no,
-        quantity: quantityChange,
-        movement_type: 'adjustment',
-        ref_entity: 'adjustment',
-        ref_id: selectedBatch.id,
-        reason: `${reason}: ${notes || 'No additional notes'}`
-      }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      toast.success('Stock adjusted successfully');
+      toast.success(`Stock adjusted successfully. New quantity: ${response.data.new_qty_units} units (${response.data.new_qty_packs} packs)`);
       setShowAdjustStockDialog(false);
-      fetchBatchesForProduct(selectedBatch.product_id);
+      fetchBatchesForProduct(selectedBatch.product_sku);
       setSelectedBatch(null);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to adjust stock');

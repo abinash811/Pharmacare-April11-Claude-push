@@ -990,6 +990,7 @@ async def update_product(
         raise HTTPException(status_code=400, detail="No fields to update")
     
     update_dict['updated_at'] = datetime.now(timezone.utc).isoformat()
+    update_dict['updated_by'] = current_user.id
     
     result = await db.products.update_one(
         {"id": product_id},

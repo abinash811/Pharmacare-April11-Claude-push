@@ -58,8 +58,13 @@ export default function CreatePurchase() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    fetchSuppliers();
-    fetchProducts();
+    const loadData = async () => {
+      setInitialLoading(true);
+      await fetchSuppliers();
+      await fetchProducts();
+      setInitialLoading(false);
+    };
+    loadData();
   }, []);
 
   const fetchSuppliers = async () => {

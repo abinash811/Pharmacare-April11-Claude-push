@@ -515,7 +515,8 @@ export default function BillingNew() {
                                 <span className="text-xs text-blue-600">
                                   Batch: {product.suggested_batch.batch_no} • 
                                   Exp: {product.suggested_batch.expiry_date} • 
-                                  Available: {product.suggested_batch.qty_on_hand} units
+                                  Available: {product.suggested_batch.total_units || product.suggested_batch.qty_on_hand} units
+                                  {product.units_per_pack > 1 && ` (${product.suggested_batch.qty_on_hand} ${product.pack_size || 'packs'})`}
                                 </span>
                               </div>
                               {isExpired && (

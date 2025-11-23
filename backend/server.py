@@ -1156,6 +1156,85 @@ async def update_stock_batch(
     
     return {"message": "Batch updated successfully"}
 
+@api_router.post("/batches/{batch_id}/adjust")
+async def adjust_stock(
+    batch_id: str,
+    adjustment: StockAdjustment,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Adjust stock for a batch - Phase 0 requirement
+    Supports adding or removing units with reason tracking
+    """
+    # Get batch
+    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    # Get product for units_per_pack
+    product = await db.products.find_one({"sku": batch['product_sku']}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    units_per_pack = product.get('units_per_pack', 1)
+    
+    # Calculate pack change from unit change
+    qty_delta_units = adjustment.qty_units if adjustment.adjustment_type == 'add' else -adjustment.qty_units
+    pack_delta = qty_delta_units / units_per_pack
+    
+    # Calculate new quantity
+    new_qty = batch['qty_on_hand'] + pack_delta
+    
+    # Validation: cannot go negative
+    if new_qty < 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot remove {adjustment.qty_units} units. Only {int(batch['qty_on_hand'] * units_per_pack)} units available."
+        )
+    
+    # Update batch
+    result = await db.stock_batches.update_one(
+        {"id": batch_id},
+        {
+            "$set": {
+                "qty_on_hand": new_qty,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": current_user.id
+            }
+        }
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    # Create stock movement record
+    movement = StockMovement(
+        product_sku=batch['product_sku'],
+        batch_id=batch_id,
+        product_name=product['name'],
+        batch_no=batch['batch_no'],
+        qty_delta_units=qty_delta_units,
+        movement_type='adjustment',
+        ref_type='adjustment',
+        ref_id=str(uuid.uuid4()),  # Generate adjustment ID
+        location=batch.get('location', 'default'),
+        reason=adjustment.reason,
+        performed_by=current_user.id
+    )
+    
+    movement_doc = movement.model_dump()
+    movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
+    movement_doc['reference_number'] = adjustment.reference_number
+    movement_doc['notes'] = adjustment.notes
+    await db.stock_movements.insert_one(movement_doc)
+    
+    return {
+        "message": "Stock adjusted successfully",
+        "new_qty_packs": new_qty,
+        "new_qty_units": int(new_qty * units_per_pack),
+        "adjustment_units": qty_delta_units
+    }
+
 @api_router.get("/stock/summary")
 async def get_stock_summary(
     product_id: Optional[str] = None,

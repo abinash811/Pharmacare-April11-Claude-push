@@ -160,13 +160,17 @@ export default function BillingNew() {
       item => item.product_id === product.product_id && item.batch_id === batch.batch_id
     );
 
+    // Calculate available units (not packs)
+    const availableUnits = batch.total_units || batch.qty_on_hand;
+    const unitPrice = batch.mrp_per_unit || batch.mrp;
+
     if (existingItemIndex >= 0) {
-      // Increment quantity
+      // Increment quantity (in units)
       const updatedItems = [...billItems];
       const item = updatedItems[existingItemIndex];
       
-      if (item.quantity >= batch.qty_on_hand) {
-        toast.error(`Only ${batch.qty_on_hand} units available`);
+      if (item.quantity >= availableUnits) {
+        toast.error(`Only ${availableUnits} units available`);
         return;
       }
       
@@ -174,7 +178,7 @@ export default function BillingNew() {
       item.line_total = calculateLineTotal(item);
       setBillItems(updatedItems);
     } else {
-      // Add new item
+      // Add new item (quantity in units)
       const newItem = {
         product_id: product.product_id,
         batch_id: batch.batch_id,
@@ -183,13 +187,13 @@ export default function BillingNew() {
         batch_no: batch.batch_no,
         expiry_date: batch.expiry_date,
         expiry_display: batch.expiry_date,
-        quantity: 1,
-        unit_price: batch.mrp,
-        mrp: batch.mrp,
+        quantity: 1,  // Selling in units
+        unit_price: unitPrice,  // Price per unit
+        mrp: unitPrice,
         discount: 0,
         gst_percent: product.gst_percent || TAX_RATE,
         line_total: 0,
-        available_qty: batch.qty_on_hand
+        available_qty: availableUnits  // Available units, not packs
       };
       
       newItem.line_total = calculateLineTotal(newItem);

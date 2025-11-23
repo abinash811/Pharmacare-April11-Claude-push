@@ -401,11 +401,10 @@ export default function InventoryImproved() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Brand</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Manufacturer</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pack Size</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">MRP</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">GST %</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Qty</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">MRP/Unit</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Stock</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>

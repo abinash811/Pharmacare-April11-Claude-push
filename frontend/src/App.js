@@ -137,10 +137,12 @@ function AppRoutes({ user }) {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="billing" element={<BillingList />} />
+        <Route path="billing/new" element={<Billing />} />
         <Route path="billing/create" element={<Billing />} />
         <Route path="billing/:id" element={<BillDetail />} />
         <Route path="inventory" element={<Inventory />} />
-        <Route path="purchases" element={<Purchases />} />
+        <Route path="purchases" element={<PurchasesList />} />
+        <Route path="purchases/new" element={<CreatePurchase />} />
         <Route path="customers" element={<Customers />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />

@@ -13,6 +13,8 @@ import Billing from '@/pages/BillingNew';
 import BillDetail from '@/pages/BillDetail';
 import Inventory from '@/pages/InventoryImproved';
 import Purchases from '@/pages/Purchases';
+import PurchasesList from '@/pages/PurchasesList';
+import CreatePurchase from '@/pages/CreatePurchase';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';

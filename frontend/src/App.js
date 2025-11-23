@@ -25,6 +25,8 @@ import Settings from '@/pages/Settings';
 import Users from '@/pages/Users';
 import RolesPermissions from '@/pages/RolesPermissions';
 import Suppliers from '@/pages/Suppliers';
+import SalesReturns from '@/pages/SalesReturns';
+import SalesReturnsList from '@/pages/SalesReturnsList';
 import Layout from '@/components/Layout';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;

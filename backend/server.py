@@ -886,6 +886,19 @@ async def get_products(
             prod['created_at'] = datetime.fromisoformat(prod['created_at'])
         if isinstance(prod['updated_at'], str):
             prod['updated_at'] = datetime.fromisoformat(prod['updated_at'])
+        
+        # Backward compatibility: normalize old field names to new
+        if 'default_mrp' in prod and 'default_mrp_per_unit' not in prod:
+            prod['default_mrp_per_unit'] = prod['default_mrp']
+        if 'low_stock_threshold' in prod and 'low_stock_threshold_units' not in prod:
+            prod['low_stock_threshold_units'] = prod['low_stock_threshold']
+        
+        # Ensure required fields have defaults
+        if 'default_mrp_per_unit' not in prod:
+            prod['default_mrp_per_unit'] = prod.get('default_mrp', 0)
+        if 'low_stock_threshold_units' not in prod:
+            prod['low_stock_threshold_units'] = prod.get('low_stock_threshold', 10)
+            
     return products
 
 @api_router.get("/products/search-with-batches")

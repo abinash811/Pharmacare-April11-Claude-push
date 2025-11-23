@@ -76,12 +76,15 @@ class Product(BaseModel):
     units_per_pack: int = 1  # Numeric: how many units in one pack (e.g., 10 tablets per strip)
     uom: Optional[str] = "units"  # Unit of measure (units, ml, gm)
     category: Optional[str] = None
-    default_mrp_per_unit: float  # Phase 0: MRP per unit (not per pack)
+    # Backward compatibility: support both old and new field names
+    default_mrp: Optional[float] = None  # Legacy field
+    default_mrp_per_unit: Optional[float] = None  # Phase 0: MRP per unit (not per pack)
     default_ptr_per_unit: Optional[float] = None  # Phase 0: PTR (Price to Retailer) per unit
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
-    low_stock_threshold_units: int = 10  # Phase 0: Alert threshold in units
+    low_stock_threshold: Optional[int] = None  # Legacy field
+    low_stock_threshold_units: Optional[int] = 10  # Phase 0: Alert threshold in units
     status: str = "active"  # active, inactive
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

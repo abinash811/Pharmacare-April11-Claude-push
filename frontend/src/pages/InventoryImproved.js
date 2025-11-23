@@ -135,14 +135,17 @@ export default function InventoryImproved() {
     const productData = {
       sku: formData.get('sku'),
       name: formData.get('name'),
+      manufacturer: formData.get('manufacturer') || null,
       brand: formData.get('brand') || null,
       pack_size: formData.get('pack_size') || null,
       units_per_pack: parseInt(formData.get('units_per_pack')) || 1,
+      uom: formData.get('uom') || 'units',
       category: formData.get('category') || null,
-      default_mrp: parseFloat(formData.get('default_mrp')),
+      default_mrp_per_unit: parseFloat(formData.get('default_mrp_per_unit')),
+      default_ptr_per_unit: parseFloat(formData.get('default_ptr_per_unit')) || null,
       gst_percent: parseFloat(formData.get('gst_percent')),
       hsn_code: formData.get('hsn_code') || null,
-      low_stock_threshold: parseInt(formData.get('low_stock_threshold')) || 10,
+      low_stock_threshold_units: parseInt(formData.get('low_stock_threshold_units')) || 10,
       status: formData.get('status') || 'active'
     };
 

@@ -270,18 +270,18 @@ class BillCreate(BaseModel):
 class StockMovement(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    product_id: str
+    product_sku: str  # Phase 0: FK to product SKU
     batch_id: str
-    product_name: str
-    batch_no: str
-    quantity: int  # positive for IN (purchase, return), negative for OUT (sale)
-    movement_type: str  # 'sale', 'sales_return', 'purchase', 'adjustment'
-    ref_entity: str  # 'invoice', 'purchase', 'adjustment'
-    ref_id: str  # bill_id or purchase_id
-    location_id: Optional[str] = "default"
+    product_name: str  # Denormalized for display
+    batch_no: str  # Denormalized for display
+    qty_delta_units: int  # Phase 0: positive for IN, negative for OUT (in units)
+    movement_type: str  # Phase 0: 'opening_stock', 'adjustment', 'sale', 'sales_return', 'purchase', 'purchase_return'
+    ref_type: str  # Phase 0: 'adjustment', 'opening', 'invoice', 'purchase'
+    ref_id: str  # bill_id or purchase_id or adjustment_id
+    location: Optional[str] = "default"
     reason: Optional[str] = None
-    created_by: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    performed_by: str  # Phase 0: performed_by instead of created_by
+    performed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # Phase 0: performed_at
 
 class StockMovementCreate(BaseModel):
     product_id: str

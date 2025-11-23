@@ -19,6 +19,7 @@ export default function Layout() {
   const allNavigation = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
     { name: 'Billing', path: '/billing', icon: ShoppingCart, roles: ['admin', 'manager', 'cashier'] },
+    { name: 'Sales Returns', path: '/sales-returns', icon: Package, roles: ['admin', 'manager', 'cashier'] },
     { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Returns', path: '/purchase-returns', icon: Package, roles: ['admin', 'manager', 'inventory_staff'] },

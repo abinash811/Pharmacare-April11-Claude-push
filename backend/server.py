@@ -1135,9 +1135,9 @@ async def search_products_with_batches(
                     "expiry_iso": expiry.isoformat(),
                     "qty_on_hand": batch['qty_on_hand'],  # Packs/strips
                     "total_units": total_units_in_batch,  # Individual tablets
-                    "mrp": batch['mrp'],  # Per pack
-                    "mrp_per_unit": batch['mrp'] / units_per_pack if units_per_pack > 0 else batch['mrp'],
-                    "cost_price": batch['cost_price']
+                    "mrp": batch['mrp_per_unit'] * units_per_pack,  # Per pack (calculated)
+                    "mrp_per_unit": batch['mrp_per_unit'],
+                    "cost_price": batch['cost_price_per_unit'] * units_per_pack
                 })
                 total_qty += batch['qty_on_hand']
             

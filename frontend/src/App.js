@@ -15,6 +15,7 @@ import Inventory from '@/pages/InventoryImproved';
 import Purchases from '@/pages/Purchases';
 import PurchasesList from '@/pages/PurchasesList';
 import CreatePurchase from '@/pages/CreatePurchase';
+import PurchaseDetail from '@/pages/PurchaseDetail';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';

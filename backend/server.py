@@ -159,9 +159,18 @@ class StockBatchCreate(BaseModel):
     notes: Optional[str] = None
 
 class StockBatchUpdate(BaseModel):
+    batch_no: Optional[str] = None
+    manufacture_date: Optional[str] = None
+    expiry_date: Optional[str] = None
     qty_on_hand: Optional[int] = None
-    cost_price: Optional[float] = None
-    mrp: Optional[float] = None
+    cost_price_per_unit: Optional[float] = None
+    mrp_per_unit: Optional[float] = None
+    supplier_name: Optional[str] = None
+    supplier_invoice_no: Optional[str] = None
+    received_date: Optional[str] = None
+    location: Optional[str] = None
+    free_qty_units: Optional[int] = None
+    notes: Optional[str] = None
 
 # Legacy Medicine Models (for backward compatibility during migration)
 class Medicine(BaseModel):

@@ -179,12 +179,27 @@ backend:
         comment: "Updated POST /api/bills to work with batch_id. Supports both legacy (medicine_id) and new (product_id + batch_id) format. Only commits stock when status='paid'. Enhanced StockMovement logging with batch_id, ref_entity, reason fields."
 
 frontend:
+  - task: "CreatePurchase Page - Load Suppliers and Products"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/CreatePurchase.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "User reported: CreatePurchase page not loading data even after backend was fixed and confirmed working"
+      - working: true
+        agent: "main"
+        comment: "Fixed API prefix issue. Changed const API from 'process.env.REACT_APP_BACKEND_URL' to include /api prefix. Now API calls will hit /api/suppliers and /api/products correctly. Also fixed PurchasesList.js and PurchaseDetail.js with same issue."
+  
   - task: "Inventory Page - Product + Batch View"
     implemented: false
     working: "NA"
     file: "frontend/src/pages/Inventory.js"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: "NA"
@@ -196,7 +211,7 @@ frontend:
     working: "NA"
     file: "frontend/src/pages/Billing.js"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: "NA"

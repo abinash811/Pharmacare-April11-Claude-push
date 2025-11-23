@@ -144,14 +144,19 @@ class StockBatch(BaseModel):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StockBatchCreate(BaseModel):
-    product_id: str
+    product_sku: str
     batch_no: str
+    manufacture_date: Optional[str] = None
     expiry_date: str
-    qty_on_hand: int
-    cost_price: float
-    mrp: float
+    qty_on_hand: int  # In packs
+    cost_price_per_unit: float
+    mrp_per_unit: float
     supplier_name: Optional[str] = None
-    location_id: Optional[str] = "default"
+    supplier_invoice_no: Optional[str] = None
+    received_date: Optional[str] = None
+    location: Optional[str] = "default"
+    free_qty_units: Optional[int] = 0
+    notes: Optional[str] = None
 
 class StockBatchUpdate(BaseModel):
     qty_on_hand: Optional[int] = None

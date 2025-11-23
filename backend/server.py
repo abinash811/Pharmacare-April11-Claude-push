@@ -2621,6 +2621,200 @@ async def update_supplier(
 
 
 
+# ==================== PURCHASE ROUTES ====================
+
+async def generate_purchase_number():
+    """Generate unique purchase number: PUR-2024-0001"""
+    current_year = datetime.now(timezone.utc).year
+    prefix = f"PUR-{current_year}-"
+    
+    # Find the last purchase number for this year
+    last_purchase = await db.purchases.find_one(
+        {"purchase_number": {"$regex": f"^{prefix}"}},
+        {"_id": 0, "purchase_number": 1},
+        sort=[("purchase_number", -1)]
+    )
+    
+    if last_purchase:
+        last_num = int(last_purchase['purchase_number'].split('-')[-1])
+        new_num = last_num + 1
+    else:
+        new_num = 1
+    
+    return f"{prefix}{new_num:04d}"
+
+@api_router.get("/purchases", response_model=List[Purchase])
+async def get_purchases(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    supplier_id: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get purchases with filters"""
+    query = {}
+    
+    if from_date:
+        query["purchase_date"] = {"$gte": from_date}
+    if to_date:
+        if "purchase_date" in query:
+            query["purchase_date"]["$lte"] = to_date
+        else:
+            query["purchase_date"] = {"$lte": to_date}
+    
+    if supplier_id:
+        query["supplier_id"] = supplier_id
+    
+    if status:
+        query["status"] = status
+    
+    if search:
+        query["$or"] = [
+            {"purchase_number": {"$regex": search, "$options": "i"}},
+            {"supplier_name": {"$regex": search, "$options": "i"}},
+            {"supplier_invoice_no": {"$regex": search, "$options": "i"}}
+        ]
+    
+    purchases = await db.purchases.find(query, {"_id": 0}).sort("purchase_date", -1).to_list(1000)
+    
+    for purchase in purchases:
+        if isinstance(purchase.get('purchase_date'), str):
+            purchase['purchase_date'] = datetime.fromisoformat(purchase['purchase_date'])
+        if isinstance(purchase.get('supplier_invoice_date'), str):
+            purchase['supplier_invoice_date'] = datetime.fromisoformat(purchase['supplier_invoice_date'])
+        if isinstance(purchase.get('created_at'), str):
+            purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
+        if isinstance(purchase.get('updated_at'), str):
+            purchase['updated_at'] = datetime.fromisoformat(purchase['updated_at'])
+        
+        # Convert item dates
+        for item in purchase.get('items', []):
+            if isinstance(item.get('expiry_date'), str):
+                item['expiry_date'] = datetime.fromisoformat(item['expiry_date'])
+    
+    return purchases
+
+@api_router.post("/purchases", response_model=Purchase)
+async def create_purchase(
+    purchase_data: PurchaseCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create new purchase draft"""
+    # Get supplier
+    supplier = await db.suppliers.find_one({"id": purchase_data.supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    # Generate purchase number
+    purchase_number = await generate_purchase_number()
+    
+    # Process items and calculate totals
+    items = []
+    subtotal = 0
+    tax_value = 0
+    
+    for item_data in purchase_data.items:
+        # Get product to check units_per_pack
+        product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
+        
+        # Calculate line total
+        line_total = item_data.qty_units * item_data.cost_price_per_unit
+        tax_amount = line_total * (item_data.gst_percent / 100)
+        
+        item = PurchaseItem(
+            **item_data.model_dump(),
+            line_total=line_total + tax_amount
+        )
+        
+        # Convert expiry date if provided
+        if item_data.expiry_date:
+            item.expiry_date = datetime.fromisoformat(item_data.expiry_date)
+        
+        items.append(item)
+        subtotal += line_total
+        tax_value += tax_amount
+    
+    total_value = subtotal + tax_value
+    round_off = round(total_value) - total_value
+    total_value = round(total_value)
+    
+    # Create purchase
+    purchase = Purchase(
+        purchase_number=purchase_number,
+        supplier_id=purchase_data.supplier_id,
+        supplier_name=supplier['name'],
+        purchase_date=datetime.fromisoformat(purchase_data.purchase_date),
+        supplier_invoice_no=purchase_data.supplier_invoice_no,
+        supplier_invoice_date=datetime.fromisoformat(purchase_data.supplier_invoice_date) if purchase_data.supplier_invoice_date else None,
+        items=items,
+        subtotal=subtotal,
+        tax_value=tax_value,
+        round_off=round_off,
+        total_value=total_value,
+        payment_terms_days=supplier.get('payment_terms_days', 30),
+        note=purchase_data.note,
+        created_by=current_user.id
+    )
+    
+    doc = purchase.model_dump()
+    doc['purchase_date'] = doc['purchase_date'].isoformat()
+    if doc.get('supplier_invoice_date'):
+        doc['supplier_invoice_date'] = doc['supplier_invoice_date'].isoformat()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    
+    for item in doc['items']:
+        if item.get('expiry_date'):
+            item['expiry_date'] = item['expiry_date'].isoformat()
+    
+    await db.purchases.insert_one(doc)
+    
+    # Create audit log
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "entity_type": "purchase",
+        "entity_id": purchase.id,
+        "action": "create",
+        "new_value": {"purchase_number": purchase_number, "status": "draft", "total_value": total_value},
+        "performed_by": current_user.id,
+        "performed_by_name": current_user.name,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return purchase
+
+@api_router.get("/purchases/{purchase_id}", response_model=Purchase)
+async def get_purchase(
+    purchase_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get purchase by ID"""
+    purchase = await db.purchases.find_one({"id": purchase_id}, {"_id": 0})
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Convert dates
+    if isinstance(purchase.get('purchase_date'), str):
+        purchase['purchase_date'] = datetime.fromisoformat(purchase['purchase_date'])
+    if isinstance(purchase.get('supplier_invoice_date'), str):
+        purchase['supplier_invoice_date'] = datetime.fromisoformat(purchase['supplier_invoice_date'])
+    if isinstance(purchase.get('created_at'), str):
+        purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
+    if isinstance(purchase.get('updated_at'), str):
+        purchase['updated_at'] = datetime.fromisoformat(purchase['updated_at'])
+    
+    for item in purchase.get('items', []):
+        if isinstance(item.get('expiry_date'), str):
+            item['expiry_date'] = datetime.fromisoformat(item['expiry_date'])
+    
+    return purchase
+
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(

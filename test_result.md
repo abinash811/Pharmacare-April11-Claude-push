@@ -104,20 +104,24 @@
 
 user_problem_statement: |
   Build PharmaCare v1.0 - Complete SaaS Pharmacy Management Software
-  Current Phase: Implementing Purchase Returns UI and Inventory Management
+  Current Phase: Enhancing Billing with Better Batch Selection & FEFO Display
   
   Completed Tasks:
   1. Fixed CreatePurchase page API prefix issue - RESOLVED ✅
-  2. Implemented complete Purchase Returns module with 3 pages:
-     - PurchaseReturnsList.js: List all returns with filters
-     - CreatePurchaseReturn.js: Create new return from existing purchase
-     - PurchaseReturnDetail.js: View/confirm return details
-  3. Added backend GET endpoint for single purchase return
-  4. Updated routing and navigation for Purchase Returns
+  2. Implemented complete Purchase Returns module - WORKING ✅
+  3. Verified Inventory Management module - COMPREHENSIVE ✅
+  4. Enhanced Billing Page with Advanced Batch Selection:
+     - Color-coded batch indicators (Red=Expired, Yellow=Expiring Soon, Green=Good)
+     - FEFO batch recommendation prominently displayed
+     - Expandable multi-batch selector for manual override
+     - Enhanced batch details (Expiry, Available Qty, MRP)
+     - Visual warnings for expired/expiring items in cart
+     - Better batch information in bill items table
   
   Current Testing Focus:
-  - Test Purchase Returns workflow (create, view, confirm)
-  - Verify Inventory Management features (already comprehensive)
+  - Test enhanced billing page batch selection
+  - Verify FEFO logic and batch display
+  - Test multi-batch selection and expiry warnings
 
 backend:
   - task: "Purchase Returns GET Single Endpoint"

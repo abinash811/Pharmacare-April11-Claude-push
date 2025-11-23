@@ -54,15 +54,15 @@ export default function InventoryImproved() {
     }
   };
 
-  const fetchBatchesForProduct = async (productId) => {
+  const fetchBatchesForProduct = async (productSku) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/stock/batches?product_id=${productId}`, {
+      const response = await axios.get(`${API}/stock/batches?product_sku=${productSku}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProductBatches(prev => ({
         ...prev,
-        [productId]: response.data
+        [productSku]: response.data
       }));
     } catch (error) {
       toast.error('Failed to load batches');

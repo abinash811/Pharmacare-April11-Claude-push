@@ -16,16 +16,22 @@ import {
 export default function Layout() {
   const { user, logout } = useContext(AuthContext);
 
-  const navigation = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Billing', path: '/billing', icon: ShoppingCart },
-    { name: 'Inventory', path: '/inventory', icon: Package },
-    { name: 'Purchases', path: '/purchases', icon: ShoppingBag },
-    { name: 'Returns', path: '/purchase-returns', icon: Package },
-    { name: 'Customers', path: '/customers', icon: Users },
-    { name: 'Reports', path: '/reports', icon: FileText },
-    { name: 'Settings', path: '/settings', icon: Settings },
+  const allNavigation = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
+    { name: 'Billing', path: '/billing', icon: ShoppingCart, roles: ['admin', 'manager', 'cashier'] },
+    { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
+    { name: 'Purchases', path: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
+    { name: 'Returns', path: '/purchase-returns', icon: Package, roles: ['admin', 'manager', 'inventory_staff'] },
+    { name: 'Customers', path: '/customers', icon: Users, roles: ['admin', 'manager', 'cashier'] },
+    { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
+    { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
+    { name: 'Users', path: '/users', icon: Users, roles: ['admin'] },
   ];
+
+  // Filter navigation based on user role
+  const navigation = allNavigation.filter(item => 
+    item.roles.includes(user?.role)
+  );
 
   return (
     <div className="flex h-screen bg-gray-50">

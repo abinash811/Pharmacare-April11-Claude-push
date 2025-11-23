@@ -63,13 +63,22 @@ export default function CreatePurchase() {
 
   const fetchSuppliers = async () => {
     const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login first');
+      navigate('/');
+      return;
+    }
     try {
       const response = await axios.get(`${API}/suppliers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuppliers(response.data);
+      if (response.data.length === 0) {
+        toast.error('No suppliers found. Please add suppliers first.');
+      }
     } catch (error) {
-      toast.error('Failed to load suppliers');
+      console.error('Supplier fetch error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to load suppliers');
     }
   };
 

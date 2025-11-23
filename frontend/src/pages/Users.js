@@ -61,7 +61,7 @@ export default function Users() {
     name: '',
     email: '',
     password: '',
-    role: 'cashier'
+    role: ''
   });
 
   const [passwordData, setPasswordData] = useState({

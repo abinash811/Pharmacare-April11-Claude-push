@@ -385,40 +385,101 @@ class AuditLogCreate(BaseModel):
     changes: Optional[dict] = None
     reason: Optional[str] = None
 
-# Purchase Models
-class Purchase(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    invoice_number: str
-    supplier_id: str
-    supplier_name: str
-    items: List[Dict[str, Any]]
-    total_amount: float
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    created_by: str
-
-class PurchaseCreate(BaseModel):
-    invoice_number: str
-    supplier_id: str
-    supplier_name: str
-    items: List[Dict[str, Any]]
-    total_amount: float
-
-# Supplier Models
+# ==================== SUPPLIER MODELS ====================
 class Supplier(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
-    contact: str
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[str] = None
+    payment_terms_days: int = 30  # Default 30 days credit
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SupplierCreate(BaseModel):
     name: str
-    contact: str
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[str] = None
+    payment_terms_days: int = 30
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    address: Optional[str] = None
+    payment_terms_days: Optional[int] = None
+
+# ==================== PURCHASE MODELS ====================
+class PurchaseItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    product_sku: str
+    product_name: str  # Denormalized for display
+    batch_no: Optional[str] = None  # Optional: can be assigned during receive
+    expiry_date: Optional[datetime] = None
+    qty_packs: Optional[int] = None  # Input convenience
+    qty_units: int  # Canonical quantity in units
+    cost_price_per_unit: float
+    mrp_per_unit: float
+    gst_percent: float = 5.0
+    line_total: float
+    received_qty_units: int = 0  # Track how many units received so far
+
+class Purchase(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    purchase_number: str  # e.g., PUR-2024-0001
+    supplier_id: str
+    supplier_name: str  # Denormalized
+    purchase_date: datetime
+    supplier_invoice_no: Optional[str] = None
+    supplier_invoice_date: Optional[datetime] = None
+    status: str = "draft"  # draft, received, partially_received, closed, cancelled
+    items: List[PurchaseItem] = []
+    subtotal: float = 0
+    tax_value: float = 0
+    round_off: float = 0
+    total_value: float = 0
+    payment_terms_days: int = 30
+    note: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PurchaseItemCreate(BaseModel):
+    product_sku: str
+    product_name: str
+    batch_no: Optional[str] = None
+    expiry_date: Optional[str] = None  # ISO string
+    qty_packs: Optional[int] = None
+    qty_units: int
+    cost_price_per_unit: float
+    mrp_per_unit: float
+    gst_percent: float = 5.0
+
+class PurchaseCreate(BaseModel):
+    supplier_id: str
+    purchase_date: str  # ISO date string
+    supplier_invoice_no: Optional[str] = None
+    supplier_invoice_date: Optional[str] = None
+    items: List[PurchaseItemCreate]
+    note: Optional[str] = None
+
+class PurchaseUpdate(BaseModel):
+    supplier_id: Optional[str] = None
+    purchase_date: Optional[str] = None
+    supplier_invoice_no: Optional[str] = None
+    supplier_invoice_date: Optional[str] = None
+    items: Optional[List[PurchaseItemCreate]] = None
+    note: Optional[str] = None
 
 # Customer Models
 class Customer(BaseModel):

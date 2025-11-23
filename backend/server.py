@@ -78,18 +78,28 @@ class Product(BaseModel):
     category: Optional[str] = None
     # Backward compatibility: support both old and new field names
     default_mrp: Optional[float] = None  # Legacy field
-    default_mrp_per_unit: Optional[float] = None  # Phase 0: MRP per unit (not per pack)
+    default_mrp_per_unit: float = 0  # Phase 0: MRP per unit (not per pack)
     default_ptr_per_unit: Optional[float] = None  # Phase 0: PTR (Price to Retailer) per unit
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
     low_stock_threshold: Optional[int] = None  # Legacy field
-    low_stock_threshold_units: Optional[int] = 10  # Phase 0: Alert threshold in units
+    low_stock_threshold_units: int = 10  # Phase 0: Alert threshold in units
     status: str = "active"  # active, inactive
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_by: Optional[str] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    @classmethod
+    def model_validate(cls, obj):
+        # Backward compatibility: normalize old field names
+        if isinstance(obj, dict):
+            if 'default_mrp' in obj and 'default_mrp_per_unit' not in obj:
+                obj['default_mrp_per_unit'] = obj['default_mrp']
+            if 'low_stock_threshold' in obj and 'low_stock_threshold_units' not in obj:
+                obj['low_stock_threshold_units'] = obj['low_stock_threshold']
+        return super().model_validate(obj)
 
 class ProductCreate(BaseModel):
     sku: str

@@ -245,6 +245,18 @@ frontend:
         agent: "testing"
         comment: "COMPREHENSIVE TESTING COMPLETED ✅ Inventory Management is fully functional: 1) Navigation to /inventory works perfectly 2) Products table displays correctly with proper headers (SKU, Item Name, Manufacturer, Pack Size, MRP/Unit, Total Stock, Status, Actions) 3) 5 products found and displayed 4) Product expansion functionality works (click SKU to expand) 5) Add Product dialog opens with all required fields (SKU, name, MRP, GST) 6) Search functionality works correctly 7) All UI components render without errors 8) Stock adjustment and batch management features available. Minor: Batch expansion details had some display issues but core functionality is solid. Module is production-ready and comprehensive as stated."
   
+  - task: "Enhanced Billing Page - Advanced Batch Selection & FEFO"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/BillingNew.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Enhanced billing page with advanced batch selection features: 1) Color-coded batch indicators (Red=Expired, Yellow=Expiring Soon, Green=Good/FEFO) 2) FEFO recommended batch prominently displayed with 'Add to Bill' button 3) Expandable multi-batch selector showing all available batches for manual override 4) Enhanced batch details display (Batch No, Expiry Date, Available Qty, MRP per unit) 5) Visual warnings for expired/expiring batches in search results 6) Color-coded expiry indicators in bill items table 7) Expired/Expiring Soon labels in cart items 8) Confirmation prompt before adding expired batches. All batch selection uses existing /api/products/search-with-batches endpoint with FEFO logic. Ready for testing."
+  
   - task: "Inventory Page - Product + Batch View"
     implemented: false
     working: "NA"

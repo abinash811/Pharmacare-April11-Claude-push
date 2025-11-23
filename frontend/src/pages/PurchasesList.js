@@ -57,6 +57,7 @@ export default function PurchasesList() {
 
   const fetchSuppliers = async () => {
     const token = localStorage.getItem('token');
+    if (!token) return;
     try {
       const response = await axios.get(`${API}/suppliers`, {
         headers: { Authorization: `Bearer ${token}` }

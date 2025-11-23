@@ -850,7 +850,7 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
     if existing:
         raise HTTPException(status_code=400, detail="Product with this SKU already exists")
     
-    product = Product(**product_data.model_dump())
+    product = Product(**product_data.model_dump(), created_by=current_user.id, updated_by=current_user.id)
     doc = product.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     doc['updated_at'] = doc['updated_at'].isoformat()

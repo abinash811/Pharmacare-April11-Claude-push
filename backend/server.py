@@ -284,16 +284,25 @@ class StockMovement(BaseModel):
     performed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # Phase 0: performed_at
 
 class StockMovementCreate(BaseModel):
-    product_id: str
+    product_sku: str
     batch_id: str
     product_name: str
     batch_no: str
-    quantity: int
+    qty_delta_units: int
     movement_type: str
-    ref_entity: str
+    ref_type: str
     ref_id: str
-    location_id: Optional[str] = "default"
+    location: Optional[str] = "default"
     reason: Optional[str] = None
+
+# Stock Adjustment Model - Phase 0
+class StockAdjustment(BaseModel):
+    batch_id: str
+    adjustment_type: str  # 'add' or 'remove'
+    qty_units: int  # Quantity to add/remove in units
+    reason: str
+    reference_number: Optional[str] = None
+    notes: Optional[str] = None
 
 # Payment Models (for multiple payment methods support)
 class Payment(BaseModel):

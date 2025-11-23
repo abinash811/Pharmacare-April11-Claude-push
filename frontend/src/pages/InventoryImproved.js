@@ -203,13 +203,19 @@ export default function InventoryImproved() {
     const token = localStorage.getItem('token');
 
     const batchData = {
-      product_id: selectedProduct.id,
+      product_sku: selectedProduct.sku,
       batch_no: formData.get('batch_no'),
+      manufacture_date: formData.get('manufacture_date') || null,
       expiry_date: formData.get('expiry_date'),
       qty_on_hand: parseInt(formData.get('qty_on_hand')),
-      cost_price: parseFloat(formData.get('cost_price')),
-      mrp: parseFloat(formData.get('mrp')) || selectedProduct.default_mrp,
-      supplier_name: formData.get('supplier_name') || null
+      cost_price_per_unit: parseFloat(formData.get('cost_price_per_unit')),
+      mrp_per_unit: parseFloat(formData.get('mrp_per_unit')) || selectedProduct.default_mrp_per_unit,
+      supplier_name: formData.get('supplier_name') || null,
+      supplier_invoice_no: formData.get('supplier_invoice_no') || null,
+      received_date: formData.get('received_date') || null,
+      location: formData.get('location') || 'default',
+      free_qty_units: parseInt(formData.get('free_qty_units')) || 0,
+      notes: formData.get('notes') || null
     };
 
     try {

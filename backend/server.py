@@ -1594,23 +1594,26 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
                 logger.error(f"Batch {batch_id} not found")
                 continue
             
-            # Create stock movement record
+            # Create stock movement record (Phase 0 compliant)
             batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
             
+            # Convert pack change to units for stock movement
+            qty_delta_units = int(pack_change * units_per_pack)
+            
             movement = StockMovement(
-                product_id=product_id,
+                product_sku=product_sku,
                 batch_id=batch_id,
                 product_name=product['name'] if product else item.get('product_name', item.get('medicine_name', 'Unknown')),
                 batch_no=batch['batch_no'] if batch else item.get('batch_no', item.get('batch_number', 'N/A')),
-                quantity=pack_change,  # Store pack quantity in movement
+                qty_delta_units=qty_delta_units,  # Phase 0: quantity in units
                 movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
-                ref_entity="invoice",
+                ref_type="invoice",  # Phase 0: ref_type instead of ref_entity
                 ref_id=bill.id,
-                location_id="default",
-                created_by=current_user.id
+                location=batch.get('location', 'default') if batch else "default",
+                performed_by=current_user.id
             )
             movement_doc = movement.model_dump()
-            movement_doc['created_at'] = movement_doc['created_at'].isoformat()
+            movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
             await db.stock_movements.insert_one(movement_doc)
     
     # Save bill first

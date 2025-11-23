@@ -539,7 +539,7 @@ export default function BillingNew() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
               

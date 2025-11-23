@@ -479,74 +479,162 @@ export default function BillingNew() {
                 />
               </div>
               
-              {/* Search Results */}
+              {/* Search Results - Enhanced with Batch Selector */}
               {searchResults.length > 0 && (
-                <div className="mt-2 border rounded-md max-h-64 overflow-y-auto">
+                <div className="mt-2 border rounded-md max-h-96 overflow-y-auto bg-white shadow-lg">
                   {searchResults.map((product) => {
-                    const batch = product.suggested_batch;
-                    const expiryDate = batch ? new Date(batch.expiry_iso || batch.expiry_date) : null;
-                    const today = new Date();
-                    const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
-                    const isExpired = expiryDate && expiryDate < today;
-                    const isNearExpiry = expiryDate && expiryDate < threeMonthsFromNow && !isExpired;
+                    const suggestedBatch = product.suggested_batch;
+                    const allBatches = product.batches || (suggestedBatch ? [suggestedBatch] : []);
+                    const isExpanded = expandedProduct === product.product_id;
                     
                     return (
                     <div
                       key={product.product_id}
-                      className={`p-3 cursor-pointer border-b last:border-b-0 ${
-                        isExpired ? 'bg-red-50 hover:bg-red-100' : 
-                        isNearExpiry ? 'bg-yellow-50 hover:bg-yellow-100' : 
-                        'hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        if (isExpired) {
-                          if (!window.confirm(`⚠️ WARNING: This batch expired on ${batch.expiry_date}. Continue billing?`)) {
-                            return;
-                          }
-                        }
-                        addToBill(product);
-                      }}
+                      className="border-b last:border-b-0"
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{product.name}</div>
-                          <div className="text-xs text-gray-500">
-                            SKU: {product.sku} {product.brand && `• ${product.brand}`}
-                          </div>
-                          {product.suggested_batch && (
-                            <div className="space-y-1 mt-1">
-                              <div className="flex items-center gap-2">
-                                <Package className="w-3 h-3 text-blue-600" />
-                                <span className="text-xs text-blue-600">
-                                  Batch: {product.suggested_batch.batch_no} • 
-                                  Exp: {product.suggested_batch.expiry_date} • 
-                                  Available: {product.suggested_batch.total_units || product.suggested_batch.qty_on_hand} units
-                                  {product.units_per_pack > 1 && ` (${product.suggested_batch.qty_on_hand} ${product.pack_size || 'packs'})`}
-                                </span>
-                              </div>
-                              {isExpired && (
-                                <div className="flex items-center gap-1 text-xs font-medium text-red-600">
-                                  <AlertCircle className="w-3 h-3" />
-                                  EXPIRED - Batch cannot be sold
-                                </div>
-                              )}
-                              {isNearExpiry && !isExpired && (
-                                <div className="flex items-center gap-1 text-xs font-medium text-yellow-700">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Expiring Soon - Sell First (FEFO)
-                                </div>
+                      {/* Product Header */}
+                      <div className="p-3 hover:bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-sm">{product.name}</div>
+                              {allBatches.length > 1 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedProduct(isExpanded ? null : product.product_id);
+                                  }}
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  {isExpanded ? '▼' : '▶'} {allBatches.length} batches
+                                </button>
                               )}
                             </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">₹{product.suggested_batch?.mrp_per_unit || product.suggested_batch?.mrp || product.default_mrp}/unit</div>
-                          <div className="text-xs text-gray-500">
-                            Stock: {product.total_units || product.total_qty} units
-                            {product.units_per_pack > 1 && ` (${product.total_qty} ${product.pack_size || 'packs'})`}
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              SKU: {product.sku} {product.brand && `• ${product.brand}`}
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            <div className="font-medium text-sm">₹{suggestedBatch?.mrp_per_unit || suggestedBatch?.mrp || product.default_mrp}/unit</div>
+                            <div className="text-xs text-gray-500">
+                              Total: {product.total_units || product.total_qty} units
+                            </div>
                           </div>
                         </div>
+
+                        {/* Suggested Batch (FEFO) - Always Visible */}
+                        {suggestedBatch && (
+                          <div className="mt-2">
+                            {(() => {
+                              const expiryDate = new Date(suggestedBatch.expiry_iso || suggestedBatch.expiry_date);
+                              const today = new Date();
+                              const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+                              const isExpired = expiryDate < today;
+                              const isNearExpiry = expiryDate < threeMonthsFromNow && !isExpired;
+                              
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (isExpired) {
+                                      if (!window.confirm(`⚠️ WARNING: This batch expired on ${suggestedBatch.expiry_date}. Continue billing?`)) {
+                                        return;
+                                      }
+                                    }
+                                    addToBill(product);
+                                  }}
+                                  className={`w-full text-left p-2 rounded border-2 transition-all ${
+                                    isExpired ? 'border-red-300 bg-red-50 hover:bg-red-100' :
+                                    isNearExpiry ? 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100' :
+                                    'border-green-300 bg-green-50 hover:bg-green-100'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <div className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                        isExpired ? 'bg-red-200 text-red-800' :
+                                        isNearExpiry ? 'bg-yellow-200 text-yellow-800' :
+                                        'bg-green-200 text-green-800'
+                                      }`}>
+                                        {isExpired ? 'EXPIRED' : isNearExpiry ? 'EXPIRING SOON' : 'RECOMMENDED (FEFO)'}
+                                      </div>
+                                      <span className="text-xs font-medium">Batch: {suggestedBatch.batch_no}</span>
+                                    </div>
+                                    <span className="text-xs font-medium px-2 py-1 bg-white rounded">+ Add to Bill</span>
+                                  </div>
+                                  <div className="flex items-center gap-4 mt-1 text-xs">
+                                    <span className={`font-medium ${isExpired ? 'text-red-700' : isNearExpiry ? 'text-yellow-700' : 'text-green-700'}`}>
+                                      Expiry: {suggestedBatch.expiry_date}
+                                    </span>
+                                    <span className="text-gray-600">
+                                      Available: {suggestedBatch.total_units || suggestedBatch.qty_on_hand} units
+                                    </span>
+                                    <span className="text-gray-600">
+                                      MRP: ₹{suggestedBatch.mrp_per_unit || suggestedBatch.mrp}/unit
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
+
+                      {/* All Batches - Expandable */}
+                      {isExpanded && allBatches.length > 1 && (
+                        <div className="px-3 pb-3 bg-gray-50 space-y-1">
+                          <div className="text-xs font-medium text-gray-600 mb-2">Other Available Batches:</div>
+                          {allBatches.filter(b => b.batch_id !== suggestedBatch?.batch_id).map((batch) => {
+                            const expiryDate = new Date(batch.expiry_iso || batch.expiry_date);
+                            const today = new Date();
+                            const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+                            const isExpired = expiryDate < today;
+                            const isNearExpiry = expiryDate < threeMonthsFromNow && !isExpired;
+                            
+                            return (
+                              <button
+                                key={batch.batch_id}
+                                onClick={() => {
+                                  if (isExpired) {
+                                    if (!window.confirm(`⚠️ WARNING: This batch expired on ${batch.expiry_date}. Continue billing?`)) {
+                                      return;
+                                    }
+                                  }
+                                  addToBill(product, batch);
+                                }}
+                                className={`w-full text-left p-2 rounded border hover:shadow transition-all ${
+                                  isExpired ? 'border-red-200 bg-red-50 hover:bg-red-100' :
+                                  isNearExpiry ? 'border-yellow-200 bg-yellow-50 hover:bg-yellow-100' :
+                                  'border-gray-200 bg-white hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-3">
+                                    <span className={`px-1.5 py-0.5 rounded font-medium ${
+                                      isExpired ? 'bg-red-200 text-red-800' :
+                                      isNearExpiry ? 'bg-yellow-200 text-yellow-800' :
+                                      'bg-gray-200 text-gray-700'
+                                    }`}>
+                                      {batch.batch_no}
+                                    </span>
+                                    <span className={isExpired ? 'text-red-700 font-medium' : isNearExpiry ? 'text-yellow-700' : 'text-gray-600'}>
+                                      Exp: {batch.expiry_date}
+                                    </span>
+                                    <span className="text-gray-600">
+                                      Qty: {batch.total_units || batch.qty_on_hand}
+                                    </span>
+                                    <span className="text-gray-600">
+                                      ₹{batch.mrp_per_unit || batch.mrp}/unit
+                                    </span>
+                                  </div>
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                                    Select
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )})}
                 </div>

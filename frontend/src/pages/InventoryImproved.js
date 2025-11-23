@@ -137,6 +137,7 @@ export default function InventoryImproved() {
       name: formData.get('name'),
       brand: formData.get('brand') || null,
       pack_size: formData.get('pack_size') || null,
+      units_per_pack: parseInt(formData.get('units_per_pack')) || 1,
       category: formData.get('category') || null,
       default_mrp: parseFloat(formData.get('default_mrp')),
       gst_percent: parseFloat(formData.get('gst_percent')),

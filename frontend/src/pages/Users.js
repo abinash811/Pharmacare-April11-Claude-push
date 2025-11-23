@@ -113,7 +113,7 @@ export default function Users() {
       });
       toast.success('User created successfully');
       setShowAddDialog(false);
-      setFormData({ name: '', email: '', password: '', role: 'cashier' });
+      setFormData({ name: '', email: '', password: '', role: '' });
       fetchUsers();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create user');

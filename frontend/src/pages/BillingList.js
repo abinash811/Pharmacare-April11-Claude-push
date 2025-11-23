@@ -216,53 +216,18 @@ export default function BillingList() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Stats */}
-      <div className="bg-white border-b px-8 py-4">
-        <div className="flex justify-between items-center mb-4">
+      {/* Top Header */}
+      <div className="bg-white border-b px-6 py-4">
+        <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Bills & Returns Management</h1>
             <p className="text-sm text-gray-600">Track sales and returns in one place</p>
           </div>
         </div>
-
-        <div className="grid grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Gross Sales</div>
-              <div className="text-2xl font-bold text-green-600">
-                ₹{analytics?.gross_sales?.toLocaleString() || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Returns</div>
-              <div className="text-2xl font-bold text-red-600">
-                ₹{analytics?.returns?.toLocaleString() || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Net Sales</div>
-              <div className="text-2xl font-bold text-blue-600">
-                ₹{analytics?.net_sales?.toLocaleString() || 0}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-gray-600">Return %</div>
-              <div className="text-2xl font-bold text-gray-600">
-                {analytics?.return_percentage?.toFixed(1) || 0}%
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       {/* Tabs and Content */}
-      <div className="p-8">
+      <div className="p-6">
         <Tabs defaultValue="sales" className="w-full">
           <div className="flex justify-between items-center mb-6">
             <TabsList>

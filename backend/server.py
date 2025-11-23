@@ -2189,26 +2189,6 @@ async def get_purchases(current_user: User = Depends(get_current_user)):
             purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
     return purchases
 
-# ==================== SUPPLIER ROUTES ====================
-
-@api_router.post("/suppliers", response_model=Supplier)
-async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(get_current_user)):
-    supplier = Supplier(**supplier_data.model_dump())
-    
-    doc = supplier.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
-    await db.suppliers.insert_one(doc)
-    
-    return supplier
-
-@api_router.get("/suppliers", response_model=List[Supplier])
-async def get_suppliers(current_user: User = Depends(get_current_user)):
-    suppliers = await db.suppliers.find({}, {"_id": 0}).to_list(1000)
-    for supplier in suppliers:
-        if isinstance(supplier['created_at'], str):
-            supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
-    return suppliers
-
 # ==================== CUSTOMER ROUTES ====================
 
 @api_router.post("/customers", response_model=Customer)

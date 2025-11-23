@@ -1399,14 +1399,13 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             
             # Create stock movement record
             batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-            product = await db.products.find_one({"id": product_id}, {"_id": 0})
             
             movement = StockMovement(
                 product_id=product_id,
                 batch_id=batch_id,
                 product_name=product['name'] if product else item.get('product_name', item.get('medicine_name', 'Unknown')),
                 batch_no=batch['batch_no'] if batch else item.get('batch_no', item.get('batch_number', 'N/A')),
-                quantity=quantity_change,
+                quantity=pack_change,  # Store pack quantity in movement
                 movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
                 ref_entity="invoice",
                 ref_id=bill.id,

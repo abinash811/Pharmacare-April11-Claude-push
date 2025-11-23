@@ -96,9 +96,15 @@ export default function BillDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              window.open(`${API}/bills/${id}/pdf`, '_blank');
+              toast.success('Opening PDF...');
+            }}
+          >
             <Printer className="w-4 h-4 mr-2" />
-            Print
+            Print PDF
           </Button>
         </div>
       </div>

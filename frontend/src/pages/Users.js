@@ -248,7 +248,7 @@ export default function Users() {
             Change My Password
           </Button>
           <Button onClick={() => {
-            setFormData({ name: '', email: '', password: '', role: 'cashier' });
+            setFormData({ name: '', email: '', password: '', role: '' });
             setShowAddDialog(true);
           }}>
             <Plus className="w-4 h-4 mr-2 inline" />

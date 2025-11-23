@@ -88,6 +88,7 @@ class ProductCreate(BaseModel):
     name: str
     brand: Optional[str] = None
     pack_size: Optional[str] = None
+    units_per_pack: int = 1  # How many units (tablets) in one pack (strip)
     category: Optional[str] = None
     default_mrp: float
     gst_percent: float = 5.0

@@ -897,8 +897,163 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
-        "role": current_user.role
+        "role": current_user.role,
+        "is_active": current_user.is_active
     }
+
+# ==================== USER MANAGEMENT ROUTES ====================
+
+@api_router.get("/users", response_model=List[User])
+async def get_all_users(current_user: User = Depends(get_current_user)):
+    """Get all users - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return users
+
+@api_router.post("/users", response_model=User)
+async def create_user(user_data: UserCreate, current_user: User = Depends(get_current_user)):
+    """Create new user - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Validate role
+    if user_data.role not in ["admin", "manager", "cashier", "inventory_staff"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Check if email already exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash password
+    password_hash = pwd_context.hash(user_data.password)
+    
+    # Create user
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        role=user_data.role,
+        password_hash=password_hash,
+        created_by=current_user.id,
+        is_active=True
+    )
+    
+    doc = user.model_dump()
+    await db.users.insert_one(doc)
+    
+    # Return without password_hash
+    user.password_hash = None
+    return user
+
+@api_router.get("/users/{user_id}", response_model=User)
+async def get_user(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get user by ID - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return user
+
+@api_router.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update user - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if user exists
+    existing_user = await db.users.find_one({"id": user_id})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Validate role if provided
+    if user_update.role and user_update.role not in ["admin", "manager", "cashier", "inventory_staff"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Check if email is being changed and if it's already taken
+    if user_update.email and user_update.email != existing_user.get("email"):
+        email_exists = await db.users.find_one({"email": user_update.email})
+        if email_exists:
+            raise HTTPException(status_code=400, detail="Email already in use")
+    
+    # Prepare update data
+    update_data = {k: v for k, v in user_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    update_data["updated_by"] = current_user.id
+    
+    # Update user
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    # Get updated user
+    updated_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return updated_user
+
+@api_router.delete("/users/{user_id}")
+async def deactivate_user(user_id: str, current_user: User = Depends(get_current_user)):
+    """Deactivate user - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Cannot deactivate self
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
+    
+    # Check if user exists
+    existing_user = await db.users.find_one({"id": user_id})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Deactivate user
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "is_active": False,
+            "updated_at": datetime.now(timezone.utc),
+            "updated_by": current_user.id
+        }}
+    )
+    
+    # Delete all sessions for this user
+    await db.sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "User deactivated successfully"}
+
+@api_router.put("/users/me/change-password")
+async def change_password(
+    password_data: ChangePassword,
+    current_user: User = Depends(get_current_user)
+):
+    """Change own password - All users"""
+    # Get user with password hash
+    user = await db.users.find_one({"id": current_user.id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not pwd_context.verify(password_data.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    new_password_hash = pwd_context.hash(password_data.new_password)
+    
+    # Update password
+    await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {
+            "password_hash": new_password_hash,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {"message": "Password changed successfully"}
 
 # ==================== MEDICINE ROUTES ====================
 

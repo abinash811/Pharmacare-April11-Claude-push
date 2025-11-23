@@ -315,3 +315,44 @@ agent_communication:
       ✅ No console errors detected
       
       The user-reported issue has been completely resolved. The CreatePurchase page now loads data correctly and all purchase-related functionality is working as expected.
+  
+  - agent: "main"
+    message: |
+      ✅ IMPLEMENTED: Purchase Returns Module + Verified Inventory Management
+      
+      Task 1: Purchase Returns UI (NEW - READY FOR TESTING)
+      📄 Created 3 new pages:
+        1. PurchaseReturnsList.js - List all returns with status filters (draft/confirmed)
+        2. CreatePurchaseReturn.js - Create return from existing purchase
+        3. PurchaseReturnDetail.js - View and confirm returns (deducts stock)
+      
+      🔧 Backend Enhancement:
+        - Added GET /api/purchase-returns/{id} endpoint (was missing)
+      
+      🔗 Integration:
+        - Added routes in App.js for all 3 pages
+        - Added "Returns" navigation link in Layout.js sidebar
+      
+      📋 Features Implemented:
+        ✅ Select confirmed purchase to create return
+        ✅ Choose items and quantities to return (validation against purchased qty)
+        ✅ Return reasons per item (Damaged, Expired, Wrong Product, etc.)
+        ✅ Draft/Confirmed workflow
+        ✅ Confirm button deducts stock and creates supplier credit
+        ✅ Search and filter returns by status, supplier
+      
+      Task 4: Inventory Management (VERIFIED - ALREADY COMPREHENSIVE)
+      ✅ InventoryImproved.js is production-ready with:
+        - Product listing with expand/collapse
+        - Batch management with color-coded expiry dates
+        - Add/Edit Product & Batch dialogs
+        - Stock adjustment with detailed reasons
+        - Stock movement history viewer
+        - Search by product name, SKU, batch number
+      
+      🧪 Testing Required:
+        - Test complete Purchase Returns workflow (create → view → confirm)
+        - Verify stock deduction after confirming return
+        - Test Inventory Management batch features
+      
+      Test Credentials: admin@pharmacy.com / admin123

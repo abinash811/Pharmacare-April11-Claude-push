@@ -71,13 +71,14 @@ class Product(BaseModel):
     sku: str  # Unique product code
     name: str
     brand: Optional[str] = None
-    pack_size: Optional[str] = None  # e.g., "10 tablets", "100ml"
+    pack_size: Optional[str] = None  # e.g., "10 tablets", "100ml" - Display label
+    units_per_pack: int = 1  # Numeric: how many units in one pack (e.g., 10 tablets per strip)
     category: Optional[str] = None
     default_mrp: float
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
-    low_stock_threshold: int = 10  # Alert when stock falls below this
+    low_stock_threshold: int = 10  # Alert when stock falls below this (in packs)
     status: str = "active"  # active, inactive
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

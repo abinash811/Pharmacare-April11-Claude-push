@@ -620,7 +620,7 @@ export default function InventoryImproved() {
               </div>
               <div>
                 <Label htmlFor="low_stock_threshold_units">Low Stock Threshold (Units)</Label>
-                <Input name="low_stock_threshold" id="low_stock_threshold" type="number" defaultValue="10" />
+                <Input name="low_stock_threshold_units" id="low_stock_threshold_units" type="number" defaultValue="10" />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>

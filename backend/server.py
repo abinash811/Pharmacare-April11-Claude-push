@@ -1080,33 +1080,39 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
 
 @api_router.get("/stock/batches")
 async def get_stock_batches(
-    product_id: Optional[str] = None,
-    location_id: Optional[str] = None,
+    product_sku: Optional[str] = None,
+    location: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     query = {}
-    if product_id:
-        query["product_id"] = product_id
-    if location_id:
-        query["location_id"] = location_id
+    if product_sku:
+        query["product_sku"] = product_sku
+    if location:
+        query["location"] = location
     
     batches = await db.stock_batches.find(query, {"_id": 0}).sort("expiry_date", 1).to_list(10000)
     
-    # Enrich with product info
+    # Enrich with product info and calculate units
     for batch in batches:
-        if isinstance(batch['created_at'], str):
+        if isinstance(batch.get('created_at'), str):
             batch['created_at'] = datetime.fromisoformat(batch['created_at'])
-        if isinstance(batch['updated_at'], str):
+        if isinstance(batch.get('updated_at'), str):
             batch['updated_at'] = datetime.fromisoformat(batch['updated_at'])
-        if isinstance(batch['expiry_date'], str):
+        if isinstance(batch.get('expiry_date'), str):
             batch['expiry_date'] = datetime.fromisoformat(batch['expiry_date'])
+        if isinstance(batch.get('manufacture_date'), str):
+            batch['manufacture_date'] = datetime.fromisoformat(batch['manufacture_date'])
+        if isinstance(batch.get('received_date'), str):
+            batch['received_date'] = datetime.fromisoformat(batch['received_date'])
         
         # Add product info
-        product = await db.products.find_one({"id": batch['product_id']}, {"_id": 0, "name": 1, "brand": 1, "sku": 1})
+        product = await db.products.find_one({"sku": batch['product_sku']}, {"_id": 0, "name": 1, "brand": 1, "sku": 1, "units_per_pack": 1})
         if product:
             batch['product_name'] = product.get('name', '')
             batch['product_brand'] = product.get('brand', '')
             batch['product_sku'] = product.get('sku', '')
+            units_per_pack = product.get('units_per_pack', 1)
+            batch['total_units'] = batch.get('qty_on_hand', 0) * units_per_pack
     
     return batches
 

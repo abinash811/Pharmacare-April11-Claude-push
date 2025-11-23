@@ -249,13 +249,16 @@ DEFAULT_ROLES = [
 
 async def has_permission(user_role: str, permission: str) -> bool:
     """Check if a user role has a specific permission"""
-    if user_role not in ROLE_PERMISSIONS:
+    # Fetch role from database
+    role = await db.roles.find_one({"name": user_role}, {"_id": 0})
+    
+    if not role:
         return False
     
-    user_permissions = ROLE_PERMISSIONS[user_role]
+    user_permissions = role.get("permissions", [])
     
-    # Admin has all permissions
-    if "*" in user_permissions:
+    # Super Admin or wildcard has all permissions
+    if "*" in user_permissions or role.get("is_super_admin", False):
         return True
     
     return permission in user_permissions

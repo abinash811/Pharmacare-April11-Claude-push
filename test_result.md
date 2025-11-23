@@ -228,8 +228,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Frontend - Inventory page batch view"
-    - "Frontend - Billing page batch selector"
+    - "CreatePurchase Page - Load Suppliers and Products"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

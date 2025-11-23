@@ -885,16 +885,24 @@ async def search_products_with_batches(
                 if isinstance(expiry, str):
                     expiry = datetime.fromisoformat(expiry)
                 
+                units_per_pack = product.get('units_per_pack', 1)
+                total_units_in_batch = batch['qty_on_hand'] * units_per_pack
+                
                 formatted_batches.append({
                     "batch_id": batch['id'],
                     "batch_no": batch['batch_no'],
                     "expiry_date": expiry.strftime('%d-%m-%Y'),
                     "expiry_iso": expiry.isoformat(),
-                    "qty_on_hand": batch['qty_on_hand'],
-                    "mrp": batch['mrp'],
+                    "qty_on_hand": batch['qty_on_hand'],  # Packs/strips
+                    "total_units": total_units_in_batch,  # Individual tablets
+                    "mrp": batch['mrp'],  # Per pack
+                    "mrp_per_unit": batch['mrp'] / units_per_pack if units_per_pack > 0 else batch['mrp'],
                     "cost_price": batch['cost_price']
                 })
                 total_qty += batch['qty_on_hand']
+            
+            units_per_pack = product.get('units_per_pack', 1)
+            total_units = total_qty * units_per_pack
             
             results.append({
                 "product_id": product['id'],
@@ -902,9 +910,11 @@ async def search_products_with_batches(
                 "name": product['name'],
                 "brand": product.get('brand', ''),
                 "pack_size": product.get('pack_size', ''),
+                "units_per_pack": units_per_pack,
                 "default_mrp": product['default_mrp'],
                 "gst_percent": product['gst_percent'],
-                "total_qty": total_qty,
+                "total_qty": total_qty,  # Total packs
+                "total_units": total_units,  # Total individual units
                 "batches": formatted_batches,
                 "suggested_batch": formatted_batches[0] if formatted_batches else None  # FEFO
             })

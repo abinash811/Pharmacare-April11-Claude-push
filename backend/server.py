@@ -100,6 +100,7 @@ class ProductCreate(BaseModel):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     brand: Optional[str] = None
+    units_per_pack: Optional[int] = None
     pack_size: Optional[str] = None
     category: Optional[str] = None
     default_mrp: Optional[float] = None

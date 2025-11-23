@@ -95,21 +95,22 @@ export default function InventoryImproved() {
     setFilteredProducts(filtered);
   };
 
-  const toggleProductExpansion = (productId) => {
+  const toggleProductExpansion = (product) => {
+    const productKey = product.sku; // Use SKU as key
     const newExpanded = new Set(expandedProducts);
-    if (newExpanded.has(productId)) {
-      newExpanded.delete(productId);
+    if (newExpanded.has(productKey)) {
+      newExpanded.delete(productKey);
     } else {
-      newExpanded.add(productId);
-      if (!productBatches[productId]) {
-        fetchBatchesForProduct(productId);
+      newExpanded.add(productKey);
+      if (!productBatches[productKey]) {
+        fetchBatchesForProduct(product.sku);
       }
     }
     setExpandedProducts(newExpanded);
   };
 
-  const calculateTotalQty = (productId) => {
-    const batches = productBatches[productId] || [];
+  const calculateTotalQty = (productSku) => {
+    const batches = productBatches[productSku] || [];
     return batches.reduce((sum, batch) => sum + (batch.qty_on_hand || 0), 0);
   };
 

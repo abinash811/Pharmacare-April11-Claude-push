@@ -23,6 +23,7 @@ export default function Layout() {
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Returns', path: '/purchase-returns', icon: Package, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Customers', path: '/customers', icon: Users, roles: ['admin', 'manager', 'cashier'] },
+    { name: 'Suppliers', path: '/suppliers', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
     { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     { name: 'Users', path: '/users', icon: Users, roles: ['admin'] },

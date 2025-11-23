@@ -45,6 +45,7 @@ export default function CreatePurchase() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   
   const [formData, setFormData] = useState({
     supplier_id: '',

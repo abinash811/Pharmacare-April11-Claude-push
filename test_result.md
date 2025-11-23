@@ -120,6 +120,18 @@ user_problem_statement: |
   - Verify Inventory Management features (already comprehensive)
 
 backend:
+  - task: "Purchase Returns GET Single Endpoint"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added GET /api/purchase-returns/{return_id} endpoint to fetch single purchase return by ID. Returns PurchaseReturn model with all details. Required for PurchaseReturnDetail.js page."
+  
   - task: "Product Model & CRUD API"
     implemented: true
     working: true

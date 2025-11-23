@@ -477,38 +477,53 @@ export default function InventoryImproved() {
                     </tr>
 
                     {/* Expanded Batches Row */}
-                    {expandedProducts.has(product.id) && (
+                    {expandedProducts.has(product.sku) && (
                       <tr>
-                        <td colSpan="9" className="px-4 py-4 bg-gray-50">
+                        <td colSpan="8" className="px-4 py-4 bg-gray-50">
                           <div className="ml-8">
                             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                               <Package className="w-4 h-4" />
                               Stock Batches
                             </h4>
-                            {productBatches[product.id] && productBatches[product.id].length > 0 ? (
+                            {productBatches[product.sku] && productBatches[product.sku].length > 0 ? (
                               <table className="w-full border rounded bg-white">
                                 <thead className="bg-gray-100">
                                   <tr>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Batch No</th>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Expiry</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty On Hand</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Cost Price</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">MRP</th>
-                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">GST %</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Qty (Packs)</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Total Units</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Cost/Unit</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">MRP/Unit</th>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Supplier</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Location</th>
                                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                  {productBatches[product.id].map((batch) => (
-                                    <tr key={batch.id} className="hover:bg-gray-50">
+                                  {productBatches[product.sku].map((batch) => {
+                                    const expiryDate = new Date(batch.expiry_date);
+                                    const today = new Date();
+                                    const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                                    const isExpired = daysUntilExpiry < 0;
+                                    const isNearExpiry = daysUntilExpiry >= 0 && daysUntilExpiry <= 60;
+                                    
+                                    return (
+                                    <tr key={batch.id} className={`hover:bg-gray-50 ${isExpired ? 'bg-red-50' : isNearExpiry ? 'bg-yellow-50' : ''}`}>
                                       <td className="px-3 py-2 text-sm font-medium">{batch.batch_no}</td>
-                                      <td className="px-3 py-2 text-sm">{formatDate(batch.expiry_date)}</td>
+                                      <td className="px-3 py-2 text-sm">
+                                        <span className={isExpired ? 'text-red-600 font-medium' : isNearExpiry ? 'text-yellow-700 font-medium' : ''}>
+                                          {formatDate(batch.expiry_date)}
+                                        </span>
+                                        {isExpired && <span className="ml-2 text-xs text-red-600">EXPIRED</span>}
+                                        {isNearExpiry && !isExpired && <span className="ml-2 text-xs text-yellow-700">Expiring soon</span>}
+                                      </td>
                                       <td className="px-3 py-2 text-sm font-medium">{batch.qty_on_hand}</td>
-                                      <td className="px-3 py-2 text-sm">₹{batch.cost_price}</td>
-                                      <td className="px-3 py-2 text-sm">₹{batch.mrp}</td>
-                                      <td className="px-3 py-2 text-sm">{product.gst_percent}%</td>
+                                      <td className="px-3 py-2 text-sm text-gray-600">{batch.total_units || (batch.qty_on_hand * product.units_per_pack)}</td>
+                                      <td className="px-3 py-2 text-sm">₹{batch.cost_price_per_unit || batch.cost_price}</td>
+                                      <td className="px-3 py-2 text-sm">₹{batch.mrp_per_unit || batch.mrp}</td>
                                       <td className="px-3 py-2 text-sm text-gray-600">{batch.supplier_name || '-'}</td>
+                                      <td className="px-3 py-2 text-sm text-gray-600">{batch.location || 'default'}</td>
                                       <td className="px-3 py-2 text-right">
                                         <div className="flex gap-1 justify-end">
                                           <Button

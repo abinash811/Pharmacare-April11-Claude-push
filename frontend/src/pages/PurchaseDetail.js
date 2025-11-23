@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ArrowLeft, Package, FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const Button = ({ children, onClick, variant = 'primary', size = 'md', className = '', disabled = false }) => {
   const baseStyles = 'rounded font-medium transition-colors';

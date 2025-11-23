@@ -477,11 +477,30 @@ export default function BillingNew() {
               {/* Search Results */}
               {searchResults.length > 0 && (
                 <div className="mt-2 border rounded-md max-h-64 overflow-y-auto">
-                  {searchResults.map((product) => (
+                  {searchResults.map((product) => {
+                    const batch = product.suggested_batch;
+                    const expiryDate = batch ? new Date(batch.expiry_iso || batch.expiry_date) : null;
+                    const today = new Date();
+                    const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+                    const isExpired = expiryDate && expiryDate < today;
+                    const isNearExpiry = expiryDate && expiryDate < threeMonthsFromNow && !isExpired;
+                    
+                    return (
                     <div
                       key={product.product_id}
-                      className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                      onClick={() => addToBill(product)}
+                      className={`p-3 cursor-pointer border-b last:border-b-0 ${
+                        isExpired ? 'bg-red-50 hover:bg-red-100' : 
+                        isNearExpiry ? 'bg-yellow-50 hover:bg-yellow-100' : 
+                        'hover:bg-gray-50'
+                      }`}
+                      onClick={() => {
+                        if (isExpired) {
+                          if (!window.confirm(`⚠️ WARNING: This batch expired on ${batch.expiry_date}. Continue billing?`)) {
+                            return;
+                          }
+                        }
+                        addToBill(product);
+                      }}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">

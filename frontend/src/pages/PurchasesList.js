@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Plus, Search, Filter, Eye, Package, X, FileText } from 'lucide-react';
 
-const API = process.env.REACT_APP_BACKEND_URL;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const Button = ({ children, onClick, variant = 'primary', size = 'md', className = '', ...props }) => {
   const baseStyles = 'rounded font-medium transition-colors';

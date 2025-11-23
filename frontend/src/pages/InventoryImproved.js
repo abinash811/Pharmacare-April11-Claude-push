@@ -832,28 +832,47 @@ export default function InventoryImproved() {
           {selectedBatch && (
             <form onSubmit={handleAdjustStock} className="space-y-4">
               <div className="space-y-4">
+                <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Current Stock:</span> {selectedBatch.qty_on_hand} packs
+                    {selectedBatch.total_units && <span> ({selectedBatch.total_units} units)</span>}
+                  </p>
+                </div>
+                
                 <div>
                   <Label htmlFor="adjustment_type">Adjustment Type *</Label>
                   <select name="adjustment_type" id="adjustment_type" className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm" required>
-                    <option value="set">Set to New Quantity</option>
-                    <option value="add">Add Quantity</option>
-                    <option value="subtract">Subtract Quantity</option>
+                    <option value="add">Add Units</option>
+                    <option value="remove">Remove Units</option>
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">Choose whether to add or remove stock</p>
                 </div>
+                
                 <div>
-                  <Label htmlFor="adjustment_value">Quantity *</Label>
-                  <Input name="adjustment_value" id="adjustment_value" type="number" required />
+                  <Label htmlFor="qty_units">Quantity (in Units) *</Label>
+                  <Input name="qty_units" id="qty_units" type="number" min="1" required />
+                  <p className="text-xs text-gray-500 mt-1">Enter quantity in individual units (tablets, ml, etc.)</p>
                 </div>
+                
                 <div>
                   <Label htmlFor="reason">Reason *</Label>
                   <select name="reason" id="reason" className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm" required>
-                    <option value="Expired">Expired</option>
                     <option value="Damaged">Damaged</option>
+                    <option value="Expired">Expired</option>
                     <option value="Audit">Audit Correction</option>
                     <option value="Return to Supplier">Return to Supplier</option>
+                    <option value="Lost">Lost/Stolen</option>
+                    <option value="Sample">Given as Sample</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
+                
+                <div>
+                  <Label htmlFor="reference_number">Reference Number</Label>
+                  <Input name="reference_number" id="reference_number" placeholder="e.g., RMA-12345" />
+                  <p className="text-xs text-gray-500 mt-1">Optional reference number</p>
+                </div>
+                
                 <div>
                   <Label htmlFor="notes">Notes</Label>
                   <textarea name="notes" id="notes" rows="3" className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm" placeholder="Additional details..."></textarea>

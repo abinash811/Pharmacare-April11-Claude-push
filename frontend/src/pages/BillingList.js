@@ -132,15 +132,15 @@ export default function BillingList() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b">
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">{isReturn ? 'Return' : 'Bill'} #</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Patient Details</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Date</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Amount</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Method</th>
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
-            {isReturn && <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Original Bill</th>}
-            <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Actions</th>
+          <tr className="border-b bg-gray-50">
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">{isReturn ? 'Return' : 'Bill'} #</th>
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Patient Details</th>
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Date</th>
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Amount</th>
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Method</th>
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Status</th>
+            {isReturn && <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Original Bill</th>}
+            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -153,36 +153,36 @@ export default function BillingList() {
           ) : (
             data.map((item) => (
               <tr key={item.id} className="border-b hover:bg-gray-50">
-                <td className="py-4 px-4">
+                <td className="py-3 px-3">
                   <div 
-                    className="font-medium text-blue-600 cursor-pointer hover:underline"
+                    className="font-medium text-sm text-blue-600 cursor-pointer hover:underline"
                     onClick={() => navigate(`/billing/${item.id}`)}
                   >
                     {item.bill_number}
                   </div>
                 </td>
-                <td className="py-4 px-4">
-                  <div className="font-medium text-gray-800">
+                <td className="py-3 px-3">
+                  <div className="font-medium text-sm text-gray-800">
                     {item.customer_name || 'Walk-in'}
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-xs text-gray-500">
                     {item.customer_mobile || 'N/A'}
                   </div>
                 </td>
-                <td className="py-4 px-4 text-sm text-gray-600">
+                <td className="py-3 px-3 text-sm text-gray-600">
                   {new Date(item.created_at).toLocaleDateString()}
                 </td>
-                <td className="py-4 px-4 font-semibold text-gray-800">
+                <td className="py-3 px-3 font-semibold text-sm text-gray-800">
                   ₹{item.total_amount.toFixed(2)}
                 </td>
-                <td className="py-4 px-4">
-                  <span className="capitalize text-sm text-gray-600">
+                <td className="py-3 px-3">
+                  <span className="capitalize text-xs text-gray-600">
                     {item.payment_method}
                   </span>
                 </td>
-                <td className="py-4 px-4">{getStatusBadge(item.status)}</td>
+                <td className="py-3 px-3">{getStatusBadge(item.status)}</td>
                 {isReturn && (
-                  <td className="py-4 px-4 text-sm text-gray-600">
+                  <td className="py-3 px-3 text-xs text-gray-600">
                     {item.ref_invoice_id ? (
                       <span className="text-blue-600 font-medium">
                         {bills.find(b => b.id === item.ref_invoice_id)?.bill_number || 'N/A'}
@@ -192,12 +192,12 @@ export default function BillingList() {
                     )}
                   </td>
                 )}
-                <td className="py-4 px-4">
-                  <div className="flex gap-2">
-                    <button className="p-2 hover:bg-gray-100 rounded">
+                <td className="py-3 px-3">
+                  <div className="flex gap-1">
+                    <button className="p-1.5 hover:bg-gray-100 rounded">
                       <Printer className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button className="p-2 hover:bg-gray-100 rounded">
+                    <button className="p-1.5 hover:bg-gray-100 rounded">
                       <Edit2 className="w-4 h-4 text-gray-600" />
                     </button>
                   </div>

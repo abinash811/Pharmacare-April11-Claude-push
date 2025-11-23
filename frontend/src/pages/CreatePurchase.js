@@ -295,17 +295,23 @@ export default function CreatePurchase() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Supplier *</label>
-              <select
-                value={formData.supplier_id}
-                onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded"
-                required
-              >
-                <option value="">Select Supplier</option>
-                {suppliers.map(supplier => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                ))}
-              </select>
+              {suppliers.length === 0 ? (
+                <div className="w-full px-3 py-2 border border-red-300 rounded bg-red-50 text-red-700">
+                  No suppliers available. Please add suppliers first or contact admin.
+                </div>
+              ) : (
+                <select
+                  value={formData.supplier_id}
+                  onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  required
+                >
+                  <option value="">Select Supplier</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
             
             <Input

@@ -675,9 +675,15 @@ export default function BillingNew() {
                 <span className="text-gray-600">GST</span>
                 <span className="font-medium">₹{totals.taxAmount.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Round Off</span>
+                <span className={totals.roundOff >= 0 ? 'text-green-600' : 'text-red-600'}>
+                  {totals.roundOff >= 0 ? '+' : ''}₹{totals.roundOff.toFixed(2)}
+                </span>
+              </div>
               <div className="border-t pt-3 flex justify-between">
                 <span className="font-bold">Total Amount</span>
-                <span className="font-bold text-lg">₹{totals.total.toFixed(2)}</span>
+                <span className="font-bold text-lg">₹{totals.total.toFixed(0)}</span>
               </div>
             </CardContent>
           </Card>

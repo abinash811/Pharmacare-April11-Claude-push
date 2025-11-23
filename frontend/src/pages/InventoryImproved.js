@@ -903,25 +903,42 @@ export default function InventoryImproved() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date & Time</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Batch</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Type</th>
-                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty Change (Units)</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Ref Type</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Reason</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {stockMovements.map((movement, index) => (
-                    <tr key={index}>
-                      <td className="px-3 py-2">{formatDate(movement.created_at)}</td>
-                      <td className="px-3 py-2">{movement.batch_no}</td>
-                      <td className="px-3 py-2 capitalize">{movement.movement_type}</td>
-                      <td className={`px-3 py-2 text-right font-medium ${movement.quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {movement.quantity > 0 ? '+' : ''}{movement.quantity}
+                  {stockMovements.map((movement, index) => {
+                    const qtyDelta = movement.qty_delta_units || movement.quantity || 0;
+                    const performedAt = movement.performed_at || movement.created_at;
+                    return (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-xs">
+                        {new Date(performedAt).toLocaleString('en-GB', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </td>
+                      <td className="px-3 py-2 font-medium">{movement.batch_no}</td>
+                      <td className="px-3 py-2">
+                        <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 capitalize">
+                          {movement.movement_type?.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className={`px-3 py-2 text-right font-bold ${qtyDelta > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {qtyDelta > 0 ? '+' : ''}{qtyDelta}
+                      </td>
+                      <td className="px-3 py-2 text-xs capitalize">{movement.ref_type || movement.ref_entity || '-'}</td>
                       <td className="px-3 py-2 text-xs text-gray-600">{movement.reason || '-'}</td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             ) : (

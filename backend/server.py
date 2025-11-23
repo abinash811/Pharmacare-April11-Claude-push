@@ -1561,12 +1561,20 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
                 continue
             
             # Get product to determine units_per_pack for conversion
+            # Support both old (product_id) and new (product_sku) lookups
             product = await db.products.find_one({"id": product_id}, {"_id": 0})
+            if not product:
+                # Try finding by SKU if ID lookup failed
+                batch_doc = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+                if batch_doc and 'product_sku' in batch_doc:
+                    product = await db.products.find_one({"sku": batch_doc['product_sku']}, {"_id": 0})
+            
             if not product:
                 logger.error(f"Product {product_id} not found")
                 continue
             
             units_per_pack = product.get('units_per_pack', 1)
+            product_sku = product.get('sku')
             
             # item['quantity'] is in UNITS (tablets)
             # Convert to PACKS for stock deduction

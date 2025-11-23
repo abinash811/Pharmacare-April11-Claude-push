@@ -79,7 +79,16 @@ export default function Layout() {
           <div className="mb-1.5">
             <div>
               <p className="text-xs font-medium text-white truncate" data-testid="user-name">{user?.name}</p>
-              <p className="text-xs text-blue-300" data-testid="user-role">{user?.role}</p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                  user?.role === 'admin' ? 'bg-purple-600 text-white' :
+                  user?.role === 'manager' ? 'bg-blue-600 text-white' :
+                  user?.role === 'cashier' ? 'bg-green-600 text-white' :
+                  'bg-orange-600 text-white'
+                }`} data-testid="user-role">
+                  {user?.role === 'inventory_staff' ? 'Inventory' : user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1)}
+                </span>
+              </div>
             </div>
           </div>
           <Button

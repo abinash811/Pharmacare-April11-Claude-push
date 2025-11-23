@@ -1567,6 +1567,107 @@ async def get_payments(
             payment['created_at'] = datetime.fromisoformat(payment['created_at'])
     return payments
 
+
+
+# ==================== PDF GENERATION ====================
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from io import BytesIO
+from fastapi.responses import StreamingResponse
+
+@api_router.get("/bills/{bill_id}/pdf")
+async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_current_user)):
+    """Generate PDF invoice"""
+    # Fetch bill
+    bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    
+    # Create PDF in memory
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Title
+    pdf.setFont("Helvetica-Bold", 24)
+    pdf.drawString(50, height - 50, "PharmaCare")
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(50, height - 70, "Pharmacy Management System")
+    
+    # Invoice Details
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(50, height - 110, bill['invoice_type'])
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(50, height - 130, f"Invoice No: {bill['bill_number']}")
+    pdf.drawString(50, height - 145, f"Date: {bill.get('created_at', '')[:10]}")
+    
+    # Customer Details
+    pdf.drawString(50, height - 175, f"Customer: {bill.get('customer_name', 'Counter Sale')}")
+    if bill.get('customer_mobile'):
+        pdf.drawString(50, height - 190, f"Mobile: {bill['customer_mobile']}")
+    if bill.get('doctor_name'):
+        pdf.drawString(50, height - 205, f"Doctor: {bill['doctor_name']}")
+    
+    # Items Table Header
+    y = height - 250
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(50, y, "Item")
+    pdf.drawString(250, y, "Batch")
+    pdf.drawString(350, y, "Qty")
+    pdf.drawString(400, y, "Price")
+    pdf.drawString(480, y, "Total")
+    
+    # Items
+    pdf.setFont("Helvetica", 9)
+    y -= 20
+    for item in bill['items']:
+        name = item.get('product_name', item.get('medicine_name', 'Item'))[:25]
+        batch = item.get('batch_no', item.get('batch_number', ''))[:15]
+        qty = str(item['quantity'])
+        price = f"₹{item.get('unit_price', item.get('mrp', 0))}"
+        total = f"₹{item.get('line_total', item.get('total', 0)):.2f}"
+        
+        pdf.drawString(50, y, name)
+        pdf.drawString(250, y, batch)
+        pdf.drawString(350, y, qty)
+        pdf.drawString(400, y, price)
+        pdf.drawString(480, y, total)
+        y -= 15
+        
+        if y < 100:  # New page if needed
+            pdf.showPage()
+            y = height - 50
+    
+    # Totals
+    y -= 20
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(400, y, f"Subtotal: ₹{bill['subtotal']:.2f}")
+    y -= 15
+    pdf.drawString(400, y, f"Discount: -₹{bill['discount']:.2f}")
+    y -= 15
+    pdf.drawString(400, y, f"GST: ₹{bill['tax_amount']:.2f}")
+    y -= 15
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawString(400, y, f"TOTAL: ₹{bill['total_amount']:.2f}")
+    
+    # Footer
+    pdf.setFont("Helvetica", 8)
+    pdf.drawString(50, 50, "Thank you for your business!")
+    pdf.drawString(50, 35, f"Cashier: {bill.get('cashier_name', '')}")
+    
+    pdf.save()
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={bill['bill_number']}.pdf"}
+    )
+
+
 # ==================== REFUND ROUTES ====================
 
 @api_router.post("/refunds", response_model=Refund)

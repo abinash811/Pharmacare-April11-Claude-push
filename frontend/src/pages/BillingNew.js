@@ -751,7 +751,7 @@ export default function BillingNew() {
                             </Button>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>

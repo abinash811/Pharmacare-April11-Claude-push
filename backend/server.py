@@ -1300,40 +1300,40 @@ async def create_stock_movement(
     movement_data: StockMovementCreate,
     current_user: User = Depends(get_current_user)
 ):
-    """Create a stock movement record"""
+    """Create a stock movement record - Phase 0"""
     movement = StockMovement(
         **movement_data.model_dump(),
-        created_by=current_user.id
+        performed_by=current_user.id
     )
     
     movement_doc = movement.model_dump()
-    movement_doc['created_at'] = movement_doc['created_at'].isoformat()
+    movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
     await db.stock_movements.insert_one(movement_doc)
     
     return {"message": "Stock movement recorded", "id": movement.id}
 
 @api_router.get("/stock-movements")
 async def get_stock_movements(
-    product_id: Optional[str] = None,
+    product_sku: Optional[str] = None,
     batch_id: Optional[str] = None,
     movement_type: Optional[str] = None,
     limit: int = 100,
     current_user: User = Depends(get_current_user)
 ):
-    """Get stock movements with filters"""
+    """Get stock movements with filters - Phase 0 Stock Ledger"""
     query = {}
-    if product_id:
-        query["product_id"] = product_id
+    if product_sku:
+        query["product_sku"] = product_sku
     if batch_id:
         query["batch_id"] = batch_id
     if movement_type:
         query["movement_type"] = movement_type
     
-    movements = await db.stock_movements.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    movements = await db.stock_movements.find(query, {"_id": 0}).sort("performed_at", -1).limit(limit).to_list(limit)
     
     for movement in movements:
-        if isinstance(movement['created_at'], str):
-            movement['created_at'] = datetime.fromisoformat(movement['created_at'])
+        if isinstance(movement.get('performed_at'), str):
+            movement['performed_at'] = datetime.fromisoformat(movement['performed_at'])
     
     return movements
 

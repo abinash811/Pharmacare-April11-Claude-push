@@ -262,37 +262,30 @@ export default function InventoryImproved() {
     const token = localStorage.getItem('token');
 
     const adjustmentType = formData.get('adjustment_type');
-    const adjustmentValue = parseInt(formData.get('adjustment_value'));
+    const qtyUnits = parseInt(formData.get('qty_units'));
     const reason = formData.get('reason');
+    const referenceNumber = formData.get('reference_number');
     const notes = formData.get('notes');
 
-    let newQty;
-    if (adjustmentType === 'set') {
-      newQty = adjustmentValue;
-    } else if (adjustmentType === 'add') {
-      newQty = selectedBatch.qty_on_hand + adjustmentValue;
-    } else {
-      newQty = selectedBatch.qty_on_hand - adjustmentValue;
-    }
-
-    if (newQty < 0) {
-      toast.error('Quantity cannot be negative');
+    // Find the product for this batch
+    const product = products.find(p => p.sku === selectedBatch.product_sku);
+    if (!product) {
+      toast.error('Product not found');
       return;
     }
 
-    const quantityChange = newQty - selectedBatch.qty_on_hand;
+    const adjustmentData = {
+      batch_id: selectedBatch.id,
+      adjustment_type: adjustmentType, // 'add' or 'remove'
+      qty_units: qtyUnits,
+      reason: reason,
+      reference_number: referenceNumber || null,
+      notes: notes || null
+    };
 
     try {
-      // Update batch quantity
-      await axios.put(`${API}/stock/batches/${selectedBatch.id}`, {
-        qty_on_hand: newQty
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      // Create stock movement record
-      const product = products.find(p => p.id === selectedBatch.product_id);
-      await axios.post(`${API}/stock-movements`, {
+      // Use the new Phase 0 adjustment endpoint
+      const response = await axios.post(`${API}/batches/${selectedBatch.id}/adjust`, adjustmentData, {
         product_id: selectedBatch.product_id,
         batch_id: selectedBatch.id,
         product_name: product?.name || 'Unknown',

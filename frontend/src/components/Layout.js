@@ -26,6 +26,7 @@ export default function Layout() {
     { name: 'Customers', path: '/customers', icon: Users, roles: ['admin', 'manager', 'cashier'] },
     { name: 'Suppliers', path: '/suppliers', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
+    { name: 'GST Report', path: '/reports/gst', icon: FileText, roles: ['admin', 'manager'] },
     { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     { name: 'Users', path: '/users', icon: Users, roles: ['admin'] },
     { name: 'Roles', path: '/roles', icon: Settings, roles: ['admin'] },

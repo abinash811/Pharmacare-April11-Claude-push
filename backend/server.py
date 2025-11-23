@@ -1022,16 +1022,16 @@ async def delete_product(product_id: str, current_user: User = Depends(get_curre
 
 @api_router.post("/stock/batches", response_model=StockBatch)
 async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(get_current_user)):
-    # Verify product exists
-    product = await db.products.find_one({"id": batch_data.product_id}, {"_id": 0})
+    # Verify product exists by SKU
+    product = await db.products.find_one({"sku": batch_data.product_sku}, {"_id": 0})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     
     # Check if batch already exists
     existing = await db.stock_batches.find_one({
-        "product_id": batch_data.product_id,
+        "product_sku": batch_data.product_sku,
         "batch_no": batch_data.batch_no,
-        "location_id": batch_data.location_id or "default"
+        "location": batch_data.location or "default"
     }, {"_id": 0})
     
     if existing:
@@ -1039,13 +1039,42 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
     
     data = batch_data.model_dump()
     data['expiry_date'] = datetime.fromisoformat(batch_data.expiry_date)
+    if batch_data.manufacture_date:
+        data['manufacture_date'] = datetime.fromisoformat(batch_data.manufacture_date)
+    if batch_data.received_date:
+        data['received_date'] = datetime.fromisoformat(batch_data.received_date)
     
-    batch = StockBatch(**data)
+    batch = StockBatch(**data, created_by=current_user.id, updated_by=current_user.id)
     doc = batch.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     doc['updated_at'] = doc['updated_at'].isoformat()
     doc['expiry_date'] = doc['expiry_date'].isoformat()
+    if doc.get('manufacture_date'):
+        doc['manufacture_date'] = doc['manufacture_date'].isoformat()
+    if doc.get('received_date'):
+        doc['received_date'] = doc['received_date'].isoformat()
     await db.stock_batches.insert_one(doc)
+    
+    # Create opening stock movement (Phase 0 requirement)
+    units_per_pack = product.get('units_per_pack', 1)
+    qty_units = batch_data.qty_on_hand * units_per_pack
+    
+    movement = StockMovement(
+        product_sku=batch_data.product_sku,
+        batch_id=batch.id,
+        product_name=product['name'],
+        batch_no=batch_data.batch_no,
+        qty_delta_units=qty_units,
+        movement_type='opening_stock',
+        ref_type='opening',
+        ref_id=batch.id,
+        location=batch_data.location or "default",
+        reason="Initial stock entry",
+        performed_by=current_user.id
+    )
+    movement_doc = movement.model_dump()
+    movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
+    await db.stock_movements.insert_one(movement_doc)
     
     return batch
 

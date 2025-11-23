@@ -1205,6 +1205,121 @@ async def change_password(
     
     return {"message": "Password changed successfully"}
 
+# ==================== ROLES & PERMISSIONS ROUTES ====================
+
+@api_router.get("/permissions")
+async def get_all_permissions(current_user: User = Depends(get_current_user)):
+    """Get all available permissions - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return ALL_PERMISSIONS
+
+@api_router.get("/roles", response_model=List[Role])
+async def get_all_roles(current_user: User = Depends(get_current_user)):
+    """Get all roles - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    roles = await db.roles.find({}, {"_id": 0}).to_list(1000)
+    return roles
+
+@api_router.post("/roles", response_model=Role)
+async def create_role(role_data: RoleCreate, current_user: User = Depends(get_current_user)):
+    """Create new custom role - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if role name already exists
+    existing_role = await db.roles.find_one({"name": role_data.name})
+    if existing_role:
+        raise HTTPException(status_code=400, detail="Role name already exists")
+    
+    # Create role
+    role = Role(
+        name=role_data.name,
+        display_name=role_data.display_name,
+        permissions=role_data.permissions,
+        is_default=False,
+        is_super_admin=False,
+        created_by=current_user.id
+    )
+    
+    doc = role.model_dump()
+    await db.roles.insert_one(doc)
+    
+    return role
+
+@api_router.get("/roles/{role_id}", response_model=Role)
+async def get_role(role_id: str, current_user: User = Depends(get_current_user)):
+    """Get role by ID - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    role = await db.roles.find_one({"id": role_id}, {"_id": 0})
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    return role
+
+@api_router.put("/roles/{role_id}")
+async def update_role(
+    role_id: str,
+    role_update: RoleUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update role - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if role exists
+    existing_role = await db.roles.find_one({"id": role_id})
+    if not existing_role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Cannot edit default roles
+    if existing_role.get("is_default", False):
+        raise HTTPException(status_code=400, detail="Cannot edit default roles")
+    
+    # Prepare update data
+    update_data = {k: v for k, v in role_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    # Update role
+    await db.roles.update_one({"id": role_id}, {"$set": update_data})
+    
+    # Get updated role
+    updated_role = await db.roles.find_one({"id": role_id}, {"_id": 0})
+    return updated_role
+
+@api_router.delete("/roles/{role_id}")
+async def delete_role(role_id: str, current_user: User = Depends(get_current_user)):
+    """Delete custom role - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if role exists
+    existing_role = await db.roles.find_one({"id": role_id})
+    if not existing_role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    # Cannot delete default roles
+    if existing_role.get("is_default", False):
+        raise HTTPException(status_code=400, detail="Cannot delete default roles")
+    
+    # Check if any users have this role
+    users_with_role = await db.users.count_documents({"role": existing_role["name"]})
+    if users_with_role > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete role. {users_with_role} user(s) are assigned this role"
+        )
+    
+    # Delete role
+    await db.roles.delete_one({"id": role_id})
+    
+    return {"message": "Role deleted successfully"}
+
 # ==================== MEDICINE ROUTES ====================
 
 @api_router.post("/medicines", response_model=Medicine)

@@ -569,7 +569,11 @@ export default function InventoryImproved() {
               </div>
               <div>
                 <Label htmlFor="pack_size">Pack Size</Label>
-                <Input name="pack_size" id="pack_size" placeholder="e.g., 10 tablets" />
+                <Input name="pack_size" id="pack_size" placeholder="e.g., Strip, Box" />
+              </div>
+              <div>
+                <Label htmlFor="units_per_pack">Units Per Pack *</Label>
+                <Input name="units_per_pack" id="units_per_pack" type="number" defaultValue="1" placeholder="e.g., 10 tablets per strip" required />
               </div>
               <div>
                 <Label htmlFor="category">Category</Label>

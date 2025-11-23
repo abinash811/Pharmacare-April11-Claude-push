@@ -1608,15 +1608,18 @@ async def migrate_medicines_to_products(current_user: User = Depends(get_current
                 elif not isinstance(expiry, datetime):
                     expiry = datetime.now(timezone.utc) + timedelta(days=365)
                 
+                # Get product SKU for the batch
+                product_sku = sku
+                
                 batch = StockBatch(
-                    product_id=product_id,
+                    product_sku=product_sku,
                     batch_no=med.get('batch_number', 'BATCH-001'),
                     expiry_date=expiry,
                     qty_on_hand=med.get('quantity', 0),
-                    cost_price=med.get('purchase_rate', 0),
-                    mrp=med.get('mrp', 0),
+                    cost_price_per_unit=med.get('purchase_rate', 0),
+                    mrp_per_unit=med.get('mrp', 0),
                     supplier_name=med.get('supplier_name'),
-                    location_id="default"
+                    location="default"
                 )
                 
                 batch_doc = batch.model_dump()

@@ -535,8 +535,11 @@ export default function BillingNew() {
                           )}
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">₹{product.suggested_batch?.mrp || product.default_mrp}</div>
-                          <div className="text-xs text-gray-500">Total: {product.total_qty} units</div>
+                          <div className="font-medium">₹{product.suggested_batch?.mrp_per_unit || product.suggested_batch?.mrp || product.default_mrp}/unit</div>
+                          <div className="text-xs text-gray-500">
+                            Stock: {product.total_units || product.total_qty} units
+                            {product.units_per_pack > 1 && ` (${product.total_qty} ${product.pack_size || 'packs'})`}
+                          </div>
                         </div>
                       </div>
                     </div>

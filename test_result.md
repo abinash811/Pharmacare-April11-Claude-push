@@ -236,13 +236,24 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Phase 1 Backend Implementation Complete:
-      ✅ Product and StockBatch models created
-      ✅ All CRUD APIs functional
-      ✅ FEFO search endpoint working
-      ✅ Migration successful (8 medicines → 4 products + 8 batches)
-      ✅ Billing updated with batch support
+      Fixed CreatePurchase.js API Prefix Issue:
       
-      Next: Update Frontend to use new batch-based APIs
-      - Inventory.js: Product list with expandable batch details
-      - Billing.js: Batch selector with FEFO auto-selection
+      Problem Identified:
+      - CreatePurchase.js (and other Purchase pages) were missing /api prefix in API calls
+      - Backend routes are registered with /api prefix (via APIRouter)
+      - Frontend was calling /suppliers instead of /api/suppliers
+      
+      Fix Applied:
+      ✅ Updated CreatePurchase.js line 7: const API = `${process.env.REACT_APP_BACKEND_URL}/api`
+      ✅ Updated PurchasesList.js with same fix
+      ✅ Updated PurchaseDetail.js with same fix
+      
+      Testing Required:
+      - Test CreatePurchase page loads suppliers and products correctly
+      - Test user can create a new purchase bill
+      - Test PurchasesList page loads purchase bills
+      - Test PurchaseDetail page shows purchase details
+      
+      Test Credentials:
+      - Email: admin@pharmacy.com
+      - Password: admin123

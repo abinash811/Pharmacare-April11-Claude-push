@@ -21,6 +21,7 @@ export default function Layout() {
     { name: 'Billing', path: '/billing', icon: ShoppingCart },
     { name: 'Inventory', path: '/inventory', icon: Package },
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag },
+    { name: 'Returns', path: '/purchase-returns', icon: Package },
     { name: 'Customers', path: '/customers', icon: Users },
     { name: 'Reports', path: '/reports', icon: FileText },
     { name: 'Settings', path: '/settings', icon: Settings },

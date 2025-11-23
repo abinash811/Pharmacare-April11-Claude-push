@@ -64,23 +64,28 @@ class SessionCreate(BaseModel):
     name: str
     expires_at: datetime
 
-# Product Models (Master Data)
+# Product Models (Master Data) - Phase 0
 class Product(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    sku: str  # Unique product code
+    sku: str  # Unique product code (primary business identifier)
     name: str
+    manufacturer: Optional[str] = None  # Phase 0: manufacturer field
     brand: Optional[str] = None
-    pack_size: Optional[str] = None  # e.g., "10 tablets", "100ml" - Display label
+    pack_size: Optional[str] = None  # e.g., "Strip", "Box" - Display label
     units_per_pack: int = 1  # Numeric: how many units in one pack (e.g., 10 tablets per strip)
+    uom: Optional[str] = "units"  # Unit of measure (units, ml, gm)
     category: Optional[str] = None
-    default_mrp: float
+    default_mrp_per_unit: float  # Phase 0: MRP per unit (not per pack)
+    default_ptr_per_unit: Optional[float] = None  # Phase 0: PTR (Price to Retailer) per unit
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
-    low_stock_threshold: int = 10  # Alert when stock falls below this (in packs)
+    low_stock_threshold_units: int = 10  # Phase 0: Alert threshold in units
     status: str = "active"  # active, inactive
+    created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: Optional[str] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ProductCreate(BaseModel):

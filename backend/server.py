@@ -2959,6 +2959,26 @@ async def get_purchase_returns(
     
     return returns
 
+@api_router.get("/purchase-returns/{return_id}", response_model=PurchaseReturn)
+async def get_purchase_return(
+    return_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get single purchase return by ID"""
+    purchase_return = await db.purchase_returns.find_one({"id": return_id}, {"_id": 0})
+    if not purchase_return:
+        raise HTTPException(status_code=404, detail="Purchase return not found")
+    
+    # Parse date fields
+    if isinstance(purchase_return.get('return_date'), str):
+        purchase_return['return_date'] = datetime.fromisoformat(purchase_return['return_date'])
+    if isinstance(purchase_return.get('created_at'), str):
+        purchase_return['created_at'] = datetime.fromisoformat(purchase_return['created_at'])
+    if isinstance(purchase_return.get('confirmed_at'), str):
+        purchase_return['confirmed_at'] = datetime.fromisoformat(purchase_return['confirmed_at'])
+    
+    return purchase_return
+
 @api_router.post("/purchase-returns/{return_id}/confirm")
 async def confirm_purchase_return(
     return_id: str,

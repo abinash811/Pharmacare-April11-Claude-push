@@ -675,14 +675,38 @@ export default function BillingNew() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {billItems.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
+                      {billItems.map((item, index) => {
+                        const expiryDate = new Date(item.expiry_date);
+                        const today = new Date();
+                        const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+                        const isExpired = expiryDate < today;
+                        const isNearExpiry = expiryDate < threeMonthsFromNow && !isExpired;
+                        
+                        return (
+                        <tr key={index} className={`hover:bg-gray-50 ${isExpired ? 'bg-red-50' : isNearExpiry ? 'bg-yellow-50' : ''}`}>
                           <td className="px-2 py-2">
                             <div className="font-medium">{item.product_name}</div>
                             {item.brand && <div className="text-xs text-gray-500">{item.brand}</div>}
                           </td>
-                          <td className="px-2 py-2 text-xs">{item.batch_no}</td>
-                          <td className="px-2 py-2 text-xs">{item.expiry_display}</td>
+                          <td className="px-2 py-2">
+                            <div className="text-xs font-medium">{item.batch_no}</div>
+                          </td>
+                          <td className="px-2 py-2">
+                            <div className={`text-xs font-medium ${isExpired ? 'text-red-600' : isNearExpiry ? 'text-yellow-700' : 'text-gray-600'}`}>
+                              {item.expiry_display}
+                            </div>
+                            {isExpired && (
+                              <div className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                EXPIRED
+                              </div>
+                            )}
+                            {isNearExpiry && !isExpired && (
+                              <div className="text-xs text-yellow-700 font-medium">
+                                Expiring Soon
+                              </div>
+                            )}
+                          </td>
                           <td className="px-2 py-2">
                             <Input
                               type="number"

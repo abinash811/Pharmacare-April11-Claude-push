@@ -2535,6 +2535,92 @@ async def export_data(current_user: User = Depends(get_current_user)):
         "suppliers": suppliers
     }
 
+
+# ==================== SUPPLIER ROUTES ====================
+
+@api_router.get("/suppliers", response_model=List[Supplier])
+async def get_suppliers(
+    search: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get all suppliers with optional search"""
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"contact_name": {"$regex": search, "$options": "i"}},
+            {"gstin": {"$regex": search, "$options": "i"}}
+        ]
+    
+    suppliers = await db.suppliers.find(query, {"_id": 0}).sort("name", 1).to_list(1000)
+    for supplier in suppliers:
+        if isinstance(supplier.get('created_at'), str):
+            supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
+        if isinstance(supplier.get('updated_at'), str):
+            supplier['updated_at'] = datetime.fromisoformat(supplier['updated_at'])
+    return suppliers
+
+@api_router.post("/suppliers", response_model=Supplier)
+async def create_supplier(
+    supplier_data: SupplierCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new supplier"""
+    # Check if supplier with same name exists
+    existing = await db.suppliers.find_one({"name": supplier_data.name}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Supplier with this name already exists")
+    
+    supplier = Supplier(**supplier_data.model_dump())
+    doc = supplier.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    await db.suppliers.insert_one(doc)
+    
+    return supplier
+
+@api_router.get("/suppliers/{supplier_id}", response_model=Supplier)
+async def get_supplier(
+    supplier_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get supplier by ID"""
+    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    if isinstance(supplier['created_at'], str):
+        supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
+    if isinstance(supplier['updated_at'], str):
+        supplier['updated_at'] = datetime.fromisoformat(supplier['updated_at'])
+    
+    return supplier
+
+@api_router.put("/suppliers/{supplier_id}")
+async def update_supplier(
+    supplier_id: str,
+    supplier_data: SupplierUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update supplier"""
+    update_dict = {k: v for k, v in supplier_data.model_dump().items() if v is not None}
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    update_dict['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.suppliers.update_one(
+        {"id": supplier_id},
+        {"$set": update_dict}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    return {"message": "Supplier updated successfully"}
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(

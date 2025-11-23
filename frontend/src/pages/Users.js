@@ -70,9 +70,24 @@ export default function Users() {
     confirm_password: ''
   });
 
+  const [availableRoles, setAvailableRoles] = useState([]);
+
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
+
+  const fetchRoles = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/roles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAvailableRoles(response.data);
+    } catch (error) {
+      console.error('Failed to load roles');
+    }
+  };
 
   const fetchUsers = async () => {
     const token = localStorage.getItem('token');

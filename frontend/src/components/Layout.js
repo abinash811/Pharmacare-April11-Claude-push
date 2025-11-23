@@ -26,6 +26,7 @@ export default function Layout() {
     { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
     { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     { name: 'Users', path: '/users', icon: Users, roles: ['admin'] },
+    { name: 'Roles', path: '/roles', icon: Settings, roles: ['admin'] },
   ];
 
   // Filter navigation based on user role

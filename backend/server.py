@@ -2835,6 +2835,117 @@ async def get_sales_report(
         }
     }
 
+@api_router.get("/reports/gst")
+async def get_gst_report(
+    start_date: str,
+    end_date: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Generate GST report for given date range"""
+    start = datetime.fromisoformat(start_date)
+    end = datetime.fromisoformat(end_date)
+    
+    # Sales GST (Output Tax)
+    bills = await db.bills.find({
+        "status": "paid",
+        "created_at": {
+            "$gte": start.isoformat(),
+            "$lte": end.isoformat()
+        }
+    }, {"_id": 0}).to_list(10000)
+    
+    # Group sales by GST rate
+    sales_by_gst = {}
+    for bill in bills:
+        for item in bill.get('items', []):
+            gst_rate = item.get('gst_percent', 0)
+            qty = item.get('quantity', 0)
+            mrp = item.get('mrp', 0)
+            
+            taxable_amount = qty * mrp / (1 + gst_rate/100)
+            gst_amount = taxable_amount * (gst_rate/100)
+            
+            if gst_rate not in sales_by_gst:
+                sales_by_gst[gst_rate] = {
+                    'gst_rate': gst_rate,
+                    'taxable_amount': 0,
+                    'cgst': 0,
+                    'sgst': 0,
+                    'igst': 0,
+                    'total_gst': 0
+                }
+            
+            sales_by_gst[gst_rate]['taxable_amount'] += taxable_amount
+            sales_by_gst[gst_rate]['cgst'] += gst_amount / 2
+            sales_by_gst[gst_rate]['sgst'] += gst_amount / 2
+            sales_by_gst[gst_rate]['total_gst'] += gst_amount
+    
+    # Purchases GST (Input Tax Credit)
+    purchases = await db.purchases.find({
+        "status": "confirmed",
+        "purchase_date": {
+            "$gte": start.isoformat(),
+            "$lte": end.isoformat()
+        }
+    }, {"_id": 0}).to_list(10000)
+    
+    # Group purchases by GST rate
+    purchases_by_gst = {}
+    for purchase in purchases:
+        for item in purchase.get('items', []):
+            gst_rate = item.get('gst_percent', 0)
+            qty = item.get('qty_units', 0)
+            cost = item.get('cost_price_per_unit', 0)
+            
+            taxable_amount = qty * cost / (1 + gst_rate/100)
+            gst_amount = taxable_amount * (gst_rate/100)
+            
+            if gst_rate not in purchases_by_gst:
+                purchases_by_gst[gst_rate] = {
+                    'gst_rate': gst_rate,
+                    'taxable_amount': 0,
+                    'cgst': 0,
+                    'sgst': 0,
+                    'igst': 0,
+                    'total_gst': 0
+                }
+            
+            purchases_by_gst[gst_rate]['taxable_amount'] += taxable_amount
+            purchases_by_gst[gst_rate]['cgst'] += gst_amount / 2
+            purchases_by_gst[gst_rate]['sgst'] += gst_amount / 2
+            purchases_by_gst[gst_rate]['total_gst'] += gst_amount
+    
+    # Calculate summaries
+    sales_summary = {
+        'total_taxable': sum(v['taxable_amount'] for v in sales_by_gst.values()),
+        'total_cgst': sum(v['cgst'] for v in sales_by_gst.values()),
+        'total_sgst': sum(v['sgst'] for v in sales_by_gst.values()),
+        'total_igst': sum(v['igst'] for v in sales_by_gst.values()),
+        'total_gst': sum(v['total_gst'] for v in sales_by_gst.values())
+    }
+    
+    purchases_summary = {
+        'total_taxable': sum(v['taxable_amount'] for v in purchases_by_gst.values()),
+        'total_cgst': sum(v['cgst'] for v in purchases_by_gst.values()),
+        'total_sgst': sum(v['sgst'] for v in purchases_by_gst.values()),
+        'total_igst': sum(v['igst'] for v in purchases_by_gst.values()),
+        'total_gst': sum(v['total_gst'] for v in purchases_by_gst.values())
+    }
+    
+    net_liability = sales_summary['total_gst'] - purchases_summary['total_gst']
+    
+    return {
+        "sales": list(sales_by_gst.values()),
+        "purchases": list(purchases_by_gst.values()),
+        "sales_summary": sales_summary,
+        "purchases_summary": purchases_summary,
+        "net_liability": round(net_liability, 2),
+        "period": {
+            "start_date": start_date,
+            "end_date": end_date
+        }
+    }
+
 # ==================== ANALYTICS ====================
 
 @api_router.get("/analytics/summary")

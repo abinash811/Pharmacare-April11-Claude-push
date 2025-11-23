@@ -84,13 +84,17 @@ export default function CreatePurchase() {
 
   const fetchProducts = async () => {
     const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
     try {
       const response = await axios.get(`${API}/products`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProducts(response.data);
     } catch (error) {
-      toast.error('Failed to load products');
+      console.error('Product fetch error:', error);
+      toast.error(error.response?.data?.detail || 'Failed to load products');
     }
   };
 

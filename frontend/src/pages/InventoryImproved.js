@@ -324,7 +324,7 @@ export default function InventoryImproved() {
     setSelectedProduct(product);
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/stock-movements?product_id=${product.id}`, {
+      const response = await axios.get(`${API}/stock-movements?product_sku=${product.sku}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStockMovements(response.data);

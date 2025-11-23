@@ -71,6 +71,67 @@ class SessionCreate(BaseModel):
     name: str
     expires_at: datetime
 
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+# Permission System
+ROLE_PERMISSIONS = {
+    "admin": ["*"],  # Full access to everything
+    "manager": [
+        "dashboard:view", "billing:create", "billing:view", "billing:edit",
+        "inventory:view", "inventory:edit", "purchases:create", "purchases:view",
+        "purchase_returns:create", "purchase_returns:view", "sales_returns:create",
+        "sales_returns:view", "customers:view", "customers:edit", "reports:view"
+    ],
+    "cashier": [
+        "dashboard:view", "billing:create", "billing:view", "inventory:view",
+        "sales_returns:create", "sales_returns:view", "customers:view", "customers:edit"
+    ],
+    "inventory_staff": [
+        "dashboard:view", "inventory:view", "inventory:edit", "purchases:create",
+        "purchases:view", "purchase_returns:create", "purchase_returns:view"
+    ]
+}
+
+def has_permission(user_role: str, permission: str) -> bool:
+    """Check if a user role has a specific permission"""
+    if user_role not in ROLE_PERMISSIONS:
+        return False
+    
+    user_permissions = ROLE_PERMISSIONS[user_role]
+    
+    # Admin has all permissions
+    if "*" in user_permissions:
+        return True
+    
+    return permission in user_permissions
+
+def require_permission(permission: str):
+    """Decorator to check if user has required permission"""
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            # Get current_user from kwargs
+            current_user = kwargs.get('current_user')
+            if not current_user:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+            
+            if not has_permission(current_user.role, permission):
+                raise HTTPException(
+                    status_code=403, 
+                    detail=f"Permission denied. Required permission: {permission}"
+                )
+            
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
 # Product Models (Master Data) - Phase 0
 class Product(BaseModel):
     model_config = ConfigDict(extra="ignore")

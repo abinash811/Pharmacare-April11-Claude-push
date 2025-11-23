@@ -199,6 +199,30 @@ frontend:
         agent: "testing"
         comment: "COMPREHENSIVE TESTING COMPLETED ✅ All functionality verified: 1) Login successful with admin@pharmacy.com 2) CreatePurchase page loads without errors 3) Suppliers dropdown populated correctly (1 supplier found) 4) Product search working perfectly (found 2 results for 'paracetamol') 5) Product addition to items table successful 6) Form validation working (Save button enabled after filling required fields) 7) Network monitoring confirmed all API calls use correct /api/ prefix 8) PurchasesList page loads correctly 9) No console errors detected. API prefix fix is 100% successful - all endpoints now correctly call /api/suppliers and /api/products."
   
+  - task: "Purchase Returns Module - Complete Implementation"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/PurchaseReturnsList.js, CreatePurchaseReturn.js, PurchaseReturnDetail.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented complete Purchase Returns module with 3 pages: 1) PurchaseReturnsList - List all returns with status filters and search 2) CreatePurchaseReturn - Create new return by selecting existing purchase, choosing items and quantities to return 3) PurchaseReturnDetail - View return details and confirm return (deducts stock). Added GET /api/purchase-returns/{id} endpoint to backend. Updated App.js routing and Layout.js navigation. Ready for testing."
+  
+  - task: "Inventory Management - Product and Batch UI"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/InventoryImproved.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Reviewed existing InventoryImproved.js - Already comprehensive! Features: Product listing with expand/collapse, Batch details with color-coded expiry (red=expired, yellow=expiring soon), Add/Edit Product & Batch dialogs, Stock adjustment with reasons, Stock movement history. Already production-ready. Needs verification testing only."
+  
   - task: "Inventory Page - Product + Batch View"
     implemented: false
     working: "NA"

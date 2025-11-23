@@ -3105,4 +3105,5 @@ async def get_purchase_analytics(
         "total_returns_count": len(purchase_returns)
     }
 
-
+# Include the API router in the app (must be after all routes are defined)
+app.include_router(api_router)

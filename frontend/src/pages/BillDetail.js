@@ -98,9 +98,31 @@ export default function BillDetail() {
         <div className="flex gap-2">
           <Button 
             variant="outline"
-            onClick={() => {
-              window.open(`${API}/bills/${id}/pdf`, '_blank');
-              toast.success('Opening PDF...');
+            onClick={async () => {
+              const token = localStorage.getItem('token');
+              try {
+                const response = await fetch(`${API}/bills/${id}/pdf`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${bill.bill_number}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                  toast.success('PDF downloaded successfully!');
+                } else {
+                  toast.error('Failed to generate PDF');
+                }
+              } catch (error) {
+                console.error('PDF error:', error);
+                toast.error('Failed to generate PDF');
+              }
             }}
           >
             <Printer className="w-4 h-4 mr-2" />

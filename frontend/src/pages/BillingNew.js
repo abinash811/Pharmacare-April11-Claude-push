@@ -509,13 +509,27 @@ export default function BillingNew() {
                             SKU: {product.sku} {product.brand && `• ${product.brand}`}
                           </div>
                           {product.suggested_batch && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <Package className="w-3 h-3 text-blue-600" />
-                              <span className="text-xs text-blue-600">
-                                Batch: {product.suggested_batch.batch_no} • 
-                                Exp: {product.suggested_batch.expiry_date} • 
-                                Available: {product.suggested_batch.qty_on_hand} units
-                              </span>
+                            <div className="space-y-1 mt-1">
+                              <div className="flex items-center gap-2">
+                                <Package className="w-3 h-3 text-blue-600" />
+                                <span className="text-xs text-blue-600">
+                                  Batch: {product.suggested_batch.batch_no} • 
+                                  Exp: {product.suggested_batch.expiry_date} • 
+                                  Available: {product.suggested_batch.qty_on_hand} units
+                                </span>
+                              </div>
+                              {isExpired && (
+                                <div className="flex items-center gap-1 text-xs font-medium text-red-600">
+                                  <AlertCircle className="w-3 h-3" />
+                                  EXPIRED - Batch cannot be sold
+                                </div>
+                              )}
+                              {isNearExpiry && !isExpired && (
+                                <div className="flex items-center gap-1 text-xs font-medium text-yellow-700">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Expiring Soon - Sell First (FEFO)
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

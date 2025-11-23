@@ -382,10 +382,10 @@ export default function Users() {
               className="w-full px-3 py-2 border border-gray-300 rounded"
               required
             >
-              <option value="cashier">Cashier</option>
-              <option value="inventory_staff">Inventory Staff</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
+              <option value="">Select a role...</option>
+              {availableRoles.map(role => (
+                <option key={role.id} value={role.name}>{role.display_name}</option>
+              ))}
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-4">

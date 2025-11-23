@@ -155,6 +155,7 @@ function AppRoutes({ user }) {
         <Route path="customers" element={<Customers />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="users" element={<Users />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

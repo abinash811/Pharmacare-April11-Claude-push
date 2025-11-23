@@ -274,9 +274,7 @@ metadata:
   phase_status: "Backend Complete, Frontend Pending"
 
 test_plan:
-  current_focus:
-    - "Purchase Returns Module - Complete Implementation"
-    - "Inventory Management - Product and Batch UI"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"

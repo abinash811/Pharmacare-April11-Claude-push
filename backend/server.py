@@ -46,10 +46,13 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     name: str
-    role: str  # "admin" or "cashier"
+    role: str  # "admin", "manager", "cashier", "inventory_staff"
     password_hash: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
     is_active: bool = True
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: EmailStr

@@ -1371,13 +1371,26 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             if not batch_id:
                 continue
             
-            # Determine quantity change based on invoice type
-            quantity_change = -item['quantity'] if bill_data.invoice_type == "SALE" else item['quantity']
+            # Get product to determine units_per_pack for conversion
+            product = await db.products.find_one({"id": product_id}, {"_id": 0})
+            if not product:
+                logger.error(f"Product {product_id} not found")
+                continue
             
-            # Update batch stock
+            units_per_pack = product.get('units_per_pack', 1)
+            
+            # item['quantity'] is in UNITS (tablets)
+            # Convert to PACKS for stock deduction
+            quantity_in_units = item['quantity']
+            quantity_in_packs = quantity_in_units / units_per_pack
+            
+            # Determine quantity change based on invoice type (in packs)
+            pack_change = -quantity_in_packs if bill_data.invoice_type == "SALE" else quantity_in_packs
+            
+            # Update batch stock (qty_on_hand is in packs)
             result = await db.stock_batches.update_one(
                 {"id": batch_id},
-                {"$inc": {"qty_on_hand": quantity_change}}
+                {"$inc": {"qty_on_hand": pack_change}}
             )
             
             if result.matched_count == 0:

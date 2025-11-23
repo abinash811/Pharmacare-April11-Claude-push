@@ -487,6 +487,107 @@ class Customer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     phone: str
+
+# ==================== GOODS RECEIPT MODELS ====================
+class GoodsReceiptItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    purchase_item_id: str
+    product_sku: str
+    product_name: str
+    batch_id: str  # Stock batch created/updated
+    batch_no: str
+    expiry_date: Optional[datetime] = None
+    qty_units: int  # Quantity received in this receipt
+    cost_price_per_unit: float
+    mrp_per_unit: float
+
+class GoodsReceipt(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    purchase_id: str
+    purchase_number: str  # Denormalized
+    receipt_date: datetime
+    received_by: str
+    received_by_name: str  # Denormalized
+    supplier_invoice_no: Optional[str] = None
+    note: Optional[str] = None
+    items: List[GoodsReceiptItem] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ReceiveItemInput(BaseModel):
+    purchase_item_id: str
+    batch_no: str
+    expiry_date: Optional[str] = None  # ISO string
+    qty_units: int  # Quantity to receive
+    cost_price_per_unit: Optional[float] = None  # Override if different
+    mrp_per_unit: Optional[float] = None  # Override if different
+
+class ReceiveGoodsInput(BaseModel):
+    receipt_date: str  # ISO date
+    items: List[ReceiveItemInput]
+    supplier_invoice_no: Optional[str] = None
+    note: Optional[str] = None
+
+# ==================== PURCHASE RETURN MODELS ====================
+class PurchaseReturnItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    product_sku: str
+    product_name: str
+    batch_id: str
+    batch_no: str
+    qty_units: int  # Quantity being returned
+    cost_price_per_unit: float
+    reason: str  # Expired, Damaged, Overstock, Other
+    line_total: float
+
+class PurchaseReturn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    return_number: str  # e.g., PRET-2024-0001
+    supplier_id: str
+    supplier_name: str  # Denormalized
+    purchase_id: Optional[str] = None  # Optional link to original purchase
+    purchase_number: Optional[str] = None
+    return_date: datetime
+    status: str = "draft"  # draft, confirmed
+    items: List[PurchaseReturnItem] = []
+    total_value: float = 0
+    note: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    confirmed_at: Optional[datetime] = None
+    confirmed_by: Optional[str] = None
+
+class PurchaseReturnItemCreate(BaseModel):
+    product_sku: str
+    product_name: str
+    batch_id: str
+    batch_no: str
+    qty_units: int
+    cost_price_per_unit: float
+    reason: str
+
+class PurchaseReturnCreate(BaseModel):
+    supplier_id: str
+    purchase_id: Optional[str] = None
+    return_date: str  # ISO date
+    items: List[PurchaseReturnItemCreate]
+    note: Optional[str] = None
+
+# ==================== SUPPLIER CREDIT MODELS ====================
+class SupplierCredit(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    supplier_id: str
+    supplier_name: str  # Denormalized
+    credit_number: str  # e.g., SCRED-2024-0001
+    amount: float
+    reference: str  # Reference to purchase_return_id or other source
+    reference_type: str  # purchase_return, adjustment
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str
+
+
     address: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

@@ -640,6 +640,10 @@ export default function InventoryImproved() {
                   <Input name="pack_size" id="edit_pack_size" defaultValue={selectedProduct.pack_size || ''} />
                 </div>
                 <div>
+                  <Label htmlFor="edit_units_per_pack">Units Per Pack *</Label>
+                  <Input name="units_per_pack" id="edit_units_per_pack" type="number" defaultValue={selectedProduct.units_per_pack || 1} required />
+                </div>
+                <div>
                   <Label htmlFor="edit_category">Category</Label>
                   <Input name="category" id="edit_category" defaultValue={selectedProduct.category || ''} />
                 </div>

@@ -117,9 +117,9 @@ class StockBatch(BaseModel):
     product_id: str
     batch_no: str
     expiry_date: datetime
-    qty_on_hand: int
-    cost_price: float  # Purchase price
-    mrp: float
+    qty_on_hand: int  # Quantity in PACKS (strips). Total units = qty_on_hand × product.units_per_pack
+    cost_price: float  # Purchase price per pack
+    mrp: float  # MRP per pack
     supplier_name: Optional[str] = None
     location_id: Optional[str] = "default"  # For multi-location support
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

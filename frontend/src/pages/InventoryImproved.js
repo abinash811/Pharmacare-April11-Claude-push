@@ -416,10 +416,10 @@ export default function InventoryImproved() {
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => toggleProductExpansion(product.id)}
+                          onClick={() => toggleProductExpansion(product)}
                           className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
                         >
-                          {expandedProducts.has(product.id) ? (
+                          {expandedProducts.has(product.sku) ? (
                             <ChevronDown className="w-4 h-4" />
                           ) : (
                             <ChevronRight className="w-4 h-4" />
@@ -428,15 +428,17 @@ export default function InventoryImproved() {
                         </button>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">{product.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{product.brand || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{product.pack_size || '-'}</td>
-                      <td className="px-4 py-3 text-sm">₹{product.default_mrp}</td>
-                      <td className="px-4 py-3 text-sm">{product.gst_percent}%</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{product.manufacturer || product.brand || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {product.pack_size || '-'}
+                        {product.units_per_pack > 1 && <span className="text-xs text-gray-400"> ({product.units_per_pack} units)</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm">₹{product.default_mrp_per_unit || product.default_mrp}</td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {expandedProducts.has(product.id) ? calculateTotalQty(product.id) : '-'}
+                        {expandedProducts.has(product.sku) ? calculateTotalQty(product.sku) : '-'}
                       </td>
                       <td className="px-4 py-3">
-                        {expandedProducts.has(product.id) && getStatusBadge(product)}
+                        {expandedProducts.has(product.sku) && getStatusBadge(product)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex gap-1 justify-end">

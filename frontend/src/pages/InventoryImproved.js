@@ -560,7 +560,7 @@ export default function InventoryImproved() {
                                         </div>
                                       </td>
                                     </tr>
-                                  ))}
+                                  )})}
                                 </tbody>
                               </table>
                             ) : (

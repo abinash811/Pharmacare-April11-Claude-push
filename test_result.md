@@ -261,6 +261,18 @@ frontend:
         agent: "testing"
         comment: "COMPREHENSIVE TESTING COMPLETED ✅ Fixed critical backend issue: Added missing logger configuration and fixed migration endpoint to create stock batches from medicines. After migration, all enhanced billing features work perfectly: 1) Product search returns results with batch display ✅ 2) Color-coded expiry indicators working: Green for FEFO recommended, Yellow for expiring soon, Red for expired ✅ 3) FEFO batch recommendation prominently displayed with green highlighting ✅ 4) Multi-batch selector expands showing 4 Select buttons for individual batches ✅ 5) Add to Bill functionality working - items added to bill items table ✅ 6) Bill items table shows proper batch details (Product, Batch, Expiry) ✅ 7) Quantity management and calculations working (updated total: ₹158) ✅ 8) Customer details form functional ✅ 9) Bill summary calculations accurate ✅ 10) Expired/Expiring item handling with proper visual warnings ✅ 11) Overall workflow integration seamless ✅ All test scenarios from requirements passed successfully. Enhanced billing page is production-ready with excellent FEFO logic and batch management."
   
+  - task: "User Management with Role-Based Access Control"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Users.js, backend/server.py, frontend/src/components/Layout.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented complete User Management with RBAC: Backend - 1) Updated User model with role field supporting 4 roles (admin/manager/cashier/inventory_staff) 2) Created permission system with ROLE_PERMISSIONS matrix 3) Added User Management APIs: GET/POST/PUT/DELETE /api/users (Admin only), PUT /api/users/me/change-password (All users) 4) Added permission helper functions. Frontend - 1) Created Users.js page with user CRUD operations 2) Add/Edit/Deactivate users with dialogs 3) Change password dialog accessible to all users 4) Role badges with color coding 5) Updated Layout.js with role-based navigation (filters sidebar links by role) 6) Added role badge in sidebar user section. Permission Matrix: Admin (full access), Manager (all except settings/users), Cashier (billing/customers/sales returns), Inventory Staff (inventory/purchases/returns). Ready for testing."
+  
   - task: "Inventory Page - Product + Batch View"
     implemented: false
     working: "NA"

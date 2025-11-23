@@ -3297,6 +3297,20 @@ logging.basicConfig(
 )
 
 
+@app.on_event("startup")
+async def startup_db():
+    """Initialize database with default roles"""
+    # Check if roles collection is empty
+    roles_count = await db.roles.count_documents({})
+    
+    if roles_count == 0:
+        # Insert default roles
+        for role_data in DEFAULT_ROLES:
+            role = Role(**role_data)
+            doc = role.model_dump()
+            await db.roles.insert_one(doc)
+        print("✅ Default roles initialized")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()

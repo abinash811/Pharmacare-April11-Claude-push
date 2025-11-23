@@ -121,19 +121,26 @@ class ProductUpdate(BaseModel):
     low_stock_threshold_units: Optional[int] = None
     status: Optional[str] = None
 
-# Stock Batch Models (Inventory)
+# Stock Batch Models (Inventory) - Phase 0
 class StockBatch(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    product_id: str
+    product_sku: str  # Phase 0: FK to product SKU
     batch_no: str
+    manufacture_date: Optional[datetime] = None  # Phase 0: manufacture date
     expiry_date: datetime
     qty_on_hand: int  # Quantity in PACKS (strips). Total units = qty_on_hand × product.units_per_pack
-    cost_price: float  # Purchase price per pack
-    mrp: float  # MRP per pack
+    cost_price_per_unit: float  # Phase 0: Cost price per individual unit
+    mrp_per_unit: float  # Phase 0: MRP per individual unit
     supplier_name: Optional[str] = None
-    location_id: Optional[str] = "default"  # For multi-location support
+    supplier_invoice_no: Optional[str] = None  # Phase 0: supplier invoice number
+    received_date: Optional[datetime] = None  # Phase 0: date received
+    location: Optional[str] = "default"  # Phase 0: location field (not location_id)
+    free_qty_units: Optional[int] = 0  # Phase 0: free quantity in units
+    notes: Optional[str] = None  # Phase 0: notes field
+    created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_by: Optional[str] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class StockBatchCreate(BaseModel):

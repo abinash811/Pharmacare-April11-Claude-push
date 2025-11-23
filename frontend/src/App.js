@@ -162,6 +162,7 @@ function AppRoutes({ user }) {
         <Route path="customers" element={<Customers />} />
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="reports/gst" element={<GSTReport />} />
         <Route path="settings" element={<Settings />} />
         <Route path="users" element={<Users />} />
         <Route path="roles" element={<RolesPermissions />} />

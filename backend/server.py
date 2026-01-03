@@ -1784,6 +1784,28 @@ async def get_inventory_with_health(
         }
     }
 
+@api_router.get("/inventory/filters")
+async def get_inventory_filters(current_user: User = Depends(get_current_user)):
+    """Get unique categories and brands for filtering"""
+    categories = await db.products.distinct("category")
+    brands = await db.products.distinct("brand")
+    
+    # Filter out None/empty values
+    categories = [c for c in categories if c]
+    brands = [b for b in brands if b]
+    
+    return {
+        "categories": sorted(categories),
+        "brands": sorted(brands),
+        "statuses": [
+            {"value": "out_of_stock", "label": "Out of Stock"},
+            {"value": "expired", "label": "Expired"},
+            {"value": "near_expiry", "label": "Near Expiry"},
+            {"value": "low_stock", "label": "Low Stock"},
+            {"value": "healthy", "label": "Healthy"}
+        ]
+    }
+
 @api_router.get("/products/search-with-batches")
 async def search_products_with_batches(
     q: str,

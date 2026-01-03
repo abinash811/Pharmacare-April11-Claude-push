@@ -2063,6 +2063,83 @@ async def adjust_stock(
         "adjustment_units": qty_delta_units
     }
 
+@api_router.post("/batches/{batch_id}/writeoff-expiry")
+async def writeoff_expired_batch(
+    batch_id: str,
+    writeoff_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Write off expired stock - removes expired inventory"""
+    # Get batch
+    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    # Get product
+    product = await db.products.find_one({"sku": batch['product_sku']}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Verify batch is expired
+    expiry_str = batch.get('expiry_date')
+    if expiry_str:
+        try:
+            if isinstance(expiry_str, str):
+                expiry_date = datetime.fromisoformat(expiry_str.replace('Z', '+00:00'))
+            else:
+                expiry_date = expiry_str
+            
+            if expiry_date >= datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Batch is not expired yet")
+        except:
+            pass
+    
+    # Get current quantity
+    qty_on_hand = batch.get('qty_on_hand', 0)
+    units_per_pack = product.get('units_per_pack', 1)
+    qty_units = int(qty_on_hand * units_per_pack)
+    
+    if qty_units <= 0:
+        raise HTTPException(status_code=400, detail="No stock to write off")
+    
+    # Set quantity to 0
+    await db.stock_batches.update_one(
+        {"id": batch_id},
+        {
+            "$set": {
+                "qty_on_hand": 0,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": current_user.id,
+                "status": "written_off"
+            }
+        }
+    )
+    
+    # Create stock movement for expiry write-off
+    movement = StockMovement(
+        product_sku=batch['product_sku'],
+        batch_id=batch_id,
+        product_name=product['name'],
+        batch_no=batch['batch_no'],
+        qty_delta_units=-qty_units,  # Negative for removal
+        movement_type='expiry_writeoff',
+        ref_type='writeoff',
+        ref_id=str(uuid.uuid4()),
+        location=batch.get('location', 'default'),
+        reason=writeoff_data.get('reason', 'Expired stock write-off'),
+        performed_by=current_user.id
+    )
+    
+    movement_doc = movement.model_dump()
+    movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
+    await db.stock_movements.insert_one(movement_doc)
+    
+    return {
+        "message": "Expired stock written off successfully",
+        "qty_written_off_units": qty_units,
+        "batch_id": batch_id
+    }
+
 @api_router.get("/stock/summary")
 async def get_stock_summary(
     product_id: Optional[str] = None,

@@ -19,6 +19,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 
 ### Inventory Increase
 - [x] Manual purchase receipts (Add Batch dialog)
+- [x] Add Purchase button - Quick dialog to add new products with optional initial stock
 - [ ] Bulk Excel upload workflow (UI placeholder exists)
 
 ### Inventory Decrease
@@ -35,8 +36,10 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Near-expiry days configurable
 
 ### Inventory Health Data
-- [x] UI summary cards showing Critical/Warning/Healthy counts
-- [ ] Export functionality (UI placeholder exists)
+- [x] UI summary cards showing Critical/Warning/Healthy counts (clickable for filtering)
+- [x] Filters panel with Status, Category, Brand dropdowns
+- [x] Clear all filters functionality
+- [x] Export button removed per user request
 
 ### Data Integrity
 - [x] Inventory totals derived from underlying data (batches -> ledger entries)
@@ -62,6 +65,14 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Fixed endpoint mismatch: `GET /api/stock/movements` → `GET /api/stock-movements`
 - Fixed backend KeyError in stock batches when `product_sku` field missing
 
+### New Features Added (Jan 3, 2025)
+- Added "Add Purchase" button to add new products directly with optional initial stock
+- Added Filters panel with Status, Category, Brand dropdowns
+- Added clickable summary cards for quick filtering by status
+- Removed Export button per user request
+- Backend: New GET /api/inventory/filters endpoint
+- Backend: GET /api/inventory now accepts status_filter, category_filter, brand_filter params
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js
@@ -78,13 +89,16 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 
 ## Test Status
 - **InventoryV2 Page**: ✅ 100% passed (Backend + Frontend)
-- **Test Report**: /app/test_reports/iteration_2.json
+- **InventoryV2 Filters & Add Purchase**: ✅ 100% passed (16 backend + all frontend tests)
+- **Test Reports**: 
+  - /app/test_reports/iteration_2.json (core features)
+  - /app/test_reports/iteration_3.json (filters & add purchase)
 
 ## Prioritized Backlog
 
 ### P1 (High Priority)
 - [ ] Implement Expiry Write-off click handler logic
-- [ ] Implement Excel Upload & Export functionality for inventory
+- [ ] Implement Excel Upload functionality for bulk inventory import
 
 ### P2 (Medium Priority)
 - [ ] User Password Self-Change UI

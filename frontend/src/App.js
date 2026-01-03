@@ -12,6 +12,7 @@ import BillingList from '@/pages/BillingList';
 import Billing from '@/pages/BillingNew';
 import BillDetail from '@/pages/BillDetail';
 import Inventory from '@/pages/InventoryImproved';
+import InventoryV2 from '@/pages/InventoryV2';
 import Purchases from '@/pages/Purchases';
 import PurchasesList from '@/pages/PurchasesList';
 import CreatePurchase from '@/pages/CreatePurchase';

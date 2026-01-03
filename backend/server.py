@@ -1629,11 +1629,15 @@ async def get_inventory_with_health(
     page: int = 1,
     page_size: int = 20,
     search: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    category_filter: Optional[str] = None,
+    brand_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """
     Get inventory with severity-based sorting and pagination
     Priority: 1) Expired/Out-of-stock 2) Near-expiry/Low-stock 3) Healthy
+    Filters: status (out_of_stock, expired, near_expiry, low_stock, healthy), category, brand
     """
     # Get settings
     settings = await db.settings.find_one({}) or {}
@@ -1647,6 +1651,12 @@ async def get_inventory_with_health(
             {"sku": {"$regex": search, "$options": "i"}},
             {"brand": {"$regex": search, "$options": "i"}}
         ]
+    
+    if category_filter:
+        query["category"] = category_filter
+    
+    if brand_filter:
+        query["brand"] = brand_filter
     
     # Get all products (for severity calculation)
     products = await db.products.find(query, {"_id": 0}).to_list(10000)

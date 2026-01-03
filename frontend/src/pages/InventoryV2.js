@@ -229,7 +229,7 @@ export default function InventoryV2() {
   const fetchStockMovements = async (batchId) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/stock/movements?batch_id=${batchId}`, {
+      const response = await axios.get(`${API}/stock-movements?batch_id=${batchId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStockMovements(response.data);

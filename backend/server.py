@@ -1205,6 +1205,69 @@ async def change_password(
     
     return {"message": "Password changed successfully"}
 
+# ==================== SETTINGS ROUTES ====================
+
+@api_router.get("/settings")
+async def get_settings(current_user: User = Depends(get_current_user)):
+    """Get application settings"""
+    settings = await db.settings.find_one({}, {"_id": 0})
+    if not settings:
+        # Return default settings
+        return {
+            "inventory": {
+                "near_expiry_days": 30,
+                "block_expired_stock": True,
+                "allow_near_expiry_sale": True,
+                "low_stock_alert_enabled": True
+            },
+            "billing": {
+                "enable_draft_bills": True,
+                "auto_print_invoice": False
+            },
+            "general": {
+                "pharmacy_name": "PharmaCare",
+                "currency": "INR",
+                "timezone": "Asia/Kolkata"
+            }
+        }
+    return settings
+
+@api_router.put("/settings")
+async def update_settings(
+    settings_data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update application settings - Admin only"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Check if settings exist
+    existing = await db.settings.find_one({})
+    
+    if existing:
+        # Update existing
+        await db.settings.update_one(
+            {},
+            {
+                "$set": {
+                    **settings_data,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_by": current_user.id
+                }
+            }
+        )
+    else:
+        # Create new
+        settings_doc = {
+            "id": str(uuid.uuid4()),
+            **settings_data,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_by": current_user.id
+        }
+        await db.settings.insert_one(settings_doc)
+    
+    return {"message": "Settings updated successfully"}
+
 # ==================== ROLES & PERMISSIONS ROUTES ====================
 
 @api_router.get("/permissions")

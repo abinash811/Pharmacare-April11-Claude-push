@@ -521,6 +521,169 @@ export default function InventoryV2() {
           </>
         )}
       </div>
+
+      {/* Add Batch Dialog */}
+      {showAddBatchDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Add Stock Batch</h2>
+              <button onClick={() => setShowAddBatchDialog(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleAddBatch} className="p-6">
+              <div className="mb-4 p-3 bg-blue-50 rounded">
+                <p className="text-sm font-medium text-blue-900">{selectedProduct?.name}</p>
+                <p className="text-xs text-blue-700">SKU: {selectedProduct?.sku}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number *</label>
+                  <input name="batch_no" className="w-full px-3 py-2 border rounded" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date *</label>
+                  <input name="expiry_date" type="date" className="w-full px-3 py-2 border rounded" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (Packs) *</label>
+                  <input name="qty_on_hand" type="number" step="0.01" className="w-full px-3 py-2 border rounded" required />
+                  <p className="text-xs text-gray-500 mt-1">Units per pack: {selectedProduct?.units_per_pack || 1}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price/Unit *</label>
+                  <input name="cost_price_per_unit" type="number" step="0.01" className="w-full px-3 py-2 border rounded" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">MRP/Unit</label>
+                  <input name="mrp_per_unit" type="number" step="0.01" className="w-full px-3 py-2 border rounded" placeholder={`Default: ₹${selectedProduct?.default_mrp_per_unit || 0}`} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <input name="location" className="w-full px-3 py-2 border rounded" defaultValue="default" />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                <Button variant="secondary" type="button" onClick={() => setShowAddBatchDialog(false)}>Cancel</Button>
+                <Button type="submit">Add Batch</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Stock Dialog */}
+      {showAdjustStockDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Adjust Stock</h2>
+              <button onClick={() => setShowAdjustStockDialog(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleAdjustStock} className="p-6">
+              <div className="mb-4 p-3 bg-blue-50 rounded">
+                <p className="text-sm font-medium text-blue-900">{selectedProduct?.name}</p>
+                <p className="text-xs text-blue-700">Batch: {selectedBatch?.batch_no} | Current: {selectedBatch?.qty_on_hand} packs</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adjustment Type *</label>
+                  <select name="adjustment_type" className="w-full px-3 py-2 border rounded" required>
+                    <option value="add">Add Stock</option>
+                    <option value="remove">Remove Stock</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (Units) *</label>
+                  <input name="qty_change" type="number" className="w-full px-3 py-2 border rounded" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+                  <select name="reason" className="w-full px-3 py-2 border rounded" required>
+                    <option value="">Select reason...</option>
+                    <option value="Stock count correction">Stock count correction</option>
+                    <option value="Damaged goods">Damaged goods</option>
+                    <option value="Theft/Loss">Theft/Loss</option>
+                    <option value="Return from customer">Return from customer</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
+                  <input name="reference" className="w-full px-3 py-2 border rounded" placeholder="Optional reference number" />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                <Button variant="secondary" type="button" onClick={() => setShowAdjustStockDialog(false)}>Cancel</Button>
+                <Button type="submit">Adjust Stock</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Movement History Dialog */}
+      {showMovementHistoryDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Stock Movement History</h2>
+              <button onClick={() => setShowMovementHistoryDialog(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4 p-3 bg-blue-50 rounded">
+                <p className="text-sm font-medium text-blue-900">{selectedProduct?.name}</p>
+                <p className="text-xs text-blue-700">Batch: {selectedBatch?.batch_no}</p>
+              </div>
+              
+              {stockMovements.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No stock movements found</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-4 py-2 text-left">Date & Time</th>
+                        <th className="px-4 py-2 text-left">Type</th>
+                        <th className="px-4 py-2 text-right">Qty Change</th>
+                        <th className="px-4 py-2 text-left">Reason</th>
+                        <th className="px-4 py-2 text-left">Reference</th>
+                        <th className="px-4 py-2 text-left">By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {stockMovements.map((movement, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-2">{new Date(movement.performed_at).toLocaleString('en-GB')}</td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              movement.movement_type === 'purchase' ? 'bg-green-100 text-green-800' :
+                              movement.movement_type === 'sale' ? 'bg-blue-100 text-blue-800' :
+                              movement.movement_type === 'adjustment' ? 'bg-orange-100 text-orange-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {movement.movement_type}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-2 text-right font-medium ${movement.qty_delta_units > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {movement.qty_delta_units > 0 ? '+' : ''}{movement.qty_delta_units}
+                          </td>
+                          <td className="px-4 py-2">{movement.reason || '-'}</td>
+                          <td className="px-4 py-2 text-xs">{movement.ref_id || '-'}</td>
+                          <td className="px-4 py-2 text-xs">{movement.performed_by || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

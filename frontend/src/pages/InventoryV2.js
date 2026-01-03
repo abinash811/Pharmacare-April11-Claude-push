@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, CheckCircle, Download, Upload, X } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, AlertCircle, AlertTriangle, CheckCircle, Upload, X, Plus, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '' }) => {
-  const baseStyles = 'rounded font-medium transition-colors';
+const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '', type = 'button' }) => {
+  const baseStyles = 'rounded font-medium transition-colors inline-flex items-center justify-center';
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
     secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+    success: 'bg-green-600 text-white hover:bg-green-700',
     danger: 'bg-red-600 text-white hover:bg-red-700'
   };
   const sizes = {
@@ -18,7 +19,7 @@ const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled 
   };
   
   return (
-    <button onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}>
       {children}
     </button>
   );
@@ -32,8 +33,16 @@ export default function InventoryV2() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [brandFilter, setBrandFilter] = useState('');
+  const [filterOptions, setFilterOptions] = useState({ categories: [], brands: [], statuses: [] });
+  
   // Dialogs
   const [showAddBatchDialog, setShowAddBatchDialog] = useState(false);
+  const [showAddProductDialog, setShowAddProductDialog] = useState(false);
   const [showAdjustStockDialog, setShowAdjustStockDialog] = useState(false);
   const [showMovementHistoryDialog, setShowMovementHistoryDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -46,30 +55,52 @@ export default function InventoryV2() {
   const [totalItems, setTotalItems] = useState(0);
   const [summary, setSummary] = useState({ critical_count: 0, warning_count: 0, healthy_count: 0 });
 
+  // Fetch filter options on mount
+  useEffect(() => {
+    fetchFilterOptions();
+  }, []);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // Reset to first page on search
+      setCurrentPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   useEffect(() => {
     fetchInventory();
-  }, [currentPage, debouncedSearch]);
+  }, [currentPage, debouncedSearch, statusFilter, categoryFilter, brandFilter]);
+
+  const fetchFilterOptions = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/inventory/filters`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFilterOptions(response.data);
+    } catch (error) {
+      console.error('Failed to load filter options');
+    }
+  };
 
   const fetchInventory = async () => {
     setLoading(true);
     const token = localStorage.getItem('token');
     
     try {
+      const params = {
+        page: currentPage,
+        page_size: 20,
+        search: debouncedSearch || undefined,
+        status_filter: statusFilter || undefined,
+        category_filter: categoryFilter || undefined,
+        brand_filter: brandFilter || undefined
+      };
+      
       const response = await axios.get(`${API}/inventory`, {
-        params: {
-          page: currentPage,
-          page_size: 20,
-          search: debouncedSearch || undefined
-        },
+        params,
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -162,8 +193,59 @@ export default function InventoryV2() {
     toast.info('Excel upload feature - UI placeholder. Implementation coming in next phase.');
   };
 
-  const handleExport = () => {
-    toast.info('Export feature - UI placeholder. Implementation coming in next phase.');
+  const clearFilters = () => {
+    setStatusFilter('');
+    setCategoryFilter('');
+    setBrandFilter('');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = statusFilter || categoryFilter || brandFilter;
+
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const token = localStorage.getItem('token');
+    
+    try {
+      // Create product
+      const productResponse = await axios.post(`${API}/products`, {
+        sku: formData.get('sku'),
+        name: formData.get('name'),
+        brand: formData.get('brand') || null,
+        category: formData.get('category') || null,
+        manufacturer: formData.get('manufacturer') || null,
+        units_per_pack: parseInt(formData.get('units_per_pack')) || 1,
+        default_mrp_per_unit: parseFloat(formData.get('mrp_per_unit')) || 0,
+        gst_percent: parseFloat(formData.get('gst_percent')) || 5,
+        low_stock_threshold_units: parseInt(formData.get('low_stock_threshold')) || 10
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // If initial stock is provided, create a batch
+      const initialQty = parseFloat(formData.get('initial_qty'));
+      if (initialQty > 0) {
+        await axios.post(`${API}/stock/batches`, {
+          product_sku: formData.get('sku'),
+          batch_no: formData.get('batch_no') || `INIT-${Date.now()}`,
+          expiry_date: formData.get('expiry_date'),
+          qty_on_hand: initialQty,
+          cost_price_per_unit: parseFloat(formData.get('cost_price')) || 0,
+          mrp_per_unit: parseFloat(formData.get('mrp_per_unit')) || 0,
+          location: 'default'
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      
+      toast.success('Product added successfully');
+      setShowAddProductDialog(false);
+      fetchInventory();
+      fetchFilterOptions(); // Refresh filter options
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to add product');
+    }
   };
 
   const handleAddBatch = async (e) => {
@@ -260,18 +342,28 @@ export default function InventoryV2() {
     <div className="min-h-screen bg-gray-50 p-8">
       {/* Header with Beta Badge */}
       <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-gray-800">Inventory Management</h1>
-          <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
-            V2 - Severity Sorting
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-800">Inventory Management</h1>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
+              V2 - Severity Sorting
+            </span>
+          </div>
+          <Button variant="success" onClick={() => setShowAddProductDialog(true)} data-testid="add-purchase-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Purchase
+          </Button>
         </div>
         <p className="text-gray-600 mt-1">Product-wise inventory with automatic priority ordering</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+        <div 
+          className={`bg-white rounded-lg shadow p-4 border-l-4 border-red-500 cursor-pointer transition-all ${statusFilter === 'out_of_stock' || statusFilter === 'expired' ? 'ring-2 ring-red-500' : 'hover:shadow-md'}`}
+          onClick={() => setStatusFilter(statusFilter === 'out_of_stock' ? '' : 'out_of_stock')}
+          data-testid="critical-filter-card"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">🔴 Critical Items</p>
@@ -282,7 +374,11 @@ export default function InventoryV2() {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+        <div 
+          className={`bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500 cursor-pointer transition-all ${statusFilter === 'near_expiry' || statusFilter === 'low_stock' ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'}`}
+          onClick={() => setStatusFilter(statusFilter === 'low_stock' ? '' : 'low_stock')}
+          data-testid="warning-filter-card"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">🟠 Warning Items</p>
@@ -293,7 +389,11 @@ export default function InventoryV2() {
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+        <div 
+          className={`bg-white rounded-lg shadow p-4 border-l-4 border-green-500 cursor-pointer transition-all ${statusFilter === 'healthy' ? 'ring-2 ring-green-500' : 'hover:shadow-md'}`}
+          onClick={() => setStatusFilter(statusFilter === 'healthy' ? '' : 'healthy')}
+          data-testid="healthy-filter-card"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">🟢 Healthy Items</p>
@@ -307,8 +407,8 @@ export default function InventoryV2() {
 
       {/* Toolbar */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-[200px] relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
             <input
               type="text"
@@ -316,19 +416,91 @@ export default function InventoryV2() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              data-testid="search-input"
             />
           </div>
           
-          <Button variant="secondary" onClick={handleExcelUpload}>
+          <Button 
+            variant={showFilters ? 'primary' : 'secondary'} 
+            onClick={() => setShowFilters(!showFilters)}
+            data-testid="toggle-filters-btn"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            Filters
+            {hasActiveFilters && (
+              <span className="ml-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {[statusFilter, categoryFilter, brandFilter].filter(Boolean).length}
+              </span>
+            )}
+          </Button>
+          
+          <Button variant="secondary" onClick={handleExcelUpload} data-testid="excel-upload-btn">
             <Upload className="w-4 h-4 mr-2" />
             Excel Upload
           </Button>
-          
-          <Button variant="secondary" onClick={handleExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
         </div>
+        
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="min-w-[180px]">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  data-testid="status-filter"
+                >
+                  <option value="">All Statuses</option>
+                  {filterOptions.statuses.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="min-w-[180px]">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  data-testid="category-filter"
+                >
+                  <option value="">All Categories</option>
+                  {filterOptions.categories.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="min-w-[180px]">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Brand</label>
+                <select
+                  value={brandFilter}
+                  onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  data-testid="brand-filter"
+                >
+                  <option value="">All Brands</option>
+                  {filterOptions.brands.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline mt-5"
+                  data-testid="clear-filters-btn"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Inventory List */}
@@ -341,13 +513,13 @@ export default function InventoryV2() {
         ) : inventory.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-600">No inventory items found</p>
-            {searchQuery && (
-              <p className="text-sm text-gray-500 mt-2">Try adjusting your search query</p>
+            {(searchQuery || hasActiveFilters) && (
+              <p className="text-sm text-gray-500 mt-2">Try adjusting your search or filters</p>
             )}
           </div>
         ) : (
           <>
-            <table className="w-full">
+            <table className="w-full" data-testid="inventory-table">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-16"></th>
@@ -367,6 +539,7 @@ export default function InventoryV2() {
                         item.severity === 2 ? 'bg-yellow-50' : ''
                       }`}
                       onClick={() => toggleProductExpansion(item)}
+                      data-testid={`inventory-row-${item.product.sku}`}
                     >
                       <td className="px-6 py-4">
                         {expandedProducts.has(item.product.sku) ? (
@@ -408,7 +581,7 @@ export default function InventoryV2() {
                           <div className="ml-6">
                             <div className="flex justify-between items-center mb-3">
                               <h4 className="text-sm font-semibold text-gray-700">Batch Details</h4>
-                              <Button size="sm" onClick={() => openAddBatchDialog(item)}>
+                              <Button size="sm" onClick={(e) => { e.stopPropagation(); openAddBatchDialog(item); }} data-testid="add-batch-btn">
                                 + Add Batch
                               </Button>
                             </div>
@@ -436,14 +609,16 @@ export default function InventoryV2() {
                                       <td className="px-4 py-2 text-center">
                                         <div className="flex gap-1 justify-center">
                                           <button
-                                            onClick={() => openAdjustStockDialog(item, batch)}
+                                            onClick={(e) => { e.stopPropagation(); openAdjustStockDialog(item, batch); }}
                                             className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                            data-testid="adjust-stock-btn"
                                           >
                                             Adjust
                                           </button>
                                           <button
-                                            onClick={() => openMovementHistoryDialog(item, batch)}
+                                            onClick={(e) => { e.stopPropagation(); openMovementHistoryDialog(item, batch); }}
                                             className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                                            data-testid="history-btn"
                                           >
                                             History
                                           </button>
@@ -475,6 +650,7 @@ export default function InventoryV2() {
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
+                  data-testid="prev-page-btn"
                 >
                   Previous
                 </Button>
@@ -501,6 +677,7 @@ export default function InventoryV2() {
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
+                        data-testid={`page-${pageNum}-btn`}
                       >
                         {pageNum}
                       </button>
@@ -512,7 +689,8 @@ export default function InventoryV2() {
                   variant="secondary"
                   size="sm"
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  data-testid="next-page-btn"
                 >
                   Next
                 </Button>
@@ -521,6 +699,91 @@ export default function InventoryV2() {
           </>
         )}
       </div>
+
+      {/* Add Product Dialog */}
+      {showAddProductDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-green-50">
+              <h2 className="text-lg font-semibold text-green-800">Add New Medicine / Product</h2>
+              <button onClick={() => setShowAddProductDialog(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <form onSubmit={handleAddProduct} className="p-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SKU / Code *</label>
+                  <input name="sku" className="w-full px-3 py-2 border rounded" required data-testid="product-sku-input" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
+                  <input name="name" className="w-full px-3 py-2 border rounded" required data-testid="product-name-input" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                  <input name="brand" className="w-full px-3 py-2 border rounded" list="brands-list" />
+                  <datalist id="brands-list">
+                    {filterOptions.brands.map(b => <option key={b} value={b} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input name="category" className="w-full px-3 py-2 border rounded" list="categories-list" />
+                  <datalist id="categories-list">
+                    {filterOptions.categories.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                  <input name="manufacturer" className="w-full px-3 py-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Units per Pack</label>
+                  <input name="units_per_pack" type="number" defaultValue="1" min="1" className="w-full px-3 py-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">MRP per Unit *</label>
+                  <input name="mrp_per_unit" type="number" step="0.01" className="w-full px-3 py-2 border rounded" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">GST %</label>
+                  <input name="gst_percent" type="number" step="0.01" defaultValue="5" className="w-full px-3 py-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert (units)</label>
+                  <input name="low_stock_threshold" type="number" defaultValue="10" className="w-full px-3 py-2 border rounded" />
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Initial Stock (Optional)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number</label>
+                    <input name="batch_no" className="w-full px-3 py-2 border rounded" placeholder="Leave empty for auto-generate" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                    <input name="expiry_date" type="date" className="w-full px-3 py-2 border rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Initial Quantity (Packs)</label>
+                    <input name="initial_qty" type="number" step="0.01" defaultValue="0" className="w-full px-3 py-2 border rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cost Price per Unit</label>
+                    <input name="cost_price" type="number" step="0.01" className="w-full px-3 py-2 border rounded" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                <Button variant="secondary" type="button" onClick={() => setShowAddProductDialog(false)}>Cancel</Button>
+                <Button variant="success" type="submit" data-testid="submit-product-btn">Add Product</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add Batch Dialog */}
       {showAddBatchDialog && (

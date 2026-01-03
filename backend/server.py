@@ -1749,6 +1749,10 @@ async def get_inventory_with_health(
             'batches_count': len(batches)
         })
     
+    # Apply status filter if provided
+    if status_filter:
+        inventory_items = [item for item in inventory_items if item['status'] == status_filter]
+    
     # Sort by severity (1=critical, 2=warning, 3=healthy), then by expiry, then alphabetically
     inventory_items.sort(key=lambda x: (
         x['severity'],

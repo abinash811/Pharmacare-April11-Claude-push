@@ -1996,14 +1996,24 @@ async def get_stock_batches(
         if isinstance(batch.get('received_date'), str):
             batch['received_date'] = datetime.fromisoformat(batch['received_date'])
         
-        # Add product info
-        product = await db.products.find_one({"sku": batch['product_sku']}, {"_id": 0, "name": 1, "brand": 1, "sku": 1, "units_per_pack": 1})
-        if product:
-            batch['product_name'] = product.get('name', '')
-            batch['product_brand'] = product.get('brand', '')
-            batch['product_sku'] = product.get('sku', '')
-            units_per_pack = product.get('units_per_pack', 1)
-            batch['total_units'] = batch.get('qty_on_hand', 0) * units_per_pack
+        # Add product info - handle legacy batches that may not have product_sku
+        product_sku = batch.get('product_sku') or batch.get('product_id')
+        if product_sku:
+            product = await db.products.find_one({"sku": product_sku}, {"_id": 0, "name": 1, "brand": 1, "sku": 1, "units_per_pack": 1})
+            if product:
+                batch['product_name'] = product.get('name', '')
+                batch['product_brand'] = product.get('brand', '')
+                batch['product_sku'] = product.get('sku', '')
+                units_per_pack = product.get('units_per_pack', 1)
+                batch['total_units'] = batch.get('qty_on_hand', 0) * units_per_pack
+            else:
+                batch['product_name'] = ''
+                batch['product_brand'] = ''
+                batch['total_units'] = batch.get('qty_on_hand', 0)
+        else:
+            batch['product_name'] = ''
+            batch['product_brand'] = ''
+            batch['total_units'] = batch.get('qty_on_hand', 0)
     
     return batches
 

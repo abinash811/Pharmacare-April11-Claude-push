@@ -32,6 +32,14 @@ export default function InventoryV2() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
+  // Dialogs
+  const [showAddBatchDialog, setShowAddBatchDialog] = useState(false);
+  const [showAdjustStockDialog, setShowAdjustStockDialog] = useState(false);
+  const [showMovementHistoryDialog, setShowMovementHistoryDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+  const [stockMovements, setStockMovements] = useState([]);
+  
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);

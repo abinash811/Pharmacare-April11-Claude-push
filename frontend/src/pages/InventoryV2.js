@@ -172,7 +172,7 @@ export default function InventoryV2() {
     const token = localStorage.getItem('token');
     
     try {
-      await axios.post(`${API}/batches`, {
+      await axios.post(`${API}/stock/batches`, {
         product_sku: selectedProduct.sku,
         batch_no: formData.get('batch_no'),
         expiry_date: formData.get('expiry_date'),

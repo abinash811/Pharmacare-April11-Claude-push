@@ -406,7 +406,12 @@ export default function InventoryV2() {
                       <tr>
                         <td colSpan="6" className="bg-gray-50 px-6 py-4">
                           <div className="ml-6">
-                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Batch Details</h4>
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="text-sm font-semibold text-gray-700">Batch Details</h4>
+                              <Button size="sm" onClick={() => openAddBatchDialog(item)}>
+                                + Add Batch
+                              </Button>
+                            </div>
                             <table className="w-full text-sm">
                               <thead className="bg-gray-100">
                                 <tr>
@@ -415,6 +420,7 @@ export default function InventoryV2() {
                                   <th className="px-4 py-2 text-right">Qty (Packs)</th>
                                   <th className="px-4 py-2 text-right">Qty (Units)</th>
                                   <th className="px-4 py-2 text-right">MRP/Unit</th>
+                                  <th className="px-4 py-2 text-center">Actions</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
@@ -427,6 +433,22 @@ export default function InventoryV2() {
                                       <td className="px-4 py-2 text-right">{batch.qty_on_hand}</td>
                                       <td className="px-4 py-2 text-right">{qtyUnits}</td>
                                       <td className="px-4 py-2 text-right">₹{batch.mrp_per_unit || batch.mrp || 0}</td>
+                                      <td className="px-4 py-2 text-center">
+                                        <div className="flex gap-1 justify-center">
+                                          <button
+                                            onClick={() => openAdjustStockDialog(item, batch)}
+                                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                                          >
+                                            Adjust
+                                          </button>
+                                          <button
+                                            onClick={() => openMovementHistoryDialog(item, batch)}
+                                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                                          >
+                                            History
+                                          </button>
+                                        </div>
+                                      </td>
                                     </tr>
                                   );
                                 })}

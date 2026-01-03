@@ -166,6 +166,96 @@ export default function InventoryV2() {
     toast.info('Export feature - UI placeholder. Implementation coming in next phase.');
   };
 
+  const handleAddBatch = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const token = localStorage.getItem('token');
+    
+    try {
+      await axios.post(`${API}/batches`, {
+        product_sku: selectedProduct.sku,
+        batch_no: formData.get('batch_no'),
+        expiry_date: formData.get('expiry_date'),
+        qty_on_hand: parseFloat(formData.get('qty_on_hand')),
+        cost_price_per_unit: parseFloat(formData.get('cost_price_per_unit')),
+        mrp_per_unit: parseFloat(formData.get('mrp_per_unit')) || selectedProduct.default_mrp_per_unit,
+        location: formData.get('location') || 'default'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Batch added successfully');
+      setShowAddBatchDialog(false);
+      fetchInventory();
+      if (expandedProducts.has(selectedProduct.sku)) {
+        fetchBatchesForProduct(selectedProduct.sku);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to add batch');
+    }
+  };
+
+  const handleAdjustStock = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const token = localStorage.getItem('token');
+    
+    const adjustmentType = formData.get('adjustment_type');
+    const qtyChange = parseFloat(formData.get('qty_change'));
+    const finalQty = adjustmentType === 'set' 
+      ? qtyChange 
+      : (adjustmentType === 'add' ? qtyChange : -qtyChange);
+    
+    try {
+      await axios.post(`${API}/batches/${selectedBatch.id}/adjust`, {
+        qty_delta_units: finalQty,
+        reason: formData.get('reason'),
+        reference: formData.get('reference')
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Stock adjusted successfully');
+      setShowAdjustStockDialog(false);
+      fetchInventory();
+      if (selectedProduct && expandedProducts.has(selectedProduct.sku)) {
+        fetchBatchesForProduct(selectedProduct.sku);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to adjust stock');
+    }
+  };
+
+  const fetchStockMovements = async (batchId) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/stock/movements?batch_id=${batchId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStockMovements(response.data);
+    } catch (error) {
+      toast.error('Failed to load stock movements');
+    }
+  };
+
+  const openAddBatchDialog = (product) => {
+    setSelectedProduct(product.product);
+    setShowAddBatchDialog(true);
+  };
+
+  const openAdjustStockDialog = (product, batch) => {
+    setSelectedProduct(product.product);
+    setSelectedBatch(batch);
+    setShowAdjustStockDialog(true);
+  };
+
+  const openMovementHistoryDialog = (product, batch) => {
+    setSelectedProduct(product.product);
+    setSelectedBatch(batch);
+    fetchStockMovements(batch.id);
+    setShowMovementHistoryDialog(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       {/* Header with Beta Badge */}

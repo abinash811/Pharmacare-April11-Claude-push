@@ -1,135 +1,333 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '@/App';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2 } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const Button = ({ children, onClick, variant = 'primary', disabled = false, type = 'button', className = '' }) => {
+  const baseStyles = 'rounded font-medium transition-colors px-4 py-2';
+  const variants = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
+    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+  };
+  
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${className}`}>
+      {children}
+    </button>
+  );
+};
 
 export default function Settings() {
   const { user } = useContext(AuthContext);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('inventory');
+  
+  const [settings, setSettings] = useState({
+    inventory: {
+      near_expiry_days: 30,
+      block_expired_stock: true,
+      allow_near_expiry_sale: true,
+      low_stock_alert_enabled: true
+    },
+    billing: {
+      enable_draft_bills: true,
+      auto_print_invoice: false
+    },
+    general: {
+      pharmacy_name: 'PharmaCare',
+      currency: 'INR',
+      timezone: 'Asia/Kolkata'
+    }
+  });
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchUsers();
-    } else {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSettings(response.data);
+    } catch (error) {
+      console.error('Failed to load settings');
+    } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  const fetchUsers = async () => {
-    const token = localStorage.getItem('token');
-    try {
-      const response = await axios.get(`${API}/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUsers(response.data);
-    } catch (error) {
-      toast.error('Failed to load users');
-    }
-    setLoading(false);
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-
+  const handleSave = async () => {
+    setSaving(true);
     const token = localStorage.getItem('token');
+    
     try {
-      await axios.delete(`${API}/users/${userId}`, {
+      await axios.put(`${API}/settings`, settings, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('User deleted successfully');
-      fetchUsers();
+      toast.success('Settings saved successfully');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to delete user');
+      toast.error(error.response?.data?.detail || 'Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (loading) {
-    return <div className="p-8">Loading...</div>;
+  const updateSetting = (section, key, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [key]: value
+      }
+    }));
+  };
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
+          <p className="text-gray-600">Only administrators can access settings.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8" data-testid="settings-page">
+    <div className="min-h-screen bg-gray-50 p-8">
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Settings</h1>
-        <p className="text-gray-600 mt-1">Manage application settings</p>
+        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+          <SettingsIcon className="w-8 h-8" />
+          Application Settings
+        </h1>
+        <p className="text-gray-600 mt-1">Configure pharmacy management system preferences</p>
       </div>
 
-      <div className="space-y-6">
-        {/* Profile */}
-        <Card data-testid="profile-card">
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>Your account information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-gray-600">Name</p>
-                <p className="font-medium text-gray-800" data-testid="profile-name">{user?.name}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium text-gray-800" data-testid="profile-email">{user?.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Role</p>
-                <p className="font-medium text-gray-800 capitalize" data-testid="profile-role">{user?.role}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="border-b">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'inventory'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Package className="w-5 h-5" />
+              Inventory
+            </button>
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'billing'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              Billing
+            </button>
+            <button
+              onClick={() => setActiveTab('general')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'general'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Globe className="w-5 h-5" />
+              General
+            </button>
+          </div>
+        </div>
 
-        {/* User Management - Admin Only */}
-        {user?.role === 'admin' && (
-          <Card data-testid="user-management-card">
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>Manage system users</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full" data-testid="users-table">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {users.map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50" data-testid={`user-row-${u.id}`}>
-                        <td className="px-6 py-4 font-medium text-gray-800">{u.name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600 capitalize">{u.role}</td>
-                        <td className="px-6 py-4">
-                          {u.id !== user.id && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteUser(u.id)}
-                              data-testid={`delete-user-${u.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Content */}
+        <div className="p-6">
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Loading settings...</p>
+            </div>
+          ) : (
+            <>
+              {/* Inventory Settings */}
+              {activeTab === 'inventory' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Inventory Management Rules</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Near Expiry Alert (Days before expiry)
+                        </label>
+                        <input
+                          type="number"
+                          value={settings.inventory.near_expiry_days}
+                          onChange={(e) => updateSetting('inventory', 'near_expiry_days', parseInt(e.target.value))}
+                          className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded"
+                          min="1"
+                          max="365"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Products expiring within this period will be flagged as "Near Expiry"
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="block_expired"
+                          checked={settings.inventory.block_expired_stock}
+                          onChange={(e) => updateSetting('inventory', 'block_expired_stock', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="block_expired" className="text-sm font-medium text-gray-700">
+                          Block expired stock from billing
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="allow_near_expiry"
+                          checked={settings.inventory.allow_near_expiry_sale}
+                          onChange={(e) => updateSetting('inventory', 'allow_near_expiry_sale', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="allow_near_expiry" className="text-sm font-medium text-gray-700">
+                          Allow selling near-expiry products (with warning)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="low_stock_alert"
+                          checked={settings.inventory.low_stock_alert_enabled}
+                          onChange={(e) => updateSetting('inventory', 'low_stock_alert_enabled', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="low_stock_alert" className="text-sm font-medium text-gray-700">
+                          Enable low stock alerts on dashboard
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Billing Settings */}
+              {activeTab === 'billing' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Billing Preferences</h3>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="draft_bills"
+                          checked={settings.billing.enable_draft_bills}
+                          onChange={(e) => updateSetting('billing', 'enable_draft_bills', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="draft_bills" className="text-sm font-medium text-gray-700">
+                          Enable draft bills (save without payment)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="auto_print"
+                          checked={settings.billing.auto_print_invoice}
+                          onChange={(e) => updateSetting('billing', 'auto_print_invoice', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="auto_print" className="text-sm font-medium text-gray-700">
+                          Auto-print invoice after checkout
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* General Settings */}
+              {activeTab === 'general' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">General Configuration</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pharmacy Name
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.general.pharmacy_name}
+                          onChange={(e) => updateSetting('general', 'pharmacy_name', e.target.value)}
+                          className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Currency
+                        </label>
+                        <select
+                          value={settings.general.currency}
+                          onChange={(e) => updateSetting('general', 'currency', e.target.value)}
+                          className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded"
+                        >
+                          <option value="INR">INR (₹)</option>
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="GBP">GBP (£)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Timezone
+                        </label>
+                        <select
+                          value={settings.general.timezone}
+                          onChange={(e) => updateSetting('general', 'timezone', e.target.value)}
+                          className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded"
+                        >
+                          <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                          <option value="America/New_York">America/New_York (EST)</option>
+                          <option value="Europe/London">Europe/London (GMT)</option>
+                          <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Save Button */}
+        <div className="border-t px-6 py-4 flex justify-end">
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4 mr-2 inline" />
+            {saving ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </div>
       </div>
     </div>
   );

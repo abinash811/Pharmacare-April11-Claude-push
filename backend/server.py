@@ -1561,6 +1561,152 @@ async def get_products(
             
     return products
 
+@api_router.get("/inventory")
+async def get_inventory_with_health(
+    page: int = 1,
+    page_size: int = 20,
+    search: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get inventory with severity-based sorting and pagination
+    Priority: 1) Expired/Out-of-stock 2) Near-expiry/Low-stock 3) Healthy
+    """
+    # Get settings
+    settings = await db.settings.find_one({}) or {}
+    near_expiry_days = settings.get('near_expiry_days', 30)
+    
+    # Build query
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"sku": {"$regex": search, "$options": "i"}},
+            {"brand": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Get all products (for severity calculation)
+    products = await db.products.find(query, {"_id": 0}).to_list(10000)
+    
+    # Calculate inventory health for each product
+    inventory_items = []
+    today = datetime.now(timezone.utc)
+    near_expiry_threshold = today + timedelta(days=near_expiry_days)
+    
+    for product in products:
+        # Get all batches for this product
+        batches = await db.stock_batches.find(
+            {"product_sku": product['sku']}, 
+            {"_id": 0}
+        ).to_list(1000)
+        
+        if not batches:
+            # Out of stock
+            inventory_items.append({
+                'product': product,
+                'total_qty_units': 0,
+                'total_qty_packs': 0,
+                'nearest_expiry': None,
+                'severity': 1,  # Critical (out of stock)
+                'status': 'out_of_stock',
+                'batches_count': 0
+            })
+            continue
+        
+        # Calculate totals and find nearest expiry
+        total_units = 0
+        total_packs = 0
+        nearest_expiry = None
+        has_expired = False
+        has_near_expiry = False
+        
+        for batch in batches:
+            qty_packs = batch.get('qty_on_hand', 0)
+            units_per_pack = product.get('units_per_pack', 1)
+            qty_units = int(qty_packs * units_per_pack)
+            
+            total_packs += qty_packs
+            total_units += qty_units
+            
+            # Check expiry
+            if batch.get('expiry_date'):
+                expiry_str = batch['expiry_date']
+                try:
+                    if isinstance(expiry_str, str):
+                        expiry_date = datetime.fromisoformat(expiry_str.replace('Z', '+00:00'))
+                    else:
+                        expiry_date = expiry_str
+                    
+                    if expiry_date < today:
+                        has_expired = True
+                    elif expiry_date < near_expiry_threshold:
+                        has_near_expiry = True
+                    
+                    if nearest_expiry is None or expiry_date < nearest_expiry:
+                        nearest_expiry = expiry_date
+                except:
+                    pass
+        
+        # Determine severity and status
+        low_stock_threshold = product.get('low_stock_threshold_units', 10)
+        
+        if total_units == 0:
+            severity = 1
+            status = 'out_of_stock'
+        elif has_expired:
+            severity = 1
+            status = 'expired'
+        elif has_near_expiry:
+            severity = 2
+            status = 'near_expiry'
+        elif total_units <= low_stock_threshold:
+            severity = 2
+            status = 'low_stock'
+        else:
+            severity = 3
+            status = 'healthy'
+        
+        inventory_items.append({
+            'product': product,
+            'total_qty_units': total_units,
+            'total_qty_packs': round(total_packs, 2),
+            'nearest_expiry': nearest_expiry.isoformat() if nearest_expiry else None,
+            'severity': severity,
+            'status': status,
+            'batches_count': len(batches)
+        })
+    
+    # Sort by severity (1=critical, 2=warning, 3=healthy), then by expiry, then alphabetically
+    inventory_items.sort(key=lambda x: (
+        x['severity'],
+        x['nearest_expiry'] if x['nearest_expiry'] else '9999-12-31',
+        x['product']['name'].lower()
+    ))
+    
+    # Pagination
+    total_items = len(inventory_items)
+    total_pages = (total_items + page_size - 1) // page_size
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    page_items = inventory_items[start_idx:end_idx]
+    
+    return {
+        'items': page_items,
+        'pagination': {
+            'current_page': page,
+            'page_size': page_size,
+            'total_items': total_items,
+            'total_pages': total_pages,
+            'has_next': page < total_pages,
+            'has_prev': page > 1
+        },
+        'summary': {
+            'critical_count': sum(1 for item in inventory_items if item['severity'] == 1),
+            'warning_count': sum(1 for item in inventory_items if item['severity'] == 2),
+            'healthy_count': sum(1 for item in inventory_items if item['severity'] == 3)
+        }
+    }
+
 @api_router.get("/products/search-with-batches")
 async def search_products_with_batches(
     q: str,

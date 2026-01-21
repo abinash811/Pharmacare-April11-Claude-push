@@ -107,6 +107,11 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Fixed bill status calculation (was showing 'due' instead of 'paid')
 - Removed separate Sales Returns module (consolidated into Billing page)
 
+### Bug Fixes (Jan 3, 2025 - Session 2)
+- Fixed "Failed to save bill" error on sales returns - Made BillItem fields optional
+- Fixed sales return status - Returns with refund data now show "paid" instead of "due"
+- Added Edit (pencil) button to draft bills in BillingList.js - only shows for draft status
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

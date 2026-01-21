@@ -3655,7 +3655,7 @@ async def generate_purchase_number():
     
     return f"{prefix}{new_num:04d}"
 
-@api_router.get("/purchases", response_model=List[Purchase])
+@api_router.get("/purchases")
 async def get_purchases(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
@@ -3690,21 +3690,7 @@ async def get_purchases(
     
     purchases = await db.purchases.find(query, {"_id": 0}).sort("purchase_date", -1).to_list(1000)
     
-    for purchase in purchases:
-        if isinstance(purchase.get('purchase_date'), str):
-            purchase['purchase_date'] = datetime.fromisoformat(purchase['purchase_date'])
-        if isinstance(purchase.get('supplier_invoice_date'), str):
-            purchase['supplier_invoice_date'] = datetime.fromisoformat(purchase['supplier_invoice_date'])
-        if isinstance(purchase.get('created_at'), str):
-            purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
-        if isinstance(purchase.get('updated_at'), str):
-            purchase['updated_at'] = datetime.fromisoformat(purchase['updated_at'])
-        
-        # Convert item dates
-        for item in purchase.get('items', []):
-            if isinstance(item.get('expiry_date'), str):
-                item['expiry_date'] = datetime.fromisoformat(item['expiry_date'])
-    
+    # Return as-is without date conversion (dates are stored as ISO strings)
     return purchases
 
 @api_router.post("/purchases")

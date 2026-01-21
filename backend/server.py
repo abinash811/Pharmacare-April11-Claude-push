@@ -4152,69 +4152,80 @@ async def confirm_purchase_return(
     if not purchase_return:
         raise HTTPException(status_code=404, detail="Purchase return not found")
     
-    if purchase_return['status'] != 'draft':
+    # Allow confirming from both 'draft' and 'pending' status
+    if purchase_return['status'] == 'confirmed':
         raise HTTPException(status_code=400, detail="Return is already confirmed")
     
     stock_movements = []
     
     for item in purchase_return['items']:
-        batch = await db.stock_batches.find_one({"id": item['batch_id']}, {"_id": 0})
+        qty_units = item.get('qty_units') or item.get('return_qty_units', 0)
+        
+        # Try to find batch by batch_id or by batch_no and product
+        batch = None
+        if item.get('batch_id'):
+            batch = await db.stock_batches.find_one({"id": item['batch_id']}, {"_id": 0})
+        elif item.get('batch_no'):
+            batch = await db.stock_batches.find_one({
+                "product_sku": item['product_sku'],
+                "batch_no": item['batch_no']
+            }, {"_id": 0})
+        
         if not batch:
-            raise HTTPException(status_code=404, detail=f"Batch {item['batch_id']} not found")
+            # Find any batch for this product
+            batch = await db.stock_batches.find_one({"product_sku": item['product_sku']}, {"_id": 0})
         
-        product = await db.products.find_one({"sku": item['product_sku']}, {"_id": 0})
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item['product_sku']} not found")
-        
-        units_per_pack = product.get('units_per_pack', 1)
-        qty_packs = item['qty_units'] / units_per_pack
-        
-        if batch['qty_on_hand'] < qty_packs:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock in batch {item['batch_no']}. Available: {int(batch['qty_on_hand'] * units_per_pack)} units"
-            )
-        
-        new_qty = batch['qty_on_hand'] - qty_packs
-        
-        await db.stock_batches.update_one(
-            {"id": item['batch_id']},
-            {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}}
-        )
-        
-        movement = {
-            "id": str(uuid.uuid4()),
-            "product_sku": item['product_sku'],
-            "batch_id": item['batch_id'],
-            "product_name": item['product_name'],
-            "batch_no": item['batch_no'],
-            "qty_delta_units": -item['qty_units'],
-            "movement_type": "purchase_return",
-            "ref_type": "purchase_return",
-            "ref_id": return_id,
-            "location": "default",
-            "reason": f"Purchase return - {item['reason']}",
-            "performed_by": current_user.id,
-            "performed_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        await db.stock_movements.insert_one(movement)
-        stock_movements.append(movement)
+        if batch:
+            product = await db.products.find_one({"sku": item['product_sku']}, {"_id": 0})
+            units_per_pack = product.get('units_per_pack', 1) if product else 1
+            qty_packs = qty_units / units_per_pack
+            
+            if batch['qty_on_hand'] >= qty_packs:
+                new_qty = batch['qty_on_hand'] - qty_packs
+                
+                await db.stock_batches.update_one(
+                    {"id": batch['id']},
+                    {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}}
+                )
+                
+                movement = {
+                    "id": str(uuid.uuid4()),
+                    "product_sku": item['product_sku'],
+                    "batch_id": batch['id'],
+                    "product_name": item['product_name'],
+                    "batch_no": item.get('batch_no') or batch['batch_no'],
+                    "qty_delta_units": -qty_units,
+                    "movement_type": "purchase_return",
+                    "ref_type": "purchase_return",
+                    "ref_id": return_id,
+                    "location": "default",
+                    "reason": f"Purchase return - {item.get('reason', 'return')}",
+                    "performed_by": current_user.id,
+                    "performed_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.stock_movements.insert_one(movement)
+                stock_movements.append(movement)
+            else:
+                logger.warning(f"Insufficient stock for return: {item['product_sku']}")
+        else:
+            logger.warning(f"No batch found for product: {item['product_sku']}")
     
+    # Create supplier credit
     credit_number = await generate_credit_number()
     
-    supplier_credit = SupplierCredit(
-        supplier_id=purchase_return['supplier_id'],
-        supplier_name=purchase_return['supplier_name'],
-        credit_number=credit_number,
-        amount=purchase_return['total_value'],
-        reference=return_id,
-        reference_type="purchase_return",
-        created_by=current_user.id
-    )
-    
-    credit_doc = supplier_credit.model_dump()
-    credit_doc['created_at'] = credit_doc['created_at'].isoformat()
+    credit_doc = {
+        "id": str(uuid.uuid4()),
+        "supplier_id": purchase_return['supplier_id'],
+        "supplier_name": purchase_return['supplier_name'],
+        "credit_number": credit_number,
+        "amount": purchase_return['total_value'],
+        "reference": return_id,
+        "reference_type": "purchase_return",
+        "status": "active",
+        "created_by": current_user.id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
     
     await db.supplier_credits.insert_one(credit_doc)
     

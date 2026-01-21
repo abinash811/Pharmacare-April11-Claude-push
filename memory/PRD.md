@@ -131,6 +131,13 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Fixed sales return status - Returns with refund data now show "paid" instead of "due"
 - Added Edit (pencil) button to draft bills in BillingList.js - only shows for draft status
 
+### Purchase Module Consolidation (Jan 3, 2025)
+- Created PurchaseNew.js - Consolidated purchase and purchase return in single page
+- Updated PurchasesList.js - Added tabs for Purchases/Returns, summary cards, proper actions
+- Added PUT /api/purchases/{id} endpoint for editing draft purchases
+- Removed separate purchase return files (CreatePurchaseReturn.js, PurchaseReturnsList.js, PurchaseReturnDetail.js)
+- Updated routes and navigation
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

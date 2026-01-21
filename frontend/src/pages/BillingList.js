@@ -194,12 +194,22 @@ export default function BillingList() {
                 )}
                 <td className="py-3 px-3">
                   <div className="flex gap-1">
-                    <button className="p-1.5 hover:bg-gray-100 rounded">
+                    <button 
+                      className="p-1.5 hover:bg-gray-100 rounded"
+                      onClick={() => navigate(`/billing/${item.id}`)}
+                      title="View Bill"
+                    >
                       <Printer className="w-4 h-4 text-gray-600" />
                     </button>
-                    <button className="p-1.5 hover:bg-gray-100 rounded">
-                      <Edit2 className="w-4 h-4 text-gray-600" />
-                    </button>
+                    {item.status === 'draft' && (
+                      <button 
+                        className="p-1.5 hover:bg-blue-100 rounded"
+                        onClick={() => navigate(`/billing/edit/${item.id}?type=${isReturn ? 'return' : 'sale'}`)}
+                        title="Edit Draft"
+                      >
+                        <Edit2 className="w-4 h-4 text-blue-600" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

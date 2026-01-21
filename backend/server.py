@@ -780,11 +780,12 @@ class PurchaseReturn(BaseModel):
 class PurchaseReturnItemCreate(BaseModel):
     product_sku: str
     product_name: str
-    batch_id: str
-    batch_no: str
+    batch_id: Optional[str] = None
+    batch_no: Optional[str] = None
     qty_units: int
+    return_qty_units: Optional[int] = None  # Alias for qty_units from frontend
     cost_price_per_unit: float
-    reason: str
+    reason: Optional[str] = None
 
 class PurchaseReturnCreate(BaseModel):
     supplier_id: str
@@ -792,6 +793,8 @@ class PurchaseReturnCreate(BaseModel):
     return_date: str  # ISO date
     items: List[PurchaseReturnItemCreate]
     note: Optional[str] = None
+    notes: Optional[str] = None  # Alias
+    reason: Optional[str] = None
 
 # ==================== SUPPLIER CREDIT MODELS ====================
 class SupplierCredit(BaseModel):

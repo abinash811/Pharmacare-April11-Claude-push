@@ -445,17 +445,17 @@ class MedicineUpdate(BaseModel):
 
 # Bill Models
 class BillItem(BaseModel):
-    product_id: str  # Updated from medicine_id
-    batch_id: str  # New field for batch tracking
-    product_name: str  # Updated from medicine_name
+    product_id: Optional[str] = None  # Updated from medicine_id
+    batch_id: Optional[str] = None  # New field for batch tracking
+    product_name: Optional[str] = None  # Updated from medicine_name
     brand: Optional[str] = None
-    batch_no: str  # Updated from batch_number
-    expiry_date: str
+    batch_no: Optional[str] = None  # Updated from batch_number
+    expiry_date: Optional[str] = None
     quantity: int
     unit_price: float  # The actual selling price
     mrp: float
     discount: float = 0
-    gst_percent: float  # Updated from gst_rate
+    gst_percent: float = 5  # Updated from gst_rate
     line_total: float  # Updated from total
 
 class Bill(BaseModel):

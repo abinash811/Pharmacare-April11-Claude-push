@@ -3957,7 +3957,7 @@ async def update_purchase(
     updated = await db.purchases.find_one({"id": purchase_id}, {"_id": 0})
     return updated
 
-@api_router.get("/purchases/{purchase_id}", response_model=Purchase)
+@api_router.get("/purchases/{purchase_id}")
 async def get_purchase(
     purchase_id: str,
     current_user: User = Depends(get_current_user)
@@ -3967,20 +3967,7 @@ async def get_purchase(
     if not purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")
     
-    # Convert dates
-    if isinstance(purchase.get('purchase_date'), str):
-        purchase['purchase_date'] = datetime.fromisoformat(purchase['purchase_date'])
-    if isinstance(purchase.get('supplier_invoice_date'), str):
-        purchase['supplier_invoice_date'] = datetime.fromisoformat(purchase['supplier_invoice_date'])
-    if isinstance(purchase.get('created_at'), str):
-        purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
-    if isinstance(purchase.get('updated_at'), str):
-        purchase['updated_at'] = datetime.fromisoformat(purchase['updated_at'])
-    
-    for item in purchase.get('items', []):
-        if isinstance(item.get('expiry_date'), str):
-            item['expiry_date'] = datetime.fromisoformat(item['expiry_date'])
-    
+    # Return as-is without date conversion (dates are stored as ISO strings)
     return purchase
 
 app.add_middleware(

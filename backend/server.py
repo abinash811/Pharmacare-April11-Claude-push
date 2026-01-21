@@ -2671,6 +2671,106 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     
     return bill
 
+@api_router.put("/bills/{bill_id}")
+async def update_bill(
+    bill_id: str,
+    bill_data: BillCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a draft bill - only drafts can be modified"""
+    existing_bill = await db.bills.find_one({"id": bill_id})
+    
+    if not existing_bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+    
+    if existing_bill.get('status') != 'draft':
+        raise HTTPException(status_code=400, detail="Only draft bills can be edited")
+    
+    # Calculate totals
+    items = []
+    subtotal = 0
+    total_discount = bill_data.discount or 0
+    total_tax = 0
+    
+    for item_data in bill_data.items:
+        item = BillItem(**item_data.dict() if hasattr(item_data, 'dict') else item_data)
+        items.append(item)
+        subtotal += item.mrp * item.quantity
+        total_discount += item.discount
+        total_tax += (item.mrp * item.quantity - item.discount) * (item.gst_percent or 5) / 100
+    
+    total_amount = subtotal - total_discount + total_tax
+    
+    # Update bill
+    update_data = {
+        "customer_name": bill_data.customer_name or "Counter Sale",
+        "customer_mobile": bill_data.customer_mobile,
+        "doctor_name": bill_data.doctor_name,
+        "items": [item.model_dump() for item in items],
+        "subtotal": round(subtotal, 2),
+        "total_discount": round(total_discount, 2),
+        "total_tax": round(total_tax, 2),
+        "total_amount": round(total_amount, 2),
+        "discount": bill_data.discount or 0,
+        "status": bill_data.status or "draft",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": current_user.id
+    }
+    
+    # Handle status change to paid
+    if bill_data.status == "paid" and existing_bill.get('status') == 'draft':
+        # Process payments
+        if bill_data.payments:
+            paid_amount = sum(p.get('amount', 0) if isinstance(p, dict) else p.amount for p in bill_data.payments)
+            update_data["paid_amount"] = round(paid_amount, 2)
+            update_data["due_amount"] = round(max(0, total_amount - paid_amount), 2)
+            
+            # Save payment records
+            for payment_data in bill_data.payments:
+                payment = Payment(
+                    invoice_id=bill_id,
+                    amount=payment_data.get('amount', 0) if isinstance(payment_data, dict) else payment_data.amount,
+                    payment_method=payment_data.get('method', 'cash') if isinstance(payment_data, dict) else payment_data.method,
+                    reference_number=payment_data.get('reference') if isinstance(payment_data, dict) else payment_data.reference,
+                    created_by=current_user.id
+                )
+                payment_doc = payment.model_dump()
+                payment_doc['created_at'] = payment_doc['created_at'].isoformat()
+                await db.payments.insert_one(payment_doc)
+        
+        # Deduct stock for SALE
+        if existing_bill.get('invoice_type') == 'SALE':
+            for item in items:
+                batch_id = item.batch_id
+                if batch_id:
+                    batch = await db.stock_batches.find_one({"id": batch_id})
+                    if batch:
+                        new_qty = batch.get('qty_on_hand', 0) - item.quantity
+                        await db.stock_batches.update_one(
+                            {"id": batch_id},
+                            {"$set": {"qty_on_hand": new_qty}}
+                        )
+                        
+                        # Record stock movement
+                        movement = StockMovement(
+                            product_sku=batch.get('product_sku', ''),
+                            batch_id=batch_id,
+                            movement_type="sale",
+                            qty_delta_units=-item.quantity,
+                            reason=f"Bill {existing_bill.get('bill_number')}",
+                            ref_id=bill_id,
+                            performed_by=current_user.id
+                        )
+                        movement_doc = movement.model_dump()
+                        movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
+                        await db.stock_movements.insert_one(movement_doc)
+    
+    await db.bills.update_one({"id": bill_id}, {"$set": update_data})
+    
+    # Return updated bill
+    updated_bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    return updated_bill
+
 @api_router.get("/bills", response_model=List[Bill])
 async def get_bills(
     invoice_type: Optional[str] = None,

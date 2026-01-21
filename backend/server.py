@@ -4099,7 +4099,7 @@ async def create_purchase_return(
     return_doc.pop('_id', None)
     return return_doc
 
-@api_router.get("/purchase-returns", response_model=List[PurchaseReturn])
+@api_router.get("/purchase-returns")
 async def get_purchase_returns(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
@@ -4126,17 +4126,10 @@ async def get_purchase_returns(
     
     returns = await db.purchase_returns.find(query, {"_id": 0}).sort("return_date", -1).to_list(1000)
     
-    for ret in returns:
-        if isinstance(ret.get('return_date'), str):
-            ret['return_date'] = datetime.fromisoformat(ret['return_date'])
-        if isinstance(ret.get('created_at'), str):
-            ret['created_at'] = datetime.fromisoformat(ret['created_at'])
-        if isinstance(ret.get('confirmed_at'), str):
-            ret['confirmed_at'] = datetime.fromisoformat(ret['confirmed_at'])
-    
+    # Return as-is without date conversion
     return returns
 
-@api_router.get("/purchase-returns/{return_id}", response_model=PurchaseReturn)
+@api_router.get("/purchase-returns/{return_id}")
 async def get_purchase_return(
     return_id: str,
     current_user: User = Depends(get_current_user)
@@ -4146,14 +4139,7 @@ async def get_purchase_return(
     if not purchase_return:
         raise HTTPException(status_code=404, detail="Purchase return not found")
     
-    # Parse date fields
-    if isinstance(purchase_return.get('return_date'), str):
-        purchase_return['return_date'] = datetime.fromisoformat(purchase_return['return_date'])
-    if isinstance(purchase_return.get('created_at'), str):
-        purchase_return['created_at'] = datetime.fromisoformat(purchase_return['created_at'])
-    if isinstance(purchase_return.get('confirmed_at'), str):
-        purchase_return['confirmed_at'] = datetime.fromisoformat(purchase_return['confirmed_at'])
-    
+    # Return as-is without date conversion
     return purchase_return
 
 @api_router.post("/purchase-returns/{return_id}/confirm")

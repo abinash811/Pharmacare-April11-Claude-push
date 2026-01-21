@@ -2501,6 +2501,12 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
                 paid_amount += p.get('amount', 0)
             else:
                 paid_amount += getattr(p, 'amount', 0)
+    elif bill_data.refund and bill_data.invoice_type == "SALES_RETURN":
+        # For returns, treat refund amount as "paid"
+        if isinstance(bill_data.refund, dict):
+            paid_amount = bill_data.refund.get('amount', total_amount)
+        else:
+            paid_amount = getattr(bill_data.refund, 'amount', total_amount)
     elif bill_data.payment_method:
         # Legacy: single payment method, assume full payment
         paid_amount = total_amount if bill_data.status == "paid" else 0
@@ -2510,6 +2516,9 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     # Determine status based on payments
     if bill_data.status == "draft":
         status = "draft"
+    elif bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
+        # For returns with refund data, mark as paid/refunded
+        status = "paid"
     elif abs(due_amount) < 0.01:  # Allow for small rounding differences
         status = "paid"
     elif paid_amount > 0:

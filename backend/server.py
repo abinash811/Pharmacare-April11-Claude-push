@@ -3828,6 +3828,129 @@ async def create_purchase(
     
     return purchase
 
+@api_router.put("/purchases/{purchase_id}")
+async def update_purchase(
+    purchase_id: str,
+    purchase_data: PurchaseCreate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a draft purchase - only drafts can be modified"""
+    existing = await db.purchases.find_one({"id": purchase_id})
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    if existing.get('status') != 'draft':
+        raise HTTPException(status_code=400, detail="Only draft purchases can be edited")
+    
+    # Get supplier
+    supplier = await db.suppliers.find_one({"id": purchase_data.supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    # Process items and calculate totals
+    items = []
+    subtotal = 0
+    tax_value = 0
+    
+    for item_data in purchase_data.items:
+        product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
+        
+        line_total = item_data.qty_units * item_data.cost_price_per_unit
+        tax_amount = line_total * (item_data.gst_percent / 100)
+        
+        item = PurchaseItem(
+            **item_data.model_dump(),
+            line_total=line_total + tax_amount
+        )
+        
+        if item_data.expiry_date:
+            item.expiry_date = datetime.fromisoformat(item_data.expiry_date)
+        
+        items.append(item)
+        subtotal += line_total
+        tax_value += tax_amount
+    
+    total_value = subtotal + tax_value
+    round_off = round(total_value) - total_value
+    total_value = round(total_value)
+    
+    # Determine status
+    status = purchase_data.status if purchase_data.status else "draft"
+    
+    # Update purchase
+    update_data = {
+        "supplier_id": purchase_data.supplier_id,
+        "supplier_name": supplier['name'],
+        "purchase_date": datetime.fromisoformat(purchase_data.purchase_date).isoformat(),
+        "supplier_invoice_no": purchase_data.supplier_invoice_no,
+        "supplier_invoice_date": datetime.fromisoformat(purchase_data.supplier_invoice_date).isoformat() if purchase_data.supplier_invoice_date else None,
+        "items": [item.model_dump() for item in items],
+        "subtotal": subtotal,
+        "tax_value": tax_value,
+        "round_off": round_off,
+        "total_value": total_value,
+        "status": status,
+        "note": purchase_data.note,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": current_user.id
+    }
+    
+    # Convert item expiry dates
+    for item in update_data['items']:
+        if item.get('expiry_date'):
+            item['expiry_date'] = item['expiry_date'].isoformat() if isinstance(item['expiry_date'], datetime) else item['expiry_date']
+    
+    await db.purchases.update_one({"id": purchase_id}, {"$set": update_data})
+    
+    # If status changed to confirmed, create stock batches
+    if status == 'confirmed' and existing.get('status') == 'draft':
+        for item in items:
+            # Create stock batch
+            batch = StockBatch(
+                product_sku=item.product_sku,
+                batch_no=item.batch_no or f"PUR-{existing.get('purchase_number', purchase_id)[:8]}",
+                expiry_date=item.expiry_date.isoformat() if item.expiry_date else None,
+                qty_on_hand=item.qty_units,
+                cost_price_per_unit=item.cost_price_per_unit,
+                mrp_per_unit=item.mrp_per_unit,
+                location="default",
+                purchase_id=purchase_id
+            )
+            batch_doc = batch.model_dump()
+            await db.stock_batches.insert_one(batch_doc)
+            
+            # Record stock movement
+            movement = StockMovement(
+                product_sku=item.product_sku,
+                batch_id=batch.id,
+                movement_type="purchase",
+                qty_delta_units=item.qty_units,
+                reason=f"Purchase {existing.get('purchase_number', '')}",
+                ref_id=purchase_id,
+                performed_by=current_user.id
+            )
+            movement_doc = movement.model_dump()
+            movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
+            await db.stock_movements.insert_one(movement_doc)
+    
+    # Create audit log
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "entity_type": "purchase",
+        "entity_id": purchase_id,
+        "action": "update",
+        "new_value": {"status": status, "total_value": total_value},
+        "performed_by": current_user.id,
+        "performed_by_name": current_user.name,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    updated = await db.purchases.find_one({"id": purchase_id}, {"_id": 0})
+    return updated
+
 @api_router.get("/purchases/{purchase_id}", response_model=Purchase)
 async def get_purchase(
     purchase_id: str,

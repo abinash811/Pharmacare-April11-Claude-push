@@ -158,8 +158,6 @@ function AppRoutes({ user }) {
         <Route path="purchase-returns" element={<PurchaseReturnsList />} />
         <Route path="purchase-returns/new" element={<CreatePurchaseReturn />} />
         <Route path="purchase-returns/:id" element={<PurchaseReturnDetail />} />
-        <Route path="sales-returns" element={<SalesReturnsList />} />
-        <Route path="sales-returns/new" element={<SalesReturns />} />
         <Route path="customers" element={<Customers />} />
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />

@@ -690,6 +690,7 @@ class PurchaseCreate(BaseModel):
     supplier_invoice_date: Optional[str] = None
     items: List[PurchaseItemCreate]
     note: Optional[str] = None
+    status: Optional[str] = "draft"  # draft or confirmed
 
 class PurchaseUpdate(BaseModel):
     supplier_id: Optional[str] = None

@@ -417,6 +417,14 @@ export default function PurchaseNew() {
           toast.error(`Please enter cost price for ${item.product_name}`);
           return;
         }
+        if (!item.batch_no) {
+          toast.error(`Please enter batch number for ${item.product_name}`);
+          return;
+        }
+        if (!item.expiry_date) {
+          toast.error(`Please enter expiry date for ${item.product_name}`);
+          return;
+        }
       }
     } else {
       if (!originalPurchaseId) {

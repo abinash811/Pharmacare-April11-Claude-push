@@ -782,7 +782,7 @@ class PurchaseReturnItemCreate(BaseModel):
     product_name: str
     batch_id: Optional[str] = None
     batch_no: Optional[str] = None
-    qty_units: int
+    qty_units: Optional[int] = None
     return_qty_units: Optional[int] = None  # Alias for qty_units from frontend
     cost_price_per_unit: float
     reason: Optional[str] = None

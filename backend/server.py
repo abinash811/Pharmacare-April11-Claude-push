@@ -4032,21 +4032,22 @@ async def generate_credit_number():
     
     return f"{prefix}{new_num:04d}"
 
-@api_router.post("/purchase-returns", response_model=PurchaseReturn)
+@api_router.post("/purchase-returns")
 async def create_purchase_return(
     return_data: PurchaseReturnCreate,
     current_user: User = Depends(get_current_user)
 ):
-    """Create purchase return draft"""
+    """Create purchase return"""
     supplier = await db.suppliers.find_one({"id": return_data.supplier_id}, {"_id": 0})
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
     
     purchase_number = None
+    original_purchase = None
     if return_data.purchase_id:
-        purchase = await db.purchases.find_one({"id": return_data.purchase_id}, {"_id": 0})
-        if purchase:
-            purchase_number = purchase['purchase_number']
+        original_purchase = await db.purchases.find_one({"id": return_data.purchase_id}, {"_id": 0})
+        if original_purchase:
+            purchase_number = original_purchase['purchase_number']
     
     return_number = await generate_return_number()
     
@@ -4054,49 +4055,49 @@ async def create_purchase_return(
     total_value = 0
     
     for item_data in return_data.items:
-        batch = await db.stock_batches.find_one({"id": item_data.batch_id}, {"_id": 0})
-        if not batch:
-            raise HTTPException(status_code=404, detail=f"Batch {item_data.batch_id} not found")
+        # Get qty - handle both qty_units and return_qty_units
+        qty_units = item_data.return_qty_units or item_data.qty_units
         
-        product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
+        # Calculate line total
+        line_total = qty_units * item_data.cost_price_per_unit
         
-        units_per_pack = product.get('units_per_pack', 1)
-        qty_packs = item_data.qty_units / units_per_pack
+        item_doc = {
+            "id": str(uuid.uuid4()),
+            "product_sku": item_data.product_sku,
+            "product_name": item_data.product_name,
+            "batch_id": item_data.batch_id,
+            "batch_no": item_data.batch_no,
+            "qty_units": qty_units,
+            "cost_price_per_unit": item_data.cost_price_per_unit,
+            "reason": item_data.reason or return_data.reason or "return",
+            "line_total": line_total
+        }
         
-        if batch['qty_on_hand'] < qty_packs:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock in batch {item_data.batch_no}. Available: {int(batch['qty_on_hand'] * units_per_pack)} units"
-            )
-        
-        line_total = item_data.qty_units * item_data.cost_price_per_unit
-        
-        item = PurchaseReturnItem(**item_data.model_dump(), line_total=line_total)
-        items.append(item)
+        items.append(item_doc)
         total_value += line_total
     
-    purchase_return = PurchaseReturn(
-        return_number=return_number,
-        supplier_id=return_data.supplier_id,
-        supplier_name=supplier['name'],
-        purchase_id=return_data.purchase_id,
-        purchase_number=purchase_number,
-        return_date=datetime.fromisoformat(return_data.return_date),
-        items=items,
-        total_value=total_value,
-        note=return_data.note,
-        created_by=current_user.id
-    )
+    # Create return document
+    return_doc = {
+        "id": str(uuid.uuid4()),
+        "return_number": return_number,
+        "supplier_id": return_data.supplier_id,
+        "supplier_name": supplier['name'],
+        "purchase_id": return_data.purchase_id,
+        "purchase_number": purchase_number,
+        "return_date": return_data.return_date,
+        "status": "pending",
+        "items": items,
+        "total_value": total_value,
+        "note": return_data.note or return_data.notes,
+        "created_by": current_user.id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
     
-    doc = purchase_return.model_dump()
-    doc['return_date'] = doc['return_date'].isoformat()
-    doc['created_at'] = doc['created_at'].isoformat()
+    await db.purchase_returns.insert_one(return_doc)
     
-    await db.purchase_returns.insert_one(doc)
-    
-    return purchase_return
+    # Remove _id before returning
+    return_doc.pop('_id', None)
+    return return_doc
 
 @api_router.get("/purchase-returns", response_model=List[PurchaseReturn])
 async def get_purchase_returns(

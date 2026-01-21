@@ -98,6 +98,15 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Backend: New GET /api/inventory/filters endpoint
 - Backend: GET /api/inventory now accepts status_filter, category_filter, brand_filter params
 
+### Billing & Returns Enhancement (Jan 3, 2025)
+- Enhanced returns flow: Select items from original bill with checkboxes
+- Return quantity validation (cannot exceed purchased qty)
+- Return window warning from configurable settings
+- Edit draft bills feature with PUT /api/bills/{id} endpoint
+- Added Returns section to Settings (return_window_days, require_original_bill, allow_partial_return)
+- Fixed bill status calculation (was showing 'due' instead of 'paid')
+- Removed separate Sales Returns module (consolidated into Billing page)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

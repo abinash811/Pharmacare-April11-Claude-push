@@ -22,7 +22,6 @@ export default function Layout() {
     { name: 'Inventory', path: '/inventory', icon: Package, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
     { name: 'Inventory V2 🆕', path: '/inventory-v2', icon: Package, roles: ['admin', 'manager', 'cashier', 'inventory_staff'] },
     { name: 'Purchases', path: '/purchases', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
-    { name: 'Purchase Returns', path: '/purchase-returns', icon: Package, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Customers', path: '/customers', icon: Users, roles: ['admin', 'manager', 'cashier'] },
     { name: 'Suppliers', path: '/suppliers', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },

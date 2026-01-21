@@ -96,6 +96,14 @@ export default function BillDetail() {
           </div>
         </div>
         <div className="flex gap-2">
+          {bill.status === 'draft' && (
+            <Button 
+              onClick={() => navigate(`/billing/edit/${id}?type=${bill.invoice_type === 'SALE' ? 'sale' : 'return'}`)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Edit Draft
+            </Button>
+          )}
           <Button 
             variant="outline"
             onClick={async () => {

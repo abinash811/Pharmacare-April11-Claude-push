@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Search, Filter, Eye, Package, X, FileText } from 'lucide-react';
+import { Plus, Search, Eye, Package, RotateCcw, Edit2, Printer } from 'lucide-react';
+import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const Button = ({ children, onClick, variant = 'primary', size = 'md', className = '', ...props }) => {
-  const baseStyles = 'rounded font-medium transition-colors';
+  const baseStyles = 'rounded font-medium transition-colors inline-flex items-center justify-center';
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700',
     secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+    warning: 'bg-orange-600 text-white hover:bg-orange-700',
     ghost: 'bg-transparent hover:bg-gray-100'
   };
   const sizes = {
@@ -29,17 +31,11 @@ const Button = ({ children, onClick, variant = 'primary', size = 'md', className
   );
 };
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-lg shadow ${className}`}>{children}</div>
-);
-
-const CardContent = ({ children, className = '' }) => (
-  <div className={`p-6 ${className}`}>{children}</div>
-);
-
 export default function PurchasesList() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' or 'returns'
   const [purchases, setPurchases] = useState([]);
+  const [returns, setReturns] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -51,7 +47,7 @@ export default function PurchasesList() {
   });
 
   useEffect(() => {
-    fetchPurchases();
+    fetchData();
     fetchSuppliers();
   }, []);
 
@@ -68,7 +64,7 @@ export default function PurchasesList() {
     }
   };
 
-  const fetchPurchases = async () => {
+  const fetchData = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       setLoading(false);
@@ -83,48 +79,27 @@ export default function PurchasesList() {
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
 
-      const response = await axios.get(`${API}/purchases?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPurchases(response.data);
+      const [purchasesRes, returnsRes] = await Promise.all([
+        axios.get(`${API}/purchases?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API}/purchase-returns`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      
+      setPurchases(purchasesRes.data);
+      setReturns(returnsRes.data);
     } catch (error) {
-      console.error('Failed to load purchases:', error);
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load purchases');
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      draft: 'bg-gray-100 text-gray-800',
-      received: 'bg-green-100 text-green-800',
-      partially_received: 'bg-yellow-100 text-yellow-800',
-      closed: 'bg-blue-100 text-blue-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-
-    const labels = {
-      draft: 'Draft',
-      received: 'Received',
-      partially_received: 'Partially Received',
-      closed: 'Closed',
-      cancelled: 'Cancelled'
-    };
-
-    return (
-      <span className={`px-2 py-1 rounded text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-        {labels[status] || status}
-      </span>
-    );
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-GB');
-    } catch {
-      return dateStr;
-    }
+  const applyFilters = () => {
+    fetchData();
   };
 
   const clearFilters = () => {
@@ -135,191 +110,328 @@ export default function PurchasesList() {
       status: '',
       search: ''
     });
+    setTimeout(fetchData, 100);
   };
 
-  useEffect(() => {
-    fetchPurchases();
-  }, [filters]);
+  const getStatusBadge = (status) => {
+    const styles = {
+      draft: 'bg-gray-100 text-gray-800',
+      received: 'bg-green-100 text-green-800',
+      confirmed: 'bg-blue-100 text-blue-800',
+      pending: 'bg-yellow-100 text-yellow-800',
+      cancelled: 'bg-red-100 text-red-800',
+      completed: 'bg-green-100 text-green-800'
+    };
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || styles.draft}`}>
+        {status?.charAt(0).toUpperCase() + status?.slice(1)}
+      </span>
+    );
+  };
 
-  if (loading) {
-    return <div className="p-8">Loading...</div>;
-  }
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return `₹${(amount || 0).toLocaleString('en-IN')}`;
+  };
+
+  // Calculate summary stats
+  const purchaseStats = {
+    total: purchases.length,
+    draft: purchases.filter(p => p.status === 'draft').length,
+    confirmed: purchases.filter(p => p.status === 'confirmed').length,
+    totalValue: purchases.reduce((sum, p) => sum + (p.total_value || 0), 0)
+  };
+
+  const returnStats = {
+    total: returns.length,
+    pending: returns.filter(r => r.status === 'pending').length,
+    confirmed: returns.filter(r => r.status === 'confirmed').length,
+    totalValue: returns.reduce((sum, r) => sum + (r.total_value || 0), 0)
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Purchase Bills</h1>
-            <p className="text-sm text-gray-600">Manage supplier purchases and goods receipts</p>
+            <h1 className="text-2xl font-bold text-gray-800">Purchases & Returns</h1>
+            <p className="text-sm text-gray-600">Manage supplier purchases and returns</p>
           </div>
-          <Button onClick={() => navigate('/purchases/new')}>
-            <Plus className="w-4 h-4 mr-2 inline" />
-            New Purchase Bill
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/purchases/create?type=return')} variant="warning">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              New Return
+            </Button>
+            <Button onClick={() => navigate('/purchases/create?type=purchase')}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Purchase
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Summary Cards */}
       <div className="p-6">
-        <Card>
-          <CardContent>
-            <div className="flex items-center gap-4 mb-4">
-              <Filter className="w-5 h-5 text-gray-500" />
-              <h3 className="font-medium text-gray-700">Filters</h3>
-              {(filters.from_date || filters.to_date || filters.supplier_id || filters.status || filters.search) && (
-                <button
-                  onClick={clearFilters}
-                  className="ml-auto text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  <X className="w-4 h-4" />
-                  Clear All
-                </button>
-              )}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-600">Total Purchases</div>
+            <div className="text-2xl font-bold text-blue-600">{purchaseStats.total}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {purchaseStats.draft} draft, {purchaseStats.confirmed} confirmed
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-                <input
-                  type="date"
-                  value={filters.from_date}
-                  onChange={(e) => setFilters({ ...filters, from_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                <input
-                  type="date"
-                  value={filters.to_date}
-                  onChange={(e) => setFilters({ ...filters, to_date: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
-                <select
-                  value={filters.supplier_id}
-                  onChange={(e) => setFilters({ ...filters, supplier_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                >
-                  <option value="">All Suppliers</option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                >
-                  <option value="">All Status</option>
-                  <option value="draft">Draft</option>
-                  <option value="partially_received">Partially Received</option>
-                  <option value="received">Received</option>
-                  <option value="closed">Closed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Purchase #, Supplier, Invoice..."
-                    value={filters.search}
-                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded"
-                  />
-                </div>
-              </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-600">Purchase Value</div>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(purchaseStats.totalValue)}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-600">Total Returns</div>
+            <div className="text-2xl font-bold text-orange-600">{returnStats.total}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {returnStats.pending} pending, {returnStats.confirmed} confirmed
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-sm text-gray-600">Return Value</div>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(returnStats.totalValue)}</div>
+          </div>
+        </div>
 
-        {/* Purchases Table */}
-        <Card className="mt-6">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchase No.</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice No.</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchase Date</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Value</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {purchases.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
-                        <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                        <p>No purchases found</p>
-                        <p className="text-sm mt-1">Create your first purchase to get started</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    purchases.map((purchase) => (
-                      <tr key={purchase.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => navigate(`/purchases/${purchase.id}`)}
-                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {purchase.purchase_number}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-sm">{purchase.supplier_name}</td>
-                        <td className="px-4 py-3 text-sm">{purchase.supplier_invoice_no || '-'}</td>
-                        <td className="px-4 py-3 text-sm">{formatDate(purchase.purchase_date)}</td>
-                        <td className="px-4 py-3 text-sm text-right font-medium">
-                          ₹{purchase.total_value?.toLocaleString() || 0}
-                        </td>
-                        <td className="px-4 py-3">{getStatusBadge(purchase.status)}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/purchases/${purchase.id}`)}
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {(purchase.status === 'draft' || purchase.status === 'partially_received') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/purchases/${purchase.id}/receive`)}
-                                title="Receive Goods"
-                              >
-                                <Package className="w-4 h-4 text-green-600" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="border-b flex">
+            <button
+              onClick={() => setActiveTab('purchases')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'purchases'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Package className="w-5 h-5" />
+              Purchases ({purchases.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('returns')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'returns'
+                  ? 'border-b-2 border-orange-600 text-orange-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <RotateCcw className="w-5 h-5" />
+              Returns ({returns.length})
+            </button>
+          </div>
+
+          {/* Filters */}
+          <div className="p-4 border-b bg-gray-50">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-[200px] relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by number or supplier..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  className="w-full pl-10 pr-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <select
+                value={filters.supplier_id}
+                onChange={(e) => setFilters({ ...filters, supplier_id: e.target.value })}
+                className="px-3 py-2 border rounded"
+              >
+                <option value="">All Suppliers</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="px-3 py-2 border rounded"
+              >
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+              
+              <input
+                type="date"
+                value={filters.from_date}
+                onChange={(e) => setFilters({ ...filters, from_date: e.target.value })}
+                className="px-3 py-2 border rounded"
+                placeholder="From Date"
+              />
+              
+              <input
+                type="date"
+                value={filters.to_date}
+                onChange={(e) => setFilters({ ...filters, to_date: e.target.value })}
+                className="px-3 py-2 border rounded"
+                placeholder="To Date"
+              />
+              
+              <Button size="sm" onClick={applyFilters}>Apply</Button>
+              <Button size="sm" variant="secondary" onClick={clearFilters}>Clear</Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Content */}
+          <div className="p-4">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 mt-2">Loading...</p>
+              </div>
+            ) : activeTab === 'purchases' ? (
+              /* Purchases Table */
+              purchases.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No purchases found</p>
+                  <Button className="mt-4" onClick={() => navigate('/purchases/create?type=purchase')}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Purchase
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Purchase #</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Supplier</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Items</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-600">Total</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Status</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {purchases.map(purchase => (
+                        <tr key={purchase.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-blue-600">{purchase.purchase_number}</div>
+                            {purchase.supplier_invoice_no && (
+                              <div className="text-xs text-gray-500">Inv: {purchase.supplier_invoice_no}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">{purchase.supplier_name}</td>
+                          <td className="px-4 py-3">{formatDate(purchase.purchase_date)}</td>
+                          <td className="px-4 py-3 text-center">{purchase.items?.length || 0}</td>
+                          <td className="px-4 py-3 text-right font-medium">{formatCurrency(purchase.total_value)}</td>
+                          <td className="px-4 py-3 text-center">{getStatusBadge(purchase.status)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1 justify-center">
+                              <button 
+                                className="p-1.5 hover:bg-gray-100 rounded"
+                                onClick={() => navigate(`/purchases/${purchase.id}`)}
+                                title="View"
+                              >
+                                <Eye className="w-4 h-4 text-gray-600" />
+                              </button>
+                              {purchase.status === 'draft' && (
+                                <button 
+                                  className="p-1.5 hover:bg-blue-100 rounded"
+                                  onClick={() => navigate(`/purchases/edit/${purchase.id}?type=purchase`)}
+                                  title="Edit Draft"
+                                >
+                                  <Edit2 className="w-4 h-4 text-blue-600" />
+                                </button>
+                              )}
+                              {purchase.status === 'confirmed' && (
+                                <button 
+                                  className="p-1.5 hover:bg-orange-100 rounded"
+                                  onClick={() => navigate(`/purchases/create?type=return&purchase_id=${purchase.id}`)}
+                                  title="Create Return"
+                                >
+                                  <RotateCcw className="w-4 h-4 text-orange-600" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              /* Returns Table */
+              returns.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <RotateCcw className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No purchase returns found</p>
+                  <Button className="mt-4" variant="warning" onClick={() => navigate('/purchases/create?type=return')}>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Create First Return
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Return #</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Original Purchase</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Supplier</th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Items</th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-600">Total</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Status</th>
+                        <th className="px-4 py-3 text-center font-medium text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {returns.map(ret => (
+                        <tr key={ret.id} className="hover:bg-gray-50 bg-orange-50/30">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-orange-600">{ret.return_number}</div>
+                          </td>
+                          <td className="px-4 py-3 text-blue-600">{ret.purchase_number || '-'}</td>
+                          <td className="px-4 py-3">{ret.supplier_name}</td>
+                          <td className="px-4 py-3">{formatDate(ret.return_date)}</td>
+                          <td className="px-4 py-3 text-center">{ret.items?.length || 0}</td>
+                          <td className="px-4 py-3 text-right font-medium text-orange-600">
+                            {formatCurrency(ret.total_value)}
+                          </td>
+                          <td className="px-4 py-3 text-center">{getStatusBadge(ret.status)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1 justify-center">
+                              <button 
+                                className="p-1.5 hover:bg-gray-100 rounded"
+                                onClick={() => navigate(`/purchases/${ret.id}`)}
+                                title="View"
+                              >
+                                <Eye className="w-4 h-4 text-gray-600" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

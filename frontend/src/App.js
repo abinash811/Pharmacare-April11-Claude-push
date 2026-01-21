@@ -26,8 +26,6 @@ import Settings from '@/pages/Settings';
 import Users from '@/pages/Users';
 import RolesPermissions from '@/pages/RolesPermissions';
 import Suppliers from '@/pages/Suppliers';
-import SalesReturns from '@/pages/SalesReturns';
-import SalesReturnsList from '@/pages/SalesReturnsList';
 import GSTReport from '@/pages/GSTReport';
 import Layout from '@/components/Layout';
 

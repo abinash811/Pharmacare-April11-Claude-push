@@ -2500,7 +2500,7 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     # Determine status based on payments
     if bill_data.status == "draft":
         status = "draft"
-    elif due_amount <= 0:
+    elif abs(due_amount) < 0.01:  # Allow for small rounding differences
         status = "paid"
     elif paid_amount > 0:
         status = "due"  # Partially paid

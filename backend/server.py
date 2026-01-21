@@ -3738,7 +3738,7 @@ async def get_purchases(
     
     return purchases
 
-@api_router.post("/purchases", response_model=Purchase)
+@api_router.post("/purchases")
 async def create_purchase(
     purchase_data: PurchaseCreate,
     current_user: User = Depends(get_current_user)
@@ -3767,16 +3767,22 @@ async def create_purchase(
         line_total = item_data.qty_units * item_data.cost_price_per_unit
         tax_amount = line_total * (item_data.gst_percent / 100)
         
-        item = PurchaseItem(
-            **item_data.model_dump(),
-            line_total=line_total + tax_amount
-        )
+        item_dict = {
+            "id": str(uuid.uuid4()),
+            "product_sku": item_data.product_sku,
+            "product_name": item_data.product_name,
+            "batch_no": item_data.batch_no,
+            "expiry_date": item_data.expiry_date,  # Keep as string
+            "qty_packs": item_data.qty_packs,
+            "qty_units": item_data.qty_units,
+            "cost_price_per_unit": item_data.cost_price_per_unit,
+            "mrp_per_unit": item_data.mrp_per_unit,
+            "gst_percent": item_data.gst_percent,
+            "line_total": line_total + tax_amount,
+            "received_qty_units": 0
+        }
         
-        # Convert expiry date if provided
-        if item_data.expiry_date:
-            item.expiry_date = datetime.fromisoformat(item_data.expiry_date)
-        
-        items.append(item)
+        items.append(item_dict)
         subtotal += line_total
         tax_value += tax_amount
     
@@ -3784,50 +3790,80 @@ async def create_purchase(
     round_off = round(total_value) - total_value
     total_value = round(total_value)
     
-    # Create purchase
-    purchase = Purchase(
-        purchase_number=purchase_number,
-        supplier_id=purchase_data.supplier_id,
-        supplier_name=supplier['name'],
-        purchase_date=datetime.fromisoformat(purchase_data.purchase_date),
-        supplier_invoice_no=purchase_data.supplier_invoice_no,
-        supplier_invoice_date=datetime.fromisoformat(purchase_data.supplier_invoice_date) if purchase_data.supplier_invoice_date else None,
-        items=items,
-        subtotal=subtotal,
-        tax_value=tax_value,
-        round_off=round_off,
-        total_value=total_value,
-        payment_terms_days=supplier.get('payment_terms_days', 30),
-        note=purchase_data.note,
-        created_by=current_user.id
-    )
+    # Determine status
+    status = purchase_data.status if purchase_data.status else "draft"
     
-    doc = purchase.model_dump()
-    doc['purchase_date'] = doc['purchase_date'].isoformat()
-    if doc.get('supplier_invoice_date'):
-        doc['supplier_invoice_date'] = doc['supplier_invoice_date'].isoformat()
-    doc['created_at'] = doc['created_at'].isoformat()
-    doc['updated_at'] = doc['updated_at'].isoformat()
+    # Create purchase document directly
+    purchase_doc = {
+        "id": str(uuid.uuid4()),
+        "purchase_number": purchase_number,
+        "supplier_id": purchase_data.supplier_id,
+        "supplier_name": supplier['name'],
+        "purchase_date": purchase_data.purchase_date,
+        "supplier_invoice_no": purchase_data.supplier_invoice_no,
+        "supplier_invoice_date": purchase_data.supplier_invoice_date,
+        "status": status,
+        "items": items,
+        "subtotal": subtotal,
+        "tax_value": tax_value,
+        "round_off": round_off,
+        "total_value": total_value,
+        "payment_terms_days": supplier.get('payment_terms_days', 30),
+        "note": purchase_data.note,
+        "created_by": current_user.id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
     
-    for item in doc['items']:
-        if item.get('expiry_date'):
-            item['expiry_date'] = item['expiry_date'].isoformat()
+    await db.purchases.insert_one(purchase_doc)
     
-    await db.purchases.insert_one(doc)
+    # If status is confirmed, create stock batches
+    if status == 'confirmed':
+        for item in items:
+            # Create stock batch
+            batch_doc = {
+                "id": str(uuid.uuid4()),
+                "product_sku": item['product_sku'],
+                "batch_no": item['batch_no'] or f"PUR-{purchase_number[:8]}",
+                "expiry_date": item['expiry_date'],
+                "qty_on_hand": item['qty_units'],
+                "cost_price_per_unit": item['cost_price_per_unit'],
+                "mrp_per_unit": item['mrp_per_unit'],
+                "location": "default",
+                "purchase_id": purchase_doc['id'],
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.stock_batches.insert_one(batch_doc)
+            
+            # Record stock movement
+            movement_doc = {
+                "id": str(uuid.uuid4()),
+                "product_sku": item['product_sku'],
+                "batch_id": batch_doc['id'],
+                "movement_type": "purchase",
+                "qty_delta_units": item['qty_units'],
+                "reason": f"Purchase {purchase_number}",
+                "ref_id": purchase_doc['id'],
+                "performed_by": current_user.id,
+                "performed_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.stock_movements.insert_one(movement_doc)
     
     # Create audit log
     await db.audit_logs.insert_one({
         "id": str(uuid.uuid4()),
         "entity_type": "purchase",
-        "entity_id": purchase.id,
+        "entity_id": purchase_doc['id'],
         "action": "create",
-        "new_value": {"purchase_number": purchase_number, "status": "draft", "total_value": total_value},
+        "new_value": {"purchase_number": purchase_number, "status": status, "total_value": total_value},
         "performed_by": current_user.id,
         "performed_by_name": current_user.name,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
     
-    return purchase
+    # Return without _id
+    del purchase_doc['_id'] if '_id' in purchase_doc else None
+    return purchase_doc
 
 @api_router.put("/purchases/{purchase_id}")
 async def update_purchase(

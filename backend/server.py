@@ -3862,7 +3862,7 @@ async def create_purchase(
     })
     
     # Return without _id
-    del purchase_doc['_id'] if '_id' in purchase_doc else None
+    purchase_doc.pop('_id', None)
     return purchase_doc
 
 @api_router.put("/purchases/{purchase_id}")

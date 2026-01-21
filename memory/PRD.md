@@ -34,6 +34,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 ### Settings-Driven Rules
 - [x] Core inventory behaviors controlled by Settings module
 - [x] Near-expiry days configurable
+- [x] Return window days configurable
 
 ### Inventory Health Data
 - [x] UI summary cards showing Critical/Warning/Healthy counts (clickable for filtering)
@@ -43,6 +44,30 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 
 ### Data Integrity
 - [x] Inventory totals derived from underlying data (batches -> ledger entries)
+
+## Core Requirements (Billing & Returns Module)
+
+### Billing Features
+- [x] Product search with FEFO batch selection
+- [x] Barcode scanner integration
+- [x] Multiple payment methods (Cash, Card, UPI, Credit)
+- [x] Split payment support
+- [x] Per-item GST%, discount, quantity editing
+- [x] Draft bill functionality (save without payment)
+- [x] Edit draft bills
+- [x] Stock deduction on paid bills
+- [x] Bill list with filters (status, payment method, time period)
+- [x] View bill details
+
+### Returns Features (Integrated in Billing)
+- [x] Return mode in same billing page (?type=return)
+- [x] Select original bill to return from
+- [x] Display original bill items with checkboxes for selection
+- [x] Quantity validation (cannot return more than purchased)
+- [x] Return window warning (configurable in Settings)
+- [x] Multiple refund methods (Cash, Card, UPI, Credit Note)
+- [x] Refund reason selection
+- [x] Stock restoration on return
 
 ## What's Been Implemented
 

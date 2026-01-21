@@ -1224,6 +1224,11 @@ async def get_settings(current_user: User = Depends(get_current_user)):
                 "enable_draft_bills": True,
                 "auto_print_invoice": False
             },
+            "returns": {
+                "return_window_days": 7,
+                "require_original_bill": False,
+                "allow_partial_return": True
+            },
             "general": {
                 "pharmacy_name": "PharmaCare",
                 "currency": "INR",

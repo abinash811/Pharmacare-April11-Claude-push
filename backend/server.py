@@ -2485,13 +2485,17 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     # Calculate paid and due amounts
     paid_amount = 0
     if bill_data.payments:
-        # Multiple payments provided
-        paid_amount = sum(p.get('amount', 0) for p in bill_data.payments)
+        # Multiple payments provided - handle both dict and object formats
+        for p in bill_data.payments:
+            if isinstance(p, dict):
+                paid_amount += p.get('amount', 0)
+            else:
+                paid_amount += getattr(p, 'amount', 0)
     elif bill_data.payment_method:
         # Legacy: single payment method, assume full payment
         paid_amount = total_amount if bill_data.status == "paid" else 0
     
-    due_amount = total_amount - paid_amount
+    due_amount = max(0, total_amount - paid_amount)
     
     # Determine status based on payments
     if bill_data.status == "draft":

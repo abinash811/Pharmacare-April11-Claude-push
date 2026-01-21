@@ -69,6 +69,25 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Refund reason selection
 - [x] Stock restoration on return
 
+## Core Requirements (Purchases Module)
+
+### Purchase Features
+- [x] Create new purchase from supplier
+- [x] Search/Add products with batch, expiry, qty, cost price, MRP, GST
+- [x] Save as Draft or Confirm
+- [x] Edit draft purchases
+- [x] Stock automatically created on confirm
+- [x] Purchase list with filters
+
+### Purchase Returns Features (Integrated in Purchases)
+- [x] Return mode in same page (?type=return)
+- [x] Select original purchase to return from
+- [x] Display purchase items with checkboxes for selection
+- [x] Quantity validation (cannot return more than purchased)
+- [x] Return reason selection per item
+- [x] Multiple return reasons (Damaged, Expired, Wrong Item, Quality Issue, Excess Stock)
+- [x] Stock deduction on return confirm
+
 ## What's Been Implemented
 
 ### Completed Features (Jan 2025)

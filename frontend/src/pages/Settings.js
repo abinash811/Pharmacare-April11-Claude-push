@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '@/App';
-import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -36,6 +36,11 @@ export default function Settings() {
     billing: {
       enable_draft_bills: true,
       auto_print_invoice: false
+    },
+    returns: {
+      return_window_days: 7,
+      require_original_bill: false,
+      allow_partial_return: true
     },
     general: {
       pharmacy_name: 'PharmaCare',
@@ -135,6 +140,17 @@ export default function Settings() {
             >
               <ShoppingCart className="w-5 h-5" />
               Billing
+            </button>
+            <button
+              onClick={() => setActiveTab('returns')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'returns'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <RotateCcw className="w-5 h-5" />
+              Returns
             </button>
             <button
               onClick={() => setActiveTab('general')}

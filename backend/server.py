@@ -3108,38 +3108,7 @@ async def get_refunds(
     return refunds
 
 
-# ==================== PURCHASE ROUTES ====================
-
-@api_router.post("/purchases", response_model=Purchase)
-async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(get_current_user)):
-    purchase = Purchase(
-        **purchase_data.model_dump(),
-        created_by=current_user.id
-    )
-    
-    # Update stock
-    for item in purchase_data.items:
-        # Check if medicine exists
-        existing = await db.medicines.find_one({"id": item['medicine_id']})
-        if existing:
-            await db.medicines.update_one(
-                {"id": item['medicine_id']},
-                {"$inc": {"quantity": item['quantity']}}
-            )
-    
-    doc = purchase.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
-    await db.purchases.insert_one(doc)
-    
-    return purchase
-
-@api_router.get("/purchases", response_model=List[Purchase])
-async def get_purchases(current_user: User = Depends(get_current_user)):
-    purchases = await db.purchases.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    for purchase in purchases:
-        if isinstance(purchase['created_at'], str):
-            purchase['created_at'] = datetime.fromisoformat(purchase['created_at'])
-    return purchases
+# ==================== PURCHASE ROUTES (MOVED TO END OF FILE) ====================
 
 # ==================== CUSTOMER ROUTES ====================
 

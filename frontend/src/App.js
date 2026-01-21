@@ -150,11 +150,9 @@ function AppRoutes({ user }) {
         <Route path="inventory" element={<Inventory />} />
         <Route path="inventory-v2" element={<InventoryV2 />} />
         <Route path="purchases" element={<PurchasesList />} />
-        <Route path="purchases/new" element={<CreatePurchase />} />
+        <Route path="purchases/create" element={<PurchaseNew />} />
+        <Route path="purchases/edit/:id" element={<PurchaseNew />} />
         <Route path="purchases/:id" element={<PurchaseDetail />} />
-        <Route path="purchase-returns" element={<PurchaseReturnsList />} />
-        <Route path="purchase-returns/new" element={<CreatePurchaseReturn />} />
-        <Route path="purchase-returns/:id" element={<PurchaseReturnDetail />} />
         <Route path="customers" element={<Customers />} />
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />

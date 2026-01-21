@@ -2478,9 +2478,19 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     bill_number = f"{prefix}-{datetime.now().strftime('%Y%m%d')}-{bill_count + 1:04d}"
     
     # Calculate totals
+    # Note: line_total from frontend already includes per-item GST
+    # So subtotal here is actually total with tax included
     subtotal = sum(item.get('line_total', item.get('total', 0)) for item in bill_data.items)
-    tax_amount = subtotal * (bill_data.tax_rate / 100)
-    total_amount = subtotal + tax_amount - bill_data.discount
+    
+    # Calculate tax amount for records (approximate - items may have different rates)
+    # This is informational only since line_total already has tax
+    tax_amount = 0
+    for item in bill_data.items:
+        base_amt = item.get('unit_price', item.get('mrp', 0)) * item.get('quantity', 0) - item.get('discount', 0)
+        gst_pct = item.get('gst_percent', bill_data.tax_rate or 5)
+        tax_amount += base_amt * (gst_pct / 100)
+    
+    total_amount = subtotal - (bill_data.discount or 0)  # Don't add tax again, it's in line_total
     
     # Calculate paid and due amounts
     paid_amount = 0

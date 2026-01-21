@@ -253,7 +253,7 @@ export default function Settings() {
                         <input
                           type="checkbox"
                           id="draft_bills"
-                          checked={settings.billing.enable_draft_bills}
+                          checked={settings.billing?.enable_draft_bills}
                           onChange={(e) => updateSetting('billing', 'enable_draft_bills', e.target.checked)}
                           className="w-4 h-4 text-blue-600"
                         />
@@ -266,12 +266,66 @@ export default function Settings() {
                         <input
                           type="checkbox"
                           id="auto_print"
-                          checked={settings.billing.auto_print_invoice}
+                          checked={settings.billing?.auto_print_invoice}
                           onChange={(e) => updateSetting('billing', 'auto_print_invoice', e.target.checked)}
                           className="w-4 h-4 text-blue-600"
                         />
                         <label htmlFor="auto_print" className="text-sm font-medium text-gray-700">
                           Auto-print invoice after checkout
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Returns Settings */}
+              {activeTab === 'returns' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Sales Returns Policy</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Return Window (Days)
+                        </label>
+                        <input
+                          type="number"
+                          value={settings.returns?.return_window_days || 7}
+                          onChange={(e) => updateSetting('returns', 'return_window_days', parseInt(e.target.value))}
+                          className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded"
+                          min="1"
+                          max="365"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Maximum days after purchase within which returns are accepted. A warning will be shown for returns after this period.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="require_original_bill"
+                          checked={settings.returns?.require_original_bill || false}
+                          onChange={(e) => updateSetting('returns', 'require_original_bill', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="require_original_bill" className="text-sm font-medium text-gray-700">
+                          Require original bill for all returns
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="allow_partial_return"
+                          checked={settings.returns?.allow_partial_return !== false}
+                          onChange={(e) => updateSetting('returns', 'allow_partial_return', e.target.checked)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <label htmlFor="allow_partial_return" className="text-sm font-medium text-gray-700">
+                          Allow partial returns (return some items from a bill)
                         </label>
                       </div>
                     </div>

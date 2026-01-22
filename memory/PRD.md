@@ -138,6 +138,13 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Removed separate purchase return files (CreatePurchaseReturn.js, PurchaseReturnsList.js, PurchaseReturnDetail.js)
 - Updated routes and navigation
 
+### Purchase Batch Number Enhancement (Jan 22, 2026)
+- Batch number is now mandatory when creating/confirming a purchase
+- Validation error toast shown if batch number is empty when clicking "Confirm Purchase"
+- Purchase returns now display batch number in the selection table (in blue badge)
+- Batch number is auto-fetched from original purchase and displayed in Return Items table
+- Batch column shown for both new purchases (editable input) and returns (read-only badge)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

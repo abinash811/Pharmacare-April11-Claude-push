@@ -87,6 +87,8 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Return reason selection per item
 - [x] Multiple return reasons (Damaged, Expired, Wrong Item, Quality Issue, Excess Stock)
 - [x] Stock deduction on return confirm
+- [x] Batch number mandatory for new purchases (validation on Confirm Purchase)
+- [x] Batch number auto-fetched and displayed in returns flow
 
 ## What's Been Implemented
 

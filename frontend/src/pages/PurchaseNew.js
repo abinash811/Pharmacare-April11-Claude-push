@@ -621,6 +621,7 @@ export default function PurchaseNew() {
                           <tr>
                             <th className="px-3 py-2 text-left w-10">Select</th>
                             <th className="px-3 py-2 text-left">Product</th>
+                            <th className="px-3 py-2 text-left">Batch No</th>
                             <th className="px-3 py-2 text-center">Purchased Qty</th>
                             <th className="px-3 py-2 text-center">Return Qty</th>
                             <th className="px-3 py-2 text-right">Cost/Unit</th>
@@ -645,6 +646,11 @@ export default function PurchaseNew() {
                               <td className="px-3 py-2">
                                 <div className="font-medium">{item.product_name}</div>
                                 <div className="text-xs text-gray-500">SKU: {item.product_sku}</div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                  {item.batch_no || 'N/A'}
+                                </span>
                               </td>
                               <td className="px-3 py-2 text-center font-medium">{item.qty_units}</td>
                               <td className="px-3 py-2">

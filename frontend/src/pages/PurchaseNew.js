@@ -823,11 +823,9 @@ export default function PurchaseNew() {
                     <thead className="bg-gray-50 border-b">
                       <tr>
                         <th className="px-2 py-2 text-left">Product</th>
+                        <th className="px-2 py-2 text-left">Batch</th>
                         {purchaseType === 'purchase' && (
-                          <>
-                            <th className="px-2 py-2 text-left">Batch</th>
-                            <th className="px-2 py-2 text-left">Expiry</th>
-                          </>
+                          <th className="px-2 py-2 text-left">Expiry</th>
                         )}
                         <th className="px-2 py-2 text-center">Qty (Units)</th>
                         <th className="px-2 py-2 text-right">Cost/Unit</th>

@@ -164,9 +164,11 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 ## Test Status
 - **InventoryV2 Page**: ✅ 100% passed (Backend + Frontend)
 - **InventoryV2 Filters & Add Purchase**: ✅ 100% passed (16 backend + all frontend tests)
+- **Purchase Batch Number Features**: ✅ 100% passed (validation + auto-fetch)
 - **Test Reports**: 
   - /app/test_reports/iteration_2.json (core features)
   - /app/test_reports/iteration_3.json (filters & add purchase)
+  - /app/test_reports/iteration_4.json (purchase batch number features)
 
 ## Prioritized Backlog
 

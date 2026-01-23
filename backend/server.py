@@ -1859,9 +1859,15 @@ async def search_products_with_batches(
             total_qty = 0
             
             for batch in batches:
-                expiry = batch['expiry_date']
-                if isinstance(expiry, str):
-                    expiry = datetime.fromisoformat(expiry)
+                expiry = batch.get('expiry_date')
+                if expiry:
+                    if isinstance(expiry, str):
+                        expiry = datetime.fromisoformat(expiry)
+                    expiry_display = expiry.strftime('%d-%m-%Y')
+                    expiry_iso = expiry.isoformat()
+                else:
+                    expiry_display = 'N/A'
+                    expiry_iso = None
                 
                 units_per_pack = product.get('units_per_pack', 1)
                 total_units_in_batch = batch['qty_on_hand'] * units_per_pack
@@ -1869,8 +1875,8 @@ async def search_products_with_batches(
                 formatted_batches.append({
                     "batch_id": batch['id'],
                     "batch_no": batch['batch_no'],
-                    "expiry_date": expiry.strftime('%d-%m-%Y'),
-                    "expiry_iso": expiry.isoformat(),
+                    "expiry_date": expiry_display,
+                    "expiry_iso": expiry_iso,
                     "qty_on_hand": batch['qty_on_hand'],  # Packs/strips
                     "total_units": total_units_in_batch,  # Individual tablets
                     "mrp": batch['mrp_per_unit'] * units_per_pack,  # Per pack (calculated)

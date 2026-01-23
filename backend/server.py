@@ -3505,6 +3505,272 @@ async def get_daily_analytics(days: int = 7, current_user: User = Depends(get_cu
         logger.error(f"Daily analytics error: {e}")
         return []
 
+@api_router.get("/analytics/dashboard")
+async def get_dashboard_analytics(current_user: User = Depends(get_current_user)):
+    """Comprehensive dashboard analytics endpoint"""
+    try:
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = today_start - timedelta(days=today_start.weekday())
+        month_start = today_start.replace(day=1)
+        yesterday_start = today_start - timedelta(days=1)
+        last_week_start = week_start - timedelta(days=7)
+        last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+        
+        # Fetch all data in parallel
+        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
+        all_products = await db.products.find({}, {"_id": 0}).to_list(10000)
+        all_batches = await db.stock_batches.find({}, {"_id": 0}).to_list(10000)
+        all_customers = await db.customers.find({}, {"_id": 0}).to_list(10000)
+        
+        # Initialize metrics
+        today_sales = 0
+        yesterday_sales = 0
+        week_sales = 0
+        last_week_sales = 0
+        month_sales = 0
+        last_month_sales = 0
+        total_sales = 0
+        pending_payments = 0
+        draft_bills = 0
+        month_returns = 0
+        
+        # Sales by category and product
+        category_sales = {}
+        product_sales = {}
+        customer_sales = {}
+        
+        # Daily trend (last 30 days)
+        daily_sales = {}
+        for i in range(30):
+            date_key = (today_start - timedelta(days=i)).strftime('%Y-%m-%d')
+            daily_sales[date_key] = {'sales': 0, 'returns': 0, 'bills': 0}
+        
+        # Recent bills
+        recent_bills = []
+        
+        for bill in all_bills:
+            try:
+                created_at = bill.get('created_at')
+                if not created_at:
+                    continue
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                
+                invoice_type = bill.get('invoice_type', 'SALE')
+                status = bill.get('status', 'paid')
+                amount = bill.get('total_amount', 0) or 0
+                
+                # Count drafts and pending
+                if status == 'draft':
+                    draft_bills += 1
+                    continue
+                elif status == 'due':
+                    pending_payments += amount
+                
+                # Process sales
+                if invoice_type == 'SALE' and status in ['paid', 'due']:
+                    total_sales += amount
+                    
+                    # Time-based sales
+                    if created_at >= today_start:
+                        today_sales += amount
+                    if created_at >= yesterday_start and created_at < today_start:
+                        yesterday_sales += amount
+                    if created_at >= week_start:
+                        week_sales += amount
+                    if created_at >= last_week_start and created_at < week_start:
+                        last_week_sales += amount
+                    if created_at >= month_start:
+                        month_sales += amount
+                    if created_at >= last_month_start and created_at < month_start:
+                        last_month_sales += amount
+                    
+                    # Daily trend
+                    date_key = created_at.strftime('%Y-%m-%d')
+                    if date_key in daily_sales:
+                        daily_sales[date_key]['sales'] += amount
+                        daily_sales[date_key]['bills'] += 1
+                    
+                    # Product and category sales
+                    for item in bill.get('items', []):
+                        product_sku = item.get('product_sku') or item.get('product_id', '')
+                        product_name = item.get('product_name', 'Unknown')
+                        line_total = item.get('line_total') or item.get('total', 0) or 0
+                        
+                        if product_sku not in product_sales:
+                            product_sales[product_sku] = {'name': product_name, 'revenue': 0, 'qty': 0}
+                        product_sales[product_sku]['revenue'] += line_total
+                        product_sales[product_sku]['qty'] += item.get('quantity', 0)
+                    
+                    # Customer sales
+                    customer_name = bill.get('customer_name', 'Walk-in')
+                    if customer_name:
+                        if customer_name not in customer_sales:
+                            customer_sales[customer_name] = {'revenue': 0, 'bills': 0}
+                        customer_sales[customer_name]['revenue'] += amount
+                        customer_sales[customer_name]['bills'] += 1
+                    
+                    # Recent bills (last 10)
+                    if len(recent_bills) < 10:
+                        recent_bills.append({
+                            'id': bill.get('id'),
+                            'bill_number': bill.get('bill_number'),
+                            'customer_name': bill.get('customer_name', 'Walk-in'),
+                            'amount': amount,
+                            'status': status,
+                            'created_at': created_at.isoformat()
+                        })
+                
+                # Process returns
+                elif invoice_type == 'SALES_RETURN' and status in ['paid', 'refunded']:
+                    if created_at >= month_start:
+                        month_returns += amount
+                    
+                    date_key = created_at.strftime('%Y-%m-%d')
+                    if date_key in daily_sales:
+                        daily_sales[date_key]['returns'] += amount
+                        
+            except Exception as e:
+                logger.warning(f"Dashboard analytics bill error: {e}")
+                continue
+        
+        # Sort recent bills by date (newest first)
+        recent_bills.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        # Calculate percentage changes
+        def calc_change(current, previous):
+            if previous == 0:
+                return 100 if current > 0 else 0
+            return round((current - previous) / previous * 100, 1)
+        
+        today_change = calc_change(today_sales, yesterday_sales)
+        week_change = calc_change(week_sales, last_week_sales)
+        month_change = calc_change(month_sales, last_month_sales)
+        
+        # Top 5 products
+        top_products = sorted(product_sales.items(), key=lambda x: x[1]['revenue'], reverse=True)[:5]
+        top_products_list = [
+            {'sku': sku, 'name': data['name'], 'revenue': round(data['revenue'], 2), 'qty': data['qty']}
+            for sku, data in top_products
+        ]
+        
+        # Top 5 customers
+        top_customers = sorted(customer_sales.items(), key=lambda x: x[1]['revenue'], reverse=True)[:5]
+        top_customers_list = [
+            {'name': name, 'revenue': round(data['revenue'], 2), 'bills': data['bills']}
+            for name, data in top_customers
+        ]
+        
+        # Category-wise sales (from products)
+        for product in all_products:
+            category = product.get('category', 'Uncategorized') or 'Uncategorized'
+            sku = product.get('sku', '')
+            if sku in product_sales:
+                if category not in category_sales:
+                    category_sales[category] = 0
+                category_sales[category] += product_sales[sku]['revenue']
+        
+        category_sales_list = [
+            {'category': cat, 'revenue': round(rev, 2)}
+            for cat, rev in sorted(category_sales.items(), key=lambda x: x[1], reverse=True)[:6]
+        ]
+        
+        # Daily trend (sorted by date)
+        daily_trend = [
+            {'date': date, 'sales': round(data['sales'], 2), 'returns': round(data['returns'], 2), 'bills': data['bills']}
+            for date, data in sorted(daily_sales.items())
+        ]
+        
+        # Inventory stats
+        total_products = len(all_products)
+        total_stock_value = 0
+        low_stock_items = []
+        expiring_items = []
+        thirty_days = now + timedelta(days=30)
+        
+        # Build product lookup
+        product_lookup = {p['sku']: p for p in all_products}
+        
+        for batch in all_batches:
+            try:
+                qty = batch.get('qty_on_hand', 0)
+                cost = batch.get('cost_price_per_unit', 0)
+                total_stock_value += qty * cost
+                
+                product_sku = batch.get('product_sku', '')
+                product = product_lookup.get(product_sku, {})
+                product_name = product.get('name', batch.get('product_name', 'Unknown'))
+                
+                # Low stock (less than 10 units)
+                if qty > 0 and qty < 10:
+                    low_stock_items.append({
+                        'product_name': product_name,
+                        'batch_no': batch.get('batch_no', 'N/A'),
+                        'qty': qty
+                    })
+                
+                # Expiring soon
+                expiry = batch.get('expiry_date')
+                if expiry and qty > 0:
+                    if isinstance(expiry, str):
+                        expiry = datetime.fromisoformat(expiry)
+                    if expiry.tzinfo is None:
+                        expiry = expiry.replace(tzinfo=timezone.utc)
+                    
+                    if expiry <= thirty_days:
+                        expiring_items.append({
+                            'product_name': product_name,
+                            'batch_no': batch.get('batch_no', 'N/A'),
+                            'expiry_date': expiry.strftime('%Y-%m-%d'),
+                            'qty': qty
+                        })
+            except Exception as e:
+                logger.warning(f"Dashboard batch error: {e}")
+                continue
+        
+        # Sort alerts
+        low_stock_items.sort(key=lambda x: x['qty'])
+        expiring_items.sort(key=lambda x: x['expiry_date'])
+        
+        return {
+            # Key metrics
+            "metrics": {
+                "today_sales": round(today_sales, 2),
+                "today_change": today_change,
+                "week_sales": round(week_sales, 2),
+                "week_change": week_change,
+                "month_sales": round(month_sales, 2),
+                "month_change": month_change,
+                "total_sales": round(total_sales, 2)
+            },
+            # Charts data
+            "daily_trend": daily_trend[-14:],  # Last 14 days
+            "category_sales": category_sales_list,
+            # Business insights
+            "top_products": top_products_list,
+            "top_customers": top_customers_list,
+            # Alerts
+            "low_stock": low_stock_items[:5],
+            "expiring_soon": expiring_items[:5],
+            "recent_bills": recent_bills[:5],
+            # Quick stats
+            "quick_stats": {
+                "pending_payments": round(pending_payments, 2),
+                "draft_bills": draft_bills,
+                "month_returns": round(month_returns, 2),
+                "total_products": total_products,
+                "stock_value": round(total_stock_value, 2),
+                "low_stock_count": len(low_stock_items),
+                "expiring_count": len(expiring_items)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Dashboard analytics error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ==================== USER MANAGEMENT ====================
 
 @api_router.get("/users", response_model=List[User])

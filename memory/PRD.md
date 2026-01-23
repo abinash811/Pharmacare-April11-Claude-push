@@ -147,6 +147,19 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Batch number is auto-fetched from original purchase and displayed in Return Items table
 - Batch column shown for both new purchases (editable input) and returns (read-only badge)
 
+### Dashboard Analytics Enhancement (Jan 23, 2026)
+- Comprehensive dashboard with Key Metrics cards (Today/Week/Month/Total sales with % change indicators)
+- Sales Trend area chart (last 14 days) using Recharts library
+- Category-wise sales pie chart (displays "No category data" if products lack category)
+- Top 5 Selling Products with revenue and quantity sold
+- Top 5 Customers with purchase value and order count
+- Enhanced Low Stock alerts with clickable "View All" link
+- Enhanced Expiring Soon alerts with clickable "View All" link
+- Recent Bills section with clickable entries
+- Quick Stats row (Pending Payments, Draft Bills, Monthly Returns, Stock Value)
+- Refresh button to reload dashboard data
+- New backend endpoint: GET /api/analytics/dashboard
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

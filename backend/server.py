@@ -196,6 +196,15 @@ ALL_PERMISSIONS = {
             {"id": "roles:edit", "name": "Edit Roles"},
             {"id": "roles:delete", "name": "Delete Roles"}
         ]
+    },
+    "suppliers": {
+        "display_name": "Suppliers",
+        "permissions": [
+            {"id": "suppliers:view", "name": "View Suppliers"},
+            {"id": "suppliers:create", "name": "Create Suppliers"},
+            {"id": "suppliers:edit", "name": "Edit Suppliers"},
+            {"id": "suppliers:deactivate", "name": "Deactivate Suppliers"}
+        ]
     }
 }
 

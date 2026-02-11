@@ -172,6 +172,18 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Permissions structure added for suppliers module
 - No changes to inventory, billing, or ledger logic (reference-only module)
 
+### Sales & Returns UX Refactor - Unified Record Workspace Pattern (Feb 11, 2026)
+- **BillingList.js refactored**: Entire row clickable (not just bill number), removed small action buttons
+- **BillDetail.js enhanced**: Unified Record Workspace with View Mode and Return Mode
+- **View Mode**: Shows bill details with Return, History, Print, Edit (draft only) buttons in top right
+- **Return Mode**: Orange banner, checkboxes for item selection, editable return quantities, return summary
+- **Return Flow**: User clicks Return → selects items → adjusts qty → submit creates linked SALES_RETURN
+- **Sales Return List**: Entire row clickable, shows linked original bill reference
+- **Sales Return Workspace**: Same layout as Sales, shows "Original Sale" section with link
+- **Activity History**: Opens in dialog via History button (uses existing ActivityTimeline component)
+- **Consistency**: Same layout structure, spacing, header format, action placement between Sales and Returns
+- **No changes to**: Financial calculations, inventory update logic, ledger logic, backend business logic
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

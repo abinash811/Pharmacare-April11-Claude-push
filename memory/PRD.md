@@ -160,6 +160,18 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - Refresh button to reload dashboard data
 - New backend endpoint: GET /api/analytics/dashboard
 
+### Supplier Management Module (Feb 11, 2026)
+- Full CRUD operations for suppliers (Create, Read, Update, Delete)
+- Supplier model enhanced with is_active field for activate/deactivate functionality
+- Delete protection: Cannot delete supplier if purchases exist (returns error with count)
+- Toggle status endpoint: PATCH /api/suppliers/{id}/toggle-status
+- Supplier summary endpoint: GET /api/suppliers/{id}/summary (read-only purchase insights)
+- Search by name and phone number
+- Purchase page only shows active suppliers (active_only=true filter)
+- Deactivated suppliers remain visible in historical purchases
+- Permissions structure added for suppliers module
+- No changes to inventory, billing, or ledger logic (reference-only module)
+
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js

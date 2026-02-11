@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Plus, Printer, Edit2 } from 'lucide-react';
+import { Search, Plus, FileText, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// REFACTORED – Unified Record Workspace Pattern
+// Row click opens Record Workspace, removed small view buttons
 
 export default function BillingList() {
   const navigate = useNavigate();
@@ -17,7 +20,6 @@ export default function BillingList() {
   const [returns, setReturns] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [filteredReturns, setFilteredReturns] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -35,20 +37,16 @@ export default function BillingList() {
   const fetchData = async () => {
     const token = localStorage.getItem('token');
     try {
-      const [billsRes, returnsRes, analyticsRes] = await Promise.all([
+      const [billsRes, returnsRes] = await Promise.all([
         axios.get(`${API}/bills?invoice_type=SALE`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API}/bills?invoice_type=SALES_RETURN`, {
           headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API}/analytics/summary`, {
-          headers: { Authorization: `Bearer ${token}` }
         })
       ]);
       setBills(billsRes.data);
       setReturns(returnsRes.data);
-      setAnalytics(analyticsRes.data);
     } catch (error) {
       toast.error('Failed to load data');
     }
@@ -56,37 +54,33 @@ export default function BillingList() {
   };
 
   const applyFilters = () => {
-    // Filter bills
+    // VERIFIED – NO CHANGE to filter logic
     let filteredB = [...bills];
     let filteredR = [...returns];
 
-    // Search filter
     if (searchQuery) {
       filteredB = filteredB.filter(bill =>
-        bill.bill_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.bill_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bill.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         bill.customer_mobile?.includes(searchQuery)
       );
       filteredR = filteredR.filter(ret =>
-        ret.bill_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ret.bill_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ret.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ret.customer_mobile?.includes(searchQuery)
       );
     }
 
-    // Status filter
     if (filterStatus !== 'all') {
       filteredB = filteredB.filter(bill => bill.status === filterStatus);
       filteredR = filteredR.filter(ret => ret.status === filterStatus);
     }
 
-    // Payment method filter
     if (filterMethod !== 'all') {
       filteredB = filteredB.filter(bill => bill.payment_method === filterMethod);
       filteredR = filteredR.filter(ret => ret.payment_method === filterMethod);
     }
 
-    // Time filter
     if (filterTime !== 'all') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -123,94 +117,143 @@ export default function BillingList() {
     };
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status] || styles.paid}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status?.charAt(0).toUpperCase() + status?.slice(1)}
       </span>
     );
   };
 
-  const renderTable = (data, isReturn = false) => (
+  // REFACTORED – Entire row clickable, opens Record Workspace
+  const handleRowClick = (itemId) => {
+    navigate(`/billing/${itemId}`);
+  };
+
+  const renderSalesTable = () => (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b bg-gray-50">
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">{isReturn ? 'Return' : 'Bill'} #</th>
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Patient Details</th>
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Date</th>
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Amount</th>
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Method</th>
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Status</th>
-            {isReturn && <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Original Bill</th>}
-            <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600">Actions</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Bill #</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Customer</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Date</th>
+            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Amount</th>
+            <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Status</th>
           </tr>
         </thead>
         <tbody>
-          {data.length === 0 ? (
+          {filteredBills.length === 0 ? (
             <tr>
-              <td colSpan={isReturn ? 8 : 7} className="text-center py-12 text-gray-500">
-                {isReturn ? 'No returns found' : 'No bills found'}
+              <td colSpan={5} className="text-center py-12 text-gray-500">
+                <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No sales found</p>
               </td>
             </tr>
           ) : (
-            data.map((item) => (
-              <tr key={item.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-3">
-                  <div 
-                    className="font-medium text-sm text-blue-600 cursor-pointer hover:underline"
-                    onClick={() => navigate(`/billing/${item.id}`)}
-                  >
-                    {item.bill_number}
-                  </div>
+            filteredBills.map((bill) => (
+              <tr 
+                key={bill.id} 
+                className="border-b hover:bg-blue-50 cursor-pointer transition-colors"
+                onClick={() => handleRowClick(bill.id)}
+                data-testid={`sales-row-${bill.id}`}
+              >
+                <td className="py-4 px-4">
+                  <span className="font-semibold text-blue-600">{bill.bill_number}</span>
                 </td>
-                <td className="py-3 px-3">
-                  <div className="font-medium text-sm text-gray-800">
-                    {item.customer_name || 'Walk-in'}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {item.customer_mobile || 'N/A'}
-                  </div>
+                <td className="py-4 px-4">
+                  <div className="font-medium text-gray-800">{bill.customer_name || 'Walk-in'}</div>
+                  {bill.customer_mobile && (
+                    <div className="text-xs text-gray-500">{bill.customer_mobile}</div>
+                  )}
                 </td>
-                <td className="py-3 px-3 text-sm text-gray-600">
-                  {new Date(item.created_at).toLocaleDateString()}
+                <td className="py-4 px-4 text-sm text-gray-600">
+                  {new Date(bill.created_at).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
                 </td>
-                <td className="py-3 px-3 font-semibold text-sm text-gray-800">
-                  ₹{item.total_amount.toFixed(2)}
+                <td className="py-4 px-4 text-right">
+                  <span className="font-bold text-gray-800">₹{bill.total_amount?.toFixed(2)}</span>
                 </td>
-                <td className="py-3 px-3">
-                  <span className="capitalize text-xs text-gray-600">
-                    {item.payment_method}
-                  </span>
+                <td className="py-4 px-4 text-center">
+                  {getStatusBadge(bill.status)}
                 </td>
-                <td className="py-3 px-3">{getStatusBadge(item.status)}</td>
-                {isReturn && (
-                  <td className="py-3 px-3 text-xs text-gray-600">
-                    {item.ref_invoice_id ? (
-                      <span className="text-blue-600 font-medium">
-                        {bills.find(b => b.id === item.ref_invoice_id)?.bill_number || 'N/A'}
-                      </span>
-                    ) : (
-                      <span className="text-orange-600">Not Linked</span>
-                    )}
-                  </td>
-                )}
-                <td className="py-3 px-3">
-                  <div className="flex gap-1">
-                    <button 
-                      className="p-1.5 hover:bg-gray-100 rounded"
-                      onClick={() => navigate(`/billing/${item.id}`)}
-                      title="View Bill"
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // REFACTORED – Sales Return table with entire row clickable
+  const renderReturnsTable = () => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b bg-gray-50">
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Return #</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Customer</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Date</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Original Bill</th>
+            <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Amount</th>
+            <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredReturns.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="text-center py-12 text-gray-500">
+                <RotateCcw className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No returns found</p>
+              </td>
+            </tr>
+          ) : (
+            filteredReturns.map((ret) => (
+              <tr 
+                key={ret.id} 
+                className="border-b hover:bg-orange-50 cursor-pointer transition-colors"
+                onClick={() => handleRowClick(ret.id)}
+                data-testid={`return-row-${ret.id}`}
+              >
+                <td className="py-4 px-4">
+                  <span className="font-semibold text-orange-600">{ret.bill_number}</span>
+                </td>
+                <td className="py-4 px-4">
+                  <div className="font-medium text-gray-800">{ret.customer_name || 'Walk-in'}</div>
+                  {ret.customer_mobile && (
+                    <div className="text-xs text-gray-500">{ret.customer_mobile}</div>
+                  )}
+                </td>
+                <td className="py-4 px-4 text-sm text-gray-600">
+                  {new Date(ret.created_at).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </td>
+                <td className="py-4 px-4">
+                  {ret.ref_invoice_id ? (
+                    <span 
+                      className="text-blue-600 font-medium text-sm hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const originalBill = bills.find(b => b.id === ret.ref_invoice_id);
+                        if (originalBill) {
+                          navigate(`/billing/${originalBill.id}`);
+                        }
+                      }}
                     >
-                      <Printer className="w-4 h-4 text-gray-600" />
-                    </button>
-                    {item.status === 'draft' && (
-                      <button 
-                        className="p-1.5 hover:bg-blue-100 rounded"
-                        onClick={() => navigate(`/billing/edit/${item.id}?type=${isReturn ? 'return' : 'sale'}`)}
-                        title="Edit Draft"
-                      >
-                        <Edit2 className="w-4 h-4 text-blue-600" />
-                      </button>
-                    )}
-                  </div>
+                      {bills.find(b => b.id === ret.ref_invoice_id)?.bill_number || 'View Original'}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Not Linked</span>
+                  )}
+                </td>
+                <td className="py-4 px-4 text-right">
+                  <span className="font-bold text-orange-600">-₹{ret.total_amount?.toFixed(2)}</span>
+                </td>
+                <td className="py-4 px-4 text-center">
+                  {getStatusBadge(ret.status)}
                 </td>
               </tr>
             ))
@@ -221,103 +264,91 @@ export default function BillingList() {
   );
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Header */}
+      {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Bills & Returns Management</h1>
-            <p className="text-sm text-gray-600">Track sales and returns in one place</p>
+            <h1 className="text-2xl font-bold text-gray-800">Sales & Returns</h1>
+            <p className="text-sm text-gray-500">Click any row to open the record workspace</p>
           </div>
+          <Button
+            onClick={() => navigate('/billing/new')}
+            className="bg-blue-600 hover:bg-blue-700"
+            data-testid="new-sale-btn"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Sale
+          </Button>
         </div>
       </div>
 
-      {/* Tabs and Content */}
+      {/* Content */}
       <div className="p-6">
         <Tabs defaultValue="sales" className="w-full">
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="sales" data-testid="sales-tab">Sales</TabsTrigger>
-              <TabsTrigger value="returns" data-testid="returns-tab">Returns</TabsTrigger>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <TabsList className="bg-white border">
+              <TabsTrigger value="sales" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700" data-testid="sales-tab">
+                <FileText className="w-4 h-4 mr-2" />
+                Sales ({filteredBills.length})
+              </TabsTrigger>
+              <TabsTrigger value="returns" className="data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700" data-testid="returns-tab">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Returns ({filteredReturns.length})
+              </TabsTrigger>
             </TabsList>
-            <div className="flex gap-3">
-              <Button
-                onClick={() => navigate('/billing/create?type=sale')}
-                className="bg-blue-600 hover:bg-blue-700"
-                data-testid="new-sale-btn"
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-48"
+                  data-testid="search-input"
+                />
+              </div>
+              <select
+                value={filterTime}
+                onChange={(e) => setFilterTime(e.target.value)}
+                className="px-3 py-2 border rounded-lg text-sm bg-white"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                New Sale
-              </Button>
-              <Button
-                onClick={() => navigate('/billing/create?type=return')}
-                variant="outline"
-                data-testid="new-return-btn"
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border rounded-lg text-sm bg-white"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                New Return
-              </Button>
+                <option value="all">All Status</option>
+                <option value="paid">Paid</option>
+                <option value="due">Due</option>
+                <option value="draft">Draft</option>
+                <option value="refunded">Refunded</option>
+              </select>
             </div>
           </div>
 
-          <Card>
-            <CardContent className="p-4">
-              {/* Filters */}
-              <div className="flex gap-3 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search patient, mobile, bill #..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                    data-testid="search-input"
-                  />
-                </div>
-                <select
-                  value={filterTime}
-                  onChange={(e) => setFilterTime(e.target.value)}
-                  className="px-4 py-2 border rounded-lg text-sm"
-                >
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border rounded-lg text-sm"
-                >
-                  <option value="all">All Status</option>
-                  <option value="paid">Paid</option>
-                  <option value="due">Due</option>
-                  <option value="draft">Draft</option>
-                  <option value="refunded">Refunded</option>
-                </select>
-                <select
-                  value={filterMethod}
-                  onChange={(e) => setFilterMethod(e.target.value)}
-                  className="px-4 py-2 border rounded-lg text-sm"
-                >
-                  <option value="all">All Method</option>
-                  <option value="cash">Cash</option>
-                  <option value="upi">UPI</option>
-                  <option value="card">Card</option>
-                  <option value="credit">Credit</option>
-                </select>
-              </div>
-
+          <Card className="shadow-sm">
+            <CardContent className="p-0">
               <TabsContent value="sales" className="mt-0">
-                {renderTable(filteredBills, false)}
+                {renderSalesTable()}
               </TabsContent>
-
               <TabsContent value="returns" className="mt-0">
-                {renderTable(filteredReturns, true)}
+                {renderReturnsTable()}
               </TabsContent>
             </CardContent>
           </Card>

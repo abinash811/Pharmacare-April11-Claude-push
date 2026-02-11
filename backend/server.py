@@ -609,31 +609,42 @@ class Supplier(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     contact_name: Optional[str] = None
+    contact_person: Optional[str] = None  # Alias for frontend compatibility
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[str] = None
     payment_terms_days: int = 30  # Default 30 days credit
+    credit_days: Optional[int] = None  # Alias for frontend compatibility
+    notes: Optional[str] = None
+    is_active: bool = True  # ADDED: For activate/deactivate functionality
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class SupplierCreate(BaseModel):
     name: str
     contact_name: Optional[str] = None
+    contact_person: Optional[str] = None  # Alias for frontend
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[str] = None
     payment_terms_days: int = 30
+    credit_days: Optional[int] = None  # Alias for frontend
+    notes: Optional[str] = None
 
 class SupplierUpdate(BaseModel):
     name: Optional[str] = None
     contact_name: Optional[str] = None
+    contact_person: Optional[str] = None  # Alias for frontend
     phone: Optional[str] = None
     email: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[str] = None
     payment_terms_days: Optional[int] = None
+    credit_days: Optional[int] = None  # Alias for frontend
+    notes: Optional[str] = None
+    is_active: Optional[bool] = None  # ADDED: For deactivation
 
 # ==================== PURCHASE MODELS ====================
 class PurchaseItem(BaseModel):

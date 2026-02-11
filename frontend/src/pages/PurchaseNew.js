@@ -103,7 +103,8 @@ export default function PurchaseNew() {
     }
     
     try {
-      const response = await axios.get(`${API}/suppliers`, {
+      // VERIFIED – Only active suppliers shown for new purchases
+      const response = await axios.get(`${API}/suppliers?active_only=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuppliers(response.data);

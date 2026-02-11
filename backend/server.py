@@ -3848,16 +3848,22 @@ async def export_data(current_user: User = Depends(get_current_user)):
 @api_router.get("/suppliers", response_model=List[Supplier])
 async def get_suppliers(
     search: Optional[str] = None,
+    active_only: Optional[bool] = None,  # ADDED: Filter for active suppliers only
     current_user: User = Depends(get_current_user)
 ):
-    """Get all suppliers with optional search"""
+    """Get all suppliers with optional search and active filter"""
     query = {}
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
             {"contact_name": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},  # ADDED: Search by phone
             {"gstin": {"$regex": search, "$options": "i"}}
         ]
+    
+    # VERIFIED – Deactivated suppliers hidden from new purchase selection
+    if active_only:
+        query["is_active"] = {"$ne": False}
     
     suppliers = await db.suppliers.find(query, {"_id": 0}).sort("name", 1).to_list(1000)
     for supplier in suppliers:
@@ -3865,6 +3871,9 @@ async def get_suppliers(
             supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
         if isinstance(supplier.get('updated_at'), str):
             supplier['updated_at'] = datetime.fromisoformat(supplier['updated_at'])
+        # Ensure is_active field exists for older records
+        if 'is_active' not in supplier:
+            supplier['is_active'] = True
     return suppliers
 
 @api_router.post("/suppliers", response_model=Supplier)

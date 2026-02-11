@@ -3926,6 +3926,85 @@ async def update_supplier(
     
     return {"message": "Supplier updated successfully"}
 
+@api_router.delete("/suppliers/{supplier_id}")
+async def delete_supplier(
+    supplier_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete supplier - BLOCKED if any purchases exist"""
+    # VERIFIED – Data integrity check: cannot delete if transactions exist
+    purchase_count = await db.purchases.count_documents({"supplier_id": supplier_id})
+    if purchase_count > 0:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete supplier: {purchase_count} purchase(s) exist. Deactivate instead."
+        )
+    
+    result = await db.suppliers.delete_one({"id": supplier_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    return {"message": "Supplier deleted successfully"}
+
+@api_router.patch("/suppliers/{supplier_id}/toggle-status")
+async def toggle_supplier_status(
+    supplier_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Toggle supplier active/inactive status"""
+    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    new_status = not supplier.get('is_active', True)
+    
+    await db.suppliers.update_one(
+        {"id": supplier_id},
+        {"$set": {"is_active": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    status_text = "activated" if new_status else "deactivated"
+    return {"message": f"Supplier {status_text} successfully", "is_active": new_status}
+
+@api_router.get("/suppliers/{supplier_id}/summary")
+async def get_supplier_summary(
+    supplier_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get supplier summary with purchase insights (read-only)"""
+    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    # Get purchase statistics - VERIFIED: read-only, no inventory/ledger data
+    purchases = await db.purchases.find(
+        {"supplier_id": supplier_id, "status": {"$in": ["confirmed", "draft"]}},
+        {"_id": 0, "purchase_date": 1, "total_value": 1, "status": 1}
+    ).to_list(10000)
+    
+    total_purchases = len(purchases)
+    total_value = sum(p.get('total_value', 0) or 0 for p in purchases)
+    confirmed_purchases = [p for p in purchases if p.get('status') == 'confirmed']
+    
+    last_purchase_date = None
+    if confirmed_purchases:
+        dates = []
+        for p in confirmed_purchases:
+            pd = p.get('purchase_date')
+            if pd:
+                if isinstance(pd, str):
+                    dates.append(pd)
+                else:
+                    dates.append(pd.isoformat())
+        if dates:
+            last_purchase_date = max(dates)
+    
+    return {
+        "supplier": supplier,
+        "total_purchases": total_purchases,
+        "total_purchase_value": round(total_value, 2),
+        "last_purchase_date": last_purchase_date
+    }
 
 
 # ==================== PURCHASE ROUTES ====================

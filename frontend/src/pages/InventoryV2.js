@@ -47,6 +47,7 @@ export default function InventoryV2() {
   const [showAdjustStockDialog, setShowAdjustStockDialog] = useState(false);
   const [showMovementHistoryDialog, setShowMovementHistoryDialog] = useState(false);
   const [showWriteoffDialog, setShowWriteoffDialog] = useState(false);
+  const [showExcelUploadWizard, setShowExcelUploadWizard] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [stockMovements, setStockMovements] = useState([]);

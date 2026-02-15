@@ -50,7 +50,7 @@ class TestBarcodeLookup:
     
     def test_product_search_with_barcode_param(self, auth_headers):
         """Test product search includes barcode in searchable fields"""
-        response = requests.get(f"{API}/products/search", params={"q": "PARA"}, headers=auth_headers)
+        response = requests.get(f"{API}/products/search-with-batches", params={"q": "PARA"}, headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         # Should return a list

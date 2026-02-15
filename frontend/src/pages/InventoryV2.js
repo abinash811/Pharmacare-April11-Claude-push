@@ -6,7 +6,7 @@ import ExcelBulkUploadWizard from '../components/ExcelBulkUploadWizard';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '', type = 'button' }) => {
+const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '', type = 'button', ...props }) => {
   const baseStyles = 'rounded font-medium transition-colors inline-flex items-center justify-center';
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
@@ -20,7 +20,7 @@ const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled 
   };
   
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
       {children}
     </button>
   );

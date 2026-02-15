@@ -3368,6 +3368,168 @@ async def delete_doctor(doctor_id: str, current_user: User = Depends(get_current
 
 # ==================== REPORTS ====================
 
+@api_router.get("/reports/sales-summary")
+async def get_sales_summary(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Sales summary report with date range filter"""
+    try:
+        query = {"invoice_type": "SALE", "status": {"$in": ["paid", "due"]}}
+        
+        bills = await db.bills.find(query, {"_id": 0}).to_list(10000)
+        
+        # Filter by date range
+        filtered_bills = []
+        for bill in bills:
+            try:
+                created_at = bill.get('created_at')
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+                
+                bill_date = created_at.strftime('%Y-%m-%d') if created_at else None
+                
+                if from_date and bill_date and bill_date < from_date:
+                    continue
+                if to_date and bill_date and bill_date > to_date:
+                    continue
+                
+                filtered_bills.append({
+                    "bill_number": bill.get('bill_number'),
+                    "date": created_at.strftime('%d/%m/%Y') if created_at else 'N/A',
+                    "customer_name": bill.get('customer_name') or 'Walk-in',
+                    "items_count": len(bill.get('items', [])),
+                    "payment_method": bill.get('payment_method', 'cash'),
+                    "total_amount": bill.get('total_amount', 0)
+                })
+            except Exception as e:
+                logger.warning(f"Error processing bill for report: {e}")
+                continue
+        
+        total_sales = sum(b['total_amount'] for b in filtered_bills)
+        
+        return {
+            "summary": {
+                "total_bills": len(filtered_bills),
+                "total_sales": round(total_sales, 2)
+            },
+            "data": filtered_bills
+        }
+    except Exception as e:
+        logger.error(f"Sales report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/reports/low-stock")
+async def get_low_stock_report(current_user: User = Depends(get_current_user)):
+    """Report of items below reorder level"""
+    try:
+        products = await db.products.find({"status": "active"}, {"_id": 0}).to_list(10000)
+        batches = await db.stock_batches.find({}, {"_id": 0}).to_list(10000)
+        
+        # Calculate total stock per product
+        product_stock = {}
+        for batch in batches:
+            sku = batch.get('product_sku')
+            if sku:
+                if sku not in product_stock:
+                    product_stock[sku] = 0
+                product_stock[sku] += batch.get('qty_on_hand', 0)
+        
+        low_stock_items = []
+        for product in products:
+            sku = product.get('sku')
+            current_stock = product_stock.get(sku, 0)
+            reorder_level = product.get('low_stock_threshold_units', 10)
+            
+            if current_stock <= reorder_level:
+                low_stock_items.append({
+                    "product_name": product.get('name'),
+                    "sku": sku,
+                    "current_stock": current_stock,
+                    "reorder_level": reorder_level,
+                    "shortage": max(0, reorder_level - current_stock)
+                })
+        
+        # Sort by shortage (most critical first)
+        low_stock_items.sort(key=lambda x: (-x['shortage'], x['current_stock']))
+        
+        return {
+            "summary": {
+                "total_items": len(low_stock_items),
+                "out_of_stock": sum(1 for i in low_stock_items if i['current_stock'] == 0)
+            },
+            "data": low_stock_items
+        }
+    except Exception as e:
+        logger.error(f"Low stock report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/reports/expiry")
+async def get_expiry_report(
+    days: int = 30,
+    current_user: User = Depends(get_current_user)
+):
+    """Report of items expiring within specified days"""
+    try:
+        now = datetime.now(timezone.utc)
+        threshold_date = now + timedelta(days=days)
+        
+        batches = await db.stock_batches.find({"qty_on_hand": {"$gt": 0}}, {"_id": 0}).to_list(10000)
+        products = await db.products.find({}, {"_id": 0}).to_list(10000)
+        
+        product_lookup = {p['sku']: p for p in products}
+        
+        expiring_items = []
+        total_value = 0
+        
+        for batch in batches:
+            try:
+                expiry = batch.get('expiry_date')
+                if not expiry:
+                    continue
+                
+                if isinstance(expiry, str):
+                    expiry = datetime.fromisoformat(expiry)
+                if expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
+                
+                if expiry <= threshold_date:
+                    product_sku = batch.get('product_sku')
+                    product = product_lookup.get(product_sku, {})
+                    qty = batch.get('qty_on_hand', 0)
+                    mrp = batch.get('mrp_per_unit', 0)
+                    stock_value = qty * mrp
+                    days_to_expiry = (expiry - now).days
+                    
+                    expiring_items.append({
+                        "product_name": product.get('name', batch.get('product_name', 'Unknown')),
+                        "batch_no": batch.get('batch_no'),
+                        "qty": qty,
+                        "expiry_date": expiry.strftime('%d/%m/%Y'),
+                        "days_to_expiry": days_to_expiry,
+                        "stock_value": round(stock_value, 2)
+                    })
+                    total_value += stock_value
+            except Exception as e:
+                logger.warning(f"Error processing batch for expiry report: {e}")
+                continue
+        
+        # Sort by days to expiry (soonest first)
+        expiring_items.sort(key=lambda x: x['days_to_expiry'])
+        
+        return {
+            "summary": {
+                "total_items": len(expiring_items),
+                "total_value": round(total_value, 2),
+                "expired": sum(1 for i in expiring_items if i['days_to_expiry'] < 0)
+            },
+            "data": expiring_items
+        }
+    except Exception as e:
+        logger.error(f"Expiry report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @api_router.get("/reports/dashboard")
 async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
     try:

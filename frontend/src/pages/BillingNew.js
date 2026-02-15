@@ -26,6 +26,7 @@ export default function BillingNew() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState(null);
+  const searchTimeoutRef = useRef(null);  // For debouncing
   
   // Barcode Scanner
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);

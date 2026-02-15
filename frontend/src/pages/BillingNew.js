@@ -302,29 +302,58 @@ export default function BillingNew() {
   };
 
   // Handle barcode scan from camera
-  const handleBarcodeScan = async (code) => {
+  // Handle barcode scan from camera or USB scanner
+  const handleBarcodeScan = useCallback(async (code) => {
+    if (!code || code.length < 3) return;
+    
     setSearchLoading(true);
     const token = localStorage.getItem('token');
     
     try {
-      const response = await axios.get(`${API}/products/search-with-batches?q=${encodeURIComponent(code)}`, {
+      // Use dedicated barcode lookup endpoint for faster response
+      const response = await axios.get(`${API}/products/barcode/${encodeURIComponent(code)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      if (response.data && response.data.length > 0) {
-        const product = response.data[0];
-        addToBill(product);
+      const result = response.data;
+      
+      if (result.found && result.has_stock) {
+        // Auto-add to bill with FEFO batch
+        const product = result.product;
+        const batch = result.suggested_batch;
+        
+        addToBill(product, batch);
         toast.success(`✅ Added: ${product.name}`);
+      } else if (result.found && !result.has_stock) {
+        toast.error(`⚠️ ${result.product.name} - No stock available`);
       } else {
         toast.error(`❌ No product found for barcode: ${code}`);
       }
     } catch (error) {
       console.error('Barcode search error:', error);
-      toast.error('Failed to find product');
+      // Fallback to regular search
+      try {
+        const fallbackResponse = await axios.get(`${API}/products/search-with-batches?q=${encodeURIComponent(code)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (fallbackResponse.data && fallbackResponse.data.length > 0) {
+          const product = fallbackResponse.data[0];
+          addToBill(product);
+          toast.success(`✅ Added: ${product.name}`);
+        } else {
+          toast.error(`❌ No product found for: ${code}`);
+        }
+      } catch (err) {
+        toast.error('Failed to find product');
+      }
     } finally {
       setSearchLoading(false);
     }
-  };
+  }, [billItems]);
+
+  // USB Barcode Scanner - listens for fast keyboard input
+  useUSBBarcodeScanner(handleBarcodeScan, scannerEnabled && !showBarcodeScanner);
 
   // Add item to bill with FEFO batch selection
   const addToBill = (product, selectedBatch = null) => {

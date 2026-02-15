@@ -1836,6 +1836,95 @@ async def get_inventory_filters(current_user: User = Depends(get_current_user)):
         ]
     }
 
+@api_router.get("/products/barcode/{barcode}")
+async def lookup_by_barcode(
+    barcode: str,
+    location_id: Optional[str] = "default",
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Fast barcode lookup endpoint for USB/camera scanners.
+    Returns product with available batches if found.
+    """
+    # Search by barcode OR SKU (some pharmacies use SKU as barcode)
+    product = await db.products.find_one(
+        {"$or": [
+            {"barcode": barcode},
+            {"sku": barcode}
+        ]},
+        {"_id": 0}
+    )
+    
+    if not product:
+        return {"found": False, "message": f"No product found with barcode: {barcode}"}
+    
+    # Get batches for this product (FEFO)
+    batches = await db.stock_batches.find(
+        {
+            "product_sku": product['sku'],
+            "location": location_id,
+            "qty_on_hand": {"$gt": 0}
+        },
+        {"_id": 0}
+    ).sort("expiry_date", 1).to_list(10)
+    
+    if not batches:
+        return {
+            "found": True,
+            "product": product,
+            "has_stock": False,
+            "message": "Product found but no stock available"
+        }
+    
+    # Format batches
+    formatted_batches = []
+    total_qty = 0
+    units_per_pack = product.get('units_per_pack', 1)
+    
+    for batch in batches:
+        expiry = batch.get('expiry_date')
+        expiry_display = 'N/A'
+        expiry_iso = None
+        
+        if expiry:
+            if isinstance(expiry, str):
+                expiry = datetime.fromisoformat(expiry)
+            expiry_display = expiry.strftime('%d-%m-%Y')
+            expiry_iso = expiry.isoformat()
+        
+        total_units_in_batch = batch['qty_on_hand'] * units_per_pack
+        
+        formatted_batches.append({
+            "batch_id": batch['id'],
+            "batch_no": batch['batch_no'],
+            "expiry_date": expiry_display,
+            "expiry_iso": expiry_iso,
+            "qty_on_hand": batch['qty_on_hand'],
+            "total_units": total_units_in_batch,
+            "mrp": batch.get('mrp_per_unit', 0) * units_per_pack,
+            "mrp_per_unit": batch.get('mrp_per_unit', 0)
+        })
+        total_qty += batch['qty_on_hand']
+    
+    return {
+        "found": True,
+        "has_stock": True,
+        "product": {
+            "product_id": product['id'],
+            "sku": product['sku'],
+            "name": product['name'],
+            "brand": product.get('brand'),
+            "pack_size": product.get('pack_size'),
+            "units_per_pack": units_per_pack,
+            "gst_percent": product.get('gst_percent', 5),
+            "barcode": product.get('barcode'),
+            "total_stock": total_qty,
+            "total_units": total_qty * units_per_pack
+        },
+        "batches": formatted_batches,
+        "suggested_batch": formatted_batches[0] if formatted_batches else None
+    }
+
 @api_router.get("/products/search-with-batches")
 async def search_products_with_batches(
     q: str,

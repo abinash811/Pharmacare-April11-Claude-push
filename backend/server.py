@@ -3344,6 +3344,28 @@ async def get_doctors(current_user: User = Depends(get_current_user)):
             doctor['created_at'] = datetime.fromisoformat(doctor['created_at'])
     return doctors
 
+@api_router.put("/doctors/{doctor_id}")
+async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(get_current_user)):
+    update_data = {k: v for k, v in doctor_data.items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.doctors.update_one(
+        {"id": doctor_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    
+    return {"message": "Doctor updated successfully"}
+
+@api_router.delete("/doctors/{doctor_id}")
+async def delete_doctor(doctor_id: str, current_user: User = Depends(get_current_user)):
+    result = await db.doctors.delete_one({"id": doctor_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+    return {"message": "Doctor deleted successfully"}
+
 # ==================== REPORTS ====================
 
 @api_router.get("/reports/dashboard")

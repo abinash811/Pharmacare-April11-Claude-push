@@ -341,6 +341,58 @@ export default function InventoryV2() {
     setShowMovementHistoryDialog(true);
   };
 
+  // Expiry Write-off functionality
+  const openWriteoffDialog = (product, batch) => {
+    setSelectedProduct(product.product);
+    setSelectedBatch(batch);
+    setWriteoffQty(batch.qty_on_hand);
+    setWriteoffReason('Expired stock write-off');
+    setShowWriteoffDialog(true);
+  };
+
+  const handleWriteoff = async () => {
+    const token = localStorage.getItem('token');
+    if (!selectedBatch || writeoffQty <= 0) {
+      toast.error('Invalid write-off quantity');
+      return;
+    }
+    
+    try {
+      await axios.post(`${API}/batches/${selectedBatch.id}/writeoff-expiry`, {
+        qty: writeoffQty,
+        reason: writeoffReason || 'Expired stock write-off'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success('Batch written off successfully');
+      setShowWriteoffDialog(false);
+      setWriteoffQty(0);
+      setWriteoffReason('');
+      fetchInventory();
+      if (selectedProduct && expandedProducts.has(selectedProduct.sku)) {
+        fetchBatchesForProduct(selectedProduct.sku);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to write off batch');
+    }
+  };
+
+  // Check if batch is expired or near expiry
+  const isBatchExpired = (expiryDate) => {
+    if (!expiryDate) return false;
+    return new Date(expiryDate) < new Date();
+  };
+
+  const isBatchNearExpiry = (expiryDate, daysThreshold = 30) => {
+    if (!expiryDate) return false;
+    const expiry = new Date(expiryDate);
+    const today = new Date();
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 && diffDays <= daysThreshold;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       {/* Header with Beta Badge */}

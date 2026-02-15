@@ -4335,36 +4335,57 @@ async def export_data(current_user: User = Depends(get_current_user)):
 
 # ==================== SUPPLIER ROUTES ====================
 
-@api_router.get("/suppliers", response_model=List[Supplier])
+@api_router.get("/suppliers")
 async def get_suppliers(
     search: Optional[str] = None,
-    active_only: Optional[bool] = None,  # ADDED: Filter for active suppliers only
+    active_only: Optional[bool] = None,
+    page: int = 1,
+    page_size: int = 50,
     current_user: User = Depends(get_current_user)
 ):
-    """Get all suppliers with optional search and active filter"""
+    """Get all suppliers with pagination, search and active filter"""
+    # Validate pagination params
+    page_size = min(max(page_size, 1), 100)
+    page = max(page, 1)
+    
     query = {}
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
             {"contact_name": {"$regex": search, "$options": "i"}},
-            {"phone": {"$regex": search, "$options": "i"}},  # ADDED: Search by phone
+            {"phone": {"$regex": search, "$options": "i"}},
             {"gstin": {"$regex": search, "$options": "i"}}
         ]
     
-    # VERIFIED – Deactivated suppliers hidden from new purchase selection
     if active_only:
         query["is_active"] = {"$ne": False}
     
-    suppliers = await db.suppliers.find(query, {"_id": 0}).sort("name", 1).to_list(1000)
+    # Get total count
+    total = await db.suppliers.count_documents(query)
+    
+    # Paginate
+    skip = (page - 1) * page_size
+    suppliers = await db.suppliers.find(query, {"_id": 0}).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
+    
     for supplier in suppliers:
         if isinstance(supplier.get('created_at'), str):
             supplier['created_at'] = datetime.fromisoformat(supplier['created_at'])
         if isinstance(supplier.get('updated_at'), str):
             supplier['updated_at'] = datetime.fromisoformat(supplier['updated_at'])
-        # Ensure is_active field exists for older records
         if 'is_active' not in supplier:
             supplier['is_active'] = True
-    return suppliers
+    
+    return {
+        "data": suppliers,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total,
+            "has_prev": page > 1
+        }
+    }
 
 @api_router.post("/suppliers", response_model=Supplier)
 async def create_supplier(

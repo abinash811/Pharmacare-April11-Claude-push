@@ -3294,12 +3294,50 @@ async def create_customer(customer_data: CustomerCreate, current_user: User = De
     
     return customer
 
-@api_router.get("/customers", response_model=List[Customer])
-async def get_customers(current_user: User = Depends(get_current_user)):
-    customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/customers")
+async def get_customers(
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+    customer_type: Optional[str] = None,
+    fields: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get customers with optional pagination and field selection.
+    - fields: comma-separated list of fields to return (e.g., "name,phone,email")
+    - page/page_size: pagination controls
+    - search: search by name or phone
+    - customer_type: filter by type (regular, wholesale, institution)
+    """
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}}
+        ]
+    if customer_type:
+        query["customer_type"] = customer_type
+    
+    # Get total count for pagination
+    total = await db.customers.count_documents(query)
+    
+    # Use field selection if provided
+    projection = parse_fields_param(fields)
+    
+    # Paginate
+    skip = (page - 1) * page_size
+    customers = await db.customers.find(query, projection).skip(skip).limit(page_size).to_list(page_size)
+    
     for customer in customers:
-        if isinstance(customer['created_at'], str):
+        if 'created_at' in customer and isinstance(customer['created_at'], str):
             customer['created_at'] = datetime.fromisoformat(customer['created_at'])
+    
+    # Return paginated response if pagination params provided
+    if page > 1 or page_size != 50:
+        return paginate_response(customers, page, page_size, total)
+    
     return customers
 
 @api_router.get("/customers/search")

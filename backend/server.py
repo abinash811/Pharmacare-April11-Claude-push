@@ -858,12 +858,16 @@ class Doctor(BaseModel):
     name: str
     contact: Optional[str] = None
     specialization: Optional[str] = None
+    clinic_address: Optional[str] = None
+    notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class DoctorCreate(BaseModel):
     name: str
     contact: Optional[str] = None
     specialization: Optional[str] = None
+    clinic_address: Optional[str] = None
+    notes: Optional[str] = None
 
 # ==================== AUTH HELPERS ====================
 

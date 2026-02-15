@@ -3109,7 +3109,6 @@ from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from io import BytesIO
-from fastapi.responses import StreamingResponse
 
 @api_router.get("/bills/{bill_id}/pdf")
 async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_current_user)):

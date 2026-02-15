@@ -123,12 +123,38 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **P0/P1 Features**: ✅ 100% passed (iteration_8.json)
 - **P2 Features**: ✅ Verified via curl and screenshots
 - **Excel Bulk Upload**: ✅ 100% passed (iteration_9.json) - Feb 15, 2026
+- **API Cost Optimizations**: ✅ Implemented Feb 15, 2026
+
+## API Cost Optimizations (Feb 15, 2026)
+
+### 1. API Pagination ✅
+All list endpoints now support pagination:
+- `GET /api/bills?page=1&page_size=50` - Bills list with filters
+- `GET /api/suppliers?page=1&page_size=50` - Suppliers with search
+- `GET /api/doctors?page=1&page_size=50` - Doctors with search  
+- `GET /api/purchases?page=1&page_size=50` - Purchases with filters
+- Max page_size: 100, Default: 50
+
+### 2. Search Debouncing ✅ (300ms)
+Implemented in:
+- `BillingNew.js` - Product search with batches
+- `Customers.js` - Customer/Doctor filter
+- `Suppliers.js` - Supplier filter
+- `InventoryV2.js` - Already had debouncing
+
+### 3. Browser Caching ✅
+Cache utility at `/utils/cache.js` with TTLs:
+- Categories/Brands: 24 hours
+- Suppliers/Customers/Doctors: 1 hour
+- Filter options: 10 minutes
+- Dashboard stats: 5 minutes
+Cache invalidated on data updates.
 
 ## Prioritized Backlog
 
 ### P3 (Low Priority) - NEXT UP
-- [ ] Refactor monolithic `server.py` into modular routers
 - [ ] Background jobs for analytics pre-calculation
+- [ ] Refactor monolithic `server.py` into modular routers
 - [ ] Receipt printing functionality
 - [ ] Deprecate old Inventory pages (Inventory.js, InventoryImproved.js, InventoryNew.js)
 - [ ] "Notion-like" design polish across application

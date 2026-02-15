@@ -88,10 +88,11 @@ export default function Suppliers() {
   const fetchSuppliers = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/suppliers`, {
+      const response = await axios.get(`${API}/suppliers?page_size=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSuppliers(response.data);
+      // Handle paginated response format
+      setSuppliers(response.data.data || response.data);
       setLoading(false);
     } catch (error) {
       toast.error('Failed to load suppliers');

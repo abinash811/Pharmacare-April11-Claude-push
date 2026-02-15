@@ -239,29 +239,27 @@ export default function Customers() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6" data-testid="customers-page">
-      {/* Header - Responsive */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Customers & Doctors</h1>
-        <p className="text-xs sm:text-sm text-gray-500">Manage customer and referring doctor information</p>
+    <div className="min-h-screen bg-gray-50 p-6" data-testid="customers-page">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Customers & Doctors</h1>
+        <p className="text-sm text-gray-500">Manage customer and referring doctor information</p>
       </div>
 
       <Tabs defaultValue="customers" className="w-full">
-        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
-          {/* Tabs - Stack on mobile */}
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="customers" className="flex-1 sm:flex-none data-[state=active]:bg-blue-50">
-              <User className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Customers</span> ({filteredCustomers.length})
+        <div className="flex justify-between items-center gap-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="customers" className="data-[state=active]:bg-blue-50">
+              <User className="w-4 h-4 mr-2" />
+              Customers ({filteredCustomers.length})
             </TabsTrigger>
-            <TabsTrigger value="doctors" className="flex-1 sm:flex-none data-[state=active]:bg-green-50">
-              <Stethoscope className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Doctors</span> ({filteredDoctors.length})
+            <TabsTrigger value="doctors" className="data-[state=active]:bg-green-50">
+              <Stethoscope className="w-4 h-4 mr-2" />
+              Doctors ({filteredDoctors.length})
             </TabsTrigger>
           </TabsList>
 
-          {/* Search - Full width on mobile */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-64">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Search..."
@@ -274,10 +272,9 @@ export default function Customers() {
 
         {/* Customers Tab */}
         <TabsContent value="customers">
-          <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+          <div className="mb-4 flex justify-end gap-2">
             <Button 
-              variant="outline" 
-              size="sm"
+              variant="outline"
               onClick={() => {
                 if (customers.length === 0) {
                   toast.error('No customers to export');
@@ -286,13 +283,12 @@ export default function Customers() {
                 exportCustomersToExcel(customers);
                 toast.success('Exported to Excel');
               }}
-              className="w-full sm:w-auto"
               data-testid="export-customers-btn"
             >
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               Export Excel
             </Button>
-            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} className="w-full sm:w-auto" data-testid="add-customer-btn">
+            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} data-testid="add-customer-btn">
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
@@ -300,8 +296,7 @@ export default function Customers() {
 
           <Card>
             <CardContent className="p-0">
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full" data-testid="customers-table">
                   <thead className="bg-gray-50 border-b">
                     <tr>

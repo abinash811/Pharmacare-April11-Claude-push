@@ -1844,16 +1844,18 @@ async def search_products_with_batches(
 ):
     """
     Search products and return with available batches (FEFO sorted)
+    Searches by name, SKU, brand, and barcode
     """
     if len(q) < 2:
         return []
     
-    # Search products
+    # Search products - include barcode in search
     products = await db.products.find(
         {"$or": [
             {"name": {"$regex": q, "$options": "i"}},
             {"sku": {"$regex": q, "$options": "i"}},
-            {"brand": {"$regex": q, "$options": "i"}}
+            {"brand": {"$regex": q, "$options": "i"}},
+            {"barcode": q}  # Exact match for barcode
         ]},
         {"_id": 0}
     ).to_list(50)

@@ -303,6 +303,7 @@ class Product(BaseModel):
     units_per_pack: int = 1  # Numeric: how many units in one pack (e.g., 10 tablets per strip)
     uom: Optional[str] = "units"  # Unit of measure (units, ml, gm)
     category: Optional[str] = None
+    barcode: Optional[str] = None  # EAN-13/UPC barcode for scanner
     # Backward compatibility: support both old and new field names
     default_mrp: Optional[float] = None  # Legacy field
     default_mrp_per_unit: float = 0  # Phase 0: MRP per unit (not per pack)

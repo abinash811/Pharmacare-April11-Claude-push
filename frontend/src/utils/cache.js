@@ -8,12 +8,23 @@ const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes default TTL
 
 // Cache configuration for different data types
 const CACHE_CONFIG = {
-  categories: { ttl: 30 * 60 * 1000 }, // 30 minutes
-  suppliers: { ttl: 10 * 60 * 1000 },  // 10 minutes
-  brands: { ttl: 30 * 60 * 1000 },     // 30 minutes
-  doctors: { ttl: 10 * 60 * 1000 },    // 10 minutes
-  settings: { ttl: 5 * 60 * 1000 },    // 5 minutes
-  filterOptions: { ttl: 10 * 60 * 1000 }, // 10 minutes
+  // Cache for 24 hours (static data)
+  categories: { ttl: 24 * 60 * 60 * 1000 },
+  brands: { ttl: 24 * 60 * 60 * 1000 },
+  
+  // Cache for 1 hour
+  suppliers: { ttl: 60 * 60 * 1000 },
+  customers: { ttl: 60 * 60 * 1000 },
+  doctors: { ttl: 60 * 60 * 1000 },
+  
+  // Cache for 5 minutes
+  recent_searches: { ttl: 5 * 60 * 1000 },
+  frequently_sold: { ttl: 5 * 60 * 1000 },
+  filterOptions: { ttl: 10 * 60 * 1000 },
+  settings: { ttl: 5 * 60 * 1000 },
+  
+  // Dashboard stats (pre-calculated)
+  dashboard_stats: { ttl: 5 * 60 * 1000 },
 };
 
 /**

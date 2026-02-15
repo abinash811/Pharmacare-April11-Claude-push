@@ -195,7 +195,13 @@ export default function InventoryV2() {
   };
 
   const handleExcelUpload = () => {
-    toast.info('Excel upload feature - UI placeholder. Implementation coming in next phase.');
+    setShowExcelUploadWizard(true);
+  };
+
+  const handleExcelImportComplete = () => {
+    fetchInventory();
+    fetchFilterOptions();
+    toast.success('Inventory updated from Excel import');
   };
 
   const clearFilters = () => {

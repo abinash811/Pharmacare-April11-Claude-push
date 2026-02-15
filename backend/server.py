@@ -1699,9 +1699,9 @@ async def get_products(
     skip = (page - 1) * page_size
     products = await db.products.find(query, projection).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
     for prod in products:
-        if isinstance(prod['created_at'], str):
+        if 'created_at' in prod and isinstance(prod['created_at'], str):
             prod['created_at'] = datetime.fromisoformat(prod['created_at'])
-        if isinstance(prod['updated_at'], str):
+        if 'updated_at' in prod and isinstance(prod['updated_at'], str):
             prod['updated_at'] = datetime.fromisoformat(prod['updated_at'])
         
         # Backward compatibility: normalize old field names to new
@@ -1715,6 +1715,10 @@ async def get_products(
             prod['default_mrp_per_unit'] = prod.get('default_mrp', 0)
         if 'low_stock_threshold_units' not in prod:
             prod['low_stock_threshold_units'] = prod.get('low_stock_threshold', 10)
+    
+    # Return paginated response if pagination requested
+    if page > 1 or page_size != 100:
+        return paginate_response(products, page, page_size, total)
             
     return products
 

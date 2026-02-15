@@ -5396,15 +5396,17 @@ async def validate_bulk_upload(
     
     # Get existing products and batches for duplicate checking
     existing_products = {}
-    products_cursor = db.products.find({}, {"_id": 0, "sku": 1, "name": 1})
+    products_cursor = db.products.find({}, {"_id": 0})
     async for prod in products_cursor:
-        existing_products[prod["sku"]] = prod
+        if "sku" in prod:
+            existing_products[prod["sku"]] = prod
     
     existing_batches = {}
-    batches_cursor = db.stock_batches.find({}, {"_id": 0, "product_sku": 1, "batch_no": 1})
+    batches_cursor = db.stock_batches.find({}, {"_id": 0})
     async for batch in batches_cursor:
-        key = f"{batch['product_sku']}_{batch['batch_no']}"
-        existing_batches[key] = batch
+        if "product_sku" in batch and "batch_no" in batch:
+            key = f"{batch['product_sku']}_{batch['batch_no']}"
+            existing_batches[key] = batch
     
     # Validate each row
     validation_results = []

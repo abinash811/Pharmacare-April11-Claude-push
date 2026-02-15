@@ -155,17 +155,27 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - `GET /api/products?fields=name,sku&page=1&page_size=20` - Products with field selection and pagination
 - `POST /api/batches/{batch_id}/writeoff-expiry` - Expiry write-off
 
+### Excel Bulk Upload Endpoints (NEW - Feb 15, 2026)
+- `GET /api/inventory/bulk-upload/template` - Download sample Excel template
+- `POST /api/inventory/bulk-upload/parse` - Parse uploaded Excel file, returns job_id and auto-detected column mappings
+- `POST /api/inventory/bulk-upload/validate` - Validate mapped data, returns validation results
+- `POST /api/inventory/bulk-upload/import` - Start import process (background job)
+- `GET /api/inventory/bulk-upload/progress/{job_id}` - Get import progress
+- `GET /api/inventory/bulk-upload/error-report/{job_id}` - Download validation error report (Excel)
+
 ## File Structure (Key Files)
 ```
 /app/
 ├── backend/
 │   ├── server.py          # Main FastAPI app
 │   └── tests/
-│       └── test_p0_p1_features.py
+│       ├── test_p0_p1_features.py
+│       └── test_excel_bulk_upload.py  # NEW: Excel upload tests
 └── frontend/
     └── src/
         ├── components/
         │   ├── BarcodeScannerModal.js
+        │   ├── ExcelBulkUploadWizard.js  # NEW: 4-step Excel upload wizard
         │   └── Layout.js
         ├── pages/
         │   ├── BillingNew.js

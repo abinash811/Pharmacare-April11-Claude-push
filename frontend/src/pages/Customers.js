@@ -239,43 +239,60 @@ export default function Customers() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="customers-page">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Customers & Doctors</h1>
-        <p className="text-sm text-gray-500">Manage customer and referring doctor information</p>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6" data-testid="customers-page">
+      {/* Header - Responsive */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Customers & Doctors</h1>
+        <p className="text-xs sm:text-sm text-gray-500">Manage customer and referring doctor information</p>
       </div>
 
       <Tabs defaultValue="customers" className="w-full">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <TabsList>
-            <TabsTrigger value="customers" className="data-[state=active]:bg-blue-50">
-              <User className="w-4 h-4 mr-2" />
-              Customers ({filteredCustomers.length})
+        <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+          {/* Tabs - Stack on mobile */}
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="customers" className="flex-1 sm:flex-none data-[state=active]:bg-blue-50">
+              <User className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Customers</span> ({filteredCustomers.length})
             </TabsTrigger>
-            <TabsTrigger value="doctors" className="data-[state=active]:bg-green-50">
-              <Stethoscope className="w-4 h-4 mr-2" />
-              Doctors ({filteredDoctors.length})
+            <TabsTrigger value="doctors" className="flex-1 sm:flex-none data-[state=active]:bg-green-50">
+              <Stethoscope className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Doctors</span> ({filteredDoctors.length})
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-64"
-              />
-            </div>
+          {/* Search - Full width on mobile */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-full"
+            />
           </div>
         </div>
 
         {/* Customers Tab */}
         <TabsContent value="customers">
-          <div className="mb-4 flex justify-end">
-            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} data-testid="add-customer-btn">
+          <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                if (customers.length === 0) {
+                  toast.error('No customers to export');
+                  return;
+                }
+                exportCustomersToExcel(customers);
+                toast.success('Exported to Excel');
+              }}
+              className="w-full sm:w-auto"
+              data-testid="export-customers-btn"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} className="w-full sm:w-auto" data-testid="add-customer-btn">
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
@@ -283,7 +300,8 @@ export default function Customers() {
 
           <Card>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full" data-testid="customers-table">
                   <thead className="bg-gray-50 border-b">
                     <tr>
@@ -320,6 +338,85 @@ export default function Customers() {
                             )}
                             {customer.email && (
                               <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Mail className="w-3 h-3" />
+                                {customer.email}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {getCustomerTypeBadge(customer.customer_type)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {customer.credit_limit > 0 && (
+                              <span className="font-medium">₹{customer.credit_limit.toLocaleString()}</span>
+                            )}
+                            {!customer.credit_limit && <span className="text-gray-400">-</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => handleViewCustomer(customer)} data-testid={`view-customer-${customer.id}`}>
+                                <Eye className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleEditCustomer(customer)}>
+                                <Edit className="w-4 h-4 text-gray-600" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer)}>
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y">
+                {filteredCustomers.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-gray-500">
+                    <User className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">{searchQuery ? 'No customers match your search' : 'No customers found'}</p>
+                  </div>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <div key={customer.id} className="p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-medium text-gray-800">{customer.name}</div>
+                          {customer.phone && (
+                            <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                              <Phone className="w-3 h-3" />
+                              {customer.phone}
+                            </div>
+                          )}
+                        </div>
+                        {getCustomerTypeBadge(customer.customer_type)}
+                      </div>
+                      <div className="flex justify-between items-center mt-3">
+                        {customer.credit_limit > 0 && (
+                          <span className="text-sm text-gray-600">Credit: ₹{customer.credit_limit.toLocaleString()}</span>
+                        )}
+                        <div className="flex gap-2 ml-auto">
+                          <Button variant="ghost" size="sm" onClick={() => handleViewCustomer(customer)}>
+                            <Eye className="w-4 h-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleEditCustomer(customer)}>
+                            <Edit className="w-4 h-4 text-gray-600" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer)}>
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
                                 <Mail className="w-3 h-3" />
                                 {customer.email}
                               </div>

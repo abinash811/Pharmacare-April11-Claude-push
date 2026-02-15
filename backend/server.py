@@ -2073,6 +2073,9 @@ async def search_products_with_batches(
             units_per_pack = product.get('units_per_pack', 1)
             total_units = total_qty * units_per_pack
             
+            # Handle both old and new field names for MRP
+            default_mrp = product.get('default_mrp') or product.get('default_mrp_per_unit', 0)
+            
             results.append({
                 "product_id": product['id'],
                 "sku": product['sku'],
@@ -2080,8 +2083,8 @@ async def search_products_with_batches(
                 "brand": product.get('brand', ''),
                 "pack_size": product.get('pack_size', ''),
                 "units_per_pack": units_per_pack,
-                "default_mrp": product['default_mrp'],
-                "gst_percent": product['gst_percent'],
+                "default_mrp": default_mrp,
+                "gst_percent": product.get('gst_percent', 5),
                 "total_qty": total_qty,  # Total packs
                 "total_units": total_units,  # Total individual units
                 "batches": formatted_batches,

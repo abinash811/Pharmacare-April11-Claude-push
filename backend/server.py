@@ -2992,28 +2992,67 @@ async def update_bill(
     updated_bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
     return updated_bill
 
-@api_router.get("/bills", response_model=List[Bill])
+@api_router.get("/bills")
 async def get_bills(
     invoice_type: Optional[str] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
     current_user: User = Depends(get_current_user)
 ):
+    """Get bills with pagination and filters"""
+    # Validate pagination params
+    page_size = min(max(page_size, 1), 100)  # Clamp between 1 and 100
+    page = max(page, 1)
+    
     query = {}
     if invoice_type:
         query["invoice_type"] = invoice_type
     if status:
         query["status"] = status
-        
-    bills = await db.bills.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    if search:
+        query["$or"] = [
+            {"bill_number": {"$regex": search, "$options": "i"}},
+            {"customer_name": {"$regex": search, "$options": "i"}},
+            {"customer_phone": {"$regex": search, "$options": "i"}}
+        ]
+    if from_date:
+        query["created_at"] = {"$gte": from_date}
+    if to_date:
+        if "created_at" in query:
+            query["created_at"]["$lte"] = to_date
+        else:
+            query["created_at"] = {"$lte": to_date}
+    
+    # Get total count
+    total = await db.bills.count_documents(query)
+    
+    # Paginate
+    skip = (page - 1) * page_size
+    bills = await db.bills.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
+    
     for bill in bills:
         if isinstance(bill['created_at'], str):
             bill['created_at'] = datetime.fromisoformat(bill['created_at'])
-        # Set default values for new fields if not present
         if 'invoice_type' not in bill:
             bill['invoice_type'] = 'SALE'
         if 'status' not in bill:
             bill['status'] = 'paid'
-    return bills
+    
+    return {
+        "data": bills,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total,
+            "has_prev": page > 1
+        }
+    }
 
 @api_router.get("/bills/{bill_id}", response_model=Bill)
 async def get_bill(bill_id: str, current_user: User = Depends(get_current_user)):

@@ -417,55 +417,6 @@ export default function Customers() {
             </CardContent>
           </Card>
         </TabsContent>
-                                <Mail className="w-3 h-3" />
-                                {customer.email}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            {getCustomerTypeBadge(customer.customer_type)}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {customer.credit_limit > 0 ? (
-                              <span className="font-medium text-green-600">₹{customer.credit_limit?.toLocaleString()}</span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => handleViewCustomer(customer)}
-                                className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEditCustomer(customer)}
-                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCustomer(customer)}
-                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Doctors Tab */}
         <TabsContent value="doctors">

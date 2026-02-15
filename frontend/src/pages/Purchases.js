@@ -27,12 +27,13 @@ export default function Purchases() {
     const token = localStorage.getItem('token');
     try {
       const [purchasesRes, suppliersRes, medicinesRes] = await Promise.all([
-        axios.get(`${API}/purchases`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/suppliers`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/purchases?page_size=100`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/suppliers?page_size=100`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/medicines`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      setPurchases(purchasesRes.data);
-      setSuppliers(suppliersRes.data);
+      // Handle paginated response format
+      setPurchases(purchasesRes.data.data || purchasesRes.data);
+      setSuppliers(suppliersRes.data.data || suppliersRes.data);
       setMedicines(medicinesRes.data);
     } catch (error) {
       toast.error('Failed to load data');

@@ -279,27 +279,36 @@ export default function BillingNew() {
     toast.success(`${itemsToReturn.length} item(s) added to return`);
   };
 
-  // Search products with batches (FEFO)
+  // Search products with batches (FEFO) - with debouncing
   const handleSearch = async (query) => {
     setSearchQuery(query);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
 
-    setSearchLoading(true);
-    const token = localStorage.getItem('token');
-    try {
-      const response = await axios.get(`${API}/products/search-with-batches?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSearchResults(response.data);
-    } catch (error) {
-      console.error('Search error:', error);
-      toast.error('Search failed');
-    } finally {
-      setSearchLoading(false);
-    }
+    // Debounce search by 300ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      const token = localStorage.getItem('token');
+      try {
+        const response = await axios.get(`${API}/products/search-with-batches?q=${encodeURIComponent(query)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSearchResults(response.data);
+      } catch (error) {
+        console.error('Search error:', error);
+        toast.error('Search failed');
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
   };
 
   // Handle barcode scan from camera

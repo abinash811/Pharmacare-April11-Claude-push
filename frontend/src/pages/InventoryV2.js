@@ -80,12 +80,21 @@ export default function InventoryV2() {
   }, [currentPage, debouncedSearch, statusFilter, categoryFilter, brandFilter]);
 
   const fetchFilterOptions = async () => {
+    // Check cache first
+    const cached = getFromCache('filterOptions');
+    if (cached) {
+      setFilterOptions(cached);
+      return;
+    }
+    
     const token = localStorage.getItem('token');
     try {
       const response = await axios.get(`${API}/inventory/filters`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFilterOptions(response.data);
+      // Cache the filter options
+      setInCache('filterOptions', response.data);
     } catch (error) {
       console.error('Failed to load filter options');
     }

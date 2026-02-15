@@ -3262,6 +3262,68 @@ async def search_customers(q: str, current_user: User = Depends(get_current_user
     ).to_list(100)
     return customers
 
+@api_router.get("/customers/{customer_id}")
+async def get_customer(customer_id: str, current_user: User = Depends(get_current_user)):
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer
+
+@api_router.put("/customers/{customer_id}")
+async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(get_current_user)):
+    # Update customer
+    update_data = {k: v for k, v in customer_data.items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.customers.update_one(
+        {"id": customer_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    return {"message": "Customer updated successfully"}
+
+@api_router.delete("/customers/{customer_id}")
+async def delete_customer(customer_id: str, current_user: User = Depends(get_current_user)):
+    result = await db.customers.delete_one({"id": customer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return {"message": "Customer deleted successfully"}
+
+@api_router.get("/customers/{customer_id}/stats")
+async def get_customer_stats(customer_id: str, current_user: User = Depends(get_current_user)):
+    """Get customer purchase statistics"""
+    customer = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get bills for this customer
+    bills = await db.bills.find(
+        {"customer_name": customer['name'], "invoice_type": "SALE", "status": {"$in": ["paid", "due"]}},
+        {"_id": 0, "total_amount": 1, "created_at": 1}
+    ).to_list(10000)
+    
+    total_purchases = len(bills)
+    total_value = sum(b.get('total_amount', 0) or 0 for b in bills)
+    
+    last_purchase = None
+    if bills:
+        dates = [b.get('created_at') for b in bills if b.get('created_at')]
+        if dates:
+            last_purchase = max(dates)
+            if isinstance(last_purchase, str):
+                last_purchase = datetime.fromisoformat(last_purchase).strftime('%d/%m/%Y')
+            else:
+                last_purchase = last_purchase.strftime('%d/%m/%Y')
+    
+    return {
+        "total_purchases": total_purchases,
+        "total_value": round(total_value, 2),
+        "last_purchase": last_purchase
+    }
+
 # ==================== DOCTOR ROUTES ====================
 
 @api_router.post("/doctors", response_model=Doctor)

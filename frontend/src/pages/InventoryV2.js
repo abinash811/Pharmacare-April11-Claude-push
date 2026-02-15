@@ -45,9 +45,12 @@ export default function InventoryV2() {
   const [showAddProductDialog, setShowAddProductDialog] = useState(false);
   const [showAdjustStockDialog, setShowAdjustStockDialog] = useState(false);
   const [showMovementHistoryDialog, setShowMovementHistoryDialog] = useState(false);
+  const [showWriteoffDialog, setShowWriteoffDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [stockMovements, setStockMovements] = useState([]);
+  const [writeoffReason, setWriteoffReason] = useState('');
+  const [writeoffQty, setWriteoffQty] = useState(0);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);

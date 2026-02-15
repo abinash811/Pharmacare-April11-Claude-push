@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, Search, Edit, Trash2, Eye, Phone, Mail, MapPin, User, 
-  Stethoscope, CreditCard, ShoppingBag, X, AlertCircle
+  Stethoscope, CreditCard, ShoppingBag, X, AlertCircle, FileSpreadsheet, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportCustomersToExcel } from '@/utils/excelExport';
+import { fetchWithCache, invalidateCache } from '@/utils/cache';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;

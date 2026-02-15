@@ -55,10 +55,11 @@ export default function PurchasesList() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const response = await axios.get(`${API}/suppliers`, {
+      const response = await axios.get(`${API}/suppliers?page_size=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setSuppliers(response.data);
+      // Handle paginated response format
+      setSuppliers(response.data.data || response.data);
     } catch (error) {
       console.error('Failed to load suppliers:', error);
     }
@@ -78,6 +79,7 @@ export default function PurchasesList() {
       if (filters.supplier_id) params.append('supplier_id', filters.supplier_id);
       if (filters.status) params.append('status', filters.status);
       if (filters.search) params.append('search', filters.search);
+      params.append('page_size', '100');
 
       const [purchasesRes, returnsRes] = await Promise.all([
         axios.get(`${API}/purchases?${params.toString()}`, {
@@ -88,7 +90,8 @@ export default function PurchasesList() {
         })
       ]);
       
-      setPurchases(purchasesRes.data);
+      // Handle paginated response format
+      setPurchases(purchasesRes.data.data || purchasesRes.data);
       setReturns(returnsRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);

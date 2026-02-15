@@ -844,7 +844,12 @@ class SupplierCredit(BaseModel):
 class CustomerCreate(BaseModel):
     name: str
     phone: str
+    email: Optional[str] = None
     address: Optional[str] = None
+    customer_type: str = "regular"
+    gstin: Optional[str] = None
+    credit_limit: float = 0
+    notes: Optional[str] = None
 
 # Doctor Models
 class Doctor(BaseModel):

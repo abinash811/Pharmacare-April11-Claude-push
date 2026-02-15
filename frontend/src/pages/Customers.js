@@ -366,49 +366,6 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
-
-              {/* Mobile Card View */}
-              <div className="md:hidden divide-y">
-                {filteredCustomers.length === 0 ? (
-                  <div className="px-4 py-12 text-center text-gray-500">
-                    <User className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                    <p className="text-sm">{searchQuery ? 'No customers match your search' : 'No customers found'}</p>
-                  </div>
-                ) : (
-                  filteredCustomers.map((customer) => (
-                    <div key={customer.id} className="p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="font-medium text-gray-800">{customer.name}</div>
-                          {customer.phone && (
-                            <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-                              <Phone className="w-3 h-3" />
-                              {customer.phone}
-                            </div>
-                          )}
-                        </div>
-                        {getCustomerTypeBadge(customer.customer_type)}
-                      </div>
-                      <div className="flex justify-between items-center mt-3">
-                        {customer.credit_limit > 0 && (
-                          <span className="text-sm text-gray-600">Credit: ₹{customer.credit_limit.toLocaleString()}</span>
-                        )}
-                        <div className="flex gap-2 ml-auto">
-                          <Button variant="ghost" size="sm" onClick={() => handleViewCustomer(customer)}>
-                            <Eye className="w-4 h-4 text-blue-600" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleEditCustomer(customer)}>
-                            <Edit className="w-4 h-4 text-gray-600" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer)}>
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

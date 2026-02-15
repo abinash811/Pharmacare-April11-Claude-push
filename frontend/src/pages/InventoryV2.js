@@ -209,6 +209,8 @@ export default function InventoryV2() {
   };
 
   const handleExcelImportComplete = () => {
+    // Invalidate cache since new products may have new brands/categories
+    setInCache('filterOptions', null);
     fetchInventory();
     fetchFilterOptions();
     toast.success('Inventory updated from Excel import');

@@ -1087,6 +1087,13 @@ export default function InventoryV2() {
           </div>
         </div>
       )}
+
+      {/* Excel Bulk Upload Wizard */}
+      <ExcelBulkUploadWizard
+        isOpen={showExcelUploadWizard}
+        onClose={() => setShowExcelUploadWizard(false)}
+        onImportComplete={handleExcelImportComplete}
+      />
     </div>
   );
 }

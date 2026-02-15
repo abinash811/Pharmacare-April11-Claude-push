@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '@/App';
@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Trash2, Search, Save, Printer, AlertCircle, Package, Camera, RotateCcw, CheckSquare, Square, AlertTriangle } from 'lucide-react';
+import { Trash2, Search, Save, Printer, AlertCircle, Package, Camera, RotateCcw, CheckSquare, Square, AlertTriangle, Scan } from 'lucide-react';
 import { toast } from 'sonner';
-import BarcodeScannerModal from '@/components/BarcodeScannerModal';
+import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -29,6 +29,7 @@ export default function BillingNew() {
   
   // Barcode Scanner
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [scannerEnabled, setScannerEnabled] = useState(true);
   
   // Bill Items
   const [billItems, setBillItems] = useState([]);

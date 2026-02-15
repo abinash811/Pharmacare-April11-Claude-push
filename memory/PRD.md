@@ -45,6 +45,41 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 ### Data Integrity
 - [x] Inventory totals derived from underlying data (batches -> ledger entries)
 
+## P0 - Critical Optimizations (COMPLETED Feb 15, 2026)
+
+### MongoDB Indexing
+- [x] Automatic index creation on application startup
+- [x] Indexes on: products (sku, barcode, name), batches (product_sku, batch_no), sales (bill_number, created_at), purchases (purchase_number), customers (phone)
+
+### Barcode Scanner Enhancement
+- [x] USB Barcode Scanner support via `useBarcodeScanner` hook
+- [x] Camera-based scanning via html5-qrcode library
+- [x] Manual barcode entry mode
+- [x] Fast lookup endpoint: `GET /api/products/barcode/{barcode}`
+- [x] Product search includes barcode field
+
+## P1 - Core Feature Completion (COMPLETED Feb 15, 2026)
+
+### Customer Management
+- [x] Full CRUD operations (Create, Read, Update, Delete)
+- [x] Customer types: regular, wholesale, institution
+- [x] Customer fields: name, phone, email, address, GSTIN, credit_limit, notes
+- [x] Customer statistics endpoint: `GET /api/customers/{id}/stats`
+- [x] Search functionality
+
+### Doctor Management
+- [x] Full CRUD operations
+- [x] Doctor fields: name, contact, specialization, clinic_address, notes
+- [x] Integrated in Customers page with tabs
+
+### Reports Module
+- [x] Low Stock Report: `GET /api/reports/low-stock`
+- [x] Expiry Report: `GET /api/reports/expiry?days={days}`
+- [x] Sales Summary Report: `GET /api/reports/sales-summary`
+- [x] Reports UI with 4 report type cards (Sales, Low Stock, Expiry, Stock)
+- [x] Date range filtering for sales
+- [x] Export CSV functionality
+
 ## Core Requirements (Billing & Returns Module)
 
 ### Billing Features
@@ -92,142 +127,103 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 
 ## What's Been Implemented
 
-### Completed Features (Jan 2025)
-1. **Purchases Module** - Fixed API prefix issues, full CRUD operations
+### Latest Session (Feb 15, 2026)
+- **P0 Complete**: MongoDB indexing on startup, Enhanced barcode scanner (USB + Camera + Manual)
+- **P1 Complete**: Customer CRUD with stats, Doctor CRUD, Reports (Low Stock, Expiry, Sales)
+- **Testing**: 100% pass rate - 20 backend tests, all frontend verifications passed
+- **Model Fixes**: Customer and Doctor models updated with all required fields
+
+### Previous Sessions Summary
+1. **Purchases Module** - Full CRUD operations
 2. **Purchase Returns Module** - Complete frontend pages and backend endpoints
 3. **Enhanced Billing Page** - Advanced batch selector with FEFO workflow
-4. **Full RBAC System**
-   - User Management (CRUD operations)
-   - Customizable Roles & Permissions with granular controls
-5. **Customers Page** - Fixed import error
-6. **Core Inventory V2 System**
-   - Backend: GET /api/inventory with severity sorting and pagination
-   - Frontend: InventoryV2.js with summary cards, status badges, search
-   - Add Batch, Stock Adjustment, Movement History features
-7. **Settings Module** - Application-wide configuration management
-
-### Bug Fixes Applied (Jan 3, 2025)
-- Fixed endpoint mismatch: `POST /api/batches` → `POST /api/stock/batches`
-- Fixed endpoint mismatch: `GET /api/stock/movements` → `GET /api/stock-movements`
-- Fixed backend KeyError in stock batches when `product_sku` field missing
-
-### New Features Added (Jan 3, 2025)
-- Added "Add Purchase" button to add new products directly with optional initial stock
-- Added Filters panel with Status, Category, Brand dropdowns
-- Added clickable summary cards for quick filtering by status
-- Removed Export button per user request
-- Backend: New GET /api/inventory/filters endpoint
-- Backend: GET /api/inventory now accepts status_filter, category_filter, brand_filter params
-
-### Billing & Returns Enhancement (Jan 3, 2025)
-- Enhanced returns flow: Select items from original bill with checkboxes
-- Return quantity validation (cannot exceed purchased qty)
-- Return window warning from configurable settings
-- Edit draft bills feature with PUT /api/bills/{id} endpoint
-- Added Returns section to Settings (return_window_days, require_original_bill, allow_partial_return)
-- Fixed bill status calculation (was showing 'due' instead of 'paid')
-- Removed separate Sales Returns module (consolidated into Billing page)
-
-### Bug Fixes (Jan 3, 2025 - Session 2)
-- Fixed "Failed to save bill" error on sales returns - Made BillItem fields optional
-- Fixed sales return status - Returns with refund data now show "paid" instead of "due"
-- Added Edit (pencil) button to draft bills in BillingList.js - only shows for draft status
-
-### Purchase Module Consolidation (Jan 3, 2025)
-- Created PurchaseNew.js - Consolidated purchase and purchase return in single page
-- Updated PurchasesList.js - Added tabs for Purchases/Returns, summary cards, proper actions
-- Added PUT /api/purchases/{id} endpoint for editing draft purchases
-- Removed separate purchase return files (CreatePurchaseReturn.js, PurchaseReturnsList.js, PurchaseReturnDetail.js)
-- Updated routes and navigation
-
-### Purchase Batch Number Enhancement (Jan 22, 2026)
-- Batch number is now mandatory when creating/confirming a purchase
-- Validation error toast shown if batch number is empty when clicking "Confirm Purchase"
-- Purchase returns now display batch number in the selection table (in blue badge)
-- Batch number is auto-fetched from original purchase and displayed in Return Items table
-- Batch column shown for both new purchases (editable input) and returns (read-only badge)
-
-### Dashboard Analytics Enhancement (Jan 23, 2026)
-- Comprehensive dashboard with Key Metrics cards (Today/Week/Month/Total sales with % change indicators)
-- Sales Trend area chart (last 14 days) using Recharts library
-- Category-wise sales pie chart (displays "No category data" if products lack category)
-- Top 5 Selling Products with revenue and quantity sold
-- Top 5 Customers with purchase value and order count
-- Enhanced Low Stock alerts with clickable "View All" link
-- Enhanced Expiring Soon alerts with clickable "View All" link
-- Recent Bills section with clickable entries
-- Quick Stats row (Pending Payments, Draft Bills, Monthly Returns, Stock Value)
-- Refresh button to reload dashboard data
-- New backend endpoint: GET /api/analytics/dashboard
-
-### Supplier Management Module (Feb 11, 2026)
-- Full CRUD operations for suppliers (Create, Read, Update, Delete)
-- Supplier model enhanced with is_active field for activate/deactivate functionality
-- Delete protection: Cannot delete supplier if purchases exist (returns error with count)
-- Toggle status endpoint: PATCH /api/suppliers/{id}/toggle-status
-- Supplier summary endpoint: GET /api/suppliers/{id}/summary (read-only purchase insights)
-- Search by name and phone number
-- Purchase page only shows active suppliers (active_only=true filter)
-- Deactivated suppliers remain visible in historical purchases
-- Permissions structure added for suppliers module
-- No changes to inventory, billing, or ledger logic (reference-only module)
-
-### Sales & Returns UX Refactor - Unified Record Workspace Pattern (Feb 11, 2026)
-- **BillingList.js refactored**: Entire row clickable (not just bill number), removed small action buttons
-- **BillDetail.js enhanced**: Unified Record Workspace with View Mode and Return Mode
-- **View Mode**: Shows bill details with Return, History, Print, Edit (draft only) buttons in top right
-- **Return Mode**: Orange banner, checkboxes for item selection, editable return quantities, return summary
-- **Return Flow**: User clicks Return → selects items → adjusts qty → submit creates linked SALES_RETURN
-- **Sales Return List**: Entire row clickable, shows linked original bill reference
-- **Sales Return Workspace**: Same layout as Sales, shows "Original Sale" section with link
-- **Activity History**: Opens in dialog via History button (uses existing ActivityTimeline component)
-- **Consistency**: Same layout structure, spacing, header format, action placement between Sales and Returns
-- **No changes to**: Financial calculations, inventory update logic, ledger logic, backend business logic
+4. **Full RBAC System** - User Management, Customizable Roles & Permissions
+5. **Core Inventory V2 System** - Severity sorting, pagination, batch management
+6. **Settings Module** - Application-wide configuration
+7. **Dashboard Analytics** - Charts, metrics, insights using Recharts
+8. **Supplier Management** - Full CRUD with delete protection
+9. **Sales & Returns UX Refactor** - Unified Record Workspace pattern
 
 ## Tech Stack
 - **Backend**: FastAPI (Python)
 - **Frontend**: React.js
 - **Database**: MongoDB
 - **Authentication**: JWT + Emergent OAuth
+- **Charts**: Recharts
+- **Barcode**: html5-qrcode
 
 ## Key Data Models
 - `users`: User accounts with roles
 - `roles`: Custom roles with granular permissions
 - `settings`: Application configuration
-- `products`: Product catalog
+- `products`: Product catalog with barcode field
 - `stock_batches`: Inventory batches with expiry tracking
 - `stock_movements`: Immutable audit trail
+- `customers`: Customer data with GSTIN, credit limit
+- `doctors`: Doctor/prescriber information
 
 ## Test Status
-- **InventoryV2 Page**: ✅ 100% passed (Backend + Frontend)
-- **InventoryV2 Filters & Add Purchase**: ✅ 100% passed (16 backend + all frontend tests)
-- **Purchase Batch Number Features**: ✅ 100% passed (validation + auto-fetch)
-- **Dashboard Analytics**: ✅ 100% passed (12 backend + all frontend tests)
-- **Supplier Management Module**: ✅ 100% passed (13 backend + 10 frontend tests)
-- **Sales & Returns UX Refactor**: ✅ 100% passed (14 frontend tests)
-- **Test Reports**: 
-  - /app/test_reports/iteration_2.json (core features)
-  - /app/test_reports/iteration_3.json (filters & add purchase)
-  - /app/test_reports/iteration_4.json (purchase batch number features)
-  - /app/test_reports/iteration_5.json (dashboard analytics)
-  - /app/test_reports/iteration_6.json (supplier management)
-  - /app/test_reports/iteration_7.json (sales & returns UX refactor)
+- **P0/P1 Features**: ✅ 100% passed (iteration_8.json)
+- **Test Files**: 
+  - /app/test_reports/iteration_8.json
+  - /app/backend/tests/test_p0_p1_features.py
 
 ## Prioritized Backlog
 
-### P1 (High Priority)
-- [ ] Implement Expiry Write-off click handler logic
-- [ ] Implement Excel Upload functionality for bulk inventory import
-
-### P2 (Medium Priority)
-- [ ] User Password Self-Change UI
-- [ ] Complete Supplier Management UI with full CRUD
+### P2 (Medium Priority) - NEXT UP
+- [ ] Responsive design across all modules (mobile, tablet, desktop)
+- [ ] API optimizations (field selection, pagination improvements)
+- [ ] Browser caching for static data (categories, suppliers)
+- [ ] Excel export for reports (in addition to CSV)
+- [ ] Expiry Write-off click handler implementation
 
 ### P3 (Low Priority)
-- [ ] Deprecate old Inventory page after user approval
-- [ ] Enhance Sales Returns page with configurable return window
+- [ ] Refactor monolithic `server.py` into modular routers
+- [ ] Background jobs for analytics pre-calculation
+- [ ] Receipt printing functionality
+- [ ] Deprecate old Inventory pages (Inventory.js, InventoryImproved.js, InventoryNew.js)
 - [ ] "Notion-like" design polish across application
+- [ ] User Password Self-Change UI
+- [ ] Excel Upload for bulk inventory import
 
 ## Test Credentials
 - Email: testadmin@pharmacy.com
 - Password: admin123
+
+## Key API Endpoints
+
+### P0 Endpoints
+- `GET /api/products/barcode/{barcode}` - Fast barcode lookup
+- `GET /api/products/search-with-batches?q={query}` - Product search with batches
+
+### P1 Endpoints
+- `GET/POST /api/customers` - Customer list/create
+- `PUT/DELETE /api/customers/{id}` - Customer update/delete
+- `GET /api/customers/{id}/stats` - Customer statistics
+- `GET/POST /api/doctors` - Doctor list/create
+- `PUT/DELETE /api/doctors/{id}` - Doctor update/delete
+- `GET /api/reports/low-stock` - Low stock report
+- `GET /api/reports/expiry?days={days}` - Expiry report
+- `GET /api/reports/sales-summary` - Sales summary
+
+## File Structure (Key Files)
+```
+/app/
+├── backend/
+│   ├── server.py          # Main FastAPI app (needs refactoring)
+│   └── tests/
+│       ├── test_p0_p1_features.py
+│       ├── test_dashboard_analytics.py
+│       └── test_supplier_management.py
+└── frontend/
+    └── src/
+        ├── components/
+        │   ├── BarcodeScannerModal.js
+        │   └── Layout.js
+        └── pages/
+            ├── BillingNew.js
+            ├── Customers.js
+            ├── Reports.js
+            ├── Dashboard.js
+            └── ...
+```

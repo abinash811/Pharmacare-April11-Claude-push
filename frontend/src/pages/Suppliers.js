@@ -249,7 +249,7 @@ export default function Suppliers() {
         </Button>
       </div>
 
-      {/* IMPLEMENTED – Search Bar */}
+      {/* IMPLEMENTED – Search Bar with debouncing */}
       <div className="mb-6">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -257,7 +257,7 @@ export default function Suppliers() {
             type="text"
             placeholder="Search by name or phone..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             data-testid="supplier-search"
           />

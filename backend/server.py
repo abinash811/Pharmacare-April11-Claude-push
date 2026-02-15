@@ -4592,9 +4592,15 @@ async def get_purchases(
     supplier_id: Optional[str] = None,
     status: Optional[str] = None,
     search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
     current_user: User = Depends(get_current_user)
 ):
-    """Get purchases with filters"""
+    """Get purchases with pagination and filters"""
+    # Validate pagination params
+    page_size = min(max(page_size, 1), 100)
+    page = max(page, 1)
+    
     query = {}
     
     if from_date:
@@ -4618,10 +4624,24 @@ async def get_purchases(
             {"supplier_invoice_no": {"$regex": search, "$options": "i"}}
         ]
     
-    purchases = await db.purchases.find(query, {"_id": 0}).sort("purchase_date", -1).to_list(1000)
+    # Get total count
+    total = await db.purchases.count_documents(query)
     
-    # Return as-is without date conversion (dates are stored as ISO strings)
-    return purchases
+    # Paginate
+    skip = (page - 1) * page_size
+    purchases = await db.purchases.find(query, {"_id": 0}).sort("purchase_date", -1).skip(skip).limit(page_size).to_list(page_size)
+    
+    return {
+        "data": purchases,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total,
+            "has_prev": page > 1
+        }
+    }
 
 @api_router.post("/purchases")
 async def create_purchase(

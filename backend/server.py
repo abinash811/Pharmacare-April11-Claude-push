@@ -727,6 +727,13 @@ class Customer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     phone: str
+    email: Optional[str] = None
+    address: Optional[str] = None
+    customer_type: str = "regular"  # regular, wholesale, institution
+    gstin: Optional[str] = None
+    credit_limit: float = 0
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # ==================== GOODS RECEIPT MODELS ====================
 class GoodsReceiptItem(BaseModel):

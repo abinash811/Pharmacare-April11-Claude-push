@@ -213,10 +213,20 @@ export default function Suppliers() {
     }
   };
 
-  // IMPLEMENTED – Search filter
+  // IMPLEMENTED – Search filter with debouncing
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+    }, 300);
+  };
+
   const filteredSuppliers = suppliers.filter(s => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!debouncedSearch) return true;
+    const query = debouncedSearch.toLowerCase();
     return (
       s.name?.toLowerCase().includes(query) ||
       s.phone?.toLowerCase().includes(query) ||

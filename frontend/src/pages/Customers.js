@@ -67,17 +67,28 @@ export default function Customers() {
     setLoading(false);
   };
 
-  // Filter customers/doctors by search
+  // Debounce search input
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+    }, 300);
+  };
+
+  // Filter customers/doctors by debounced search
   const filteredCustomers = customers.filter(c =>
-    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.phone?.includes(searchQuery) ||
-    c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    c.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    c.phone?.includes(debouncedSearch) ||
+    c.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   const filteredDoctors = doctors.filter(d =>
-    d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.contact?.includes(searchQuery) ||
-    d.specialization?.toLowerCase().includes(searchQuery.toLowerCase())
+    d.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    d.contact?.includes(debouncedSearch) ||
+    d.specialization?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Customer CRUD

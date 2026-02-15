@@ -4355,7 +4355,7 @@ logging.basicConfig(
 
 @app.on_event("startup")
 async def startup_db():
-    """Initialize database with default roles"""
+    """Initialize database with default roles and create indexes"""
     # Check if roles collection is empty
     roles_count = await db.roles.count_documents({})
     
@@ -4366,6 +4366,60 @@ async def startup_db():
             doc = role.model_dump()
             await db.roles.insert_one(doc)
         print("✅ Default roles initialized")
+    
+    # Create database indexes for optimization
+    try:
+        # Products collection indexes
+        await db.products.create_index("name")
+        await db.products.create_index("sku", unique=True)
+        await db.products.create_index("barcode", sparse=True)  # For barcode scanning
+        await db.products.create_index("brand")
+        await db.products.create_index("category")
+        await db.products.create_index("status")
+        await db.products.create_index([("name", 1), ("brand", 1), ("sku", 1)])  # Composite for search
+        
+        # Stock batches collection indexes
+        await db.stock_batches.create_index("product_sku")
+        await db.stock_batches.create_index("expiry_date")
+        await db.stock_batches.create_index("batch_no")
+        await db.stock_batches.create_index([("product_sku", 1), ("expiry_date", 1)])
+        await db.stock_batches.create_index([("qty_on_hand", 1)], partialFilterExpression={"qty_on_hand": {"$gt": 0}})
+        
+        # Bills collection indexes
+        await db.bills.create_index("bill_number")
+        await db.bills.create_index("created_at")
+        await db.bills.create_index("customer_name")
+        await db.bills.create_index("invoice_type")
+        await db.bills.create_index("status")
+        await db.bills.create_index([("invoice_type", 1), ("status", 1), ("created_at", -1)])
+        
+        # Purchases collection indexes
+        await db.purchases.create_index("purchase_number")
+        await db.purchases.create_index("supplier_id")
+        await db.purchases.create_index("purchase_date")
+        await db.purchases.create_index("status")
+        
+        # Customers collection indexes
+        await db.customers.create_index("name")
+        await db.customers.create_index("phone", unique=True, sparse=True)
+        await db.customers.create_index("email", sparse=True)
+        
+        # Suppliers collection indexes
+        await db.suppliers.create_index("name")
+        await db.suppliers.create_index("phone", sparse=True)
+        await db.suppliers.create_index("is_active")
+        
+        # Audit logs index
+        await db.audit_logs.create_index([("created_at", -1)])
+        await db.audit_logs.create_index("entity_type")
+        
+        # Stock movements index
+        await db.stock_movements.create_index([("performed_at", -1)])
+        await db.stock_movements.create_index("product_sku")
+        
+        print("✅ Database indexes created successfully")
+    except Exception as e:
+        print(f"⚠️ Index creation warning (may already exist): {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

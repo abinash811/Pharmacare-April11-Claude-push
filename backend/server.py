@@ -944,6 +944,41 @@ async def get_current_user(request: Request, session_token: Optional[str] = Cook
             raise HTTPException(status_code=401, detail="User not found")
         return User(**user)
 
+# ==================== API UTILITY HELPERS ====================
+
+def parse_fields_param(fields: Optional[str]) -> Optional[dict]:
+    """
+    Parse comma-separated fields into MongoDB projection.
+    Example: "name,sku,price" -> {"_id": 0, "name": 1, "sku": 1, "price": 1}
+    """
+    if not fields:
+        return {"_id": 0}  # Default: exclude _id only
+    
+    field_list = [f.strip() for f in fields.split(",") if f.strip()]
+    if not field_list:
+        return {"_id": 0}
+    
+    projection = {"_id": 0}
+    for field in field_list:
+        projection[field] = 1
+    return projection
+
+def paginate_response(items: list, page: int, page_size: int, total: int) -> dict:
+    """
+    Create a standardized paginated response.
+    """
+    return {
+        "data": items,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total,
+            "has_prev": page > 1
+        }
+    }
+
 # ==================== AUTH ROUTES ====================
 
 @api_router.post("/auth/register")

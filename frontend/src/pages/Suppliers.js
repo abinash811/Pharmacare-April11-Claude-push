@@ -68,6 +68,8 @@ export default function Suppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [supplierSummary, setSupplierSummary] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimeoutRef = React.useRef(null);
   
   // VERIFIED – Form fields match backend model
   const [formData, setFormData] = useState({

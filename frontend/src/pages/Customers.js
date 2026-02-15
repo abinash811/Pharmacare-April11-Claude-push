@@ -1,23 +1,47 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus } from 'lucide-react';
+import { 
+  Plus, Search, Edit, Trash2, Eye, Phone, Mail, MapPin, User, 
+  Stethoscope, CreditCard, ShoppingBag, X, AlertCircle
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 export default function Customers() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Customer Dialog
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [customerForm, setCustomerForm] = useState({
+    name: '', phone: '', email: '', address: '', customer_type: 'regular', gstin: '', credit_limit: 0, notes: ''
+  });
+  
+  // Doctor Dialog
   const [showDoctorDialog, setShowDoctorDialog] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState(null);
+  const [doctorForm, setDoctorForm] = useState({
+    name: '', contact: '', specialization: '', clinic_address: '', notes: ''
+  });
+  
+  // Customer Detail Dialog
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerStats, setCustomerStats] = useState(null);
+  const [customerPurchases, setCustomerPurchases] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -38,104 +62,221 @@ export default function Customers() {
     setLoading(false);
   };
 
-  const handleAddCustomer = async (e) => {
+  // Filter customers/doctors by search
+  const filteredCustomers = customers.filter(c =>
+    c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.phone?.includes(searchQuery) ||
+    c.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredDoctors = doctors.filter(d =>
+    d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.contact?.includes(searchQuery) ||
+    d.specialization?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Customer CRUD
+  const handleCustomerSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
     const token = localStorage.getItem('token');
 
-    const customerData = {
-      name: formData.get('name'),
-      phone: formData.get('phone'),
-      address: formData.get('address')
-    };
-
     try {
-      await axios.post(`${API}/customers`, customerData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success('Customer added successfully');
+      if (editingCustomer) {
+        await axios.put(`${API}/customers/${editingCustomer.id}`, customerForm, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success('Customer updated successfully');
+      } else {
+        await axios.post(`${API}/customers`, customerForm, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success('Customer added successfully');
+      }
       setShowCustomerDialog(false);
+      resetCustomerForm();
       fetchData();
-      e.target.reset();
     } catch (error) {
-      toast.error('Failed to add customer');
+      toast.error(error.response?.data?.detail || 'Failed to save customer');
     }
   };
 
-  const handleAddDoctor = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
+  const handleEditCustomer = (customer) => {
+    setEditingCustomer(customer);
+    setCustomerForm({
+      name: customer.name || '',
+      phone: customer.phone || '',
+      email: customer.email || '',
+      address: customer.address || '',
+      customer_type: customer.customer_type || 'regular',
+      gstin: customer.gstin || '',
+      credit_limit: customer.credit_limit || 0,
+      notes: customer.notes || ''
+    });
+    setShowCustomerDialog(true);
+  };
+
+  const handleDeleteCustomer = async (customer) => {
+    if (!window.confirm(`Delete customer "${customer.name}"? This action cannot be undone.`)) return;
+    
     const token = localStorage.getItem('token');
-
-    const doctorData = {
-      name: formData.get('name'),
-      contact: formData.get('contact'),
-      specialization: formData.get('specialization')
-    };
-
     try {
-      await axios.post(`${API}/doctors`, doctorData, {
+      await axios.delete(`${API}/customers/${customer.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      toast.success('Doctor added successfully');
-      setShowDoctorDialog(false);
+      toast.success('Customer deleted');
       fetchData();
-      e.target.reset();
     } catch (error) {
-      toast.error('Failed to add doctor');
+      toast.error(error.response?.data?.detail || 'Failed to delete customer');
     }
+  };
+
+  const resetCustomerForm = () => {
+    setEditingCustomer(null);
+    setCustomerForm({
+      name: '', phone: '', email: '', address: '', customer_type: 'regular', gstin: '', credit_limit: 0, notes: ''
+    });
+  };
+
+  // Doctor CRUD
+  const handleDoctorSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+
+    try {
+      if (editingDoctor) {
+        await axios.put(`${API}/doctors/${editingDoctor.id}`, doctorForm, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success('Doctor updated successfully');
+      } else {
+        await axios.post(`${API}/doctors`, doctorForm, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        toast.success('Doctor added successfully');
+      }
+      setShowDoctorDialog(false);
+      resetDoctorForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to save doctor');
+    }
+  };
+
+  const handleEditDoctor = (doctor) => {
+    setEditingDoctor(doctor);
+    setDoctorForm({
+      name: doctor.name || '',
+      contact: doctor.contact || '',
+      specialization: doctor.specialization || '',
+      clinic_address: doctor.clinic_address || '',
+      notes: doctor.notes || ''
+    });
+    setShowDoctorDialog(true);
+  };
+
+  const handleDeleteDoctor = async (doctor) => {
+    if (!window.confirm(`Delete doctor "${doctor.name}"?`)) return;
+    
+    const token = localStorage.getItem('token');
+    try {
+      await axios.delete(`${API}/doctors/${doctor.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Doctor deleted');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to delete doctor');
+    }
+  };
+
+  const resetDoctorForm = () => {
+    setEditingDoctor(null);
+    setDoctorForm({
+      name: '', contact: '', specialization: '', clinic_address: '', notes: ''
+    });
+  };
+
+  // View Customer Details
+  const handleViewCustomer = async (customer) => {
+    setSelectedCustomer(customer);
+    setShowDetailDialog(true);
+    
+    const token = localStorage.getItem('token');
+    try {
+      // Fetch customer stats and purchase history
+      const [statsRes, purchasesRes] = await Promise.all([
+        axios.get(`${API}/customers/${customer.id}/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/bills?customer_name=${encodeURIComponent(customer.name)}&limit=10`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setCustomerStats(statsRes.data);
+      setCustomerPurchases(purchasesRes.data || []);
+    } catch (error) {
+      console.error('Error fetching customer details:', error);
+    }
+  };
+
+  const getCustomerTypeBadge = (type) => {
+    const styles = {
+      regular: 'bg-blue-100 text-blue-700',
+      wholesale: 'bg-purple-100 text-purple-700',
+      institution: 'bg-green-100 text-green-700'
+    };
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[type] || styles.regular}`}>
+        {type?.charAt(0).toUpperCase() + type?.slice(1)}
+      </span>
+    );
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8" data-testid="customers-page">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Customers & Doctors</h1>
-        <p className="text-gray-600 mt-1">Manage customer and doctor information</p>
+    <div className="min-h-screen bg-gray-50 p-6" data-testid="customers-page">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Customers & Doctors</h1>
+        <p className="text-sm text-gray-500">Manage customer and referring doctor information</p>
       </div>
 
       <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="customers" data-testid="customers-tab">Customers</TabsTrigger>
-          <TabsTrigger value="doctors" data-testid="doctors-tab">Doctors</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="customers" className="data-[state=active]:bg-blue-50">
+              <User className="w-4 h-4 mr-2" />
+              Customers ({filteredCustomers.length})
+            </TabsTrigger>
+            <TabsTrigger value="doctors" className="data-[state=active]:bg-green-50">
+              <Stethoscope className="w-4 h-4 mr-2" />
+              Doctors ({filteredDoctors.length})
+            </TabsTrigger>
+          </TabsList>
 
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Customers Tab */}
         <TabsContent value="customers">
           <div className="mb-4 flex justify-end">
-            <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
-              <DialogTrigger asChild>
-                <Button data-testid="add-customer-btn">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Customer
-                </Button>
-              </DialogTrigger>
-              <DialogContent data-testid="add-customer-dialog">
-                <DialogHeader>
-                  <DialogTitle>Add New Customer</DialogTitle>
-                  <DialogDescription>Enter customer details</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddCustomer} className="space-y-4">
-                  <div>
-                    <Label>Name *</Label>
-                    <Input name="name" required data-testid="customer-name-input" />
-                  </div>
-                  <div>
-                    <Label>Phone *</Label>
-                    <Input name="phone" required data-testid="customer-phone-input" />
-                  </div>
-                  <div>
-                    <Label>Address</Label>
-                    <Input name="address" data-testid="customer-address-input" />
-                  </div>
-                  <Button type="submit" className="w-full" data-testid="submit-customer-btn">
-                    Add Customer
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} data-testid="add-customer-btn">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Customer
+            </Button>
           </div>
 
           <Card>
@@ -144,27 +285,78 @@ export default function Customers() {
                 <table className="w-full" data-testid="customers-table">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Type</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Credit Limit</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {customers.length === 0 ? (
+                  <tbody className="divide-y">
+                    {filteredCustomers.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
-                          No customers found.
+                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                          <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                          <p>{searchQuery ? 'No customers match your search' : 'No customers found'}</p>
                         </td>
                       </tr>
                     ) : (
-                      customers.map((customer) => (
-                        <tr key={customer.id} className="hover:bg-gray-50" data-testid={`customer-row-${customer.id}`}>
-                          <td className="px-6 py-4 font-medium text-gray-800">{customer.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{customer.phone}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{customer.address || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {new Date(customer.created_at).toLocaleDateString()}
+                      filteredCustomers.map((customer) => (
+                        <tr key={customer.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-800">{customer.name}</div>
+                            {customer.gstin && (
+                              <div className="text-xs text-gray-500">GSTIN: {customer.gstin}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {customer.phone && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <Phone className="w-3 h-3" />
+                                {customer.phone}
+                              </div>
+                            )}
+                            {customer.email && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Mail className="w-3 h-3" />
+                                {customer.email}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {getCustomerTypeBadge(customer.customer_type)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {customer.credit_limit > 0 ? (
+                              <span className="font-medium text-green-600">₹{customer.credit_limit?.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleViewCustomer(customer)}
+                                className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEditCustomer(customer)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCustomer(customer)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -176,39 +368,13 @@ export default function Customers() {
           </Card>
         </TabsContent>
 
+        {/* Doctors Tab */}
         <TabsContent value="doctors">
           <div className="mb-4 flex justify-end">
-            <Dialog open={showDoctorDialog} onOpenChange={setShowDoctorDialog}>
-              <DialogTrigger asChild>
-                <Button data-testid="add-doctor-btn">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Doctor
-                </Button>
-              </DialogTrigger>
-              <DialogContent data-testid="add-doctor-dialog">
-                <DialogHeader>
-                  <DialogTitle>Add New Doctor</DialogTitle>
-                  <DialogDescription>Enter doctor details</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleAddDoctor} className="space-y-4">
-                  <div>
-                    <Label>Name *</Label>
-                    <Input name="name" required data-testid="doctor-name-input" />
-                  </div>
-                  <div>
-                    <Label>Contact</Label>
-                    <Input name="contact" data-testid="doctor-contact-input" />
-                  </div>
-                  <div>
-                    <Label>Specialization</Label>
-                    <Input name="specialization" data-testid="doctor-specialization-input" />
-                  </div>
-                  <Button type="submit" className="w-full" data-testid="submit-doctor-btn">
-                    Add Doctor
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} data-testid="add-doctor-btn">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Doctor
+            </Button>
           </div>
 
           <Card>
@@ -217,27 +383,63 @@ export default function Customers() {
                 <table className="w-full" data-testid="doctors-table">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Specialization</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Added</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Doctor</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Specialization</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {doctors.length === 0 ? (
+                  <tbody className="divide-y">
+                    {filteredDoctors.length === 0 ? (
                       <tr>
                         <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
-                          No doctors found.
+                          <Stethoscope className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                          <p>{searchQuery ? 'No doctors match your search' : 'No doctors found'}</p>
                         </td>
                       </tr>
                     ) : (
-                      doctors.map((doctor) => (
-                        <tr key={doctor.id} className="hover:bg-gray-50" data-testid={`doctor-row-${doctor.id}`}>
-                          <td className="px-6 py-4 font-medium text-gray-800">{doctor.name}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{doctor.contact || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{doctor.specialization || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {new Date(doctor.created_at).toLocaleDateString()}
+                      filteredDoctors.map((doctor) => (
+                        <tr key={doctor.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-800">Dr. {doctor.name}</div>
+                            {doctor.clinic_address && (
+                              <div className="text-xs text-gray-500">{doctor.clinic_address}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {doctor.contact && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <Phone className="w-3 h-3" />
+                                {doctor.contact}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {doctor.specialization ? (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                {doctor.specialization}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleEditDoctor(doctor)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDoctor(doctor)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -249,6 +451,251 @@ export default function Customers() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add/Edit Customer Dialog */}
+      <Dialog open={showCustomerDialog} onOpenChange={(open) => { if (!open) resetCustomerForm(); setShowCustomerDialog(open); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
+            <DialogDescription>
+              {editingCustomer ? 'Update customer information' : 'Enter customer details'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCustomerSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Name *</Label>
+                <Input
+                  value={customerForm.name}
+                  onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Phone *</Label>
+                <Input
+                  value={customerForm.phone}
+                  onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                  required
+                  maxLength={10}
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={customerForm.email}
+                  onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Customer Type</Label>
+                <select
+                  value={customerForm.customer_type}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customer_type: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value="regular">Regular</option>
+                  <option value="wholesale">Wholesale</option>
+                  <option value="institution">Institution</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <Label>Address</Label>
+                <Input
+                  value={customerForm.address}
+                  onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                />
+              </div>
+              {(customerForm.customer_type === 'wholesale' || customerForm.customer_type === 'institution') && (
+                <div>
+                  <Label>GSTIN</Label>
+                  <Input
+                    value={customerForm.gstin}
+                    onChange={(e) => setCustomerForm({ ...customerForm, gstin: e.target.value.toUpperCase() })}
+                    maxLength={15}
+                    placeholder="22AAAAA0000A1Z5"
+                  />
+                </div>
+              )}
+              <div>
+                <Label>Credit Limit (₹)</Label>
+                <Input
+                  type="number"
+                  value={customerForm.credit_limit}
+                  onChange={(e) => setCustomerForm({ ...customerForm, credit_limit: parseInt(e.target.value) || 0 })}
+                  min="0"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { resetCustomerForm(); setShowCustomerDialog(false); }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingCustomer ? 'Update Customer' : 'Add Customer'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Doctor Dialog */}
+      <Dialog open={showDoctorDialog} onOpenChange={(open) => { if (!open) resetDoctorForm(); setShowDoctorDialog(open); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
+            <DialogDescription>
+              {editingDoctor ? 'Update doctor information' : 'Enter doctor details'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDoctorSubmit} className="space-y-4">
+            <div>
+              <Label>Name *</Label>
+              <Input
+                value={doctorForm.name}
+                onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label>Contact</Label>
+              <Input
+                value={doctorForm.contact}
+                onChange={(e) => setDoctorForm({ ...doctorForm, contact: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Specialization</Label>
+              <Input
+                value={doctorForm.specialization}
+                onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
+                placeholder="e.g., General Physician, Cardiologist"
+              />
+            </div>
+            <div>
+              <Label>Clinic Address</Label>
+              <Input
+                value={doctorForm.clinic_address}
+                onChange={(e) => setDoctorForm({ ...doctorForm, clinic_address: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { resetDoctorForm(); setShowDoctorDialog(false); }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingDoctor ? 'Update Doctor' : 'Add Doctor'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Customer Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-6">
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500 uppercase">Name</label>
+                  <p className="font-medium">{selectedCustomer.name}</p>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase">Type</label>
+                  <p>{getCustomerTypeBadge(selectedCustomer.customer_type)}</p>
+                </div>
+                {selectedCustomer.phone && (
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Phone</label>
+                    <p>{selectedCustomer.phone}</p>
+                  </div>
+                )}
+                {selectedCustomer.email && (
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase">Email</label>
+                    <p>{selectedCustomer.email}</p>
+                  </div>
+                )}
+                {selectedCustomer.address && (
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500 uppercase">Address</label>
+                    <p className="text-sm">{selectedCustomer.address}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Stats Summary */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Purchase Summary</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-blue-600">
+                      {customerStats?.total_purchases || customerPurchases.length || 0}
+                    </p>
+                    <p className="text-xs text-gray-600">Total Bills</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-2xl font-bold text-green-600">
+                      ₹{customerStats?.total_value?.toLocaleString() || customerPurchases.reduce((sum, p) => sum + (p.total_amount || 0), 0).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-600">Total Spent</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 text-center">
+                    <p className="text-sm font-bold text-purple-600">
+                      {customerStats?.last_purchase || (customerPurchases[0] ? new Date(customerPurchases[0].created_at).toLocaleDateString() : 'N/A')}
+                    </p>
+                    <p className="text-xs text-gray-600">Last Purchase</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Purchases */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-gray-800 mb-3">Recent Purchases</h3>
+                {customerPurchases.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {customerPurchases.slice(0, 5).map((purchase) => (
+                      <div
+                        key={purchase.id}
+                        className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                        onClick={() => navigate(`/billing/${purchase.id}`)}
+                      >
+                        <div>
+                          <p className="font-medium text-blue-600">{purchase.bill_number}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(purchase.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">₹{purchase.total_amount?.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">{purchase.items?.length || 0} items</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-400 py-4">No purchases yet</p>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowDetailDialog(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

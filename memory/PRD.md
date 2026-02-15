@@ -20,7 +20,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 ### Inventory Increase
 - [x] Manual purchase receipts (Add Batch dialog)
 - [x] Add Purchase button - Quick dialog to add new products with optional initial stock
-- [ ] Bulk Excel upload workflow (UI placeholder exists)
+- [x] Bulk Excel upload workflow (COMPLETED Feb 15, 2026)
 
 ### Inventory Decrease
 - [x] Stock deduction is event-driven (Sale, Purchase Return, Expiry Write-off, Adjustment)

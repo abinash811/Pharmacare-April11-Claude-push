@@ -1667,12 +1667,19 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
     
     return product
 
-@api_router.get("/products", response_model=List[Product])
+@api_router.get("/products")
 async def get_products(
     search: Optional[str] = None,
     category: Optional[str] = None,
+    fields: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 100,
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Get products with optional pagination and field selection.
+    - fields: comma-separated list of fields to return (e.g., "name,sku,default_mrp")
+    """
     query = {}
     if search:
         query["$or"] = [
@@ -1683,8 +1690,14 @@ async def get_products(
         ]
     if category:
         query["category"] = category
-        
-    products = await db.products.find(query, {"_id": 0}).sort("name", 1).to_list(10000)
+    
+    projection = parse_fields_param(fields)
+    
+    # Get total count for pagination
+    total = await db.products.count_documents(query)
+    
+    skip = (page - 1) * page_size
+    products = await db.products.find(query, projection).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
     for prod in products:
         if isinstance(prod['created_at'], str):
             prod['created_at'] = datetime.fromisoformat(prod['created_at'])

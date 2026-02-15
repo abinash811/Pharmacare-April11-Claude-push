@@ -654,15 +654,22 @@ export default function InventoryV2() {
                               <tbody className="divide-y">
                                 {productBatches[item.product.sku].map((batch) => {
                                   const qtyUnits = Math.floor(batch.qty_on_hand * (item.product.units_per_pack || 1));
+                                  const expired = isBatchExpired(batch.expiry_date);
+                                  const nearExpiry = isBatchNearExpiry(batch.expiry_date);
                                   return (
-                                    <tr key={batch.id} className="hover:bg-white">
+                                    <tr key={batch.id} className={`hover:bg-white ${expired ? 'bg-red-50' : nearExpiry ? 'bg-yellow-50' : ''}`}>
                                       <td className="px-4 py-2">{batch.batch_no || '-'}</td>
-                                      <td className="px-4 py-2">{formatDate(batch.expiry_date)}</td>
+                                      <td className="px-4 py-2">
+                                        <span className={expired ? 'text-red-600 font-medium' : nearExpiry ? 'text-orange-600' : ''}>
+                                          {formatDate(batch.expiry_date)}
+                                          {expired && <span className="ml-1 text-xs bg-red-100 text-red-700 px-1 rounded">Expired</span>}
+                                        </span>
+                                      </td>
                                       <td className="px-4 py-2 text-right">{batch.qty_on_hand}</td>
                                       <td className="px-4 py-2 text-right">{qtyUnits}</td>
                                       <td className="px-4 py-2 text-right">₹{batch.mrp_per_unit || batch.mrp || 0}</td>
                                       <td className="px-4 py-2 text-center">
-                                        <div className="flex gap-1 justify-center">
+                                        <div className="flex gap-1 justify-center flex-wrap">
                                           <button
                                             onClick={(e) => { e.stopPropagation(); openAdjustStockDialog(item, batch); }}
                                             className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
@@ -677,6 +684,15 @@ export default function InventoryV2() {
                                           >
                                             History
                                           </button>
+                                          {(expired || nearExpiry) && batch.qty_on_hand > 0 && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); openWriteoffDialog(item, batch); }}
+                                              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                              data-testid="writeoff-btn"
+                                            >
+                                              Write-off
+                                            </button>
+                                          )}
                                         </div>
                                       </td>
                                     </tr>

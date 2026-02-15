@@ -1018,6 +1018,67 @@ export default function InventoryV2() {
           </div>
         </div>
       )}
+
+      {/* Write-off Dialog */}
+      {showWriteoffDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-red-600">Expiry Write-off</h2>
+              <button onClick={() => setShowWriteoffDialog(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4 p-3 bg-red-50 rounded border border-red-200">
+                <p className="text-sm font-medium text-red-900">{selectedProduct?.name}</p>
+                <p className="text-xs text-red-700">Batch: {selectedBatch?.batch_no}</p>
+                <p className="text-xs text-red-700">Expiry: {formatDate(selectedBatch?.expiry_date)}</p>
+                <p className="text-xs text-red-700">Current Stock: {selectedBatch?.qty_on_hand} packs</p>
+              </div>
+              
+              <div className="mb-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  <strong>Warning:</strong> This action will permanently remove the specified quantity from inventory as expired stock.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Write-off Quantity (Packs) *</label>
+                  <input 
+                    type="number" 
+                    value={writeoffQty}
+                    onChange={(e) => setWriteoffQty(parseFloat(e.target.value) || 0)}
+                    max={selectedBatch?.qty_on_hand || 0}
+                    min="0.01"
+                    step="0.01"
+                    className="w-full px-3 py-2 border rounded" 
+                    required 
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Max: {selectedBatch?.qty_on_hand} packs</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                  <select 
+                    value={writeoffReason}
+                    onChange={(e) => setWriteoffReason(e.target.value)}
+                    className="w-full px-3 py-2 border rounded"
+                  >
+                    <option value="Expired stock write-off">Expired stock write-off</option>
+                    <option value="Near expiry - not saleable">Near expiry - not saleable</option>
+                    <option value="Damaged and expired">Damaged and expired</option>
+                    <option value="Regulatory disposal">Regulatory disposal</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                <Button variant="secondary" onClick={() => setShowWriteoffDialog(false)}>Cancel</Button>
+                <Button variant="danger" onClick={handleWriteoff}>Confirm Write-off</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

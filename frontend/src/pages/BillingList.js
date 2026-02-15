@@ -38,15 +38,16 @@ export default function BillingList() {
     const token = localStorage.getItem('token');
     try {
       const [billsRes, returnsRes] = await Promise.all([
-        axios.get(`${API}/bills?invoice_type=SALE`, {
+        axios.get(`${API}/bills?invoice_type=SALE&page_size=100`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`${API}/bills?invoice_type=SALES_RETURN`, {
+        axios.get(`${API}/bills?invoice_type=SALES_RETURN&page_size=100`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
-      setBills(billsRes.data);
-      setReturns(returnsRes.data);
+      // Handle paginated response format
+      setBills(billsRes.data.data || billsRes.data);
+      setReturns(returnsRes.data.data || returnsRes.data);
     } catch (error) {
       toast.error('Failed to load data');
     }

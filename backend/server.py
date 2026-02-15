@@ -3488,13 +3488,49 @@ async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
     
     return doctor
 
-@api_router.get("/doctors", response_model=List[Doctor])
-async def get_doctors(current_user: User = Depends(get_current_user)):
-    doctors = await db.doctors.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/doctors")
+async def get_doctors(
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Get all doctors with pagination and search"""
+    # Validate pagination params
+    page_size = min(max(page_size, 1), 100)
+    page = max(page, 1)
+    
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"specialization": {"$regex": search, "$options": "i"}},
+            {"registration_number": {"$regex": search, "$options": "i"}},
+            {"phone": {"$regex": search, "$options": "i"}}
+        ]
+    
+    # Get total count
+    total = await db.doctors.count_documents(query)
+    
+    # Paginate
+    skip = (page - 1) * page_size
+    doctors = await db.doctors.find(query, {"_id": 0}).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
+    
     for doctor in doctors:
         if isinstance(doctor['created_at'], str):
             doctor['created_at'] = datetime.fromisoformat(doctor['created_at'])
-    return doctors
+    
+    return {
+        "data": doctors,
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total,
+            "has_prev": page > 1
+        }
+    }
 
 @api_router.put("/doctors/{doctor_id}")
 async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(get_current_user)):

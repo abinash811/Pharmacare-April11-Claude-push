@@ -25,6 +25,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 ### Inventory Decrease
 - [x] Stock deduction is event-driven (Sale, Purchase Return, Expiry Write-off, Adjustment)
 - [x] No direct quantity editing - uses Stock Adjustment dialog with reasons
+- [x] Expiry Write-off click handler with dedicated dialog
 
 ### Stock Ledger
 - [x] Non-editable, append-only ledger for all stock movements
@@ -35,15 +36,6 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Core inventory behaviors controlled by Settings module
 - [x] Near-expiry days configurable
 - [x] Return window days configurable
-
-### Inventory Health Data
-- [x] UI summary cards showing Critical/Warning/Healthy counts (clickable for filtering)
-- [x] Filters panel with Status, Category, Brand dropdowns
-- [x] Clear all filters functionality
-- [x] Export button removed per user request
-
-### Data Integrity
-- [x] Inventory totals derived from underlying data (batches -> ledger entries)
 
 ## P0 - Critical Optimizations (COMPLETED Feb 15, 2026)
 
@@ -66,6 +58,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Customer fields: name, phone, email, address, GSTIN, credit_limit, notes
 - [x] Customer statistics endpoint: `GET /api/customers/{id}/stats`
 - [x] Search functionality
+- [x] Excel export functionality
 
 ### Doctor Management
 - [x] Full CRUD operations
@@ -79,70 +72,33 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Reports UI with 4 report type cards (Sales, Low Stock, Expiry, Stock)
 - [x] Date range filtering for sales
 - [x] Export CSV functionality
+- [x] Export Excel functionality
 
-## Core Requirements (Billing & Returns Module)
+## P2 - UI/UX and Performance (COMPLETED Feb 15, 2026)
 
-### Billing Features
-- [x] Product search with FEFO batch selection
-- [x] Barcode scanner integration
-- [x] Multiple payment methods (Cash, Card, UPI, Credit)
-- [x] Split payment support
-- [x] Per-item GST%, discount, quantity editing
-- [x] Draft bill functionality (save without payment)
-- [x] Edit draft bills
-- [x] Stock deduction on paid bills
-- [x] Bill list with filters (status, payment method, time period)
-- [x] View bill details
+### API Optimizations
+- [x] Field selection via `fields` query parameter (e.g., `?fields=name,phone,email`)
+- [x] Pagination improvements with `page` and `page_size` parameters
+- [x] Standardized paginated response format with metadata
 
-### Returns Features (Integrated in Billing)
-- [x] Return mode in same billing page (?type=return)
-- [x] Select original bill to return from
-- [x] Display original bill items with checkboxes for selection
-- [x] Quantity validation (cannot return more than purchased)
-- [x] Return window warning (configurable in Settings)
-- [x] Multiple refund methods (Cash, Card, UPI, Credit Note)
-- [x] Refund reason selection
-- [x] Stock restoration on return
+### Browser Caching
+- [x] Cache utility at `/app/frontend/src/utils/cache.js`
+- [x] TTL-based caching for categories, suppliers, brands, doctors, settings
+- [x] `fetchWithCache()` helper for API calls
+- [x] Cache invalidation support
 
-## Core Requirements (Purchases Module)
+### Excel Export
+- [x] Export utility at `/app/frontend/src/utils/excelExport.js`
+- [x] Uses SheetJS (xlsx) library
+- [x] Export buttons on Reports page (CSV + Excel)
+- [x] Export button on Customers page
+- [x] Formatted exports with proper column headers
 
-### Purchase Features
-- [x] Create new purchase from supplier
-- [x] Search/Add products with batch, expiry, qty, cost price, MRP, GST
-- [x] Save as Draft or Confirm
-- [x] Edit draft purchases
-- [x] Stock automatically created on confirm
-- [x] Purchase list with filters
-
-### Purchase Returns Features (Integrated in Purchases)
-- [x] Return mode in same page (?type=return)
-- [x] Select original purchase to return from
-- [x] Display purchase items with checkboxes for selection
-- [x] Quantity validation (cannot return more than purchased)
-- [x] Return reason selection per item
-- [x] Multiple return reasons (Damaged, Expired, Wrong Item, Quality Issue, Excess Stock)
-- [x] Stock deduction on return confirm
-- [x] Batch number mandatory for new purchases (validation on Confirm Purchase)
-- [x] Batch number auto-fetched and displayed in returns flow
-
-## What's Been Implemented
-
-### Latest Session (Feb 15, 2026)
-- **P0 Complete**: MongoDB indexing on startup, Enhanced barcode scanner (USB + Camera + Manual)
-- **P1 Complete**: Customer CRUD with stats, Doctor CRUD, Reports (Low Stock, Expiry, Sales)
-- **Testing**: 100% pass rate - 20 backend tests, all frontend verifications passed
-- **Model Fixes**: Customer and Doctor models updated with all required fields
-
-### Previous Sessions Summary
-1. **Purchases Module** - Full CRUD operations
-2. **Purchase Returns Module** - Complete frontend pages and backend endpoints
-3. **Enhanced Billing Page** - Advanced batch selector with FEFO workflow
-4. **Full RBAC System** - User Management, Customizable Roles & Permissions
-5. **Core Inventory V2 System** - Severity sorting, pagination, batch management
-6. **Settings Module** - Application-wide configuration
-7. **Dashboard Analytics** - Charts, metrics, insights using Recharts
-8. **Supplier Management** - Full CRUD with delete protection
-9. **Sales & Returns UX Refactor** - Unified Record Workspace pattern
+### Expiry Write-off
+- [x] Write-off button appears for expired/near-expiry batches in Inventory V2
+- [x] Write-off dialog with quantity input and reason dropdown
+- [x] Backend endpoint: `POST /api/batches/{batch_id}/writeoff-expiry`
+- [x] Expired batches highlighted with red "Expired" badge
 
 ## Tech Stack
 - **Backend**: FastAPI (Python)
@@ -151,6 +107,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Authentication**: JWT + Emergent OAuth
 - **Charts**: Recharts
 - **Barcode**: html5-qrcode
+- **Excel Export**: SheetJS (xlsx)
 
 ## Key Data Models
 - `users`: User accounts with roles
@@ -164,20 +121,11 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 
 ## Test Status
 - **P0/P1 Features**: ✅ 100% passed (iteration_8.json)
-- **Test Files**: 
-  - /app/test_reports/iteration_8.json
-  - /app/backend/tests/test_p0_p1_features.py
+- **P2 Features**: ✅ Verified via curl and screenshots
 
 ## Prioritized Backlog
 
-### P2 (Medium Priority) - NEXT UP
-- [ ] Responsive design across all modules (mobile, tablet, desktop)
-- [ ] API optimizations (field selection, pagination improvements)
-- [ ] Browser caching for static data (categories, suppliers)
-- [ ] Excel export for reports (in addition to CSV)
-- [ ] Expiry Write-off click handler implementation
-
-### P3 (Low Priority)
+### P3 (Low Priority) - NEXT UP
 - [ ] Refactor monolithic `server.py` into modular routers
 - [ ] Background jobs for analytics pre-calculation
 - [ ] Receipt printing functionality
@@ -186,10 +134,6 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [ ] User Password Self-Change UI
 - [ ] Excel Upload for bulk inventory import
 
-## Test Credentials
-- Email: testadmin@pharmacy.com
-- Password: admin123
-
 ## Key API Endpoints
 
 ### P0 Endpoints
@@ -197,7 +141,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - `GET /api/products/search-with-batches?q={query}` - Product search with batches
 
 ### P1 Endpoints
-- `GET/POST /api/customers` - Customer list/create
+- `GET/POST /api/customers` - Customer list/create (with pagination and field selection)
 - `PUT/DELETE /api/customers/{id}` - Customer update/delete
 - `GET /api/customers/{id}/stats` - Customer statistics
 - `GET/POST /api/doctors` - Doctor list/create
@@ -206,24 +150,33 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - `GET /api/reports/expiry?days={days}` - Expiry report
 - `GET /api/reports/sales-summary` - Sales summary
 
+### P2 Endpoints
+- `GET /api/products?fields=name,sku&page=1&page_size=20` - Products with field selection and pagination
+- `POST /api/batches/{batch_id}/writeoff-expiry` - Expiry write-off
+
 ## File Structure (Key Files)
 ```
 /app/
 ├── backend/
-│   ├── server.py          # Main FastAPI app (needs refactoring)
+│   ├── server.py          # Main FastAPI app
 │   └── tests/
-│       ├── test_p0_p1_features.py
-│       ├── test_dashboard_analytics.py
-│       └── test_supplier_management.py
+│       └── test_p0_p1_features.py
 └── frontend/
     └── src/
         ├── components/
         │   ├── BarcodeScannerModal.js
         │   └── Layout.js
-        └── pages/
-            ├── BillingNew.js
-            ├── Customers.js
-            ├── Reports.js
-            ├── Dashboard.js
-            └── ...
+        ├── pages/
+        │   ├── BillingNew.js
+        │   ├── Customers.js
+        │   ├── Reports.js
+        │   ├── Dashboard.js
+        │   └── InventoryV2.js
+        └── utils/
+            ├── cache.js        # Browser caching utility
+            └── excelExport.js  # Excel export utility
 ```
+
+## Test Credentials
+- Email: testadmin@pharmacy.com
+- Password: admin123

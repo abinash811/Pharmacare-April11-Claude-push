@@ -144,7 +144,7 @@ function AppRoutes({ user }) {
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="billing" element={<BillingList />} />
+        <Route path="billing" element={<BillingOperations />} />
         <Route path="billing/new" element={<BillingWorkspace />} />
         <Route path="billing/create" element={<BillingWorkspace />} />
         <Route path="billing/edit/:id" element={<Billing />} />

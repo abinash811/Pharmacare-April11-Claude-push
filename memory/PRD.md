@@ -9,6 +9,17 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Cashier**: Limited access to billing and basic inventory viewing
 - **Inventory Staff**: Focused access to inventory management features
 
+## NEW: Billing Workspace Redesign (Feb 18, 2026)
+- [x] Complete redesign of billing page with PharmaSync-style UI
+- [x] Global search bar with Ctrl+F shortcut
+- [x] Customer details section (Patient Name, Phone, Doctor, Billed By, Payment Type)
+- [x] Inline editable billing table with batch details
+- [x] Workflow buttons (WhatsApp, Draft, Hold Bill, Logs, Inventory, Clear)
+- [x] Grand Total display with teal color theme
+- [x] Keyboard shortcuts (Ctrl+F, F8, F12)
+- [x] Auto-save draft functionality
+- [x] Expiring items highlighted in amber
+
 ## Core Requirements (Inventory Module)
 
 ### Inventory Display (CRITICAL)

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import AuthPage from '@/pages/AuthPage';
 import Dashboard from '@/pages/Dashboard';
 import BillingList from '@/pages/BillingList';
+import BillingOperations from '@/pages/BillingOperations';
 import Billing from '@/pages/BillingNew';
 import BillingWorkspace from '@/pages/BillingWorkspace';
 import BillDetail from '@/pages/BillDetail';

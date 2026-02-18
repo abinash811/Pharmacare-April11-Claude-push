@@ -304,8 +304,13 @@ export default function BillingWorkspace() {
 
   const formatExpiry = (dateStr) => {
     if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '-';
+      return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    } catch {
+      return '-';
+    }
   };
 
   return (

@@ -3033,8 +3033,10 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     due_amount = max(0, total_amount - paid_amount)
     
     # Determine status based on payments
-    if bill_data.status == "draft":
-        status = "draft"
+    # Draft bills are stored with 'due' status but flagged as draft internally
+    is_draft = bill_data.status == "draft"
+    if is_draft:
+        status = "due"  # Drafts show as "due" in the UI
     elif bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
         # For returns with refund data, mark as paid/refunded
         status = "paid"

@@ -2187,6 +2187,122 @@ async def bulk_update_products(
         "modified_count": result.modified_count
     }
 
+@api_router.get("/products/{sku}/transactions")
+async def get_product_transactions(
+    sku: str,
+    transaction_type: str = "all",  # all, sales, purchases, sales_returns, purchase_returns
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Get all transactions for a specific product SKU"""
+    
+    # Verify product exists
+    product = await db.products.find_one({"sku": sku}, {"_id": 0})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    result = {
+        "product_sku": sku,
+        "product_name": product.get("name", ""),
+        "sales": [],
+        "purchases": [],
+        "sales_returns": [],
+        "purchase_returns": []
+    }
+    
+    # Get Sales (bills with invoice_type SALE that contain this product)
+    if transaction_type in ["all", "sales"]:
+        sales_bills = await db.bills.find(
+            {"invoice_type": "SALE"},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(1000)
+        
+        for bill in sales_bills:
+            for item in bill.get("items", []):
+                # Check if this item matches our product (by product_id/sku or product_name)
+                item_sku = item.get("product_id") or item.get("product_sku")
+                if item_sku == sku or item.get("product_name", "").lower() == product.get("name", "").lower():
+                    result["sales"].append({
+                        "id": bill.get("id"),
+                        "bill_number": bill.get("bill_number"),
+                        "date": bill.get("created_at"),
+                        "customer_name": bill.get("customer_name") or "Walk-in",
+                        "batch_no": item.get("batch_no") or item.get("batch_number") or "–",
+                        "quantity": item.get("quantity", 0),
+                        "unit_price": item.get("unit_price", 0),
+                        "discount": item.get("discount", 0),
+                        "line_total": item.get("line_total") or item.get("total", 0),
+                        "status": bill.get("status", "paid")
+                    })
+    
+    # Get Sales Returns (bills with invoice_type SALES_RETURN)
+    if transaction_type in ["all", "sales_returns"]:
+        return_bills = await db.bills.find(
+            {"invoice_type": "SALES_RETURN"},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(1000)
+        
+        for bill in return_bills:
+            for item in bill.get("items", []):
+                item_sku = item.get("product_id") or item.get("product_sku")
+                if item_sku == sku or item.get("product_name", "").lower() == product.get("name", "").lower():
+                    result["sales_returns"].append({
+                        "id": bill.get("id"),
+                        "return_number": bill.get("bill_number"),
+                        "date": bill.get("created_at"),
+                        "customer_name": bill.get("customer_name") or "Walk-in",
+                        "original_invoice": bill.get("ref_invoice_id"),
+                        "batch_no": item.get("batch_no") or item.get("batch_number") or "–",
+                        "quantity": item.get("quantity", 0),
+                        "refund_amount": item.get("line_total") or item.get("total", 0),
+                        "status": bill.get("status", "refunded")
+                    })
+    
+    # Get Purchases
+    if transaction_type in ["all", "purchases"]:
+        purchases = await db.purchases.find({}, {"_id": 0}).sort("purchase_date", -1).to_list(1000)
+        
+        for purchase in purchases:
+            for item in purchase.get("items", []):
+                if item.get("product_sku") == sku:
+                    result["purchases"].append({
+                        "id": purchase.get("id"),
+                        "purchase_number": purchase.get("purchase_number"),
+                        "date": purchase.get("purchase_date"),
+                        "supplier_name": purchase.get("supplier_name"),
+                        "supplier_invoice": purchase.get("supplier_invoice_no") or "–",
+                        "batch_no": item.get("batch_no") or "–",
+                        "expiry_date": item.get("expiry_date"),
+                        "quantity": item.get("qty_units", 0),
+                        "cost_price": item.get("cost_price_per_unit", 0),
+                        "mrp": item.get("mrp_per_unit", 0),
+                        "line_total": item.get("line_total", 0),
+                        "status": purchase.get("status", "draft")
+                    })
+    
+    # Get Purchase Returns
+    if transaction_type in ["all", "purchase_returns"]:
+        purchase_returns = await db.purchase_returns.find({}, {"_id": 0}).sort("return_date", -1).to_list(1000)
+        
+        for pr in purchase_returns:
+            for item in pr.get("items", []):
+                if item.get("product_sku") == sku:
+                    result["purchase_returns"].append({
+                        "id": pr.get("id"),
+                        "return_number": pr.get("return_number"),
+                        "date": pr.get("return_date"),
+                        "supplier_name": pr.get("supplier_name"),
+                        "original_purchase": pr.get("purchase_number") or "–",
+                        "batch_no": item.get("batch_no") or "–",
+                        "quantity": item.get("qty_units", 0),
+                        "reason": item.get("reason") or "–",
+                        "line_total": item.get("line_total", 0),
+                        "status": pr.get("status", "draft")
+                    })
+    
+    return result
+
 # ==================== STOCK BATCH ROUTES ====================
 
 @api_router.post("/stock/batches", response_model=StockBatch)

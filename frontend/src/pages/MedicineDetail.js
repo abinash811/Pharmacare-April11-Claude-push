@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { 
   Edit2, Bell, Clock, Package, Percent, Hash, CreditCard, 
   Calendar, FileText, ChevronRight, Trash2, QrCode, Check,
-  ArrowLeft, Plus
+  ArrowLeft, Plus, ShoppingCart, RotateCcw, TrendingUp, TrendingDown
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -21,10 +21,17 @@ export default function MedicineDetail() {
   const [hideZeroQty, setHideZeroQty] = useState(true);
   const [selectedBatches, setSelectedBatches] = useState(new Set());
   
+  // Transaction data
+  const [transactions, setTransactions] = useState({
+    sales: [],
+    purchases: [],
+    sales_returns: [],
+    purchase_returns: []
+  });
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  
   // Ledger / Movement data
   const [movements, setMovements] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [sales, setSales] = useState([]);
 
   useEffect(() => {
     if (sku) {

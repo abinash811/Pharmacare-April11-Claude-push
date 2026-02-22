@@ -227,19 +227,22 @@ Cache invalidated on data updates.
 │   ├── server.py          # Main FastAPI app
 │   └── tests/
 │       ├── test_p0_p1_features.py
-│       └── test_excel_bulk_upload.py  # NEW: Excel upload tests
+│       ├── test_excel_bulk_upload.py  # Excel upload tests
+│       └── test_inventory_search.py   # NEW: Inventory search tests
 └── frontend/
     └── src/
         ├── components/
         │   ├── BarcodeScannerModal.js
-        │   ├── ExcelBulkUploadWizard.js  # NEW: 4-step Excel upload wizard
+        │   ├── ExcelBulkUploadWizard.js  # 4-step Excel upload wizard
         │   └── Layout.js
         ├── pages/
         │   ├── BillingNew.js
+        │   ├── BillingWorkspace.js    # NEW: Redesigned billing page
         │   ├── Customers.js
         │   ├── Reports.js
         │   ├── Dashboard.js
-        │   └── InventoryV2.js
+        │   ├── InventoryV2.js
+        │   └── InventorySearch.js     # NEW: Search-first inventory page
         └── utils/
             ├── cache.js        # Browser caching utility
             └── excelExport.js  # Excel export utility

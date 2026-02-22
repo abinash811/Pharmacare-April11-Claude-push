@@ -17,7 +17,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://inventory-importer.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pharmacare-v2.preview.emergentagent.com')
 
 # Module-level variables to share state between tests
 test_state = {

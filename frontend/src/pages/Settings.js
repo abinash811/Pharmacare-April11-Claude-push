@@ -384,6 +384,218 @@ export default function Settings() {
                 </div>
               )}
 
+              {/* Bill Sequence Settings */}
+              {activeTab === 'bill_sequence' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Bill Number Sequence Configuration</h3>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Configure how bill numbers are auto-generated. Numbers are sequential and never reused.
+                    </p>
+
+                    {sequenceLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-gray-600 mt-2">Loading sequences...</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Current Sequences Table */}
+                        <div className="mb-8">
+                          <h4 className="font-medium text-gray-800 mb-3">Current Sequences</h4>
+                          <div className="bg-gray-50 rounded-lg border overflow-hidden">
+                            <table className="w-full">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Document Type</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Prefix</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Last Used</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Next Number</th>
+                                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Format</th>
+                                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {billSequences.length === 0 ? (
+                                  <tr>
+                                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                                      No sequences configured. Default sequences will be created automatically.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  billSequences.map((seq, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{seq.document_type}</td>
+                                      <td className="px-4 py-3">
+                                        <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-800 text-sm font-mono rounded">
+                                          {seq.prefix}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-600">
+                                        {seq.current_sequence > 0 ? seq.current_sequence : 'Not used yet'}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className="text-sm font-mono text-green-600">
+                                          {seq.prefix}-{String(seq.next_number).padStart(seq.sequence_length || 6, '0')}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-sm text-gray-500">
+                                        {seq.prefix}-{'0'.repeat(seq.sequence_length || 6)}
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        <button
+                                          onClick={() => {
+                                            setEditingSequence(seq.prefix);
+                                            setSequenceForm({
+                                              prefix: seq.prefix,
+                                              starting_number: seq.next_number,
+                                              sequence_length: seq.sequence_length || 6,
+                                              allow_prefix_change: seq.allow_prefix_change !== false
+                                            });
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                          data-testid={`edit-sequence-${seq.prefix}`}
+                                        >
+                                          Configure
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Edit/Create Sequence Form */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                          <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
+                            <Hash className="w-5 h-5 text-blue-600" />
+                            {editingSequence ? `Configure ${editingSequence} Sequence` : 'Create New Sequence'}
+                          </h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Prefix <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={sequenceForm.prefix}
+                                onChange={(e) => setSequenceForm(prev => ({ ...prev, prefix: e.target.value.toUpperCase() }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded font-mono uppercase"
+                                placeholder="INV"
+                                maxLength={10}
+                                data-testid="sequence-prefix-input"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">1-10 alphanumeric characters</p>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Starting Number <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="number"
+                                value={sequenceForm.starting_number}
+                                onChange={(e) => setSequenceForm(prev => ({ ...prev, starting_number: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded"
+                                min="1"
+                                data-testid="sequence-starting-number"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Must be ≥ 1 and greater than last used</p>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Sequence Length
+                              </label>
+                              <select
+                                value={sequenceForm.sequence_length}
+                                onChange={(e) => setSequenceForm(prev => ({ ...prev, sequence_length: parseInt(e.target.value) }))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded"
+                                data-testid="sequence-length-select"
+                              >
+                                <option value={3}>3 digits (e.g., 001)</option>
+                                <option value={4}>4 digits (e.g., 0001)</option>
+                                <option value={5}>5 digits (e.g., 00001)</option>
+                                <option value={6}>6 digits (e.g., 000001)</option>
+                                <option value={7}>7 digits (e.g., 0000001)</option>
+                                <option value={8}>8 digits (e.g., 00000001)</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Preview
+                              </label>
+                              <div className="w-full px-4 py-3 bg-white border-2 border-green-200 rounded font-mono text-lg text-green-700 flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5" />
+                                {previewNumber}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">This is how your next bill number will look</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-6 pt-4 border-t border-blue-200">
+                            <button
+                              onClick={async () => {
+                                const token = localStorage.getItem('token');
+                                try {
+                                  await axios.put(`${API}/settings/bill-sequence`, sequenceForm, {
+                                    headers: { Authorization: `Bearer ${token}` }
+                                  });
+                                  toast.success('Bill sequence settings updated successfully');
+                                  fetchBillSequences();
+                                  setEditingSequence(null);
+                                } catch (error) {
+                                  toast.error(error.response?.data?.detail || 'Failed to update sequence');
+                                }
+                              }}
+                              className="px-6 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700"
+                              data-testid="save-sequence-btn"
+                            >
+                              <Save className="w-4 h-4 mr-2 inline" />
+                              Save Sequence Settings
+                            </button>
+                            {editingSequence && (
+                              <button
+                                onClick={() => {
+                                  setEditingSequence(null);
+                                  setSequenceForm({
+                                    prefix: 'INV',
+                                    starting_number: 1,
+                                    sequence_length: 6,
+                                    allow_prefix_change: true
+                                  });
+                                }}
+                                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-sm text-amber-800">
+                            <p className="font-medium mb-1">Important Notes:</p>
+                            <ul className="list-disc list-inside space-y-1 text-amber-700">
+                              <li>Bill numbers are generated <strong>only when bills are settled/saved</strong>, not for drafts</li>
+                              <li>Numbers are <strong>never reused</strong>, even if a bill is cancelled</li>
+                              <li>Concurrent settlements are handled safely - no duplicate numbers possible</li>
+                              <li>Starting number must be greater than the last used number</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* General Settings */}
               {activeTab === 'general' && (
                 <div className="space-y-6">

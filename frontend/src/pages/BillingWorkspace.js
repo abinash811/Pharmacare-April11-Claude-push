@@ -279,26 +279,13 @@ export default function BillingWorkspace() {
       const response = await axios.post(`${API}/bills`, billData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      // Store saved bill data for printing
-      setSavedBillData({
-        ...response.data,
-        items: billItems,
-        customer_name: customerName || 'Walk-in Customer',
-        customer_phone: customerPhone,
-        doctor_name: doctorName,
-        payment_method: paymentType,
-        subtotal,
-        total_discount: totalDiscount,
-        total_gst: totalGst,
-        grand_total: grandTotal
-      });
       
-      toast.success(`Bill #${response.data.bill_number} saved successfully!`);
+      toast.success(`Bill #${response.data.bill_number} created successfully!`);
       localStorage.removeItem('billing_draft');
       
-      // Show print dialog
-      setShowPrintDialog(true);
+      // Clear bill and navigate to sales page
+      clearBill();
+      navigate('/billing');
       
     } catch (error) {
       toast.error('Failed to save bill');
@@ -306,14 +293,30 @@ export default function BillingWorkspace() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleClosePrintDialog = () => {
-    setShowPrintDialog(false);
-    setSavedBillData(null);
-    clearBill();
+  const handlePrintCurrentBill = () => {
+    if (billItems.length === 0) {
+      toast.error('Add items to bill first');
+      return;
+    }
+    
+    // Store current bill data for printing
+    setSavedBillData({
+      bill_number: draftNumber ? `DRAFT-${draftNumber}` : 'PREVIEW',
+      items: billItems,
+      customer_name: customerName || 'Walk-in Customer',
+      customer_phone: customerPhone,
+      doctor_name: doctorName,
+      payment_method: paymentType,
+      subtotal,
+      total_discount: totalDiscount,
+      total_gst: totalGst,
+      grand_total: grandTotal
+    });
+    
+    // Trigger print
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const isExpiringSoon = (expiryDate) => {

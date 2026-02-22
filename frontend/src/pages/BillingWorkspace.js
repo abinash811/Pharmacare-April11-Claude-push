@@ -714,6 +714,15 @@ export default function BillingWorkspace() {
                   <span className="text-[8px] font-bold uppercase mt-1">Inventory</span>
                 </button>
 
+                <button 
+                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-purple-500/10 text-slate-500 hover:text-purple-600 transition-all"
+                  onClick={handlePrintCurrentBill}
+                  data-testid="print-btn"
+                >
+                  <span className="material-symbols-outlined text-xl">print</span>
+                  <span className="text-[8px] font-bold uppercase mt-1">Print</span>
+                </button>
+
                 <div className="h-6 w-px bg-slate-100 mx-2"></div>
 
                 <button 
@@ -744,12 +753,12 @@ export default function BillingWorkspace() {
                   onClick={saveBill}
                   className="flex-grow text-slate-900 font-extrabold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:brightness-95"
                   style={{ backgroundColor: '#13ecda' }}
-                  data-testid="save-print-btn"
+                  data-testid="save-btn"
                 >
-                  <span className="material-icons">print</span>
+                  <span className="material-icons">check_circle</span>
                   <div className="flex flex-col items-start">
-                    <span className="tracking-tight text-lg leading-tight">SAVE &amp; PRINT</span>
-                    <span className="text-[10px] opacity-60 font-bold tracking-tighter uppercase">READY TO FINALIZE (F12)</span>
+                    <span className="tracking-tight text-lg leading-tight">SAVE BILL</span>
+                    <span className="text-[10px] opacity-60 font-bold tracking-tighter uppercase">FINALIZE (F12)</span>
                   </div>
                 </button>
                 <div className="w-px bg-slate-900/10"></div>

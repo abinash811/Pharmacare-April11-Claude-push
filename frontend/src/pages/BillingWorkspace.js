@@ -104,7 +104,7 @@ export default function BillingWorkspace() {
       }
       if (e.key === 'F12') {
         e.preventDefault();
-        saveBill();
+        saveBill(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);

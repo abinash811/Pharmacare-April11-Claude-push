@@ -789,7 +789,7 @@ export default function BillingWorkspace() {
                 </div>
               </div>
 
-              <div className="flex h-16 shadow-md rounded-xl overflow-hidden relative" ref={saveDropdownRef}>
+              <div className="flex h-16 shadow-md rounded-xl overflow-visible relative" ref={saveDropdownRef}>
                 <button 
                   onClick={() => saveBill(false)}
                   className="flex-grow text-slate-900 font-extrabold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:brightness-95"

@@ -282,16 +282,40 @@ export default function BillingWorkspace() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Store saved bill data for printing
+      setSavedBillData({
+        ...response.data,
+        items: billItems,
+        customer_name: customerName || 'Walk-in Customer',
+        customer_phone: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType,
+        subtotal,
+        total_discount: totalDiscount,
+        total_gst: totalGst,
+        grand_total: grandTotal
+      });
+      
       toast.success(`Bill #${response.data.bill_number} saved successfully!`);
       localStorage.removeItem('billing_draft');
       
-      // Clear and optionally navigate
-      clearBill();
+      // Show print dialog
+      setShowPrintDialog(true);
       
     } catch (error) {
       toast.error('Failed to save bill');
       console.error('Save error:', error);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleClosePrintDialog = () => {
+    setShowPrintDialog(false);
+    setSavedBillData(null);
+    clearBill();
   };
 
   const isExpiringSoon = (expiryDate) => {

@@ -204,7 +204,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Admin configurable: Prefix, Starting Number, Sequence Length (3-8 digits)
 - [x] Atomic MongoDB operations (findOneAndUpdate) for concurrency safety
 - [x] Sequential numbers even with concurrent settlements
-- [x] Draft bills use DRAFT- prefix (don't consume sequence)
+- [x] Draft bills display "Draft" as bill number (don't consume sequence)
 - [x] Sales returns use RTN- prefix with separate sequence
 - [x] Never reuse numbers (cancelled bills keep their numbers)
 - [x] Validation blocks starting number lower than last used
@@ -213,6 +213,15 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Database: bill_number_sequences collection with unique index
 - [x] Unique constraint on bills.bill_number
 - [x] Future-ready: branch_id field for multi-branch support
+
+## NEW: Save as Draft Feature (Feb 22, 2026)
+- [x] Split-button dropdown on "SAVE BILL" button with "Save as Draft" option
+- [x] Draft bills display "Draft" as bill number (not sequential INV-xxx)
+- [x] Draft bills have status "Due" in the sales list
+- [x] **NO stock deduction** when saving as draft
+- [x] Regular "Save Bill" continues to work with sequential INV-xxx numbers
+- [x] Dropdown shows "No stock deduction" subtitle for clarity
+- [x] Dropdown closes when clicking outside
 
 ## API Cost Optimizations (Feb 15, 2026)
 

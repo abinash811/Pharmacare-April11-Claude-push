@@ -80,8 +80,9 @@ export default function BillingWorkspace() {
           setBillItems(draft.items || []);
           setPaymentType(draft.paymentType || 'cash');
           setDraftNumber(draft.draftNumber || Math.floor(1000 + Math.random() * 9000));
-      } catch (e) {
-        console.error('Failed to load draft');
+        } catch (e) {
+          console.error('Failed to load draft');
+        }
       }
     }
   }, []);

@@ -153,7 +153,8 @@ function AppRoutes({ user }) {
         <Route path="billing/:id" element={<BillDetail />} />
         <Route path="inventory" element={<InventorySearch />} />
         <Route path="inventory-v2" element={<InventoryV2 />} />
-        <Route path="inventory/product/:sku" element={<InventoryV2 />} />
+        <Route path="inventory/product/:sku" element={<MedicineDetail />} />
+        <Route path="inventory/edit/:sku" element={<InventoryV2 />} />
         <Route path="purchases" element={<PurchasesList />} />
         <Route path="purchases/create" element={<PurchaseNew />} />
         <Route path="purchases/edit/:id" element={<PurchaseNew />} />

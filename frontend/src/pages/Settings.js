@@ -181,6 +181,18 @@ export default function Settings() {
               Billing
             </button>
             <button
+              onClick={() => setActiveTab('bill_sequence')}
+              className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'bill_sequence'
+                  ? 'border-b-2 border-blue-600 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+              data-testid="bill-sequence-tab"
+            >
+              <Hash className="w-5 h-5" />
+              Bill Sequence
+            </button>
+            <button
               onClick={() => setActiveTab('returns')}
               className={`px-6 py-4 font-medium transition-colors flex items-center gap-2 ${
                 activeTab === 'returns'

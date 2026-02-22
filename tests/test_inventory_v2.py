@@ -8,7 +8,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pharmacare-v2.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://pharmacy-draft-save.preview.emergentagent.com')
 
 class TestInventoryV2APIs:
     """Test suite for InventoryV2 backend APIs"""

@@ -196,6 +196,16 @@ export default function MedicineDetail() {
     return `${month}/${year}`;
   };
 
+  const formatDateFull = (dateStr) => {
+    if (!dateStr) return '–';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   const isExpiringSoon = (expiryDate) => {
     if (!expiryDate) return false;
     const expiry = new Date(expiryDate);

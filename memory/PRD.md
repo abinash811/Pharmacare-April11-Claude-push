@@ -210,6 +210,7 @@ Cache invalidated on data updates.
 ### P2 Endpoints
 - `GET /api/products?fields=name,sku&page=1&page_size=20` - Products with field selection and pagination
 - `POST /api/batches/{batch_id}/writeoff-expiry` - Expiry write-off
+- `POST /api/products/bulk-update` - Bulk update products (supports: location, discount_percent, gst_percent, category, schedule, brand)
 
 ### Excel Bulk Upload Endpoints (NEW - Feb 15, 2026)
 - `GET /api/inventory/bulk-upload/template` - Download sample Excel template

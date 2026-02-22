@@ -53,6 +53,19 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Lazy loading: Transactions fetched only when user clicks on tab
 
 ## NEW: Billing Workspace Redesign (Feb 18, 2026)
+- [x] Modern PharmaSync design with teal accent (#13ecda)
+- [x] Header with Search Medicine (Ctrl+F), User Terminal info
+- [x] Customer form: Patient Name, Phone, Doctor, Billed By, Payment Type
+- [x] Medicine table: #, Medicine Name, Batch No, Expiry, Qty, Unit Price, Disc %, GST %, Net Amount
+- [x] Totals section: Subtotal, Discounts, Tax (GST), Items in Cart, Grand Total
+- [x] Workflow buttons: WhatsApp, Draft, Hold Bill, Logs, Inventory, Clear
+- [x] Footer with keyboard shortcuts
+- [x] Draft auto-save to localStorage
+- [x] **Save & Print (Feb 22, 2026)**:
+  - Bill saves to database via POST /api/bills
+  - Print dialog modal appears showing: Invoice #, Customer, Items count, Payment method, Total
+  - "Print Receipt" button triggers window.print() for thermal receipt (80mm format)
+  - "Close" button clears bill and starts new transaction
 - [x] Complete redesign of billing page with PharmaSync-style UI
 - [x] Global search bar with Ctrl+F shortcut
 - [x] Customer details section (Patient Name, Phone, Doctor, Billed By, Payment Type)

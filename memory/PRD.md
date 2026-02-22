@@ -27,6 +27,21 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Summary cards: Total Items, Low Stock, Expiring Soon
 - [x] View Low Stock quick filter button
 
+## NEW: Medicine Detail Page (Feb 22, 2026)
+- [x] Dedicated detail page at /inventory/product/:sku
+- [x] Breadcrumb navigation (INVENTORY > CATEGORY) with back link
+- [x] Product header: Image placeholder, Name, Manufacturer/Brand, Pack Info
+- [x] Edit button (teal), Bell icon, History clock icon
+- [x] 6 Stats cards: GST %, Stock (packs/units), HSN, MRP, Schedule, Composition
+- [x] 6 Tabs: Batches, Purchases, Pur. Return, Sales, Sales Return, Ledger
+- [x] Batches tab with: Hide Zero quantity toggle, Delete Batches button (red), Print QR button (teal)
+- [x] Batch table columns: Batch ID, Qty, Exp Date, MRP, Prev MRP (strikethrough), PTR, Disc %, LP, Margin%
+- [x] Expiry highlighting: Orange for nearing expiry (3m), Red for expired
+- [x] Margin % displayed in teal color
+- [x] Batch selection with checkboxes
+- [x] Ledger tab showing full stock movement history
+- [x] Footer with batch count and status legend (Active/Nearing/Expired)
+
 ## NEW: Billing Workspace Redesign (Feb 18, 2026)
 - [x] Complete redesign of billing page with PharmaSync-style UI
 - [x] Global search bar with Ctrl+F shortcut

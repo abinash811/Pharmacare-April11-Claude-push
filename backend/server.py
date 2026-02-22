@@ -3068,8 +3068,8 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         cashier_name=current_user.name
     )
     
-    # Only update stock if status is 'paid' (not draft)
-    if bill_data.status == "paid":
+    # Only update stock if NOT draft - allow stock deduction for paid, due, etc.
+    if bill_data.status != "draft":
         for item in bill_data.items:
             # Support both old (medicine_id) and new (product_id/batch_id) format
             batch_id = item.get('batch_id')

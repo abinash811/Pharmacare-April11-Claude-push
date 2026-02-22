@@ -798,60 +798,6 @@ export default function BillingWorkspace() {
         </div>
       </footer>
 
-      {/* Print Dialog */}
-      {showPrintDialog && savedBillData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={handleClosePrintDialog}></div>
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-[#13ecda] to-[#00CED1] px-6 py-4">
-              <h3 className="text-xl font-bold text-slate-900">Bill Saved Successfully!</h3>
-              <p className="text-slate-800 text-sm">Invoice #{savedBillData.bill_number}</p>
-            </div>
-            
-            <div className="p-6">
-              <div className="bg-slate-50 rounded-lg p-4 mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-500">Customer</span>
-                  <span className="font-medium">{savedBillData.customer_name}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-500">Items</span>
-                  <span className="font-medium">{savedBillData.items?.length || 0}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-500">Payment</span>
-                  <span className="font-medium capitalize">{savedBillData.payment_method}</span>
-                </div>
-                <div className="border-t border-slate-200 my-2"></div>
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span style={{ color: '#13ecda' }}>₹{savedBillData.grand_total?.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={handleClosePrintDialog}
-                  className="flex-1 py-3 border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50"
-                  data-testid="close-print-dialog"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="flex-1 py-3 text-slate-900 font-bold rounded-lg flex items-center justify-center gap-2"
-                  style={{ backgroundColor: '#13ecda' }}
-                  data-testid="print-receipt-btn"
-                >
-                  <span className="material-icons text-lg">print</span>
-                  Print Receipt
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Print Receipt - Hidden but rendered for printing */}
       <div ref={printRef} className="print-receipt hidden print:block">
         {savedBillData && (

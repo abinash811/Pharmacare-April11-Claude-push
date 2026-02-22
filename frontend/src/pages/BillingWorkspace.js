@@ -788,6 +788,145 @@ export default function BillingWorkspace() {
           )}
         </div>
       </footer>
+
+      {/* Print Dialog */}
+      {showPrintDialog && savedBillData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={handleClosePrintDialog}></div>
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-[#13ecda] to-[#00CED1] px-6 py-4">
+              <h3 className="text-xl font-bold text-slate-900">Bill Saved Successfully!</h3>
+              <p className="text-slate-800 text-sm">Invoice #{savedBillData.bill_number}</p>
+            </div>
+            
+            <div className="p-6">
+              <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-slate-500">Customer</span>
+                  <span className="font-medium">{savedBillData.customer_name}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-slate-500">Items</span>
+                  <span className="font-medium">{savedBillData.items?.length || 0}</span>
+                </div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-slate-500">Payment</span>
+                  <span className="font-medium capitalize">{savedBillData.payment_method}</span>
+                </div>
+                <div className="border-t border-slate-200 my-2"></div>
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total</span>
+                  <span style={{ color: '#13ecda' }}>₹{savedBillData.grand_total?.toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleClosePrintDialog}
+                  className="flex-1 py-3 border border-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-50"
+                  data-testid="close-print-dialog"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 py-3 text-slate-900 font-bold rounded-lg flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#13ecda' }}
+                  data-testid="print-receipt-btn"
+                >
+                  <span className="material-icons text-lg">print</span>
+                  Print Receipt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Receipt - Hidden but rendered for printing */}
+      <div ref={printRef} className="print-receipt hidden print:block">
+        {savedBillData && (
+          <div style={{ width: '80mm', padding: '10px', fontFamily: 'monospace', fontSize: '12px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>PharmaCare</h2>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>Pharmacy Management System</p>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>Tel: 1800-XXX-XXXX</p>
+            </div>
+            
+            <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '5px 0', margin: '5px 0' }}>
+              <p style={{ margin: '2px 0' }}><strong>Invoice:</strong> {savedBillData.bill_number}</p>
+              <p style={{ margin: '2px 0' }}><strong>Date:</strong> {new Date().toLocaleString('en-GB')}</p>
+              <p style={{ margin: '2px 0' }}><strong>Customer:</strong> {savedBillData.customer_name}</p>
+              {savedBillData.customer_phone && <p style={{ margin: '2px 0' }}><strong>Phone:</strong> {savedBillData.customer_phone}</p>}
+            </div>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #000' }}>
+                  <th style={{ textAlign: 'left', padding: '3px 0' }}>Item</th>
+                  <th style={{ textAlign: 'center', padding: '3px 0' }}>Qty</th>
+                  <th style={{ textAlign: 'right', padding: '3px 0' }}>Amt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {savedBillData.items?.map((item, idx) => (
+                  <tr key={idx}>
+                    <td style={{ padding: '3px 0', fontSize: '10px' }}>{item.product_name}</td>
+                    <td style={{ textAlign: 'center', padding: '3px 0' }}>{item.qty}</td>
+                    <td style={{ textAlign: 'right', padding: '3px 0' }}>₹{item.net_amount?.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div style={{ borderTop: '1px dashed #000', marginTop: '10px', paddingTop: '5px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Subtotal:</span>
+                <span>₹{savedBillData.subtotal?.toFixed(2)}</span>
+              </div>
+              {savedBillData.total_discount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Discount:</span>
+                  <span>-₹{savedBillData.total_discount?.toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>GST:</span>
+                <span>₹{savedBillData.total_gst?.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', marginTop: '5px', borderTop: '1px solid #000', paddingTop: '5px' }}>
+                <span>TOTAL:</span>
+                <span>₹{savedBillData.grand_total?.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '10px' }}>
+              <p style={{ margin: '2px 0' }}>Payment: {savedBillData.payment_method?.toUpperCase()}</p>
+              <p style={{ margin: '5px 0' }}>Thank you for your purchase!</p>
+              <p style={{ margin: '2px 0' }}>Get well soon!</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-receipt, .print-receipt * {
+            visibility: visible !important;
+            display: block !important;
+          }
+          .print-receipt {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80mm;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -788,9 +788,9 @@ export default function BillingWorkspace() {
                 </div>
               </div>
 
-              <div className="flex h-16 shadow-md rounded-xl overflow-hidden">
+              <div className="flex h-16 shadow-md rounded-xl overflow-hidden relative" ref={saveDropdownRef}>
                 <button 
-                  onClick={saveBill}
+                  onClick={() => saveBill(false)}
                   className="flex-grow text-slate-900 font-extrabold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:brightness-95"
                   style={{ backgroundColor: '#13ecda' }}
                   data-testid="save-btn"
@@ -803,11 +803,30 @@ export default function BillingWorkspace() {
                 </button>
                 <div className="w-px bg-slate-900/10"></div>
                 <button 
+                  onClick={() => setShowSaveDropdown(!showSaveDropdown)}
                   className="w-14 flex items-center justify-center transition-all border-l text-slate-900 hover:brightness-95"
                   style={{ backgroundColor: '#13ecda', borderColor: 'rgba(255,255,255,0.2)' }}
+                  data-testid="save-dropdown-btn"
                 >
-                  <span className="material-icons">expand_less</span>
+                  <span className="material-icons">{showSaveDropdown ? 'expand_less' : 'expand_more'}</span>
                 </button>
+                
+                {/* Save Dropdown Menu */}
+                {showSaveDropdown && (
+                  <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+                    <button
+                      onClick={handleSaveAsDraft}
+                      className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                      data-testid="save-draft-option"
+                    >
+                      <span className="material-symbols-outlined text-amber-500">history_edu</span>
+                      <div>
+                        <span className="text-sm font-semibold text-slate-700 block">Save as Draft</span>
+                        <span className="text-[10px] text-slate-400">No stock deduction</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

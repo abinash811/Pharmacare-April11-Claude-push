@@ -43,6 +43,150 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# ==================== BILL NUMBER GENERATION ====================
+
+async def generate_bill_number(invoice_type: str = "SALE", branch_id: str = None) -> str:
+    """
+    Generate a unique, sequential bill number using atomic MongoDB operations.
+    Uses findOneAndUpdate with upsert for concurrency safety.
+    
+    Args:
+        invoice_type: "SALE" or "SALES_RETURN"
+        branch_id: Optional branch ID for future multi-branch support
+    
+    Returns:
+        Formatted bill number like "INV-000001" or "RTN-000001"
+    """
+    # Determine prefix based on invoice type
+    default_prefix = "RTN" if invoice_type == "SALES_RETURN" else "INV"
+    
+    # Get or create sequence for this prefix
+    # Use findOneAndUpdate with upsert for atomic operation
+    sequence_doc = await db.bill_number_sequences.find_one_and_update(
+        {
+            "prefix": default_prefix,
+            "branch_id": branch_id  # None for V1
+        },
+        {
+            "$inc": {"current_sequence": 1},
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "prefix": default_prefix,
+                "branch_id": branch_id,
+                "sequence_length": 6,
+                "allow_prefix_change": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        },
+        upsert=True,
+        return_document=True,  # Return the updated document
+        projection={"_id": 0}
+    )
+    
+    # Extract values
+    prefix = sequence_doc.get("prefix", default_prefix)
+    sequence = sequence_doc.get("current_sequence", 1)
+    length = sequence_doc.get("sequence_length", 6)
+    
+    # Format bill number with zero-padded sequence
+    bill_number = f"{prefix}-{str(sequence).zfill(length)}"
+    
+    return bill_number
+
+
+async def get_bill_sequence_settings(prefix: str = "INV", branch_id: str = None) -> dict:
+    """Get current sequence settings for a prefix"""
+    doc = await db.bill_number_sequences.find_one(
+        {"prefix": prefix, "branch_id": branch_id},
+        {"_id": 0}
+    )
+    if not doc:
+        return {
+            "prefix": prefix,
+            "current_sequence": 0,
+            "sequence_length": 6,
+            "allow_prefix_change": True,
+            "next_number": 1
+        }
+    
+    return {
+        **doc,
+        "next_number": doc.get("current_sequence", 0) + 1
+    }
+
+
+async def validate_and_update_sequence_settings(
+    prefix: str,
+    starting_number: int,
+    sequence_length: int,
+    branch_id: str = None
+) -> dict:
+    """
+    Validate and update sequence settings.
+    Ensures starting_number is greater than any existing bill number for this prefix.
+    """
+    # Check current sequence for this prefix
+    existing = await db.bill_number_sequences.find_one(
+        {"prefix": prefix, "branch_id": branch_id},
+        {"_id": 0}
+    )
+    
+    if existing and existing.get("current_sequence", 0) >= starting_number:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Starting number must be greater than last used number ({existing['current_sequence']}) for prefix '{prefix}'"
+        )
+    
+    # Also check if any bills exist with higher numbers for this prefix
+    # Find highest bill number for this prefix
+    highest_bill = await db.bills.find_one(
+        {"bill_number": {"$regex": f"^{prefix}-"}},
+        {"_id": 0, "bill_number": 1},
+        sort=[("bill_number", -1)]
+    )
+    
+    if highest_bill:
+        # Extract sequence number from bill_number like "INV-000123"
+        try:
+            parts = highest_bill["bill_number"].split("-")
+            if len(parts) >= 2:
+                existing_seq = int(parts[-1])
+                if existing_seq >= starting_number:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Starting number must be greater than highest existing bill number ({existing_seq}) for prefix '{prefix}'"
+                    )
+        except (ValueError, IndexError):
+            pass  # Invalid bill number format, skip check
+    
+    # Update or create sequence
+    result = await db.bill_number_sequences.find_one_and_update(
+        {"prefix": prefix, "branch_id": branch_id},
+        {
+            "$set": {
+                "current_sequence": starting_number - 1,  # Will be incremented on next bill
+                "sequence_length": sequence_length,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "prefix": prefix,
+                "branch_id": branch_id,
+                "allow_prefix_change": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+        },
+        upsert=True,
+        return_document=True,
+        projection={"_id": 0}
+    )
+    
+    return {
+        **result,
+        "next_number": result.get("current_sequence", 0) + 1
+    }
+
 # ==================== MODELS ====================
 
 # User Models

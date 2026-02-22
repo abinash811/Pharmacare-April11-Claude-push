@@ -42,7 +42,6 @@ export default function BillingWorkspace() {
   const [grandTotal, setGrandTotal] = useState(0);
 
   // Print State
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [savedBillData, setSavedBillData] = useState(null);
 
   // Load initial data

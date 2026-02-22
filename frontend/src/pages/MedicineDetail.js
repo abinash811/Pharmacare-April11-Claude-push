@@ -89,6 +89,28 @@ export default function MedicineDetail() {
     }
   };
 
+  const fetchTransactions = async () => {
+    if (transactionsLoading) return;
+    setTransactionsLoading(true);
+    const token = localStorage.getItem('token');
+    
+    try {
+      const response = await axios.get(`${API}/products/${sku}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTransactions({
+        sales: response.data.sales || [],
+        purchases: response.data.purchases || [],
+        sales_returns: response.data.sales_returns || [],
+        purchase_returns: response.data.purchase_returns || []
+      });
+    } catch (error) {
+      console.error('Failed to load transactions');
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
   const fetchMovements = async () => {
     const token = localStorage.getItem('token');
     try {
@@ -110,6 +132,10 @@ export default function MedicineDetail() {
     setActiveTab(tab);
     if (tab === 'ledger' && movements.length === 0) {
       fetchMovements();
+    }
+    // Fetch transactions when switching to any transaction tab
+    if (['purchases', 'pur_return', 'sales', 'sales_return'].includes(tab) && transactions.sales.length === 0 && transactions.purchases.length === 0) {
+      fetchTransactions();
     }
   };
 

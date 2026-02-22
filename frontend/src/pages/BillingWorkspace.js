@@ -11,6 +11,7 @@ export default function BillingWorkspace() {
   const { billId } = useParams();
   const searchInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
+  const printRef = useRef(null);
 
   // Customer & Header State
   const [customerName, setCustomerName] = useState('');
@@ -39,6 +40,10 @@ export default function BillingWorkspace() {
   const [totalDiscount, setTotalDiscount] = useState(0);
   const [totalGst, setTotalGst] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
+
+  // Print State
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [savedBillData, setSavedBillData] = useState(null);
 
   // Load initial data
   useEffect(() => {

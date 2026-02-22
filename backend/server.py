@@ -5389,12 +5389,18 @@ async def startup_db():
         await db.stock_batches.create_index([("qty_on_hand", 1)], partialFilterExpression={"qty_on_hand": {"$gt": 0}})
         
         # Bills collection indexes
-        await db.bills.create_index("bill_number")
+        await db.bills.create_index("bill_number", unique=True)  # Unique constraint for bill numbers
         await db.bills.create_index("created_at")
         await db.bills.create_index("customer_name")
         await db.bills.create_index("invoice_type")
         await db.bills.create_index("status")
         await db.bills.create_index([("invoice_type", 1), ("status", 1), ("created_at", -1)])
+        
+        # Bill number sequences collection indexes
+        await db.bill_number_sequences.create_index(
+            [("prefix", 1), ("branch_id", 1)], 
+            unique=True
+        )  # Unique constraint for prefix + branch combination
         
         # Purchases collection indexes
         await db.purchases.create_index("purchase_number")

@@ -514,6 +514,24 @@ class BillCreate(BaseModel):
     ref_invoice_id: Optional[str] = None
     refund: Optional[Dict[str, Any]] = None  # For returns with refund
 
+# Bill Number Sequence Model
+class BillNumberSequence(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    branch_id: Optional[str] = None  # Future-ready for multi-branch
+    prefix: str = "INV"
+    current_sequence: int = 0
+    sequence_length: int = 6
+    allow_prefix_change: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class BillSequenceSettings(BaseModel):
+    prefix: str = "INV"
+    starting_number: int = 1
+    sequence_length: int = 6
+    allow_prefix_change: bool = True
+
 # Stock Movement Models (Enhanced Ledger)
 class StockMovement(BaseModel):
     model_config = ConfigDict(extra="ignore")

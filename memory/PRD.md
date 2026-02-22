@@ -196,6 +196,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Save & Print Fix**: ✅ 100% passed (iteration_13.json) - Feb 22, 2026
 - **Save Bill Flow**: ✅ 100% passed (iteration_14.json) - Feb 22, 2026
 - **Bill Number Sequence**: ✅ 100% passed (iteration_15.json) - Feb 22, 2026
+- **Save as Draft**: ✅ Backend tested via curl, Frontend verified - Feb 22, 2026
 - **API Cost Optimizations**: ✅ Implemented Feb 15, 2026
 
 ## NEW: Bill Number Sequence System (Feb 22, 2026)

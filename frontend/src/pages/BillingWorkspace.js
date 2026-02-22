@@ -258,7 +258,7 @@ export default function BillingWorkspace() {
     try {
       const billData = {
         customer_name: customerName || 'Walk-in Customer',
-        customer_phone: customerPhone,
+        customer_mobile: customerPhone,
         doctor_name: doctorName,
         payment_method: paymentType,
         items: billItems.map(item => ({
@@ -271,10 +271,8 @@ export default function BillingWorkspace() {
           gst_percent: item.gst_percent,
           line_total: item.net_amount
         })),
-        subtotal,
-        total_discount: totalDiscount,
-        total_gst: totalGst,
-        grand_total: grandTotal,
+        discount: totalDiscount,
+        tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
         status: paymentType === 'credit' ? 'due' : 'paid'
       };
 

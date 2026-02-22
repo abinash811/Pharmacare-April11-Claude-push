@@ -2987,10 +2987,10 @@ async def migrate_medicines_to_products(current_user: User = Depends(get_current
 
 @api_router.post("/bills", response_model=Bill)
 async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user)):
-    # For draft bills, use temporary number that will be replaced on settlement
+    # For draft bills, use simple "Draft" label instead of sequential number
     if bill_data.status == "draft":
-        # Draft bills get a temporary identifier, not a real bill number
-        bill_number = f"DRAFT-{datetime.now().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8]}"
+        # Draft bills get a simple "Draft" identifier, not a real bill number
+        bill_number = "Draft"
     else:
         # Generate sequential bill number using atomic operation
         # This ensures no duplicates even with concurrent settlements

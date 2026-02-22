@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '@/App';
-import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe, RotateCcw } from 'lucide-react';
+import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe, RotateCcw, Hash, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -49,9 +49,33 @@ export default function Settings() {
     }
   });
 
+  // Bill Sequence Settings
+  const [billSequences, setBillSequences] = useState([]);
+  const [sequenceLoading, setSequenceLoading] = useState(false);
+  const [editingSequence, setEditingSequence] = useState(null);
+  const [sequenceForm, setSequenceForm] = useState({
+    prefix: 'INV',
+    starting_number: 1,
+    sequence_length: 6,
+    allow_prefix_change: true
+  });
+  const [previewNumber, setPreviewNumber] = useState('');
+
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'bill_sequence') {
+      fetchBillSequences();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Update preview when form changes
+    const preview = `${sequenceForm.prefix.toUpperCase()}-${String(sequenceForm.starting_number).padStart(sequenceForm.sequence_length, '0')}`;
+    setPreviewNumber(preview);
+  }, [sequenceForm]);
 
   const fetchSettings = async () => {
     const token = localStorage.getItem('token');
@@ -64,6 +88,21 @@ export default function Settings() {
       console.error('Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBillSequences = async () => {
+    setSequenceLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/settings/bill-sequences`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBillSequences(response.data.sequences || []);
+    } catch (error) {
+      console.error('Failed to load bill sequences');
+    } finally {
+      setSequenceLoading(false);
     }
   };
 

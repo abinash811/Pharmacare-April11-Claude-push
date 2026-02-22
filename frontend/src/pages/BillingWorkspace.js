@@ -269,7 +269,7 @@ export default function BillingWorkspace() {
     toast.info('Bill cleared');
   };
 
-  const saveBill = async () => {
+  const saveBill = async (saveAsDraft = false) => {
     if (billItems.length === 0) {
       toast.error('Add items to bill first');
       return;
@@ -277,6 +277,14 @@ export default function BillingWorkspace() {
 
     const token = localStorage.getItem('token');
     try {
+      // Determine status based on saveAsDraft flag or payment type
+      let billStatus;
+      if (saveAsDraft) {
+        billStatus = 'draft';
+      } else {
+        billStatus = paymentType === 'credit' ? 'due' : 'paid';
+      }
+
       const billData = {
         customer_name: customerName || 'Walk-in Customer',
         customer_mobile: customerPhone,
@@ -294,14 +302,19 @@ export default function BillingWorkspace() {
         })),
         discount: totalDiscount,
         tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
-        status: paymentType === 'credit' ? 'due' : 'paid'
+        status: billStatus
       };
 
       const response = await axios.post(`${API}/bills`, billData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      toast.success(`Bill #${response.data.bill_number} created successfully!`);
+      if (saveAsDraft) {
+        toast.success(`Draft saved! ID: ${response.data.bill_number}`);
+      } else {
+        toast.success(`Bill #${response.data.bill_number} created successfully!`);
+      }
+      
       localStorage.removeItem('billing_draft');
       
       // Clear bill and navigate to sales page
@@ -309,9 +322,14 @@ export default function BillingWorkspace() {
       navigate('/billing');
       
     } catch (error) {
-      toast.error('Failed to save bill');
+      toast.error(saveAsDraft ? 'Failed to save draft' : 'Failed to save bill');
       console.error('Save error:', error);
     }
+  };
+
+  const handleSaveAsDraft = () => {
+    setShowSaveDropdown(false);
+    saveBill(true);
   };
 
   const handlePrintCurrentBill = () => {

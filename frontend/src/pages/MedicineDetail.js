@@ -590,19 +590,277 @@ export default function MedicineDetail() {
           </div>
         )}
 
-        {(activeTab === 'purchases' || activeTab === 'pur_return' || activeTab === 'sales' || activeTab === 'sales_return') && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-gray-400" />
+        {/* Purchases Tab */}
+        {activeTab === 'purchases' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+                <h3 className="font-semibold text-gray-900">Purchase History</h3>
+              </div>
+              <span className="text-sm text-gray-500">{transactions.purchases.length} records</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {activeTab === 'purchases' ? 'Purchase History' :
-               activeTab === 'pur_return' ? 'Purchase Returns' :
-               activeTab === 'sales' ? 'Sales History' : 'Sales Returns'}
-            </h3>
-            <p className="text-gray-500">
-              Transaction history for this product will appear here.
-            </p>
+            {transactionsLoading ? (
+              <div className="p-12 text-center">
+                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading transactions...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full" data-testid="purchases-table">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Purchase #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Supplier</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Batch</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Cost</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">MRP</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.purchases.length === 0 ? (
+                      <tr>
+                        <td colSpan="10" className="px-4 py-12 text-center text-gray-500">
+                          No purchase records found for this medicine
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.purchases.map((txn, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-[#00CED1]">{txn.purchase_number}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{formatDateFull(txn.date)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{txn.supplier_name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{txn.supplier_invoice}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{txn.batch_no}</td>
+                          <td className="px-4 py-3 text-sm text-center font-medium text-gray-900">{txn.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-700">₹{txn.cost_price?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-700">₹{txn.mrp?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{txn.line_total?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              txn.status === 'received' ? 'bg-green-100 text-green-700' :
+                              txn.status === 'partially_received' ? 'bg-yellow-100 text-yellow-700' :
+                              txn.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {txn.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Purchase Returns Tab */}
+        {activeTab === 'pur_return' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-orange-600" />
+                <h3 className="font-semibold text-gray-900">Purchase Returns</h3>
+              </div>
+              <span className="text-sm text-gray-500">{transactions.purchase_returns.length} records</span>
+            </div>
+            {transactionsLoading ? (
+              <div className="p-12 text-center">
+                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading transactions...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full" data-testid="purchase-returns-table">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Return #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Supplier</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Original Purchase</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Batch</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reason</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.purchase_returns.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" className="px-4 py-12 text-center text-gray-500">
+                          No purchase returns found for this medicine
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.purchase_returns.map((txn, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-orange-600">{txn.return_number}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{formatDateFull(txn.date)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{txn.supplier_name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{txn.original_purchase}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{txn.batch_no}</td>
+                          <td className="px-4 py-3 text-sm text-center font-medium text-red-600">-{txn.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{txn.reason}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{txn.line_total?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              txn.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                              txn.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {txn.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sales Tab */}
+        {activeTab === 'sales' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-900">Sales History</h3>
+              </div>
+              <span className="text-sm text-gray-500">{transactions.sales.length} records</span>
+            </div>
+            {transactionsLoading ? (
+              <div className="p-12 text-center">
+                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading transactions...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full" data-testid="sales-table">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Bill #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Batch</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Unit Price</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Discount</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Total</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.sales.length === 0 ? (
+                      <tr>
+                        <td colSpan="9" className="px-4 py-12 text-center text-gray-500">
+                          No sales records found for this medicine
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.sales.map((txn, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-blue-600">{txn.bill_number}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{formatDateFull(txn.date)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{txn.customer_name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{txn.batch_no}</td>
+                          <td className="px-4 py-3 text-sm text-center font-medium text-gray-900">{txn.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-700">₹{txn.unit_price?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-right text-green-600">{txn.discount > 0 ? `-₹${txn.discount.toFixed(2)}` : '–'}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">₹{txn.line_total?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              txn.status === 'paid' ? 'bg-green-100 text-green-700' :
+                              txn.status === 'due' ? 'bg-red-100 text-red-700' :
+                              txn.status === 'draft' ? 'bg-gray-100 text-gray-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {txn.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sales Returns Tab */}
+        {activeTab === 'sales_return' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-red-600" />
+                <h3 className="font-semibold text-gray-900">Sales Returns</h3>
+              </div>
+              <span className="text-sm text-gray-500">{transactions.sales_returns.length} records</span>
+            </div>
+            {transactionsLoading ? (
+              <div className="p-12 text-center">
+                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading transactions...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full" data-testid="sales-returns-table">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Return #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Original Invoice</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Batch</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Qty</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Refund Amount</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {transactions.sales_returns.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                          No sales returns found for this medicine
+                        </td>
+                      </tr>
+                    ) : (
+                      transactions.sales_returns.map((txn, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-medium text-red-600">{txn.return_number}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{formatDateFull(txn.date)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">{txn.customer_name}</td>
+                          <td className="px-4 py-3 text-sm text-gray-500">{txn.original_invoice || '–'}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{txn.batch_no}</td>
+                          <td className="px-4 py-3 text-sm text-center font-medium text-red-600">+{txn.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-right font-medium text-red-600">₹{txn.refund_amount?.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              txn.status === 'refunded' ? 'bg-green-100 text-green-700' :
+                              txn.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {txn.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

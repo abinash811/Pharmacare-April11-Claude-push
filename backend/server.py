@@ -5227,6 +5227,121 @@ async def get_purchase(
     # Return as-is without date conversion (dates are stored as ISO strings)
     return purchase
 
+# ==================== BILL SEQUENCE SETTINGS ROUTES ====================
+
+@api_router.get("/settings/bill-sequence")
+async def get_bill_sequence_settings_route(
+    prefix: str = "INV",
+    current_user: User = Depends(get_current_user)
+):
+    """Get bill sequence settings for a prefix"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Only admins and managers can view settings")
+    
+    settings = await get_bill_sequence_settings(prefix)
+    return settings
+
+
+@api_router.get("/settings/bill-sequences")
+async def get_all_bill_sequences(
+    current_user: User = Depends(get_current_user)
+):
+    """Get all bill sequence configurations"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Only admins and managers can view settings")
+    
+    sequences = await db.bill_number_sequences.find({}, {"_id": 0}).to_list(100)
+    
+    # If no sequences exist, return defaults
+    if not sequences:
+        return {
+            "sequences": [
+                {
+                    "prefix": "INV",
+                    "current_sequence": 0,
+                    "sequence_length": 6,
+                    "allow_prefix_change": True,
+                    "next_number": 1,
+                    "document_type": "Sales Invoice"
+                },
+                {
+                    "prefix": "RTN",
+                    "current_sequence": 0,
+                    "sequence_length": 6,
+                    "allow_prefix_change": True,
+                    "next_number": 1,
+                    "document_type": "Sales Return"
+                }
+            ]
+        }
+    
+    # Add next_number and document_type to each sequence
+    for seq in sequences:
+        seq["next_number"] = seq.get("current_sequence", 0) + 1
+        if seq.get("prefix") == "INV":
+            seq["document_type"] = "Sales Invoice"
+        elif seq.get("prefix") == "RTN":
+            seq["document_type"] = "Sales Return"
+        else:
+            seq["document_type"] = "Custom"
+    
+    return {"sequences": sequences}
+
+
+@api_router.put("/settings/bill-sequence")
+async def update_bill_sequence_settings_route(
+    settings: BillSequenceSettings,
+    current_user: User = Depends(get_current_user)
+):
+    """Update bill sequence settings"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can modify bill sequence settings")
+    
+    # Validate prefix format
+    if not settings.prefix or len(settings.prefix) > 10:
+        raise HTTPException(status_code=400, detail="Prefix must be 1-10 characters")
+    
+    if not settings.prefix.isalnum():
+        raise HTTPException(status_code=400, detail="Prefix must be alphanumeric")
+    
+    # Validate sequence length
+    if settings.sequence_length < 3 or settings.sequence_length > 10:
+        raise HTTPException(status_code=400, detail="Sequence length must be between 3 and 10")
+    
+    # Validate starting number
+    if settings.starting_number < 1:
+        raise HTTPException(status_code=400, detail="Starting number must be at least 1")
+    
+    # Update settings with validation
+    result = await validate_and_update_sequence_settings(
+        prefix=settings.prefix.upper(),
+        starting_number=settings.starting_number,
+        sequence_length=settings.sequence_length
+    )
+    
+    return {
+        "message": "Bill sequence settings updated successfully",
+        "settings": result
+    }
+
+
+@api_router.post("/settings/bill-sequence/preview")
+async def preview_bill_number(
+    settings: BillSequenceSettings,
+    current_user: User = Depends(get_current_user)
+):
+    """Preview what the next bill number would look like with given settings"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Only admins and managers can preview")
+    
+    # Format sample bill number
+    sample = f"{settings.prefix.upper()}-{str(settings.starting_number).zfill(settings.sequence_length)}"
+    
+    return {
+        "preview": sample,
+        "format": f"{settings.prefix.upper()}-{'0' * settings.sequence_length}"
+    }
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

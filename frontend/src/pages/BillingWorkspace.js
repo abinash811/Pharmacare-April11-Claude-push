@@ -20,6 +20,7 @@ export default function BillingWorkspace() {
   const [billedBy, setBilledBy] = useState('');
   const [paymentType, setPaymentType] = useState('cash');
   const [draftNumber, setDraftNumber] = useState(null);
+  const [editingDraftId, setEditingDraftId] = useState(null);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,20 +45,41 @@ export default function BillingWorkspace() {
   // Print State
   const [savedBillData, setSavedBillData] = useState(null);
 
+  // Save dropdown state
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+  const saveDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (saveDropdownRef.current && !saveDropdownRef.current.contains(event.target)) {
+        setShowSaveDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Load initial data
   useEffect(() => {
     fetchUsers();
-    // Load draft if exists
-    const savedDraft = localStorage.getItem('billing_draft');
-    if (savedDraft) {
-      try {
-        const draft = JSON.parse(savedDraft);
-        setCustomerName(draft.customerName || '');
-        setCustomerPhone(draft.customerPhone || '');
-        setDoctorName(draft.doctorName || '');
-        setBillItems(draft.items || []);
-        setPaymentType(draft.paymentType || 'cash');
-        setDraftNumber(draft.draftNumber || Math.floor(1000 + Math.random() * 9000));
+    
+    // Check if loading a draft from URL param
+    const draftId = searchParams.get('draft');
+    if (draftId) {
+      loadDraftBill(draftId);
+    } else {
+      // Load local draft if exists
+      const savedDraft = localStorage.getItem('billing_draft');
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          setCustomerName(draft.customerName || '');
+          setCustomerPhone(draft.customerPhone || '');
+          setDoctorName(draft.doctorName || '');
+          setBillItems(draft.items || []);
+          setPaymentType(draft.paymentType || 'cash');
+          setDraftNumber(draft.draftNumber || Math.floor(1000 + Math.random() * 9000));
       } catch (e) {
         console.error('Failed to load draft');
       }

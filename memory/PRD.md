@@ -194,7 +194,25 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Medicine Detail Page**: ✅ 100% passed (iteration_11.json) - Feb 22, 2026
 - **Transaction Linking**: ✅ 100% passed (iteration_12.json) - Feb 22, 2026
 - **Save & Print Fix**: ✅ 100% passed (iteration_13.json) - Feb 22, 2026
+- **Save Bill Flow**: ✅ 100% passed (iteration_14.json) - Feb 22, 2026
+- **Bill Number Sequence**: ✅ 100% passed (iteration_15.json) - Feb 22, 2026
 - **API Cost Optimizations**: ✅ Implemented Feb 15, 2026
+
+## NEW: Bill Number Sequence System (Feb 22, 2026)
+- [x] Configurable, auto-incrementing bill number generation
+- [x] Format: {PREFIX}-{PADDED_SEQUENCE} (e.g., INV-000001)
+- [x] Admin configurable: Prefix, Starting Number, Sequence Length (3-8 digits)
+- [x] Atomic MongoDB operations (findOneAndUpdate) for concurrency safety
+- [x] Sequential numbers even with concurrent settlements
+- [x] Draft bills use DRAFT- prefix (don't consume sequence)
+- [x] Sales returns use RTN- prefix with separate sequence
+- [x] Never reuse numbers (cancelled bills keep their numbers)
+- [x] Validation blocks starting number lower than last used
+- [x] Settings UI: Settings → Bill Sequence tab
+- [x] Live preview of bill number format
+- [x] Database: bill_number_sequences collection with unique index
+- [x] Unique constraint on bills.bill_number
+- [x] Future-ready: branch_id field for multi-branch support
 
 ## API Cost Optimizations (Feb 15, 2026)
 

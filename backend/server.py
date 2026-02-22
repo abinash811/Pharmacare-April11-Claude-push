@@ -2148,6 +2148,45 @@ async def delete_product(product_id: str, current_user: User = Depends(get_curre
     
     return {"message": "Product deleted successfully"}
 
+@api_router.post("/products/bulk-update")
+async def bulk_update_products(
+    data: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Bulk update multiple products with a single field change"""
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Only admins and managers can bulk update products")
+    
+    skus = data.get("skus", [])
+    field = data.get("field", "")
+    value = data.get("value", "")
+    
+    if not skus or not field:
+        raise HTTPException(status_code=400, detail="SKUs and field are required")
+    
+    # Allowed fields for bulk update
+    allowed_fields = ["location", "discount_percent", "gst_percent", "category", "schedule", "brand"]
+    if field not in allowed_fields:
+        raise HTTPException(status_code=400, detail=f"Field '{field}' not allowed for bulk update")
+    
+    # Convert value to appropriate type
+    if field in ["discount_percent", "gst_percent"]:
+        try:
+            value = float(value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid numeric value for {field}")
+    
+    # Perform bulk update
+    result = await db.products.update_many(
+        {"sku": {"$in": skus}},
+        {"$set": {field: value, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {
+        "message": f"Updated {result.modified_count} products",
+        "modified_count": result.modified_count
+    }
+
 # ==================== STOCK BATCH ROUTES ====================
 
 @api_router.post("/stock/batches", response_model=StockBatch)

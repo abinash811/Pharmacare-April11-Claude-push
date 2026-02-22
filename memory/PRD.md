@@ -42,6 +42,16 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Ledger tab showing full stock movement history
 - [x] Footer with batch count and status legend (Active/Nearing/Expired)
 
+## NEW: Transaction Linking in Medicine Detail (Feb 22, 2026)
+- [x] API endpoint GET /api/products/{sku}/transactions returns all linked transactions
+- [x] Purchases tab: Shows all purchase records with Purchase #, Date, Supplier, Invoice #, Batch, Qty, Cost, MRP, Total, Status
+- [x] Sales tab: Shows all sales records with Bill #, Date, Customer, Batch, Qty, Unit Price, Discount, Total, Status
+- [x] Purchase Returns tab: Shows return records with Return #, Date, Supplier, Original Purchase, Batch, Qty, Reason, Amount, Status
+- [x] Sales Returns tab: Shows return records with Return #, Date, Customer, Original Invoice, Batch, Qty, Refund Amount, Status
+- [x] Record counts displayed (e.g., "4 records")
+- [x] Status badges with correct colors (paid/confirmed=green, due=red, draft=gray)
+- [x] Lazy loading: Transactions fetched only when user clicks on tab
+
 ## NEW: Billing Workspace Redesign (Feb 18, 2026)
 - [x] Complete redesign of billing page with PharmaSync-style UI
 - [x] Global search bar with Ctrl+F shortcut

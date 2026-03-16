@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { 
   Edit2, Bell, Clock, Package, Percent, Hash, CreditCard, 
   Calendar, FileText, ChevronRight, Trash2, QrCode, Check,
-  ArrowLeft, Plus, ShoppingCart, RotateCcw, TrendingUp, TrendingDown
+  ArrowLeft, Plus, ShoppingCart, RotateCcw, TrendingUp, TrendingDown, X
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -32,6 +32,9 @@ export default function MedicineDetail() {
   
   // Ledger / Movement data
   const [movements, setMovements] = useState([]);
+  
+  // Edit Modal
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (sku) {
@@ -287,7 +290,7 @@ export default function MedicineDetail() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate(`/inventory/edit/${sku}`)}
+                onClick={() => setShowEditModal(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#00CED1] text-white font-medium rounded-lg hover:bg-[#00B5B8] transition-colors"
                 data-testid="edit-product-btn"
               >
@@ -879,6 +882,227 @@ export default function MedicineDetail() {
       <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#00CED1] text-white rounded-full shadow-lg hover:bg-[#00B5B8] flex items-center justify-center">
         <span className="text-xl font-bold">?</span>
       </button>
+      
+      {/* Edit Product Modal */}
+      {showEditModal && product && (
+        <EditProductModal
+          product={product}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false);
+            fetchProductDetails();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+
+// Edit Product Modal Component
+function EditProductModal({ product, onClose, onSuccess }) {
+  const [formData, setFormData] = useState({
+    name: product.name || '',
+    brand: product.brand || '',
+    manufacturer: product.manufacturer || '',
+    category: product.category || '',
+    units_per_pack: product.units_per_pack || 1,
+    mrp_per_unit: product.default_mrp_per_unit || product.default_mrp || '',
+    gst_percent: product.gst_percent || 5,
+    hsn_code: product.hsn_code || '',
+    schedule: product.schedule || '',
+    composition: product.composition || product.generic_name || '',
+    low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
+    status: product.status || 'active'
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/products/${product.sku}`, {
+        name: formData.name,
+        brand: formData.brand || null,
+        manufacturer: formData.manufacturer || null,
+        category: formData.category || null,
+        units_per_pack: parseInt(formData.units_per_pack) || 1,
+        default_mrp_per_unit: parseFloat(formData.mrp_per_unit) || 0,
+        default_mrp: parseFloat(formData.mrp_per_unit) || 0,
+        gst_percent: parseFloat(formData.gst_percent) || 5,
+        hsn_code: formData.hsn_code || null,
+        schedule: formData.schedule || null,
+        composition: formData.composition || null,
+        low_stock_threshold_units: parseInt(formData.low_stock_threshold) || 10,
+        status: formData.status
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast.success('Product updated successfully');
+      onSuccess();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to update product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+      <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Edit Product</h3>
+            <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
+              <input
+                value={formData.name}
+                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+                required
+                data-testid="edit-product-name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+              <input
+                value={formData.brand}
+                onChange={(e) => setFormData(p => ({ ...p, brand: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+              <input
+                value={formData.manufacturer}
+                onChange={(e) => setFormData(p => ({ ...p, manufacturer: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <input
+                value={formData.category}
+                onChange={(e) => setFormData(p => ({ ...p, category: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Units per Pack</label>
+              <input
+                type="number"
+                value={formData.units_per_pack}
+                onChange={(e) => setFormData(p => ({ ...p, units_per_pack: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">MRP per Unit *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.mrp_per_unit}
+                onChange={(e) => setFormData(p => ({ ...p, mrp_per_unit: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">GST %</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.gst_percent}
+                onChange={(e) => setFormData(p => ({ ...p, gst_percent: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">HSN Code</label>
+              <input
+                value={formData.hsn_code}
+                onChange={(e) => setFormData(p => ({ ...p, hsn_code: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
+              <select
+                value={formData.schedule}
+                onChange={(e) => setFormData(p => ({ ...p, schedule: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              >
+                <option value="">Non-Restricted</option>
+                <option value="H">Schedule H</option>
+                <option value="H1">Schedule H1</option>
+                <option value="X">Schedule X</option>
+                <option value="G">Schedule G</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
+              <input
+                type="number"
+                value={formData.low_stock_threshold}
+                onChange={(e) => setFormData(p => ({ ...p, low_stock_threshold: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData(p => ({ ...p, status: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Composition</label>
+              <textarea
+                value={formData.composition}
+                onChange={(e) => setFormData(p => ({ ...p, composition: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+                rows="2"
+                placeholder="e.g., Paracetamol 500mg + Caffeine 65mg"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-[#00CED1] text-white rounded-lg hover:bg-[#00B5B8] disabled:opacity-50"
+              data-testid="submit-edit-product"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

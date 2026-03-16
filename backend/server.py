@@ -462,6 +462,8 @@ class Product(BaseModel):
     description: Optional[str] = None
     low_stock_threshold: Optional[int] = None  # Legacy field
     low_stock_threshold_units: int = 10  # Phase 0: Alert threshold in units
+    # Drug Schedule: OTC = over the counter, H = prescription required, H1 = prescription + 3yr register, X = narcotic
+    schedule: Optional[str] = "OTC"
     status: str = "active"  # active, inactive
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -495,6 +497,8 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     low_stock_threshold_units: Optional[int] = 10
     low_stock_threshold: Optional[int] = None  # Legacy support
+    # Drug Schedule: OTC = over the counter, H = prescription required, H1 = prescription + 3yr register, X = narcotic
+    schedule: Optional[str] = "OTC"
     status: str = "active"
 
 class ProductUpdate(BaseModel):
@@ -511,6 +515,8 @@ class ProductUpdate(BaseModel):
     hsn_code: Optional[str] = None
     description: Optional[str] = None
     low_stock_threshold_units: Optional[int] = None
+    # Drug Schedule: OTC = over the counter, H = prescription required, H1 = prescription + 3yr register, X = narcotic
+    schedule: Optional[str] = None
     status: Optional[str] = None
 
 # Stock Batch Models (Inventory) - Phase 0
@@ -713,6 +719,25 @@ class StockAdjustment(BaseModel):
     reason: str
     reference_number: Optional[str] = None
     notes: Optional[str] = None
+
+# Schedule H1 Register Entry Model - Drug Schedule Compliance
+class ScheduleH1Entry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    dispensed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    product_sku: str
+    product_name: str
+    batch_no: str
+    quantity_dispensed: int
+    prescriber_name: str
+    prescriber_address: str
+    prescriber_registration_no: str
+    patient_name: str
+    patient_address: Optional[str] = None
+    bill_id: str
+    bill_number: str
+    dispensed_by: str
+    dispensed_by_name: str
 
 # Payment Models (for multiple payment methods support)
 class Payment(BaseModel):
@@ -3072,10 +3097,34 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     
     # Only update stock if NOT draft - allow stock deduction for paid, due, etc.
     if bill_data.status != "draft":
+        # Pre-check for Schedule H1 drugs - validate prescription before any stock deduction
+        for item in bill_data.items:
+            product_sku = item.get('product_sku')
+            if product_sku:
+                product = await db.products.find_one({"sku": product_sku}, {"_id": 0})
+                if product and product.get('schedule') == 'H1':
+                    product_name = product['name']
+                    if not bill_data.doctor_name or not bill_data.doctor_name.strip():
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Prescription details required for Schedule H1 drug: {product_name}"
+                        )
+        
         for item in bill_data.items:
             # Support both old (medicine_id) and new (product_id/batch_id) format
             batch_id = item.get('batch_id')
             product_id = item.get('product_id') or item.get('medicine_id')
+            product_sku = item.get('product_sku')
+            batch_no = item.get('batch_no') or item.get('batch_number')
+            
+            # If no batch_id but we have batch_no and product_sku, find batch by those
+            if not batch_id and batch_no and product_sku:
+                batch_doc = await db.stock_batches.find_one(
+                    {"product_sku": product_sku, "batch_no": batch_no},
+                    {"_id": 0}
+                )
+                if batch_doc:
+                    batch_id = batch_doc['id']
             
             if not batch_id and product_id:
                 # Legacy support: if batch_id not provided, try to find a batch for this product
@@ -3096,9 +3145,14 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             
             # Get product to determine units_per_pack for conversion
             # Support both old (product_id) and new (product_sku) lookups
-            product = await db.products.find_one({"id": product_id}, {"_id": 0})
+            product = await db.products.find_one({"id": product_id}, {"_id": 0}) if product_id else None
             if not product:
-                # Try finding by SKU if ID lookup failed
+                # Try finding by SKU directly from item
+                item_sku = item.get('product_sku')
+                if item_sku:
+                    product = await db.products.find_one({"sku": item_sku}, {"_id": 0})
+            if not product:
+                # Try finding by SKU from batch
                 batch_doc = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
                 if batch_doc and 'product_sku' in batch_doc:
                     product = await db.products.find_one({"sku": batch_doc['product_sku']}, {"_id": 0})
@@ -3149,6 +3203,49 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             movement_doc = movement.model_dump()
             movement_doc['performed_at'] = movement_doc['performed_at'].isoformat()
             await db.stock_movements.insert_one(movement_doc)
+            
+            # Schedule H1 compliance: auto-create register entry for H1 drugs
+            if product.get('schedule') == 'H1' and bill_data.invoice_type == "SALE":
+                product_name = product['name'] if product else item.get('product_name', item.get('medicine_name', 'Unknown'))
+                
+                # Prescription (doctor) details required for H1 drugs
+                if not bill_data.doctor_name or not bill_data.doctor_name.strip():
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Prescription details required for Schedule H1 drug: {product_name}"
+                    )
+                
+                # Look up prescriber details from doctors collection
+                prescriber_address = ""
+                prescriber_registration_no = ""
+                if bill_data.doctor_name:
+                    doctor = await db.doctors.find_one(
+                        {"name": {"$regex": f"^{bill_data.doctor_name}$", "$options": "i"}},
+                        {"_id": 0}
+                    )
+                    if doctor:
+                        prescriber_address = doctor.get('clinic_address', '') or doctor.get('address', '') or ''
+                        prescriber_registration_no = doctor.get('registration_no', '') or doctor.get('contact', '') or ''
+                
+                # Create H1 register entry
+                h1_entry = ScheduleH1Entry(
+                    product_sku=product_sku,
+                    product_name=product_name,
+                    batch_no=batch['batch_no'] if batch else item.get('batch_no', item.get('batch_number', 'N/A')),
+                    quantity_dispensed=abs(qty_delta_units),
+                    prescriber_name=bill_data.doctor_name,
+                    prescriber_address=prescriber_address,
+                    prescriber_registration_no=prescriber_registration_no,
+                    patient_name=bill_data.customer_name or 'Walk-in Customer',
+                    patient_address=None,
+                    bill_id=bill.id,
+                    bill_number=bill_number,
+                    dispensed_by=current_user.id,
+                    dispensed_by_name=current_user.name
+                )
+                h1_doc = h1_entry.model_dump()
+                h1_doc['dispensed_at'] = h1_doc['dispensed_at'].isoformat()
+                await db.schedule_h1_register.insert_one(h1_doc)
     
     # Save bill first
     doc = bill.model_dump()
@@ -4251,6 +4348,50 @@ async def get_gst_report(
         "period": {
             "start_date": start_date,
             "end_date": end_date
+        }
+    }
+
+# ==================== COMPLIANCE ====================
+
+@api_router.get("/compliance/schedule-h1-register")
+async def get_schedule_h1_register(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get Schedule H1 drug dispensing register entries for compliance reporting.
+    Restricted to admin and manager roles only."""
+    
+    # Check role - restrict to admin and manager only
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Schedule H1 register is restricted to admin and manager roles."
+        )
+    
+    # Build query with date filters
+    query = {}
+    if from_date or to_date:
+        date_filter = {}
+        if from_date:
+            date_filter["$gte"] = from_date
+        if to_date:
+            date_filter["$lte"] = to_date
+        if date_filter:
+            query["dispensed_at"] = date_filter
+    
+    # Fetch entries sorted by dispensed_at descending
+    entries = await db.schedule_h1_register.find(
+        query,
+        {"_id": 0}
+    ).sort("dispensed_at", -1).to_list(10000)
+    
+    return {
+        "entries": entries,
+        "total_count": len(entries),
+        "period": {
+            "from_date": from_date,
+            "to_date": to_date
         }
     }
 
@@ -5427,6 +5568,10 @@ async def startup_db():
         # Stock movements index
         await db.stock_movements.create_index([("performed_at", -1)])
         await db.stock_movements.create_index("product_sku")
+        
+        # Schedule H1 Register indexes for compliance queries
+        await db.schedule_h1_register.create_index([("dispensed_at", -1)])
+        await db.schedule_h1_register.create_index("product_sku")
         
         print("✅ Database indexes created successfully")
     except Exception as e:

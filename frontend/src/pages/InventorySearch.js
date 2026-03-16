@@ -997,6 +997,7 @@ function AddStockModal({ onClose, onSuccess }) {
     mrp_per_unit: '',
     gst_percent: 5,
     low_stock_threshold: 10,
+    schedule: 'OTC',
     batch_no: '',
     expiry_date: '',
     initial_qty: 0,
@@ -1020,7 +1021,8 @@ function AddStockModal({ onClose, onSuccess }) {
         units_per_pack: parseInt(formData.units_per_pack) || 1,
         default_mrp_per_unit: parseFloat(formData.mrp_per_unit) || 0,
         gst_percent: parseFloat(formData.gst_percent) || 5,
-        low_stock_threshold_units: parseInt(formData.low_stock_threshold) || 10
+        low_stock_threshold_units: parseInt(formData.low_stock_threshold) || 10,
+        schedule: formData.schedule || 'OTC'
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1135,6 +1137,20 @@ function AddStockModal({ onClose, onSuccess }) {
                 onChange={(e) => setFormData(p => ({ ...p, low_stock_threshold: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Drug Schedule</label>
+              <select
+                value={formData.schedule}
+                onChange={(e) => setFormData(p => ({ ...p, schedule: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]"
+                data-testid="add-stock-schedule"
+              >
+                <option value="OTC">OTC - Over the Counter</option>
+                <option value="H">H - Prescription Required</option>
+                <option value="H1">H1 - Prescription + 3yr Register</option>
+                <option value="X">X - Narcotic</option>
+              </select>
             </div>
           </div>
 

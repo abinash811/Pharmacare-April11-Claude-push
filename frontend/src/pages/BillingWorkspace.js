@@ -41,6 +41,19 @@ export default function BillingWorkspace() {
   const [totalDiscount, setTotalDiscount] = useState(0);
   const [totalGst, setTotalGst] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
+  
+  // Phase 3: Additional totals for sticky footer
+  const [billDiscount, setBillDiscount] = useState(0);
+  const [billDiscountType, setBillDiscountType] = useState('%'); // '%' or '₹'
+  const [totalCess, setTotalCess] = useState(0);
+  const [mrpTotal, setMrpTotal] = useState(0);
+  const [margin, setMargin] = useState({ amount: 0, percent: 0 });
+
+  // Phase 4: Finalise Modal state
+  const [showFinaliseModal, setShowFinaliseModal] = useState(false);
+  const [internalNote, setInternalNote] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Print State
   const [savedBillData, setSavedBillData] = useState(null);
@@ -49,11 +62,31 @@ export default function BillingWorkspace() {
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
   const saveDropdownRef = useRef(null);
 
+  // Patient Search Modal
+  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientResults, setPatientResults] = useState([]);
+  const [patientLoading, setPatientLoading] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  // Doctor Search
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [doctorSearch, setDoctorSearch] = useState('');
+  const [doctorResults, setDoctorResults] = useState([]);
+  const [doctorLoading, setDoctorLoading] = useState(false);
+  const doctorDropdownRef = useRef(null);
+
+  // Billing For dropdown
+  const [billingFor, setBillingFor] = useState('self');
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (saveDropdownRef.current && !saveDropdownRef.current.contains(event.target)) {
         setShowSaveDropdown(false);
+      }
+      if (doctorDropdownRef.current && !doctorDropdownRef.current.contains(event.target)) {
+        setShowDoctorDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -87,10 +120,10 @@ export default function BillingWorkspace() {
     }
   }, []);
 
-  // Calculate totals whenever items change
+  // Calculate totals whenever items or bill discount changes
   useEffect(() => {
     calculateTotals();
-  }, [billItems]);
+  }, [billItems, billDiscount, billDiscountType]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -128,6 +161,79 @@ export default function BillingWorkspace() {
     } catch (error) {
       console.error('Failed to fetch users');
     }
+  };
+
+  // Search patients from patients collection
+  const searchPatients = async (query) => {
+    setPatientSearch(query);
+    if (query.length < 1) {
+      setPatientResults([]);
+      return;
+    }
+    setPatientLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/patients?search=${encodeURIComponent(query)}&page_size=20`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPatientResults(response.data.data || response.data || []);
+    } catch (error) {
+      console.error('Patient search error:', error);
+      setPatientResults([]);
+    } finally {
+      setPatientLoading(false);
+    }
+  };
+
+  // Select a patient from modal
+  const selectPatient = (patient) => {
+    if (patient === 'counter') {
+      setCustomerName('Counter Sale');
+      setCustomerPhone('');
+      setSelectedPatient(null);
+    } else {
+      setCustomerName(patient.name || '');
+      setCustomerPhone(patient.phone || patient.mobile || '');
+      setSelectedPatient(patient);
+    }
+    setShowPatientModal(false);
+    setPatientSearch('');
+    setPatientResults([]);
+    saveDraft();
+  };
+
+  // Search doctors from doctors collection
+  const searchDoctors = async (query) => {
+    setDoctorSearch(query);
+    setDoctorName(query);
+    if (query.length < 1) {
+      setDoctorResults([]);
+      setShowDoctorDropdown(false);
+      return;
+    }
+    setDoctorLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/doctors?search=${encodeURIComponent(query)}&page_size=10`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDoctorResults(response.data.data || response.data || []);
+      setShowDoctorDropdown(true);
+    } catch (error) {
+      console.error('Doctor search error:', error);
+      setDoctorResults([]);
+    } finally {
+      setDoctorLoading(false);
+    }
+  };
+
+  // Select a doctor from dropdown
+  const selectDoctor = (doctor) => {
+    setDoctorName(doctor.name || '');
+    setDoctorSearch(doctor.name || '');
+    setShowDoctorDropdown(false);
+    setDoctorResults([]);
+    saveDraft();
   };
 
   const handleSearch = async (query) => {
@@ -218,25 +324,54 @@ export default function BillingWorkspace() {
   };
 
   const calculateTotals = () => {
-    let sub = 0;
-    let disc = 0;
+    let mrp = 0; // MRP total (qty * MRP per unit)
+    let itemDisc = 0; // Item-level discounts
     let gst = 0;
+    let cess = 0;
+    let costPrice = 0; // For margin calculation
 
     billItems.forEach(item => {
       const baseAmount = item.qty * item.unit_price;
-      const itemDiscount = baseAmount * (item.discount_percent / 100);
-      const afterDiscount = baseAmount - itemDiscount;
+      const itemDiscAmount = baseAmount * (item.discount_percent / 100);
+      const afterDiscount = baseAmount - itemDiscAmount;
       const itemGst = afterDiscount * (item.gst_percent / 100);
-
-      sub += baseAmount;
-      disc += itemDiscount;
+      const itemCess = afterDiscount * ((item.cess_percent || 0) / 100);
+      
+      mrp += baseAmount;
+      itemDisc += itemDiscAmount;
       gst += itemGst;
+      cess += itemCess;
+      
+      // Estimate cost price (70% of MRP if not available)
+      costPrice += item.qty * (item.cost_price || item.unit_price * 0.7);
     });
 
-    setSubtotal(sub);
-    setTotalDiscount(disc);
+    // Calculate bill-level discount
+    let billDiscAmount = 0;
+    const afterItemDiscount = mrp - itemDisc;
+    if (billDiscount > 0) {
+      if (billDiscountType === '%') {
+        billDiscAmount = afterItemDiscount * (billDiscount / 100);
+      } else {
+        billDiscAmount = billDiscount;
+      }
+    }
+
+    // Calculate final totals
+    const subtotalValue = mrp - itemDisc - billDiscAmount;
+    const grandTotalValue = subtotalValue + gst + cess;
+    
+    // Margin calculation
+    const marginAmount = subtotalValue - costPrice;
+    const marginPercent = costPrice > 0 ? (marginAmount / costPrice) * 100 : 0;
+
+    setMrpTotal(mrp);
+    setSubtotal(subtotalValue);
+    setTotalDiscount(itemDisc + billDiscAmount);
     setTotalGst(gst);
-    setGrandTotal(sub - disc + gst);
+    setTotalCess(cess);
+    setGrandTotal(grandTotalValue);
+    setMargin({ amount: marginAmount, percent: marginPercent });
   };
 
   const saveDraft = () => {
@@ -331,6 +466,252 @@ export default function BillingWorkspace() {
   const handleSaveAsDraft = () => {
     setShowSaveDropdown(false);
     saveBill(true);
+  };
+
+  // Save & Print - saves the bill then triggers print
+  const saveBillAndPrint = async () => {
+    if (billItems.length === 0) {
+      toast.error('Add items to bill first');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const billStatus = paymentType === 'credit' ? 'due' : 'paid';
+      const billData = {
+        customer_name: customerName || 'Walk-in Customer',
+        customer_mobile: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType,
+        items: billItems.map(item => ({
+          product_sku: item.product_sku,
+          product_name: item.product_name,
+          batch_no: item.batch_no,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          gst_percent: item.gst_percent,
+          line_total: item.net_amount
+        })),
+        discount: totalDiscount,
+        tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
+        status: billStatus
+      };
+
+      const response = await axios.post(`${API}/bills`, billData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success(`Bill #${response.data.bill_number} created!`);
+      
+      // Store bill data for printing
+      setSavedBillData({
+        bill_number: response.data.bill_number,
+        items: billItems,
+        customer_name: customerName || 'Walk-in Customer',
+        customer_phone: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType,
+        subtotal,
+        total_discount: totalDiscount,
+        total_gst: totalGst,
+        grand_total: grandTotal
+      });
+      
+      localStorage.removeItem('billing_draft');
+      
+      // Trigger print after a short delay
+      setTimeout(() => {
+        window.print();
+        clearBill();
+        navigate('/billing');
+      }, 200);
+      
+    } catch (error) {
+      toast.error('Failed to save bill');
+      console.error('Save error:', error);
+    }
+  };
+
+  // Park bill - saves as parked (resumable draft, no stock deduction)
+  const parkBill = async () => {
+    if (billItems.length === 0) {
+      toast.error('Add items to bill first');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const billData = {
+        customer_name: customerName || 'Walk-in Customer',
+        customer_mobile: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType || 'cash',
+        items: billItems.map(item => ({
+          product_sku: item.product_sku,
+          product_name: item.product_name,
+          batch_no: item.batch_no,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          gst_percent: item.gst_percent,
+          line_total: item.net_amount
+        })),
+        discount: totalDiscount,
+        tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
+        status: 'draft'  // Parked = draft status
+      };
+
+      const response = await axios.post(`${API}/bills`, billData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success(`Bill parked! Can be resumed later.`);
+      localStorage.removeItem('billing_draft');
+      clearBill();
+      navigate('/billing');
+      
+    } catch (error) {
+      toast.error('Failed to park bill');
+      console.error('Park error:', error);
+    }
+  };
+
+  // Save & Deliver - saves the bill and triggers delivery booking
+  const saveBillAndDeliver = async () => {
+    if (billItems.length === 0) {
+      toast.error('Add items to bill first');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    try {
+      const billStatus = paymentType === 'credit' ? 'due' : 'paid';
+      const billData = {
+        customer_name: customerName || 'Walk-in Customer',
+        customer_mobile: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType,
+        items: billItems.map(item => ({
+          product_sku: item.product_sku,
+          product_name: item.product_name,
+          batch_no: item.batch_no,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          gst_percent: item.gst_percent,
+          line_total: item.net_amount
+        })),
+        discount: totalDiscount,
+        tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
+        status: billStatus,
+        delivery_requested: true
+      };
+
+      const response = await axios.post(`${API}/bills`, billData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success(`Bill #${response.data.bill_number} created! Delivery booking initiated.`);
+      localStorage.removeItem('billing_draft');
+      clearBill();
+      navigate('/billing');
+      
+    } catch (error) {
+      toast.error('Failed to save bill');
+      console.error('Save error:', error);
+    }
+  };
+
+  // Open Finalise Modal
+  const openFinaliseModal = () => {
+    if (billItems.length === 0) {
+      toast.error('Add items to bill first');
+      return;
+    }
+    if (!paymentType) {
+      toast.error('Select a payment method');
+      return;
+    }
+    setShowFinaliseModal(true);
+  };
+
+  // Confirm & Save Bill (atomic operation)
+  const confirmAndSaveBill = async () => {
+    setIsSaving(true);
+    const token = localStorage.getItem('token');
+    
+    try {
+      // Calculate bill-level discount amount
+      let billDiscAmount = 0;
+      if (billDiscount > 0) {
+        if (billDiscountType === '%') {
+          billDiscAmount = (mrpTotal - (totalDiscount - billDiscount)) * (billDiscount / 100);
+        } else {
+          billDiscAmount = billDiscount;
+        }
+      }
+
+      const billStatus = paymentType === 'credit' ? 'due' : 'paid';
+      const billData = {
+        customer_name: customerName || 'Walk-in Customer',
+        customer_mobile: customerPhone,
+        doctor_name: doctorName,
+        payment_method: paymentType,
+        items: billItems.map(item => ({
+          product_sku: item.product_sku,
+          product_name: item.product_name,
+          batch_no: item.batch_no,
+          quantity: item.qty,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          gst_percent: item.gst_percent,
+          cess_percent: item.cess_percent || 0,
+          line_total: item.net_amount,
+          cost_price: item.cost_price || item.unit_price * 0.7
+        })),
+        // Full snapshot of amounts
+        mrp_total: mrpTotal,
+        item_discount: totalDiscount - billDiscAmount,
+        bill_discount: billDiscAmount,
+        discount: totalDiscount,
+        gst_amount: totalGst,
+        cgst_amount: totalGst / 2, // Split for GST compliance
+        sgst_amount: totalGst / 2,
+        cess_amount: totalCess,
+        margin_amount: margin.amount,
+        margin_percent: margin.percent,
+        tax_rate: billItems.length > 0 ? billItems[0].gst_percent : 5,
+        total_amount: grandTotal,
+        grand_total: grandTotal,
+        round_off: 0, // Can be calculated if needed
+        internal_note: internalNote,
+        delivery_note: deliveryNote,
+        status: billStatus,
+        billed_by: billedBy,
+        cashier_name: billedBy
+      };
+
+      // Atomic save: bill saved to DB + stock deducted per batch
+      const response = await axios.post(`${API}/bills`, billData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      toast.success(`Bill #${response.data.bill_number} created successfully!`);
+      localStorage.removeItem('billing_draft');
+      
+      // Close modal and navigate
+      setShowFinaliseModal(false);
+      clearBill();
+      navigate('/billing');
+      
+    } catch (error) {
+      // Backend handles rollback if any step fails
+      toast.error(error.response?.data?.detail || 'Failed to save bill. Transaction rolled back.');
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePrintCurrentBill = () => {
@@ -468,89 +849,166 @@ export default function BillingWorkspace() {
 
       {/* Main Content */}
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
-        {/* Customer Details Section */}
-        <section className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Patient Name</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">person</span>
-                <input
-                  type="text"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 transition-all font-semibold"
-                  style={{ '--tw-ring-color': 'rgba(19, 236, 218, 0.4)' }}
-                  placeholder="Enter name"
-                  value={customerName}
-                  onChange={(e) => { setCustomerName(e.target.value); saveDraft(); }}
-                  data-testid="customer-name"
-                />
-              </div>
+        {/* Subbar - Chip Style Inputs */}
+        <section className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Bill Date Chip - Read Only */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg">
+              <span className="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+              <span className="text-sm font-medium text-slate-700">
+                {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
             </div>
 
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Phone Number</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">phone_iphone</span>
-                <input
-                  type="text"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 transition-all"
-                  placeholder="+91 1234567890"
-                  value={customerPhone}
-                  onChange={(e) => { setCustomerPhone(e.target.value); saveDraft(); }}
-                  data-testid="customer-phone"
-                />
-              </div>
+            {/* Patient Chip - Opens Modal */}
+            <button
+              onClick={() => setShowPatientModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors group"
+              data-testid="patient-chip"
+            >
+              <span className="material-symbols-outlined text-slate-400 group-hover:text-teal-500 text-lg">person</span>
+              <span className={`text-sm font-medium ${customerName ? 'text-slate-900' : 'text-slate-400'}`}>
+                {customerName || 'Select Patient'}
+              </span>
+              {customerPhone && <span className="text-xs text-slate-400">· {customerPhone}</span>}
+              <span className="material-symbols-outlined text-slate-400 text-sm">expand_more</span>
+            </button>
+
+            {/* Billing For Chip */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="material-symbols-outlined text-slate-400 text-lg">shopping_bag</span>
+              <select
+                value={billingFor}
+                onChange={(e) => setBillingFor(e.target.value)}
+                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer appearance-none pr-4"
+                data-testid="billing-for"
+              >
+                <option value="self">Self</option>
+                <option value="other">Other</option>
+              </select>
             </div>
 
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Prescribing Doctor</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">stethoscope</span>
+            {/* Doctor Chip - Searchable */}
+            <div className="relative" ref={doctorDropdownRef}>
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-lg">stethoscope</span>
                 <input
                   type="text"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 transition-all font-semibold"
-                  placeholder="Dr. Name"
+                  placeholder="Search Doctor"
                   value={doctorName}
-                  onChange={(e) => { setDoctorName(e.target.value); saveDraft(); }}
-                  data-testid="doctor-name"
+                  onChange={(e) => searchDoctors(e.target.value)}
+                  onFocus={() => doctorName && doctorResults.length > 0 && setShowDoctorDropdown(true)}
+                  className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none w-32"
+                  data-testid="doctor-chip"
                 />
+                {doctorLoading && <span className="material-symbols-outlined text-slate-400 text-sm animate-spin">progress_activity</span>}
               </div>
-            </div>
-
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Billed By</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">badge</span>
-                <select
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 transition-all appearance-none"
-                  value={billedBy}
-                  onChange={(e) => setBilledBy(e.target.value)}
-                  data-testid="billed-by"
-                >
-                  <option value={currentUser?.name || ''}>{currentUser?.name || 'Current User'}</option>
-                  {users.filter(u => u.name !== currentUser?.name).map(user => (
-                    <option key={user.id} value={user.name}>{user.name}</option>
+              
+              {/* Doctor Dropdown */}
+              {showDoctorDropdown && doctorResults.length > 0 && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-64 max-h-48 overflow-y-auto">
+                  {doctorResults.map((doctor) => (
+                    <button
+                      key={doctor.id}
+                      onClick={() => selectDoctor(doctor)}
+                      className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                    >
+                      <div className="text-sm font-medium">{doctor.name}</div>
+                      <div className="text-xs text-slate-400">{doctor.registration_no || doctor.clinic_name || ''}</div>
+                    </button>
                   ))}
-                </select>
-              </div>
+                </div>
+              )}
             </div>
 
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Payment Type</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">payments</span>
-                <select
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 transition-all appearance-none"
-                  value={paymentType}
-                  onChange={(e) => { setPaymentType(e.target.value); saveDraft(); }}
-                  data-testid="payment-type"
+            {/* Billed By Chip */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="material-symbols-outlined text-slate-400 text-lg">badge</span>
+              <select
+                value={billedBy}
+                onChange={(e) => setBilledBy(e.target.value)}
+                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer appearance-none pr-4"
+                data-testid="billed-by"
+              >
+                <option value={currentUser?.name || ''}>{currentUser?.name || 'Current User'}</option>
+                {users.filter(u => u.name !== currentUser?.name).map(user => (
+                  <option key={user.id} value={user.name}>{user.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Spacer */}
+            <div className="flex-grow"></div>
+
+            {/* Payment Type Dropdown */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="material-symbols-outlined text-slate-400 text-lg">payments</span>
+              <select
+                value={paymentType}
+                onChange={(e) => { setPaymentType(e.target.value); saveDraft(); }}
+                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer appearance-none pr-6"
+                data-testid="payment-type"
+              >
+                <option value="">Select Payment</option>
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="credit">Credit</option>
+                <option value="card">CC/DC</option>
+                <option value="multiple">Multiple</option>
+              </select>
+            </div>
+
+            {/* Save Button with Dropdown */}
+            <div className="relative" ref={saveDropdownRef}>
+              <div className="flex">
+                <button
+                  onClick={() => saveBill(false)}
+                  className="px-4 py-2 font-semibold text-sm text-slate-900 rounded-l-lg flex items-center gap-2 hover:brightness-95 transition-all"
+                  style={{ backgroundColor: '#13ecda' }}
+                  data-testid="save-btn"
                 >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="upi">UPI / Digital</option>
-                  <option value="credit">Credit (Due)</option>
-                </select>
+                  <span className="material-symbols-outlined text-lg">check_circle</span>
+                  Save bill
+                </button>
+                <button
+                  onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                  className="px-2 py-2 text-slate-900 rounded-r-lg border-l border-slate-900/10 hover:brightness-95 transition-all"
+                  style={{ backgroundColor: '#13ecda' }}
+                  data-testid="save-dropdown-btn"
+                >
+                  <span className="material-symbols-outlined text-lg">{showSaveDropdown ? 'expand_less' : 'expand_more'}</span>
+                </button>
               </div>
+              
+              {/* Save Dropdown Menu */}
+              {showSaveDropdown && (
+                <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+                  <button
+                    onClick={() => { setShowSaveDropdown(false); saveBillAndPrint(); }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm"
+                    data-testid="save-print-option"
+                  >
+                    <span className="material-symbols-outlined text-slate-500">print</span>
+                    Save & Print
+                  </button>
+                  <button
+                    onClick={() => { setShowSaveDropdown(false); parkBill(); }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
+                    data-testid="park-bill-option"
+                  >
+                    <span className="material-symbols-outlined text-amber-500">pause_circle</span>
+                    Park bill
+                  </button>
+                  <button
+                    onClick={() => { setShowSaveDropdown(false); saveBillAndDeliver(); }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
+                    data-testid="save-deliver-option"
+                  >
+                    <span className="material-symbols-outlined text-blue-500">local_shipping</span>
+                    Save & Deliver
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -679,174 +1137,124 @@ export default function BillingWorkspace() {
           </div>
         </section>
 
-        {/* Footer Section */}
-        <section className="mt-auto">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Left Side - Summary & Workflow */}
-            <div className="flex-grow flex flex-col gap-3">
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Subtotal</span>
-                  <span className="text-base font-bold text-slate-700">₹{subtotal.toFixed(2)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Discounts</span>
-                  <span className="text-base font-bold text-rose-500">-₹{totalDiscount.toFixed(2)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Tax (GST)</span>
-                  <span className="text-base font-bold text-slate-700">+₹{totalGst.toFixed(2)}</span>
-                </div>
-                <div className="border-l border-slate-100 pl-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest block mb-0.5" style={{ color: '#13ecda' }}>Items In Cart</span>
-                  <span className="text-base font-bold text-slate-700">{String(billItems.length).padStart(2, '0')} Medicines</span>
-                </div>
+        {/* Footer Section - Phase 3 Sticky Footer */}
+        <section className="mt-auto border-t border-slate-200 bg-white">
+          {/* Row 1: Numbers Strip */}
+          <div className="bg-slate-50 px-4 py-3 flex items-center justify-between gap-4 text-sm border-b border-slate-200">
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Items</span>
+                <span className="font-bold text-slate-700">{billItems.length}</span>
               </div>
-
-              {/* Workflow Buttons */}
-              <div className="bg-white border border-slate-200 p-2 rounded-xl shadow-sm flex items-center gap-1 overflow-x-auto">
-                <div className="px-3 border-r border-slate-100 flex items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Workflow</span>
-                </div>
-                
-                <button 
-                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-green-500/10 text-slate-500 hover:text-green-600 transition-all"
-                  onClick={() => toast.info('WhatsApp integration coming soon')}
-                  data-testid="whatsapp-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">share</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">WhatsApp</span>
-                </button>
-
-                <button 
-                  className={`relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-blue-500/10 text-slate-500 hover:text-blue-600 transition-all ${draftNumber ? 'bg-blue-50' : ''}`}
-                  onClick={saveDraft}
-                  data-testid="draft-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">history_edu</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Draft</span>
-                </button>
-
-                <button 
-                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-orange-500/10 text-slate-500 hover:text-orange-600 transition-all"
-                  onClick={holdBill}
-                  data-testid="hold-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">pause_circle</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Hold Bill</span>
-                </button>
-
-                <button 
-                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-slate-500/10 text-slate-500 hover:text-slate-900 transition-all"
-                  onClick={() => navigate('/billing')}
-                  data-testid="logs-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">receipt_long</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Logs</span>
-                </button>
-
-                <button 
-                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-slate-500/10 text-slate-500 hover:text-slate-900 transition-all"
-                  onClick={() => navigate('/inventory-v2')}
-                  data-testid="inventory-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">inventory_2</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Inventory</span>
-                </button>
-
-                <button 
-                  className="relative flex flex-col items-center justify-center h-12 w-16 rounded-lg hover:bg-purple-500/10 text-slate-500 hover:text-purple-600 transition-all"
-                  onClick={handlePrintCurrentBill}
-                  data-testid="print-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">print</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Print</span>
-                </button>
-
-                <div className="h-6 w-px bg-slate-100 mx-2"></div>
-
-                <button 
-                  className="flex flex-col items-center justify-center h-12 w-14 rounded-lg border-2 border-dashed border-slate-200 text-slate-300 hover:text-red-400 hover:border-red-300 transition-all"
-                  onClick={clearBill}
-                  data-testid="clear-btn"
-                >
-                  <span className="material-symbols-outlined text-xl">delete</span>
-                  <span className="text-[8px] font-bold uppercase mt-1">Clear</span>
-                </button>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">MRP Total</span>
+                <span className="font-bold text-slate-700">₹{mrpTotal.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Item Disc</span>
+                <span className="font-bold text-rose-500">-₹{(totalDiscount - (billDiscountType === '%' ? subtotal * (billDiscount / 100) : billDiscount)).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Bill Disc</span>
+                <span className="font-bold text-rose-500">-₹{billDiscountType === '%' ? (mrpTotal - (mrpTotal - totalDiscount) * (1 - billDiscount/100)).toFixed(2) : billDiscount.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">GST</span>
+                <span className="font-bold text-slate-700">₹{totalGst.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">CESS</span>
+                <span className="font-bold text-slate-700">₹{totalCess.toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Margin</span>
+                <span className="font-bold text-green-600">₹{margin.amount.toFixed(0)} ({margin.percent.toFixed(1)}%)</span>
               </div>
             </div>
-
-            {/* Right Side - Grand Total & Save */}
-            <div className="lg:w-96 flex flex-col gap-3">
-              <div className="bg-slate-900 rounded-xl p-4 flex justify-between items-center shadow-lg border border-slate-800">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Grand Total</span>
-                  <span className="text-[10px] font-medium" style={{ color: '#13ecda' }}>Incl. all taxes</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-4xl font-black text-white">₹{grandTotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="flex h-16 shadow-md rounded-xl overflow-visible relative" ref={saveDropdownRef}>
-                <button 
-                  onClick={() => saveBill(false)}
-                  className="flex-grow text-slate-900 font-extrabold flex items-center justify-center gap-3 transition-all active:scale-[0.98] hover:brightness-95"
-                  style={{ backgroundColor: '#13ecda' }}
-                  data-testid="save-btn"
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Net Payable</span>
+              <span className="text-2xl font-black text-slate-900">₹{grandTotal.toFixed(2)}</span>
+            </div>
+          </div>
+          
+          {/* Row 2: Actions Strip */}
+          <div className="px-4 py-3 flex items-center justify-between gap-4">
+            {/* Bill Discount Input */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600 font-medium">Bill discount</span>
+              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setBillDiscountType('%')}
+                  className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '%' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
                 >
-                  <span className="material-icons">check_circle</span>
-                  <div className="flex flex-col items-start">
-                    <span className="tracking-tight text-lg leading-tight">SAVE BILL</span>
-                    <span className="text-[10px] opacity-60 font-bold tracking-tighter uppercase">FINALIZE (F12)</span>
-                  </div>
+                  %
                 </button>
-                <div className="w-px bg-slate-900/10"></div>
-                <button 
-                  onClick={() => setShowSaveDropdown(!showSaveDropdown)}
-                  className="w-14 flex items-center justify-center transition-all border-l text-slate-900 hover:brightness-95"
-                  style={{ backgroundColor: '#13ecda', borderColor: 'rgba(255,255,255,0.2)' }}
-                  data-testid="save-dropdown-btn"
+                <button
+                  onClick={() => setBillDiscountType('₹')}
+                  className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '₹' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
                 >
-                  <span className="material-icons">{showSaveDropdown ? 'expand_less' : 'expand_more'}</span>
+                  ₹
                 </button>
-                
-                {/* Save Dropdown Menu */}
-                {showSaveDropdown && (
-                  <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
-                    <button
-                      onClick={handleSaveAsDraft}
-                      className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                      data-testid="save-draft-option"
-                    >
-                      <span className="material-symbols-outlined text-amber-500">history_edu</span>
-                      <div>
-                        <span className="text-sm font-semibold text-slate-700 block">Save as Draft</span>
-                        <span className="text-[10px] text-slate-400">No stock deduction</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
               </div>
+              <input
+                type="number"
+                value={billDiscount}
+                onChange={(e) => setBillDiscount(parseFloat(e.target.value) || 0)}
+                className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="0"
+                data-testid="bill-discount-input"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrintCurrentBill}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                data-testid="footer-print-btn"
+              >
+                <span className="material-symbols-outlined text-lg">print</span>
+                Print
+              </button>
+              <button
+                onClick={() => {
+                  if (customerPhone) {
+                    const msg = `Your bill from PharmaCare. Total: ₹${grandTotal.toFixed(2)}`;
+                    window.open(`https://wa.me/91${customerPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                  } else {
+                    toast.error('Add customer phone number first');
+                  }
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 flex items-center gap-2"
+                data-testid="footer-whatsapp-btn"
+              >
+                <span className="material-symbols-outlined text-lg">share</span>
+                WhatsApp
+              </button>
+              <button
+                onClick={openFinaliseModal}
+                className="px-6 py-2 rounded-lg text-sm font-bold text-slate-900 flex items-center gap-2 hover:brightness-95"
+                style={{ backgroundColor: '#13ecda' }}
+                data-testid="footer-finalise-btn"
+              >
+                <span className="material-symbols-outlined text-lg">check_circle</span>
+                Finalise Bill
+              </button>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
+      {/* Keyboard Shortcuts Footer */}
       <footer className="bg-slate-100 px-6 py-2 flex gap-6 text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 border-t border-slate-200">
         <div className="flex items-center gap-1.5">
-          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">Ctrl+F</span> SEARCH MEDICINE
+          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">Ctrl+F</span> SEARCH
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">F8</span> HOLD BILL
+          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">F8</span> PARK
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">F4</span> LOAD DRAFT
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">F12</span> COMPLETE
+          <span className="bg-slate-200 px-1.5 py-0.5 rounded text-slate-600">F12</span> FINALISE
         </div>
         <div className="ml-auto flex items-center gap-2">
           {draftNumber && (
@@ -857,6 +1265,134 @@ export default function BillingWorkspace() {
           )}
         </div>
       </footer>
+
+      {/* Phase 4: Finalise Modal - Invoice Breakdown */}
+      {showFinaliseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowFinaliseModal(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h3 className="font-bold text-lg">Finalise Bill</h3>
+                <p className="text-sm text-slate-500">{customerName || 'Counter Sale'}</p>
+              </div>
+              <button onClick={() => setShowFinaliseModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                <span className="material-symbols-outlined text-slate-500">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-2 gap-8">
+                {/* Left Column - Invoice Breakdown */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-4">Invoice Breakdown</h4>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">MRP Total</span>
+                    <span className="text-sm font-semibold">₹{mrpTotal.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">Item Discounts</span>
+                    <span className="text-sm font-semibold text-rose-500">-₹{(totalDiscount - (billDiscountType === '%' ? mrpTotal * billDiscount / 100 : billDiscount)).toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">Bill Discount</span>
+                    <span className="text-sm font-semibold text-rose-500">-₹{(billDiscountType === '%' ? mrpTotal * billDiscount / 100 : billDiscount).toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">GST</span>
+                    <span className="text-sm font-semibold">+₹{totalGst.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">CESS</span>
+                    <span className="text-sm font-semibold">+₹{totalCess.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2 border-b border-slate-100">
+                    <span className="text-sm text-slate-600">Round off</span>
+                    <span className="text-sm font-semibold">₹0.00</span>
+                  </div>
+                  
+                  {/* Net Payable - Highlighted */}
+                  <div className="flex justify-between py-4 mt-4 bg-teal-50 rounded-lg px-4 -mx-4">
+                    <span className="text-base font-bold text-slate-900">Net Payable</span>
+                    <span className="text-2xl font-black" style={{ color: '#0d9488' }}>₹{grandTotal.toFixed(2)}</span>
+                  </div>
+                  
+                  {/* Margin Info */}
+                  <div className="flex justify-between py-2 mt-2">
+                    <span className="text-sm text-slate-400">Margin</span>
+                    <span className="text-sm font-semibold text-green-600">₹{margin.amount.toFixed(0)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between py-2">
+                    <span className="text-sm text-slate-400">Margin %</span>
+                    <span className="text-sm font-semibold text-green-600">{margin.percent.toFixed(1)}%</span>
+                  </div>
+                </div>
+                
+                {/* Right Column - Notes */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Internal Note</label>
+                    <textarea
+                      value={internalNote}
+                      onChange={(e) => setInternalNote(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                      rows="4"
+                      placeholder="Internal notes (not visible to customer)"
+                      data-testid="internal-note"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Delivery Note</label>
+                    <textarea
+                      value={deliveryNote}
+                      onChange={(e) => setDeliveryNote(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                      rows="4"
+                      placeholder="Delivery instructions (if applicable)"
+                      data-testid="delivery-note"
+                    />
+                  </div>
+                  
+                  {/* Payment Method Confirmation */}
+                  <div className="p-3 bg-slate-50 rounded-lg">
+                    <span className="text-xs text-slate-400 block mb-1">Payment Method</span>
+                    <span className="font-semibold text-slate-700 capitalize">{paymentType || 'Not selected'}</span>
+                  </div>
+                  
+                  {/* Confirm Button */}
+                  <button
+                    onClick={confirmAndSaveBill}
+                    disabled={isSaving}
+                    className="w-full py-3 rounded-lg text-sm font-bold text-slate-900 flex items-center justify-center gap-2 hover:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                    style={{ backgroundColor: '#13ecda' }}
+                    data-testid="confirm-save-btn"
+                  >
+                    {isSaving ? (
+                      <>
+                        <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined">check_circle</span>
+                        Confirm & Save Bill
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Print Receipt - Hidden but rendered for printing */}
       <div ref={printRef} className="print-receipt hidden print:block">
@@ -942,6 +1478,94 @@ export default function BillingWorkspace() {
           }
         }
       `}</style>
+
+      {/* Patient Search Modal */}
+      {showPatientModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPatientModal(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+              <h3 className="font-semibold text-lg">Select Patient</h3>
+              <button onClick={() => setShowPatientModal(false)} className="p-1 hover:bg-slate-100 rounded">
+                <span className="material-symbols-outlined text-slate-500">close</span>
+              </button>
+            </div>
+            
+            {/* Search Input */}
+            <div className="p-4 border-b border-slate-200">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+                <input
+                  type="text"
+                  placeholder="Search by name or phone..."
+                  value={patientSearch}
+                  onChange={(e) => searchPatients(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  autoFocus
+                  data-testid="patient-search-input"
+                />
+              </div>
+            </div>
+
+            {/* Patient List */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Counter Sale - Always First Option */}
+              <button
+                onClick={() => selectPatient('counter')}
+                className="w-full px-4 py-3 text-left hover:bg-teal-50 flex items-center gap-3 border-b border-slate-100"
+                data-testid="counter-sale-option"
+              >
+                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-teal-600">storefront</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-slate-900">Counter Sale</div>
+                  <div className="text-xs text-slate-400">Walk-in customer without registration</div>
+                </div>
+              </button>
+
+              {/* Loading State */}
+              {patientLoading && (
+                <div className="px-4 py-6 text-center text-slate-400">
+                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                  <p className="mt-2 text-sm">Searching patients...</p>
+                </div>
+              )}
+
+              {/* Patient Results */}
+              {!patientLoading && patientResults.map((patient) => (
+                <button
+                  key={patient.id}
+                  onClick={() => selectPatient(patient)}
+                  className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100"
+                  data-testid={`patient-${patient.id}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-slate-400">person</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-900">{patient.name}</div>
+                    <div className="text-xs text-slate-400">
+                      {patient.phone || patient.mobile || 'No phone'} 
+                      {patient.age && ` · ${patient.age} yrs`}
+                      {patient.gender && ` · ${patient.gender}`}
+                    </div>
+                  </div>
+                </button>
+              ))}
+
+              {/* No Results */}
+              {!patientLoading && patientSearch && patientResults.length === 0 && (
+                <div className="px-4 py-6 text-center text-slate-400">
+                  <span className="material-symbols-outlined text-3xl mb-2">person_search</span>
+                  <p className="text-sm">No patients found for "{patientSearch}"</p>
+                  <p className="text-xs mt-1">Select "Counter Sale" for walk-in customers</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

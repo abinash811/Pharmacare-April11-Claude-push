@@ -2268,10 +2268,14 @@ async def search_products_with_batches(
                 "sku": product['sku'],
                 "name": product['name'],
                 "brand": product.get('brand', ''),
+                "manufacturer": product.get('manufacturer', ''),
+                "composition": product.get('composition', ''),
                 "pack_size": product.get('pack_size', ''),
                 "units_per_pack": units_per_pack,
                 "default_mrp": default_mrp,
                 "gst_percent": product.get('gst_percent', 5),
+                "schedule": product.get('schedule'),  # H, H1, X, or OTC
+                "scheduleH": product.get('schedule') in ['H', 'H1'],  # Convenience boolean
                 "total_qty": total_qty,  # Total packs
                 "total_units": total_units,  # Total individual units
                 "batches": formatted_batches,

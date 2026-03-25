@@ -55,6 +55,15 @@ export default function BillingWorkspace() {
   const [deliveryNote, setDeliveryNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Item 1: Schedule H warning confirmation
+  const [showScheduleHWarning, setShowScheduleHWarning] = useState(false);
+  
+  // Item 2: Batch selection panel
+  const [showBatchPanel, setShowBatchPanel] = useState(null); // index of item showing batch panel
+  const [batchPanelData, setBatchPanelData] = useState([]);
+  const [hidZeroStock, setHidZeroStock] = useState(true);
+  const batchPanelRef = useRef(null);
+
   // Print State
   const [savedBillData, setSavedBillData] = useState(null);
 
@@ -87,6 +96,11 @@ export default function BillingWorkspace() {
       }
       if (doctorDropdownRef.current && !doctorDropdownRef.current.contains(event.target)) {
         setShowDoctorDropdown(false);
+      }
+      // Close batch panel when clicking outside
+      if (batchPanelRef.current && !batchPanelRef.current.contains(event.target)) {
+        setShowBatchPanel(null);
+        setBatchPanelData([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -236,6 +250,83 @@ export default function BillingWorkspace() {
     saveDraft();
   };
 
+  // Item 2: Fetch batches for batch selection panel
+  const openBatchPanel = async (index) => {
+    const item = billItems[index];
+    const token = localStorage.getItem('token');
+    
+    try {
+      // Fetch all batches for this product directly from stock_batches
+      const response = await axios.get(`${API}/stock/batches?product_sku=${encodeURIComponent(item.product_sku)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const batches = response.data || [];
+      
+      if (batches.length > 0) {
+        setBatchPanelData(batches);
+        setShowBatchPanel(index);
+      } else {
+        toast.info('No additional batches found for this product');
+      }
+    } catch (error) {
+      console.error('Failed to fetch batches:', error);
+      // If API fails, try the inventory endpoint as fallback
+      try {
+        const fallbackResponse = await axios.get(`${API}/inventory/search?q=${encodeURIComponent(item.product_sku)}&page_size=1`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const products = fallbackResponse.data.data || fallbackResponse.data || [];
+        const product = products.find(p => p.product?.sku === item.product_sku);
+        if (product && product.batches && product.batches.length > 0) {
+          setBatchPanelData(product.batches);
+          setShowBatchPanel(index);
+        } else {
+          toast.info('No additional batches available');
+        }
+      } catch (fallbackError) {
+        toast.error('Failed to load batch data');
+      }
+    }
+  };
+
+  // Item 2: Select a batch from the panel
+  const selectBatch = (index, batch) => {
+    const updatedItems = [...billItems];
+    updatedItems[index] = {
+      ...updatedItems[index],
+      batch_id: batch.id,
+      batch_no: batch.batch_no,
+      expiry_date: batch.expiry_date,
+      unit_price: batch.mrp_per_unit || batch.mrp || updatedItems[index].unit_price,
+      cost_price: batch.cost_price_per_unit || batch.ptr_per_unit || updatedItems[index].cost_price,
+      available_qty: batch.qty_on_hand,
+      discount_percent: batch.discount_percent || updatedItems[index].discount_percent
+    };
+    
+    // Recalculate net amount
+    const baseAmount = updatedItems[index].qty * updatedItems[index].unit_price;
+    const discountAmount = baseAmount * (updatedItems[index].discount_percent / 100);
+    const afterDiscount = baseAmount - discountAmount;
+    const gstAmount = afterDiscount * (updatedItems[index].gst_percent / 100);
+    updatedItems[index].net_amount = afterDiscount + gstAmount;
+    
+    setBillItems(updatedItems);
+    setShowBatchPanel(null);
+    setBatchPanelData([]);
+    saveDraft();
+  };
+
+  // Item 1: Check if any Schedule H drug is in the bill
+  const hasScheduleHDrug = () => {
+    return billItems.some(item => item.schedule === 'H' || item.schedule === 'H1' || item.scheduleH === true);
+  };
+
+  // Item 1: Check if prescription reference exists
+  const hasPrescriptionReference = () => {
+    return doctorName && doctorName.trim().length > 0;
+  };
+
   const handleSearch = async (query) => {
     setSearchQuery(query);
     
@@ -278,18 +369,26 @@ export default function BillingWorkspace() {
       updatedItems[existingIndex].net_amount = calculateItemTotal(updatedItems[existingIndex]);
       setBillItems(updatedItems);
     } else {
-      // Add new item
+      // Add new item with Schedule H flag
       const newItem = {
         id: Date.now(),
         product_sku: product.sku,
         product_name: product.name,
+        manufacturer: product.manufacturer || '',
+        composition: product.composition || product.generic_name || '',
         batch_no: batch.batch_no,
+        batch_id: batch.id,
         expiry_date: batch.expiry_date,
         qty: 1,
         unit_price: batch.mrp_per_unit || product.default_mrp || 0,
-        discount_percent: 0,
+        cost_price: batch.cost_price_per_unit || batch.ptr_per_unit || (batch.mrp_per_unit || 0) * 0.7,
+        discount_percent: batch.discount_percent || 0,
         gst_percent: product.gst_percent || 5,
+        cess_percent: product.cess_percent || 0,
         available_qty: batch.qty_on_hand || 0,
+        // Schedule H flag for Rx required warning
+        schedule: product.schedule || null,
+        scheduleH: product.scheduleH || product.schedule === 'H' || product.schedule === 'H1',
         net_amount: 0
       };
       newItem.net_amount = calculateItemTotal(newItem);
@@ -633,6 +732,19 @@ export default function BillingWorkspace() {
       toast.error('Select a payment method');
       return;
     }
+    
+    // Item 1: Check for Schedule H drugs without prescription
+    if (hasScheduleHDrug() && !hasPrescriptionReference()) {
+      setShowScheduleHWarning(true);
+      return;
+    }
+    
+    setShowFinaliseModal(true);
+  };
+
+  // Item 1: Proceed after Schedule H warning
+  const proceedAfterScheduleHWarning = () => {
+    setShowScheduleHWarning(false);
     setShowFinaliseModal(true);
   };
 
@@ -1032,33 +1144,124 @@ export default function BillingWorkspace() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {billItems.map((item, index) => (
+                {billItems.map((item, index) => {
+                  // Item 3: Calculate discount amount for display
+                  const itemDiscountAmount = (item.qty * item.unit_price) * (item.discount_percent / 100);
+                  // Check if expiry is within 3 months
+                  const expiryDate = new Date(item.expiry_date);
+                  const threeMonthsFromNow = new Date();
+                  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+                  const isExpiryNear = expiryDate <= threeMonthsFromNow && expiryDate > new Date();
+                  
+                  return (
                   <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-2.5 text-xs font-medium text-slate-400">{String(index + 1).padStart(2, '0')}</td>
                     <td className="px-4 py-2.5">
-                      <input
-                        type="text"
-                        className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm font-semibold"
-                        value={item.product_name}
-                        readOnly
-                      />
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-900">{item.product_name}</span>
+                          {/* Item 1: Schedule H badge */}
+                          {(item.schedule === 'H' || item.schedule === 'H1' || item.scheduleH) && (
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">
+                              Rx required
+                            </span>
+                          )}
+                        </div>
+                        {/* Below-name details: batch, LP, margin, composition */}
+                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                          <span className="font-mono">{item.batch_no}</span>
+                          <span>·</span>
+                          <span>LP ₹{(item.cost_price || item.unit_price * 0.7).toFixed(2)}</span>
+                          <span>·</span>
+                          <span className="text-green-600">▲{(((item.unit_price - (item.cost_price || item.unit_price * 0.7)) / (item.cost_price || item.unit_price * 0.7)) * 100).toFixed(0)}%</span>
+                          {item.composition && (
+                            <>
+                              <span>·</span>
+                              <span className="truncate max-w-[150px]">{item.composition}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      <input
-                        type="text"
-                        className={`w-full bg-transparent border-transparent p-0 text-sm ${isExpiringSoon(item.expiry_date) ? 'text-amber-600' : ''}`}
-                        value={item.batch_no}
-                        readOnly
-                      />
+                    {/* Item 2: Clickable Batch field */}
+                    <td className="px-4 py-2.5 text-xs font-mono relative">
+                      <button
+                        onClick={() => openBatchPanel(index)}
+                        className="w-full text-left text-sm hover:text-teal-600 hover:underline cursor-pointer"
+                        data-testid={`batch-select-${index}`}
+                      >
+                        {item.batch_no}
+                      </button>
+                      
+                      {/* Item 2: Batch Selection Panel */}
+                      {showBatchPanel === index && batchPanelData.length > 0 && (
+                        <div 
+                          ref={batchPanelRef}
+                          className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-[500px] max-h-64 overflow-hidden"
+                          style={{ minWidth: '400px' }}
+                        >
+                          {/* Header with hide zero stock toggle */}
+                          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-600">Select Batch</span>
+                            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={hidZeroStock}
+                                onChange={(e) => setHidZeroStock(e.target.checked)}
+                                className="rounded border-slate-300 text-teal-500 focus:ring-teal-500"
+                              />
+                              Hide zero stock
+                            </label>
+                          </div>
+                          {/* Batch table header */}
+                          <div className="grid grid-cols-7 gap-1 px-3 py-1.5 bg-slate-50 text-[10px] font-semibold text-slate-400 uppercase border-b border-slate-200">
+                            <span>Batch</span>
+                            <span>Expiry</span>
+                            <span className="text-right">MRP</span>
+                            <span className="text-right">Prev</span>
+                            <span className="text-right">Disc%</span>
+                            <span className="text-right">LP</span>
+                            <span className="text-right">Stock</span>
+                          </div>
+                          {/* Batch rows */}
+                          <div className="max-h-40 overflow-y-auto">
+                            {batchPanelData
+                              .filter(batch => !hidZeroStock || (batch.qty_on_hand > 0))
+                              .map((batch) => {
+                                const batchExpiry = new Date(batch.expiry_date);
+                                const isBatchExpiryNear = batchExpiry <= threeMonthsFromNow && batchExpiry > new Date();
+                                const isSelected = batch.batch_no === item.batch_no;
+                                
+                                return (
+                                  <div
+                                    key={batch.id || batch.batch_no}
+                                    onClick={() => selectBatch(index, batch)}
+                                    className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-slate-100 last:border-0 ${
+                                      isSelected ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <span className="font-mono font-medium">{batch.batch_no}</span>
+                                    <span className={isBatchExpiryNear ? 'text-amber-600 font-semibold' : ''}>
+                                      {formatExpiry(batch.expiry_date)}
+                                    </span>
+                                    <span className="text-right font-semibold">₹{(batch.mrp_per_unit || 0).toFixed(2)}</span>
+                                    <span className="text-right text-slate-400">₹{(batch.prev_mrp || batch.mrp_per_unit || 0).toFixed(2)}</span>
+                                    <span className="text-right">{(batch.discount_percent || 0).toFixed(1)}%</span>
+                                    <span className="text-right">₹{(batch.cost_price_per_unit || batch.ptr_per_unit || 0).toFixed(2)}</span>
+                                    <span className={`text-right font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                      {batch.qty_on_hand > 0 ? batch.qty_on_hand : 'Out'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-xs">
-                      <input
-                        type="text"
-                        className={`w-full bg-transparent border-transparent p-0 text-sm ${isExpired(item.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(item.expiry_date) ? 'text-amber-600 font-bold' : ''}`}
-                        value={formatExpiry(item.expiry_date)}
-                        title={isExpiringSoon(item.expiry_date) ? 'Expiring Soon' : ''}
-                        readOnly
-                      />
+                      <span className={`text-sm ${isExpired(item.expiry_date) ? 'text-red-600 font-bold' : isExpiryNear ? 'text-amber-600 font-bold' : ''}`}>
+                        {formatExpiry(item.expiry_date)}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <input
@@ -1081,15 +1284,22 @@ export default function BillingWorkspace() {
                         data-testid={`price-${index}`}
                       />
                     </td>
+                    {/* Item 3: Disc% with inline ₹ value below */}
                     <td className="px-4 py-2.5 text-right text-xs">
-                      <input
-                        type="number"
-                        step="0.1"
-                        className={`w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right ${item.discount_percent > 0 ? 'text-rose-500' : ''}`}
-                        value={item.discount_percent}
-                        onChange={(e) => updateItem(index, 'discount_percent', parseFloat(e.target.value) || 0)}
-                        data-testid={`discount-${index}`}
-                      />
+                      <div className="flex flex-col items-end">
+                        <input
+                          type="number"
+                          step="0.1"
+                          className={`w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right ${item.discount_percent > 0 ? 'text-rose-500' : ''}`}
+                          value={item.discount_percent}
+                          onChange={(e) => updateItem(index, 'discount_percent', parseFloat(e.target.value) || 0)}
+                          data-testid={`discount-${index}`}
+                        />
+                        {/* Item 3: Calculated discount amount */}
+                        <span className={`text-[10px] mt-0.5 ${itemDiscountAmount > 0 ? 'text-green-600 font-semibold' : 'text-slate-400'}`}>
+                          {itemDiscountAmount > 0 ? `-₹${itemDiscountAmount.toFixed(2)}` : '₹0.00'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs">
                       <input
@@ -1112,7 +1322,8 @@ export default function BillingWorkspace() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {/* Empty row for adding new items */}
                 <tr className="bg-slate-50/30">
                   <td className="px-4 py-2.5 text-xs font-medium text-slate-300">{String(billItems.length + 1).padStart(2, '0')}</td>
@@ -1388,6 +1599,47 @@ export default function BillingWorkspace() {
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item 1: Schedule H Warning Dialog */}
+      {showScheduleHWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleHWarning(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-amber-600 text-2xl">medication</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-slate-900">Schedule H Medicines</h3>
+                  <p className="text-sm text-slate-500">Prescription verification required</p>
+                </div>
+              </div>
+              
+              <p className="text-sm text-slate-600 mb-6">
+                This bill contains <strong>Schedule H medicines</strong>. Confirm you have a valid prescription from the prescribing doctor before proceeding.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowScheduleHWarning(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  data-testid="schedule-h-cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={proceedAfterScheduleHWarning}
+                  className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600"
+                  data-testid="schedule-h-confirm"
+                >
+                  Confirm Prescription
+                </button>
               </div>
             </div>
           </div>

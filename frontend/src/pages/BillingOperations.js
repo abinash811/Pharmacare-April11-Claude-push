@@ -430,20 +430,20 @@ export default function BillingOperations() {
       </div>
 
       {/* Footer Stats */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div className="text-sm text-gray-600">
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-6 shrink-0">
+          <div className="text-sm text-gray-600 whitespace-nowrap">
             Bills today <span className="font-bold text-gray-900">{stats.billsToday}</span>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 whitespace-nowrap">
             Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 whitespace-nowrap">
             Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
           </div>
         </div>
-        <div className="text-sm text-gray-600">
-          Total amount: <span className="font-bold text-gray-900">₹{stats.totalAmountToday.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 pr-4">
+          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
     </div>

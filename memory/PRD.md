@@ -197,6 +197,7 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Save Bill Flow**: ✅ 100% passed (iteration_14.json) - Feb 22, 2026
 - **Bill Number Sequence**: ✅ 100% passed (iteration_15.json) - Feb 22, 2026
 - **Save as Draft**: ✅ Backend tested via curl, Frontend verified - Feb 22, 2026
+- **Billing UI/UX Overhaul (9 Fixes)**: ✅ Verified via screenshots - Mar 26, 2026
 - **API Cost Optimizations**: ✅ Implemented Feb 15, 2026
 
 ## NEW: Bill Number Sequence System (Feb 22, 2026)
@@ -223,6 +224,19 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - [x] Regular "Save Bill" continues to work with sequential INV-xxx numbers
 - [x] Dropdown shows "No stock deduction" subtitle for clarity
 - [x] Dropdown closes when clicking outside
+
+## NEW: Billing UI/UX Overhaul (Mar 26, 2026)
+9 strict UI/UX fixes applied to BillingWorkspace.js and BillingOperations.js:
+- [x] Fix 1: Deleted "Search Medicine (Ctrl+F)" global search from header
+- [x] Fix 2: Deleted keyboard shortcuts footer bar
+- [x] Fix 3: Standard page header (← back arrow + "Bills /" breadcrumb + "New Bill" title)
+- [x] Fix 4: Merged subbar into single compact row (date/patient/doctor/billing-for/billed-by/payment/save)
+- [x] Fix 5: Date chip converted to calendar picker with backdating support
+- [x] Fix 6: Table columns reordered: # | Medicine | Batch | Expiry | MRP | Qty | Disc%/₹ | GST | Amount | ×
+- [x] Fix 7: Medicine sub-line (batch no · LP ₹X · ▲margin% · salt) always visible below medicine name
+- [x] Fix 8: Footer cutoff fix in Bill List (shrink-0, whitespace-nowrap, padding)
+- [x] Fix 9: Payment type converted to proper dropdown selector (Cash/UPI/Credit/CC-DC/Multiple)
+New components used: Shadcn Calendar, Popover, Lucide-react icons (ArrowLeft, ChevronDown, CalendarIcon)
 
 ## API Cost Optimizations (Feb 15, 2026)
 

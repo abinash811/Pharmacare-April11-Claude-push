@@ -200,7 +200,7 @@ export default function BillingOperations() {
             <h1 className="text-lg font-bold text-gray-900">Sales & Billing</h1>
             <span className="text-gray-300">·</span>
             <span className="text-sm text-gray-500">
-              Today ₹{stats.totalAmountToday.toLocaleString('en-IN', { minimumFractionDigits: 0 })} · {stats.billsToday} bills
+              Today ₹{stats.totalAmountToday.toFixed(2)} · {stats.billsToday} bills
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -372,7 +372,7 @@ export default function BillingOperations() {
                       {/* Amount */}
                       <td className="px-4 py-3 text-right">
                         <span className={`text-sm font-semibold ${isDue ? 'text-red-600' : 'text-gray-900'}`}>
-                          ₹{(bill.total_amount || bill.grand_total || 0).toLocaleString('en-IN')}
+                          ₹{(bill.total_amount || bill.grand_total || 0).toFixed(2)}
                         </span>
                         {isDue && (
                           <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded">
@@ -430,20 +430,22 @@ export default function BillingOperations() {
       </div>
 
       {/* Footer Stats */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-6 shrink-0">
-          <div className="text-sm text-gray-600 whitespace-nowrap">
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0 overflow-x-auto">
+        <div className="flex items-center gap-4 shrink-0">
+          <span className="text-sm text-gray-600 whitespace-nowrap">
             Bills today <span className="font-bold text-gray-900">{stats.billsToday}</span>
-          </div>
-          <div className="text-sm text-gray-600 whitespace-nowrap">
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">
             Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
-          </div>
-          <div className="text-sm text-gray-600 whitespace-nowrap">
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">
             Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
-          </div>
+          </span>
         </div>
-        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 pr-4">
-          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
+          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toFixed(2)}</span>
         </div>
       </div>
     </div>

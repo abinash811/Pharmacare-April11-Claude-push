@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Stethoscope } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/calendar';
 import { format } from 'date-fns';
@@ -949,32 +949,52 @@ export default function BillingWorkspace() {
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
-            {/* Doctor Chip */}
+            {/* Doctor Chip - Styled like Patient chip */}
             <div className="relative" ref={doctorDropdownRef}>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="material-symbols-outlined text-slate-400 text-base">stethoscope</span>
-                <input
-                  type="text"
-                  placeholder="Doctor"
-                  value={doctorName}
-                  onChange={(e) => searchDoctors(e.target.value)}
-                  onFocus={() => doctorName && doctorResults.length > 0 && setShowDoctorDropdown(true)}
-                  className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none w-20"
-                  data-testid="doctor-chip"
-                />
-              </div>
-              {showDoctorDropdown && doctorResults.length > 0 && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-56 max-h-48 overflow-y-auto">
-                  {doctorResults.map((doctor) => (
-                    <button
-                      key={doctor.id}
-                      onClick={() => selectDoctor(doctor)}
-                      className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                    >
-                      <div className="text-sm font-medium">{doctor.name}</div>
-                      <div className="text-xs text-slate-400">{doctor.registration_no || doctor.clinic_name || ''}</div>
-                    </button>
-                  ))}
+              <button
+                onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+                data-testid="doctor-chip"
+              >
+                <Stethoscope className="w-4 h-4 text-slate-400" />
+                <span className={`text-sm font-medium truncate max-w-[100px] ${doctorName ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {doctorName || 'Doctor'}
+                </span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+              {showDoctorDropdown && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-64 max-h-56 overflow-hidden">
+                  {/* Search input inside dropdown */}
+                  <div className="p-2 border-b border-slate-100">
+                    <input
+                      type="text"
+                      placeholder="Search doctor..."
+                      value={doctorSearch}
+                      onChange={(e) => searchDoctors(e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto">
+                    {doctorLoading ? (
+                      <div className="px-3 py-2 text-sm text-slate-400">Searching...</div>
+                    ) : doctorResults.length > 0 ? (
+                      doctorResults.map((doctor) => (
+                        <button
+                          key={doctor.id}
+                          onClick={() => selectDoctor(doctor)}
+                          className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                        >
+                          <div className="text-sm font-medium">{doctor.name}</div>
+                          <div className="text-xs text-slate-400">{doctor.registration_no || doctor.clinic_name || ''}</div>
+                        </button>
+                      ))
+                    ) : doctorSearch.length > 0 ? (
+                      <div className="px-3 py-2 text-sm text-slate-400">No doctors found</div>
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-slate-400">Type to search doctors</div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1262,7 +1282,7 @@ export default function BillingWorkspace() {
                           data-testid={`discount-${index}`}
                         />
                         <span className={`text-[10px] ${itemDiscountAmount > 0 ? 'text-green-600 font-medium' : 'text-slate-400'}`}>
-                          {itemDiscountAmount > 0 ? `-₹${itemDiscountAmount.toFixed(0)}` : '₹0'}
+                          {itemDiscountAmount > 0 ? `-₹${itemDiscountAmount.toFixed(2)}` : '₹0.00'}
                         </span>
                       </div>
                     </td>
@@ -1382,7 +1402,7 @@ export default function BillingWorkspace() {
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold block">Margin</span>
-                <span className="font-bold text-green-600">₹{margin.amount.toFixed(0)} ({margin.percent.toFixed(1)}%)</span>
+                <span className="font-bold text-green-600">₹{margin.amount.toFixed(2)} ({margin.percent.toFixed(1)}%)</span>
               </div>
             </div>
             <div className="text-right">
@@ -1519,7 +1539,7 @@ export default function BillingWorkspace() {
                   {/* Margin Info */}
                   <div className="flex justify-between py-2 mt-2">
                     <span className="text-sm text-slate-400">Margin</span>
-                    <span className="text-sm font-semibold text-green-600">₹{margin.amount.toFixed(0)}</span>
+                    <span className="text-sm font-semibold text-green-600">₹{margin.amount.toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between py-2">

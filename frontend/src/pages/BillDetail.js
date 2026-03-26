@@ -380,7 +380,7 @@ export default function BillDetail() {
                 {!isReturn && bill.status !== 'draft' && (
                   <Button 
                     variant="outline"
-                    onClick={enterReturnMode}
+                    onClick={() => navigate(`/billing/returns/new?billId=${id}`)}
                     className="border-orange-300 text-orange-600 hover:bg-orange-50"
                     data-testid="return-btn"
                   >

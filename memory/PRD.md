@@ -9,6 +9,69 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Cashier**: Limited access to billing and basic inventory viewing
 - **Inventory Staff**: Focused access to inventory management features
 
+## NEW: Sales Returns Module (Mar 26, 2026)
+Complete Sales Returns module implementation:
+
+### Screen 1: Sales Returns List (/billing/returns)
+- [x] Page header with "Sales Returns" title, today's return count and total amount
+- [x] "+ New Return" button (permission-controlled)
+- [x] Filter bar: search, date range picker, payment type filter (All/Cash/UPI/Credit)
+- [x] Table columns: Return No. | Original Bill | Patient | Entry Date | Return Date | Entry By | Amount | Payment | Actions
+- [x] Return No. in teal monospace (e.g. #CN-00001)
+- [x] Amount displayed in red (refund/negative transaction)
+- [x] Footer: Returns today X | Total refunded ₹X
+
+### Screen 2: Create Return (/billing/returns/new)
+- [x] Triggered from billing list "Return" button or directly via "+ New Return"
+- [x] Pre-fills items from original bill when billId is provided
+- [x] Subbar chips: Date picker | Customer | Billing For | Doctor | Billed By | Payment Type | Save
+- [x] Table columns: Item Name | Unit/Pack | Batch | Expiry | MRP | Qty | Disc% | D.Price | GST% | Amount | Delete
+- [x] Qty validation: return qty ≤ original billed qty with inline red error
+- [x] "Damaged" checkbox per item (routes stock to damaged_stock)
+- [x] Sticky footer with totals: Items, MRP Total, Total Discount, GST, Net Refund Amount
+- [x] Invoice Breakdown modal on save with note field
+
+### Screen 3: View Saved Return (/billing/returns/:id)
+- [x] Read-only view with breadcrumb navigation
+- [x] Header info: Return No., Original Bill, Bill Date, Customer, Billing For, Doctor
+- [x] Payment badge and date in top right
+- [x] "More" dropdown: Edit, Print, Sales History, Logs
+- [x] Item table (read-only) with same columns as create
+- [x] Footer totals: Qty, Items, GST, Net Amount
+
+### Screen 4: Edit Saved Return
+- [x] Edit modal with two options:
+  - Non-Financial Edit: Staff, Billing For, Doctor, Note (no inventory change)
+  - Financial Edit: Full workspace (requires allow_financial_edit_return permission)
+
+### Backend API Endpoints
+- [x] POST /api/sales-returns - Create return with stock increment
+- [x] GET /api/sales-returns - List with filters and pagination
+- [x] GET /api/sales-returns/{id} - Get single return
+- [x] PUT /api/sales-returns/{id} - Update return (financial/non-financial)
+- [x] GET /api/roles/{role_name}/permissions/returns - Get return permissions
+
+### Business Rules Implemented
+- [x] Stock increment on return save (same medicine, same batch)
+- [x] Damaged items go to damaged_stock instead of sellable stock
+- [x] Qty validation: return qty ≤ original billed qty
+- [x] Auto-generated credit note numbers (CN-00001, CN-00002...)
+- [x] Role permissions: allow_manual_returns, allow_financial_edit_return
+- [x] Original bill updated with returnId reference
+- [x] "Returned" indicator on billing list
+
+### Data Model (sales_returns collection)
+```javascript
+{
+  id, return_no: "CN-00001", original_bill_id, original_bill_no,
+  return_date, entry_date, patient: {id, name, phone},
+  billing_for, doctor, created_by: {id, name},
+  items: [{medicine_id, medicine_name, batch_no, expiry, mrp, qty, original_qty, disc_percent, disc_price, gst_percent, amount, is_damaged}],
+  mrp_total, total_discount, gst_amount, round_off, net_amount,
+  payment_type, refund_method, note, status: "completed", credit_note_ref
+}
+```
+
 ## NEW: Inventory Search-First Redesign (Feb 22, 2026)
 - [x] Complete redesign with search-first approach (no auto-load list)
 - [x] Teal/Cyan (#00CED1) color theme matching PharmaSync design

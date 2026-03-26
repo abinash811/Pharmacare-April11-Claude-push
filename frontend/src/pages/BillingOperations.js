@@ -205,7 +205,7 @@ export default function BillingOperations() {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => navigate('/billing/new?type=return')}
+              onClick={() => navigate('/billing/returns')}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               data-testid="sales-return-btn"
             >
@@ -336,15 +336,22 @@ export default function BillingOperations() {
                     >
                       {/* Bill number - teal monospace for paid, amber label for parked */}
                       <td className="px-4 py-3">
-                        {isActuallyParked ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">
-                            Parked
-                          </span>
-                        ) : (
-                          <span className="font-mono text-sm font-semibold" style={{ color: '#0d9488' }}>
-                            #{bill.bill_number?.replace(/^#/, '') || bill.id?.slice(-4)}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {isActuallyParked ? (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">
+                              Parked
+                            </span>
+                          ) : (
+                            <span className="font-mono text-sm font-semibold" style={{ color: '#0d9488' }}>
+                              #{bill.bill_number?.replace(/^#/, '') || bill.id?.slice(-4)}
+                            </span>
+                          )}
+                          {bill.returns && bill.returns.length > 0 && (
+                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded">
+                              Returned
+                            </span>
+                          )}
+                        </div>
                       </td>
                       
                       {/* Patient */}

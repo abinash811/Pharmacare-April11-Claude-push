@@ -523,25 +523,27 @@ export default function PurchasesList() {
         </div>
       </div>
 
-      {/* Fix 4: Footer matching billing pattern */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0 overflow-x-auto">
-        <div className="flex items-center gap-4 shrink-0">
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Purchases today <span className="font-bold text-gray-900">{stats.purchasesToday}</span>
-          </span>
-          <span className="text-gray-300">·</span>
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
-          </span>
-          <span className="text-gray-300">·</span>
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
-          </span>
+      {/* FIX 2: Footer matching billing pattern - properly visible */}
+      <footer className="bg-white border-t border-gray-200 px-6 py-3 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">
+              Purchases today <span className="font-bold text-gray-900">{stats.purchasesToday}</span>
+            </span>
+            <span className="text-gray-300">·</span>
+            <span className="text-sm text-gray-600">
+              Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
+            </span>
+            <span className="text-gray-300">·</span>
+            <span className="text-sm text-gray-600">
+              Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
+            </span>
+          </div>
+          <div className="text-sm text-gray-600">
+            Total amount: <span className="font-bold text-base" style={{ color: '#13ecda' }}>₹{stats.totalAmountToday.toFixed(2)}</span>
+          </div>
         </div>
-        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
-          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toFixed(2)}</span>
-        </div>
-      </div>
+      </footer>
 
       {/* Mark as Paid Modal */}
       {showPayModal && payingPurchase && (

@@ -50,7 +50,7 @@ export default function PurchaseNew() {
   // Items
   const [items, setItems] = useState([]);
 
-  // Invoice Breakdown Modal - Fix 6: All fields
+  // Invoice Breakdown Modal
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [internalNote, setInternalNote] = useState('');
   const [invoiceBreakdown, setInvoiceBreakdown] = useState({
@@ -155,8 +155,10 @@ export default function PurchaseNew() {
         id: `edit-${idx}`,
         product_sku: item.product_sku,
         product_name: item.product_name,
+        manufacturer: item.manufacturer || '',
+        pack_size: item.pack_size || '',
         batch_no: item.batch_no || '',
-        expiry_date: item.expiry_date?.split('T')[0] || '',
+        expiry_mmyy: item.expiry_mmyy || '',
         qty_units: item.qty_units || 1,
         free_qty_units: item.free_qty_units || 0,
         ptr_per_unit: item.ptr_per_unit || item.cost_price_per_unit || 0,
@@ -210,8 +212,10 @@ export default function PurchaseNew() {
       id: Date.now().toString(),
       product_sku: product.sku,
       product_name: product.name,
+      manufacturer: product.manufacturer || '',
+      pack_size: product.pack_size || '',
       batch_no: '',
-      expiry_date: '',
+      expiry_mmyy: '',
       qty_units: 1,
       free_qty_units: 0,
       ptr_per_unit: product.default_ptr_per_unit || product.landing_price_per_unit || 0,
@@ -226,7 +230,7 @@ export default function PurchaseNew() {
   };
 
   const updateItem = (id, field, value) => {
-    setItems(items.map(item => {
+    setItems(prevItems => prevItems.map(item => {
       if (item.id !== id) return item;
       return { ...item, [field]: value };
     }));
@@ -244,12 +248,17 @@ export default function PurchaseNew() {
     let totalFree = 0;
 
     items.forEach(item => {
-      const lineTotal = item.qty_units * (item.ptr_per_unit || 0);
-      const taxAmount = withGST ? lineTotal * ((item.gst_percent || 5) / 100) : 0;
+      const qty = parseInt(item.qty_units) || 0;
+      const ptr = parseFloat(item.ptr_per_unit) || 0;
+      const gst = parseFloat(item.gst_percent) || 0;
+      const free = parseInt(item.free_qty_units) || 0;
+      
+      const lineTotal = qty * ptr;
+      const taxAmount = withGST ? lineTotal * (gst / 100) : 0;
       ptrTotal += lineTotal;
       taxValue += taxAmount;
-      totalQty += item.qty_units || 0;
-      totalFree += item.free_qty_units || 0;
+      totalQty += qty;
+      totalFree += free;
     });
 
     const billAmount = ptrTotal + taxValue;
@@ -280,11 +289,11 @@ export default function PurchaseNew() {
       return false;
     }
     for (const item of items) {
-      if (!item.qty_units || item.qty_units <= 0) {
+      if (!item.qty_units || parseInt(item.qty_units) <= 0) {
         toast.error(`Please enter quantity for ${item.product_name}`);
         return false;
       }
-      if (!item.ptr_per_unit || item.ptr_per_unit <= 0) {
+      if (!item.ptr_per_unit || parseFloat(item.ptr_per_unit) <= 0) {
         toast.error(`Please enter PTR for ${item.product_name}`);
         return false;
       }
@@ -292,8 +301,8 @@ export default function PurchaseNew() {
         toast.error(`Please enter batch number for ${item.product_name}`);
         return false;
       }
-      if (!item.expiry_date) {
-        toast.error(`Please enter expiry date for ${item.product_name}`);
+      if (!item.expiry_mmyy) {
+        toast.error(`Please enter expiry (MM/YY) for ${item.product_name}`);
         return false;
       }
     }
@@ -312,7 +321,8 @@ export default function PurchaseNew() {
     await savePurchase('draft');
   };
 
-  const handleConfirm = async () => {
+  // FIX 5: Confirm & Save button opens Invoice Breakdown modal
+  const handleConfirmAndSave = async () => {
     if (!validateForm()) return;
     // Initialize invoice breakdown with calculated values
     setInvoiceBreakdown({
@@ -349,6 +359,18 @@ export default function PurchaseNew() {
     await savePurchase('confirmed');
   };
 
+  // Convert MM/YY to ISO date for backend
+  const convertExpiryToISO = (mmyy) => {
+    if (!mmyy || mmyy.length < 4) return null;
+    const parts = mmyy.replace('/', '');
+    const month = parseInt(parts.substring(0, 2));
+    const year = parseInt('20' + parts.substring(2, 4));
+    if (isNaN(month) || isNaN(year)) return null;
+    // Last day of the month
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  };
+
   const savePurchase = async (status) => {
     setLoading(true);
     const token = localStorage.getItem('token');
@@ -369,13 +391,13 @@ export default function PurchaseNew() {
           product_sku: item.product_sku,
           product_name: item.product_name,
           batch_no: item.batch_no || null,
-          expiry_date: item.expiry_date || null,
-          qty_units: parseInt(item.qty_units),
+          expiry_date: convertExpiryToISO(item.expiry_mmyy),
+          qty_units: parseInt(item.qty_units) || 0,
           free_qty_units: parseInt(item.free_qty_units) || 0,
-          cost_price_per_unit: parseFloat(item.ptr_per_unit),
-          ptr_per_unit: parseFloat(item.ptr_per_unit),
-          mrp_per_unit: parseFloat(item.mrp_per_unit),
-          gst_percent: parseFloat(item.gst_percent),
+          cost_price_per_unit: parseFloat(item.ptr_per_unit) || 0,
+          ptr_per_unit: parseFloat(item.ptr_per_unit) || 0,
+          mrp_per_unit: parseFloat(item.mrp_per_unit) || 0,
+          gst_percent: parseFloat(item.gst_percent) || 0,
           batch_priority: item.batch_priority || batchPriority
         }))
       };
@@ -464,9 +486,9 @@ export default function PurchaseNew() {
         </div>
       </header>
 
-      {/* Fix 5: Compact Subbar - Single Row matching billing style */}
-      <section className="bg-white border-b border-gray-200 px-6 py-2">
-        <div className="flex items-center gap-2">
+      {/* Compact Subbar - Single Row */}
+      <section className="bg-white border-b border-gray-200 px-6 py-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Date Picker Chip */}
           <Popover open={showBillDatePicker} onOpenChange={setShowBillDatePicker}>
             <PopoverTrigger asChild>
@@ -489,19 +511,28 @@ export default function PurchaseNew() {
             </PopoverContent>
           </Popover>
 
-          {/* Distributor Chip */}
-          <div className="relative" ref={supplierDropdownRef}>
+          {/* FIX 4: Distributor Chip - wider max-width with tooltip */}
+          <div className="relative group" ref={supplierDropdownRef}>
             <button
               onClick={() => setShowSupplierDropdown(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+              style={{ maxWidth: '220px' }}
               data-testid="supplier-selector"
+              title={selectedSupplier?.name || 'Select Distributor'}
             >
               <span className="material-symbols-outlined text-slate-400 text-base">business</span>
-              <span className={`text-sm font-medium truncate max-w-[120px] ${selectedSupplier ? 'text-slate-900' : 'text-slate-400'}`}>
+              <span className={`text-sm font-medium truncate ${selectedSupplier ? 'text-slate-900' : 'text-slate-400'}`}>
                 {selectedSupplier?.name || 'Distributor'}
               </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
             </button>
+            
+            {/* Tooltip on hover */}
+            {selectedSupplier && selectedSupplier.name.length > 20 && (
+              <div className="absolute z-50 bottom-full left-0 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                {selectedSupplier.name}
+              </div>
+            )}
 
             {showSupplierDropdown && (
               <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl">
@@ -549,7 +580,7 @@ export default function PurchaseNew() {
               value={supplierInvoiceNo}
               onChange={(e) => setSupplierInvoiceNo(e.target.value)}
               placeholder="—"
-              className="w-16 text-sm font-medium bg-transparent border-none focus:outline-none text-slate-700"
+              className="w-20 text-sm font-medium bg-transparent border-none focus:outline-none text-slate-700"
               data-testid="invoice-no-input"
             />
           </div>
@@ -605,7 +636,7 @@ export default function PurchaseNew() {
       </section>
 
       {/* Search Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
+      <div className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
         <div className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -647,24 +678,24 @@ export default function PurchaseNew() {
         </div>
       </div>
 
-      {/* Items Table */}
+      {/* FIX 1: Items Table - Fully editable inputs with proper z-index */}
       <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50">
+          <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-10">#</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Medicine</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24">Batch</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-28">Expiry</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">Qty</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">Free</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20 text-right">PTR</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20 text-right">MRP</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">GST%</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-14 text-center">LIFA</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 text-right">Amount</th>
-                <th className="px-4 py-3 w-8"></th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '40px' }}>#</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '200px' }}>Medicine</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '90px' }}>Batch</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '70px' }}>Expiry</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Qty</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Free</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>PTR</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>MRP</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>GST%</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>LIFA</th>
+                <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '80px' }}>Amount</th>
+                <th className="px-3 py-3" style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -676,104 +707,161 @@ export default function PurchaseNew() {
                 </tr>
               ) : (
                 items.map((item, index) => {
-                  const lineTotal = (item.qty_units || 0) * (item.ptr_per_unit || 0);
-                  const taxAmount = withGST ? lineTotal * ((item.gst_percent || 5) / 100) : 0;
+                  const qty = parseInt(item.qty_units) || 0;
+                  const ptr = parseFloat(item.ptr_per_unit) || 0;
+                  const gst = parseFloat(item.gst_percent) || 0;
+                  const lineTotal = qty * ptr;
+                  const taxAmount = withGST ? lineTotal * (gst / 100) : 0;
                   const total = lineTotal + taxAmount;
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50/50">
-                      <td className="px-4 py-3 text-xs text-gray-400">{index + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-800">{item.product_name}</div>
-                        <div className="text-[10px] text-gray-400">{item.product_sku}</div>
+                      {/* # */}
+                      <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
+                      
+                      {/* Medicine */}
+                      <td className="px-3 py-2">
+                        <div className="text-sm font-medium text-gray-800 truncate">{item.product_name}</div>
+                        <div className="text-[10px] text-gray-400 truncate">
+                          {item.manufacturer && `Manf. ${item.manufacturer}`}
+                          {item.pack_size && ` | ${item.pack_size}`}
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* Batch - text input */}
+                      <td className="px-2 py-2">
                         <input
                           type="text"
                           value={item.batch_no}
                           onChange={(e) => updateItem(item.id, 'batch_no', e.target.value)}
                           placeholder="Batch"
-                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`batch-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* FIX 1: Expiry - MM/YY text input instead of date picker */}
+                      <td className="px-2 py-2">
                         <input
-                          type="date"
-                          value={item.expiry_date}
-                          onChange={(e) => updateItem(item.id, 'expiry_date', e.target.value)}
-                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          type="text"
+                          value={item.expiry_mmyy}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d/]/g, '');
+                            // Auto-insert slash after MM
+                            if (val.length === 2 && !val.includes('/') && item.expiry_mmyy.length < val.length) {
+                              val = val + '/';
+                            }
+                            if (val.length <= 5) {
+                              updateItem(item.id, 'expiry_mmyy', val);
+                            }
+                          }}
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-center bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`expiry-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* Qty - number input */}
+                      <td className="px-2 py-2">
                         <input
                           type="number"
                           min="1"
                           value={item.qty_units}
-                          onChange={(e) => updateItem(item.id, 'qty_units', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          onChange={(e) => updateItem(item.id, 'qty_units', e.target.value)}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-center bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`qty-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* Free - number input */}
+                      <td className="px-2 py-2">
                         <input
                           type="number"
                           min="0"
                           value={item.free_qty_units}
-                          onChange={(e) => updateItem(item.id, 'free_qty_units', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-xs text-center bg-green-50 border border-green-200 rounded focus:outline-none focus:ring-1 focus:ring-green-400"
+                          onChange={(e) => updateItem(item.id, 'free_qty_units', e.target.value)}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-center bg-green-50 border border-green-200 rounded focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`free-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* PTR - number input */}
+                      <td className="px-2 py-2">
                         <input
                           type="number"
                           step="0.01"
                           value={item.ptr_per_unit}
-                          onChange={(e) => updateItem(item.id, 'ptr_per_unit', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          onChange={(e) => updateItem(item.id, 'ptr_per_unit', e.target.value)}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-right bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`ptr-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* MRP - number input */}
+                      <td className="px-2 py-2">
                         <input
                           type="number"
                           step="0.01"
                           value={item.mrp_per_unit}
-                          onChange={(e) => updateItem(item.id, 'mrp_per_unit', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          onChange={(e) => updateItem(item.id, 'mrp_per_unit', e.target.value)}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-right bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`mrp-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* GST% - number input */}
+                      <td className="px-2 py-2">
                         <input
                           type="number"
                           step="0.1"
                           value={item.gst_percent}
-                          onChange={(e) => updateItem(item.id, 'gst_percent', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          onChange={(e) => updateItem(item.id, 'gst_percent', e.target.value)}
+                          tabIndex={0}
+                          className="w-full h-8 px-2 text-xs text-center bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`gst-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      
+                      {/* LIFA - select */}
+                      <td className="px-2 py-2">
                         <select
                           value={item.batch_priority}
                           onChange={(e) => updateItem(item.id, 'batch_priority', e.target.value)}
-                          className="px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded focus:outline-none"
+                          tabIndex={0}
+                          className="w-full h-8 px-1 text-[10px] bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          style={{ position: 'relative', zIndex: 1 }}
                           data-testid={`lifa-${index}`}
                         >
                           <option value="LIFA">LIFA</option>
                           <option value="LILA">LILA</option>
                         </select>
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
+                      
+                      {/* Amount */}
+                      <td className="px-3 py-2 text-right text-sm font-semibold text-gray-800">
                         ₹{total.toFixed(2)}
                       </td>
-                      <td className="px-4 py-3">
+                      
+                      {/* Delete */}
+                      <td className="px-2 py-2">
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors"
+                          className="p-1.5 hover:bg-red-50 rounded text-red-500 transition-colors"
+                          tabIndex={0}
                           data-testid={`delete-${index}`}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -788,7 +876,7 @@ export default function PurchaseNew() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* FIX 5: Footer with Confirm & Save button */}
       <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4 text-sm">
           <span className="text-gray-600">
@@ -808,7 +896,7 @@ export default function PurchaseNew() {
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600">
             Total: <span className="font-bold text-gray-900 text-base">₹{totals.netAmount.toLocaleString()}</span>
           </span>
@@ -831,13 +919,13 @@ export default function PurchaseNew() {
             Save Draft
           </button>
           <button
-            onClick={handleConfirm}
+            onClick={handleConfirmAndSave}
             disabled={loading || items.length === 0}
             className="px-6 py-2 text-xs font-semibold text-gray-900 rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50"
             style={{ backgroundColor: '#13ecda' }}
             data-testid="confirm-btn"
           >
-            {loading ? 'Saving...' : 'Confirm Purchase'}
+            {loading ? 'Saving...' : 'Confirm & Save'}
           </button>
         </div>
       </div>
@@ -969,7 +1057,7 @@ export default function PurchaseNew() {
         </div>
       )}
 
-      {/* Fix 6: Invoice Breakdown Modal with all fields */}
+      {/* Invoice Breakdown Modal */}
       {showInvoiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowInvoiceModal(false)}></div>
@@ -998,15 +1086,13 @@ export default function PurchaseNew() {
                 </div>
               </div>
 
-              {/* Breakdown fields - all editable except auto-calculated */}
+              {/* Breakdown fields */}
               <div className="space-y-3">
-                {/* PTR Total - read only */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">PTR Total</span>
                   <span className="text-sm font-semibold">₹{invoiceBreakdown.ptrTotal.toFixed(2)}</span>
                 </div>
 
-                {/* Total Discount - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Total Discount</span>
                   <input
@@ -1018,13 +1104,11 @@ export default function PurchaseNew() {
                   />
                 </div>
 
-                {/* GST - read only */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">GST</span>
                   <span className="text-sm font-semibold">₹{invoiceBreakdown.gst.toFixed(2)}</span>
                 </div>
 
-                {/* CESS - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">CESS</span>
                   <input
@@ -1038,13 +1122,11 @@ export default function PurchaseNew() {
 
                 <hr className="border-slate-100" />
 
-                {/* Bill Amount - read only */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Bill Amount</span>
                   <span className="text-sm font-semibold">₹{invoiceBreakdown.billAmount.toFixed(2)}</span>
                 </div>
 
-                {/* Adjusted CN/Voucher - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Adjusted CN/Voucher</span>
                   <input
@@ -1056,7 +1138,6 @@ export default function PurchaseNew() {
                   />
                 </div>
 
-                {/* TCS - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">TCS</span>
                   <input
@@ -1068,7 +1149,6 @@ export default function PurchaseNew() {
                   />
                 </div>
 
-                {/* Extra Charges - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Extra Charges</span>
                   <input
@@ -1080,7 +1160,6 @@ export default function PurchaseNew() {
                   />
                 </div>
 
-                {/* Adjustment Amount - editable */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Adjustment Amount</span>
                   <input
@@ -1092,7 +1171,6 @@ export default function PurchaseNew() {
                   />
                 </div>
 
-                {/* Round Off - auto calculated */}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-600">Round Off</span>
                   <span className={`text-sm font-semibold ${invoiceBreakdown.roundOff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1102,7 +1180,6 @@ export default function PurchaseNew() {
 
                 <hr className="border-slate-100" />
 
-                {/* Net Amount - auto calculated */}
                 <div className="flex justify-between items-center">
                   <span className="text-base font-bold text-slate-800">Net Amount</span>
                   <span className="text-lg font-black" style={{ color: '#13ecda' }}>

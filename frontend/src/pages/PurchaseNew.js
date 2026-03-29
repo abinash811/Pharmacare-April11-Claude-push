@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, Settings, Search, Plus, Trash2, X, FileText, Truck } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Settings, Search, Trash2, X, FileText, Truck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/calendar';
 import { format } from 'date-fns';
@@ -24,10 +24,10 @@ export default function PurchaseNew() {
 
   // Settings Modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [orderType, setOrderType] = useState('direct'); // direct, credit, consignment
+  const [orderType, setOrderType] = useState('direct');
   const [withGST, setWithGST] = useState(true);
-  const [purchaseOn, setPurchaseOn] = useState('credit'); // credit, cash
-  const [batchPriority, setBatchPriority] = useState('LIFA'); // LIFA, LILA
+  const [purchaseOn, setPurchaseOn] = useState('credit');
+  const [batchPriority, setBatchPriority] = useState('LIFA');
 
   // Supplier & Meta
   const [suppliers, setSuppliers] = useState([]);
@@ -50,15 +50,22 @@ export default function PurchaseNew() {
   // Items
   const [items, setItems] = useState([]);
 
-  // Invoice Breakdown Modal
+  // Invoice Breakdown Modal - Fix 6: All fields
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [internalNote, setInternalNote] = useState('');
-
-  // Return specific state
-  const [purchases, setPurchases] = useState([]);
-  const [originalPurchaseId, setOriginalPurchaseId] = useState('');
-  const [originalPurchase, setOriginalPurchase] = useState(null);
-  const [returnReason, setReturnReason] = useState('damaged');
+  const [invoiceBreakdown, setInvoiceBreakdown] = useState({
+    ptrTotal: 0,
+    totalDiscount: 0,
+    gst: 0,
+    cess: 0,
+    billAmount: 0,
+    adjustedCN: 0,
+    tcs: 0,
+    extraCharges: 0,
+    adjustmentAmount: 0,
+    roundOff: 0,
+    netAmount: 0
+  });
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -76,18 +83,15 @@ export default function PurchaseNew() {
     const loadData = async () => {
       setInitialLoading(true);
       await Promise.all([fetchSuppliers(), fetchProducts()]);
-      if (purchaseType === 'return') {
-        await fetchPurchases();
-      }
       if (editPurchaseId) {
         await loadDraftPurchase(editPurchaseId);
       }
       setInitialLoading(false);
     };
     loadData();
-  }, [purchaseType, editPurchaseId]);
+  }, [editPurchaseId]);
 
-  // Auto-calculate due date when supplier or bill date changes
+  // Auto-calculate due date
   useEffect(() => {
     if (selectedSupplier && billDate && purchaseOn === 'credit') {
       const paymentDays = selectedSupplier.payment_terms_days || 30;
@@ -120,18 +124,6 @@ export default function PurchaseNew() {
       setProducts(response.data.data || response.data || []);
     } catch (error) {
       console.error('Failed to load products:', error);
-    }
-  };
-
-  const fetchPurchases = async () => {
-    const token = localStorage.getItem('token');
-    try {
-      const response = await axios.get(`${API}/purchases?status=confirmed&page_size=100`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPurchases(response.data.data || response.data || []);
-    } catch (error) {
-      console.error('Failed to load purchases:', error);
     }
   };
 
@@ -202,7 +194,7 @@ export default function PurchaseNew() {
     }, 300);
   }, [products]);
 
-  // Filter suppliers for typeahead
+  // Filter suppliers
   const filteredSuppliers = suppliers.filter(s =>
     s.name.toLowerCase().includes(supplierSearch.toLowerCase())
   );
@@ -246,7 +238,7 @@ export default function PurchaseNew() {
 
   // Calculate totals
   const calculateTotals = () => {
-    let subtotal = 0;
+    let ptrTotal = 0;
     let taxValue = 0;
     let totalQty = 0;
     let totalFree = 0;
@@ -254,20 +246,21 @@ export default function PurchaseNew() {
     items.forEach(item => {
       const lineTotal = item.qty_units * (item.ptr_per_unit || 0);
       const taxAmount = withGST ? lineTotal * ((item.gst_percent || 5) / 100) : 0;
-      subtotal += lineTotal;
+      ptrTotal += lineTotal;
       taxValue += taxAmount;
       totalQty += item.qty_units || 0;
       totalFree += item.free_qty_units || 0;
     });
 
-    const total = subtotal + taxValue;
-    const roundOff = Math.round(total) - total;
+    const billAmount = ptrTotal + taxValue;
+    const roundOff = Math.round(billAmount) - billAmount;
 
     return {
-      subtotal: subtotal.toFixed(2),
+      ptrTotal: ptrTotal.toFixed(2),
       taxValue: taxValue.toFixed(2),
+      billAmount: billAmount.toFixed(2),
       roundOff: roundOff.toFixed(2),
-      total: Math.round(total),
+      netAmount: Math.round(billAmount),
       totalQty,
       totalFree,
       itemCount: items.length
@@ -279,7 +272,7 @@ export default function PurchaseNew() {
   // Validation
   const validateForm = () => {
     if (!selectedSupplier) {
-      toast.error('Please select a supplier');
+      toast.error('Please select a distributor');
       return false;
     }
     if (items.length === 0) {
@@ -309,7 +302,7 @@ export default function PurchaseNew() {
 
   const handleSaveDraft = async () => {
     if (!selectedSupplier) {
-      toast.error('Please select a supplier');
+      toast.error('Please select a distributor');
       return;
     }
     if (items.length === 0) {
@@ -321,7 +314,34 @@ export default function PurchaseNew() {
 
   const handleConfirm = async () => {
     if (!validateForm()) return;
+    // Initialize invoice breakdown with calculated values
+    setInvoiceBreakdown({
+      ptrTotal: parseFloat(totals.ptrTotal),
+      totalDiscount: 0,
+      gst: parseFloat(totals.taxValue),
+      cess: 0,
+      billAmount: parseFloat(totals.billAmount),
+      adjustedCN: 0,
+      tcs: 0,
+      extraCharges: 0,
+      adjustmentAmount: 0,
+      roundOff: parseFloat(totals.roundOff),
+      netAmount: totals.netAmount
+    });
     setShowInvoiceModal(true);
+  };
+
+  // Recalculate net amount when invoice breakdown changes
+  const updateInvoiceBreakdown = (field, value) => {
+    const numValue = parseFloat(value) || 0;
+    const updated = { ...invoiceBreakdown, [field]: numValue };
+    
+    // Recalculate net amount
+    const netBeforeRound = updated.billAmount - updated.totalDiscount + updated.cess - updated.adjustedCN + updated.tcs + updated.extraCharges + updated.adjustmentAmount;
+    updated.roundOff = Math.round(netBeforeRound) - netBeforeRound;
+    updated.netAmount = Math.round(netBeforeRound);
+    
+    setInvoiceBreakdown(updated);
   };
 
   const confirmAndSave = async () => {
@@ -381,218 +401,213 @@ export default function PurchaseNew() {
     }
   };
 
-  const formatDate = (date) => {
-    return format(date, 'dd MMM yyyy');
-  };
+  const formatDateShort = (date) => format(date, 'dd MMM yyyy');
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f6f8f8' }}>
-        <div className="flex flex-col items-center gap-2">
-          <span className="material-symbols-outlined text-4xl text-slate-300 animate-spin">progress_activity</span>
-          <span className="text-sm text-slate-400">Loading...</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
+        <div className="text-gray-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ fontFamily: 'Manrope, sans-serif', backgroundColor: '#f6f8f8' }}>
+    <div className="h-screen flex flex-col" style={{ fontFamily: "'Inter', sans-serif", backgroundColor: '#f6f8f8' }}>
       {/* Header */}
-      <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/purchases')}
-            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-            data-testid="back-btn"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-600" />
-          </button>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">Purchases /</span>
-            <span className="font-bold text-slate-900">
-              {isEditMode ? 'Edit Draft' : purchaseType === 'return' ? 'New Return' : 'New Purchase'}
-            </span>
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/purchases')} 
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              data-testid="back-btn"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
+                <Link to="/purchases" className="hover:text-teal-600 transition-colors">Purchases</Link>
+                <span>/</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">
+                {isEditMode ? 'Edit Draft' : 'New Purchase'}
+              </h1>
+            </div>
           </div>
-        </div>
-
-        {/* Top Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => toast.info('Purchase Orders coming soon')}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-            data-testid="po-btn"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            PO #
-          </button>
-          <button
-            onClick={() => toast.info('Gate Pass coming soon')}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-            data-testid="gatepass-btn"
-          >
-            <Truck className="w-3.5 h-3.5" />
-            Gate Pass
-          </button>
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            data-testid="settings-btn"
-          >
-            <Settings className="w-4 h-4 text-slate-500" />
-          </button>
+          
+          {/* Top Controls - PO, Gate Pass, Settings */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => toast.info('Purchase Orders coming soon')}
+              className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+              data-testid="po-btn"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              PO #
+            </button>
+            <button
+              onClick={() => toast.info('Gate Pass coming soon')}
+              className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+              data-testid="gatepass-btn"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              Gate Pass
+            </button>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              data-testid="settings-btn"
+            >
+              <Settings className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Meta Row */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-4 flex-wrap">
-        {/* Supplier Typeahead */}
-        <div className="relative" ref={supplierDropdownRef}>
-          <div
-            onClick={() => setShowSupplierDropdown(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:border-slate-300 transition-colors min-w-[200px]"
-            data-testid="supplier-selector"
-          >
-            <span className="material-symbols-outlined text-sm text-slate-400">business</span>
-            {selectedSupplier ? (
-              <span className="text-xs font-semibold text-slate-700">{selectedSupplier.name}</span>
-            ) : (
-              <span className="text-xs text-slate-400">Select Supplier</span>
-            )}
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-auto" />
-          </div>
-
-          {showSupplierDropdown && (
-            <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl">
-              <div className="p-2 border-b">
-                <input
-                  type="text"
-                  placeholder="Search suppliers..."
-                  value={supplierSearch}
-                  onChange={(e) => setSupplierSearch(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
-                  autoFocus
-                />
-              </div>
-              <div className="max-h-48 overflow-y-auto">
-                {filteredSuppliers.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-slate-400 text-center">No suppliers found</div>
-                ) : (
-                  filteredSuppliers.map(supplier => (
-                    <div
-                      key={supplier.id}
-                      onClick={() => {
-                        setSelectedSupplier(supplier);
-                        setShowSupplierDropdown(false);
-                        setSupplierSearch('');
-                      }}
-                      className="px-3 py-2 hover:bg-slate-50 cursor-pointer"
-                    >
-                      <div className="text-xs font-semibold text-slate-700">{supplier.name}</div>
-                      {supplier.gstin && (
-                        <div className="text-[10px] text-slate-400">GSTIN: {supplier.gstin}</div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Supplier Invoice */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Inv #</span>
-          <input
-            type="text"
-            value={supplierInvoiceNo}
-            onChange={(e) => setSupplierInvoiceNo(e.target.value)}
-            placeholder="Invoice No."
-            className="w-24 text-xs font-semibold bg-transparent border-none focus:outline-none"
-            data-testid="invoice-no-input"
-          />
-        </div>
-
-        {/* Bill Date */}
-        <Popover open={showBillDatePicker} onOpenChange={setShowBillDatePicker}>
-          <PopoverTrigger asChild>
-            <button
-              className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
-              data-testid="bill-date-btn"
-            >
-              <span className="material-symbols-outlined text-sm text-slate-400">calendar_today</span>
-              <span className="text-xs font-semibold text-slate-700">{formatDate(billDate)}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={billDate}
-              onSelect={(date) => {
-                if (date) setBillDate(date);
-                setShowBillDatePicker(false);
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* Due Date (for credit purchases) */}
-        {purchaseOn === 'credit' && (
-          <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
+      {/* Fix 5: Compact Subbar - Single Row matching billing style */}
+      <section className="bg-white border-b border-gray-200 px-6 py-2">
+        <div className="flex items-center gap-2">
+          {/* Date Picker Chip */}
+          <Popover open={showBillDatePicker} onOpenChange={setShowBillDatePicker}>
             <PopoverTrigger asChild>
               <button
-                className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg hover:border-amber-300 transition-colors"
-                data-testid="due-date-btn"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                data-testid="bill-date-btn"
               >
-                <span className="text-[10px] text-amber-600 uppercase font-semibold">Due</span>
-                <span className="text-xs font-semibold text-amber-700">
-                  {dueDate ? formatDate(dueDate) : 'Set Date'}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-amber-400" />
+                <span className="material-symbols-outlined text-slate-500 text-base">calendar_today</span>
+                <span className="text-sm font-medium text-slate-700">{formatDateShort(billDate)}</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={dueDate}
-                onSelect={(date) => {
-                  if (date) setDueDate(date);
-                  setShowDueDatePicker(false);
-                }}
+                selected={billDate}
+                onSelect={(date) => { if (date) setBillDate(date); setShowBillDatePicker(false); }}
                 initialFocus
               />
             </PopoverContent>
           </Popover>
-        )}
 
-        {/* Order Type Badge */}
-        <div className="flex items-center gap-1 px-3 py-2 bg-slate-100 rounded-lg">
-          <span className="text-[10px] text-slate-500 uppercase font-semibold">
-            {orderType === 'direct' ? 'Direct' : orderType === 'credit' ? 'Credit' : 'Consignment'}
-          </span>
-        </div>
+          {/* Distributor Chip */}
+          <div className="relative" ref={supplierDropdownRef}>
+            <button
+              onClick={() => setShowSupplierDropdown(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+              data-testid="supplier-selector"
+            >
+              <span className="material-symbols-outlined text-slate-400 text-base">business</span>
+              <span className={`text-sm font-medium truncate max-w-[120px] ${selectedSupplier ? 'text-slate-900' : 'text-slate-400'}`}>
+                {selectedSupplier?.name || 'Distributor'}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
 
-        {/* GST Badge */}
-        <div className={`flex items-center gap-1 px-3 py-2 rounded-lg ${withGST ? 'bg-emerald-50' : 'bg-slate-100'}`}>
-          <span className={`text-[10px] uppercase font-semibold ${withGST ? 'text-emerald-600' : 'text-slate-500'}`}>
-            {withGST ? 'GST Inclusive' : 'No GST'}
-          </span>
-        </div>
+            {showSupplierDropdown && (
+              <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-white border border-slate-200 rounded-lg shadow-xl">
+                <div className="p-2 border-b">
+                  <input
+                    type="text"
+                    placeholder="Search distributors..."
+                    value={supplierSearch}
+                    onChange={(e) => setSupplierSearch(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredSuppliers.length === 0 ? (
+                    <div className="px-3 py-4 text-xs text-slate-400 text-center">No distributors found</div>
+                  ) : (
+                    filteredSuppliers.map(supplier => (
+                      <div
+                        key={supplier.id}
+                        onClick={() => {
+                          setSelectedSupplier(supplier);
+                          setShowSupplierDropdown(false);
+                          setSupplierSearch('');
+                        }}
+                        className="px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className="text-xs font-semibold text-slate-700">{supplier.name}</div>
+                        {supplier.gstin && (
+                          <div className="text-[10px] text-slate-400">GSTIN: {supplier.gstin}</div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
-        {/* Payment Type Badge */}
-        <div className={`flex items-center gap-1 px-3 py-2 rounded-lg ${purchaseOn === 'cash' ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-          <span className={`text-[10px] uppercase font-semibold ${purchaseOn === 'cash' ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {purchaseOn === 'cash' ? 'Cash' : 'Credit'}
-          </span>
+          {/* Invoice # Chip */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-[10px] text-slate-400 uppercase font-medium">Inv#</span>
+            <input
+              type="text"
+              value={supplierInvoiceNo}
+              onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+              placeholder="—"
+              className="w-16 text-sm font-medium bg-transparent border-none focus:outline-none text-slate-700"
+              data-testid="invoice-no-input"
+            />
+          </div>
+
+          {/* Due Date Chip (credit only) */}
+          {purchaseOn === 'credit' && (
+            <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
+              <PopoverTrigger asChild>
+                <button
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-lg hover:border-amber-300 transition-colors"
+                  data-testid="due-date-btn"
+                >
+                  <span className="text-[10px] text-amber-600 uppercase font-medium">Due</span>
+                  <span className="text-sm font-medium text-amber-700">
+                    {dueDate ? formatDateShort(dueDate) : '—'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-amber-400" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={(date) => { if (date) setDueDate(date); setShowDueDatePicker(false); }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-slate-200 mx-1"></div>
+
+          {/* Order Type Chip */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+            <span className="text-sm font-medium text-slate-600 capitalize">{orderType}</span>
+          </div>
+
+          {/* GST Chip */}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${withGST ? 'bg-green-50' : 'bg-slate-100'}`}>
+            <span className={`text-sm font-medium ${withGST ? 'text-green-700' : 'text-slate-600'}`}>
+              {withGST ? 'GST' : 'No GST'}
+            </span>
+          </div>
+
+          {/* Payment Type Chip */}
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${purchaseOn === 'cash' ? 'bg-green-50' : 'bg-amber-50'}`}>
+            <span className={`text-sm font-medium ${purchaseOn === 'cash' ? 'text-green-700' : 'text-amber-700'}`}>
+              {purchaseOn === 'cash' ? 'Cash' : 'Credit'}
+            </span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Search Bar */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3">
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="relative max-w-xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             ref={searchInputRef}
             type="text"
@@ -603,7 +618,6 @@ export default function PurchaseNew() {
             data-testid="product-search"
           />
 
-          {/* Search Results Dropdown */}
           {showSearchResults && searchResults.length > 0 && (
             <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
               {searchResults.map(product => (
@@ -634,36 +648,30 @@ export default function PurchaseNew() {
       </div>
 
       {/* Items Table */}
-      <div className="flex-grow overflow-auto px-6 py-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 sticky top-0 z-10">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-10">#</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Medicine</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28">Batch</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-32">Expiry</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 text-center">Qty</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 text-center">Free</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 text-right">PTR</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-24 text-right">MRP</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-20 text-center">GST%</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16 text-center">
-                  <span title="Last In First Available / Last In Last Available">LIFA</span>
-                </th>
-                <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider w-28 text-right">Amount</th>
-                <th className="px-4 py-3 w-10"></th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-10">#</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Medicine</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24">Batch</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-28">Expiry</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">Qty</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">Free</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20 text-right">PTR</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20 text-right">MRP</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-16 text-center">GST%</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-14 text-center">LIFA</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24 text-right">Amount</th>
+                <th className="px-4 py-3 w-8"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-gray-100">
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan="12" className="px-4 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="material-symbols-outlined text-4xl text-slate-300">inventory_2</span>
-                      <span className="text-sm text-slate-400">No items added</span>
-                      <span className="text-xs text-slate-400">Search and add products above</span>
-                    </div>
+                  <td colSpan="12" className="px-4 py-12 text-center text-gray-400">
+                    No items added. Search and add products above.
                   </td>
                 </tr>
               ) : (
@@ -673,11 +681,11 @@ export default function PurchaseNew() {
                   const total = lineTotal + taxAmount;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 text-xs font-medium text-slate-400">{index + 1}</td>
+                    <tr key={item.id} className="hover:bg-gray-50/50">
+                      <td className="px-4 py-3 text-xs text-gray-400">{index + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="text-sm font-semibold text-slate-800">{item.product_name}</div>
-                        <div className="text-[10px] text-slate-400">SKU: {item.product_sku}</div>
+                        <div className="text-sm font-medium text-gray-800">{item.product_name}</div>
+                        <div className="text-[10px] text-gray-400">{item.product_sku}</div>
                       </td>
                       <td className="px-4 py-3">
                         <input
@@ -685,7 +693,7 @@ export default function PurchaseNew() {
                           value={item.batch_no}
                           onChange={(e) => updateItem(item.id, 'batch_no', e.target.value)}
                           placeholder="Batch"
-                          className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`batch-${index}`}
                         />
                       </td>
@@ -694,7 +702,7 @@ export default function PurchaseNew() {
                           type="date"
                           value={item.expiry_date}
                           onChange={(e) => updateItem(item.id, 'expiry_date', e.target.value)}
-                          className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`expiry-${index}`}
                         />
                       </td>
@@ -704,7 +712,7 @@ export default function PurchaseNew() {
                           min="1"
                           value={item.qty_units}
                           onChange={(e) => updateItem(item.id, 'qty_units', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`qty-${index}`}
                         />
                       </td>
@@ -714,7 +722,7 @@ export default function PurchaseNew() {
                           min="0"
                           value={item.free_qty_units}
                           onChange={(e) => updateItem(item.id, 'free_qty_units', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 text-xs text-center bg-emerald-50 border border-emerald-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                          className="w-full px-2 py-1 text-xs text-center bg-green-50 border border-green-200 rounded focus:outline-none focus:ring-1 focus:ring-green-400"
                           data-testid={`free-${index}`}
                         />
                       </td>
@@ -724,7 +732,7 @@ export default function PurchaseNew() {
                           step="0.01"
                           value={item.ptr_per_unit}
                           onChange={(e) => updateItem(item.id, 'ptr_per_unit', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`ptr-${index}`}
                         />
                       </td>
@@ -734,7 +742,7 @@ export default function PurchaseNew() {
                           step="0.01"
                           value={item.mrp_per_unit}
                           onChange={(e) => updateItem(item.id, 'mrp_per_unit', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`mrp-${index}`}
                         />
                       </td>
@@ -744,7 +752,7 @@ export default function PurchaseNew() {
                           step="0.1"
                           value={item.gst_percent}
                           onChange={(e) => updateItem(item.id, 'gst_percent', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          className="w-full px-2 py-1 text-xs text-center bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
                           data-testid={`gst-${index}`}
                         />
                       </td>
@@ -759,13 +767,13 @@ export default function PurchaseNew() {
                           <option value="LILA">LILA</option>
                         </select>
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-slate-800">
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-gray-800">
                         ₹{total.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="p-1.5 hover:bg-rose-50 rounded text-rose-500 transition-colors"
+                          className="p-1 hover:bg-red-50 rounded text-red-500 transition-colors"
                           data-testid={`delete-${index}`}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -780,79 +788,57 @@ export default function PurchaseNew() {
         </div>
       </div>
 
-      {/* Sticky Footer - Two Rows */}
-      <div className="bg-white border-t border-slate-200 shrink-0">
-        {/* Row 1: Totals */}
-        <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-6 text-sm">
-            <span className="text-slate-500">
-              Items: <span className="font-bold text-slate-800">{totals.itemCount}</span>
-            </span>
-            <span className="text-slate-500">
-              Total Qty: <span className="font-bold text-slate-800">{totals.totalQty}</span>
-            </span>
-            {totals.totalFree > 0 && (
-              <span className="text-emerald-600">
-                Free: <span className="font-bold">{totals.totalFree}</span>
+      {/* Footer */}
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-gray-600">
+            Items <span className="font-bold text-gray-900">{totals.itemCount}</span>
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className="text-gray-600">
+            Qty <span className="font-bold text-gray-900">{totals.totalQty}</span>
+          </span>
+          {totals.totalFree > 0 && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="text-green-600">
+                Free <span className="font-bold">{totals.totalFree}</span>
               </span>
-            )}
-          </div>
-          <div className="flex items-center gap-6 text-sm">
-            <span className="text-slate-500">
-              Subtotal: <span className="font-semibold text-slate-700">₹{totals.subtotal}</span>
-            </span>
-            {withGST && (
-              <span className="text-slate-500">
-                GST: <span className="font-semibold text-slate-700">₹{totals.taxValue}</span>
-              </span>
-            )}
-            <span className="text-slate-500">
-              Round: <span className={`font-semibold ${parseFloat(totals.roundOff) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {parseFloat(totals.roundOff) >= 0 ? '+' : ''}₹{totals.roundOff}
-              </span>
-            </span>
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Row 2: Grand Total & Actions */}
-        <div className="px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-black text-slate-900">
-              Total: <span style={{ color: '#13ecda' }}>₹{totals.total.toLocaleString()}</span>
-            </span>
-            {purchaseOn === 'credit' && (
-              <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase">
-                Credit
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/purchases')}
-              className="px-4 py-2.5 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-              data-testid="cancel-btn"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveDraft}
-              disabled={loading || items.length === 0}
-              className="px-4 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-              data-testid="save-draft-btn"
-            >
-              Save Draft
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={loading || items.length === 0}
-              className="px-6 py-2.5 text-xs font-bold text-slate-900 rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50"
-              style={{ backgroundColor: '#13ecda' }}
-              data-testid="confirm-btn"
-            >
-              {loading ? 'Saving...' : 'Confirm Purchase'}
-            </button>
-          </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">
+            Total: <span className="font-bold text-gray-900 text-base">₹{totals.netAmount.toLocaleString()}</span>
+          </span>
+          {purchaseOn === 'credit' && (
+            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">Credit</span>
+          )}
+          <button
+            onClick={() => navigate('/purchases')}
+            className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            data-testid="cancel-btn"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveDraft}
+            disabled={loading || items.length === 0}
+            className="px-4 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            data-testid="save-draft-btn"
+          >
+            Save Draft
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading || items.length === 0}
+            className="px-6 py-2 text-xs font-semibold text-gray-900 rounded-lg shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            style={{ backgroundColor: '#13ecda' }}
+            data-testid="confirm-btn"
+          >
+            {loading ? 'Saving...' : 'Confirm Purchase'}
+          </button>
         </div>
       </div>
 
@@ -896,7 +882,7 @@ export default function PurchaseNew() {
                     onClick={() => setWithGST(true)}
                     className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
                       withGST
-                        ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-400'
+                        ? 'bg-green-50 text-green-700 border-2 border-green-400'
                         : 'bg-slate-100 text-slate-600 border-2 border-transparent'
                     }`}
                   >
@@ -933,7 +919,7 @@ export default function PurchaseNew() {
                     onClick={() => setPurchaseOn('cash')}
                     className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
                       purchaseOn === 'cash'
-                        ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-400'
+                        ? 'bg-green-50 text-green-700 border-2 border-green-400'
                         : 'bg-slate-100 text-slate-600 border-2 border-transparent'
                     }`}
                   >
@@ -942,7 +928,7 @@ export default function PurchaseNew() {
                 </div>
               </div>
 
-              {/* Default Batch Priority */}
+              {/* Batch Priority */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Default Batch Priority</label>
                 <div className="flex gap-2">
@@ -973,8 +959,8 @@ export default function PurchaseNew() {
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="px-4 py-2 text-xs font-bold text-white rounded-lg"
-                style={{ backgroundColor: '#13ecda', color: '#0f172a' }}
+                className="px-4 py-2 text-xs font-bold text-gray-900 rounded-lg"
+                style={{ backgroundColor: '#13ecda' }}
               >
                 Done
               </button>
@@ -983,64 +969,157 @@ export default function PurchaseNew() {
         </div>
       )}
 
-      {/* Invoice Breakdown Modal */}
+      {/* Fix 6: Invoice Breakdown Modal with all fields */}
       {showInvoiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowInvoiceModal(false)}></div>
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
-            <div className="px-6 py-4 border-b border-slate-100">
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-white">
               <h3 className="text-lg font-bold text-slate-900">Invoice Breakdown</h3>
             </div>
             <div className="p-6">
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Supplier</span>
-                  <span className="font-semibold text-slate-800">{selectedSupplier?.name}</span>
+              {/* Header info */}
+              <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-100">
+                <div>
+                  <span className="text-xs text-slate-400">Distributor</span>
+                  <div className="text-sm font-semibold">{selectedSupplier?.name}</div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Invoice #</span>
-                  <span className="font-semibold text-slate-800">{supplierInvoiceNo || '—'}</span>
+                <div>
+                  <span className="text-xs text-slate-400">Invoice #</span>
+                  <div className="text-sm font-semibold">{supplierInvoiceNo || '—'}</div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Items</span>
-                  <span className="font-semibold text-slate-800">{totals.itemCount}</span>
+                <div>
+                  <span className="text-xs text-slate-400">Items</span>
+                  <div className="text-sm font-semibold">{totals.itemCount}</div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Total Qty</span>
-                  <span className="font-semibold text-slate-800">{totals.totalQty} + {totals.totalFree} free</span>
+                <div>
+                  <span className="text-xs text-slate-400">Total Qty</span>
+                  <div className="text-sm font-semibold">{totals.totalQty} + {totals.totalFree} free</div>
                 </div>
+              </div>
+
+              {/* Breakdown fields - all editable except auto-calculated */}
+              <div className="space-y-3">
+                {/* PTR Total - read only */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">PTR Total</span>
+                  <span className="text-sm font-semibold">₹{invoiceBreakdown.ptrTotal.toFixed(2)}</span>
+                </div>
+
+                {/* Total Discount - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Total Discount</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.totalDiscount}
+                    onChange={(e) => updateInvoiceBreakdown('totalDiscount', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
+                {/* GST - read only */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">GST</span>
+                  <span className="text-sm font-semibold">₹{invoiceBreakdown.gst.toFixed(2)}</span>
+                </div>
+
+                {/* CESS - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">CESS</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.cess}
+                    onChange={(e) => updateInvoiceBreakdown('cess', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
                 <hr className="border-slate-100" />
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Subtotal</span>
-                  <span className="font-semibold">₹{totals.subtotal}</span>
+
+                {/* Bill Amount - read only */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Bill Amount</span>
+                  <span className="text-sm font-semibold">₹{invoiceBreakdown.billAmount.toFixed(2)}</span>
                 </div>
-                {withGST && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">GST</span>
-                    <span className="font-semibold">₹{totals.taxValue}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Round Off</span>
-                  <span className={`font-semibold ${parseFloat(totals.roundOff) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {parseFloat(totals.roundOff) >= 0 ? '+' : ''}₹{totals.roundOff}
+
+                {/* Adjusted CN/Voucher - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Adjusted CN/Voucher</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.adjustedCN}
+                    onChange={(e) => updateInvoiceBreakdown('adjustedCN', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
+                {/* TCS - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">TCS</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.tcs}
+                    onChange={(e) => updateInvoiceBreakdown('tcs', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
+                {/* Extra Charges - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Extra Charges</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.extraCharges}
+                    onChange={(e) => updateInvoiceBreakdown('extraCharges', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
+                {/* Adjustment Amount - editable */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Adjustment Amount</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={invoiceBreakdown.adjustmentAmount}
+                    onChange={(e) => updateInvoiceBreakdown('adjustmentAmount', e.target.value)}
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  />
+                </div>
+
+                {/* Round Off - auto calculated */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-600">Round Off</span>
+                  <span className={`text-sm font-semibold ${invoiceBreakdown.roundOff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {invoiceBreakdown.roundOff >= 0 ? '+' : ''}₹{invoiceBreakdown.roundOff.toFixed(2)}
                   </span>
                 </div>
+
                 <hr className="border-slate-100" />
-                <div className="flex justify-between text-lg">
-                  <span className="font-bold text-slate-800">Grand Total</span>
-                  <span className="font-black" style={{ color: '#13ecda' }}>₹{totals.total.toLocaleString()}</span>
+
+                {/* Net Amount - auto calculated */}
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-bold text-slate-800">Net Amount</span>
+                  <span className="text-lg font-black" style={{ color: '#13ecda' }}>
+                    ₹{invoiceBreakdown.netAmount.toLocaleString()}
+                  </span>
                 </div>
+
                 {purchaseOn === 'credit' && (
-                  <div className="flex justify-between text-sm bg-amber-50 p-2 rounded-lg">
-                    <span className="text-amber-700">Due Date</span>
-                    <span className="font-semibold text-amber-800">{dueDate ? formatDate(dueDate) : 'Not set'}</span>
+                  <div className="flex justify-between items-center bg-amber-50 p-2 rounded-lg">
+                    <span className="text-sm text-amber-700">Due Date</span>
+                    <span className="text-sm font-semibold text-amber-800">{dueDate ? formatDateShort(dueDate) : 'Not set'}</span>
                   </div>
                 )}
               </div>
 
               {/* Note */}
-              <div>
+              <div className="mt-4">
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Internal Note</label>
                 <textarea
                   value={internalNote}
@@ -1051,7 +1130,7 @@ export default function PurchaseNew() {
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setShowInvoiceModal(false)}
                 className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
@@ -1061,7 +1140,7 @@ export default function PurchaseNew() {
               <button
                 onClick={confirmAndSave}
                 disabled={loading}
-                className="px-6 py-2 text-xs font-bold text-slate-900 rounded-lg"
+                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg"
                 style={{ backgroundColor: '#13ecda' }}
               >
                 {loading ? 'Saving...' : 'Confirm & Save'}

@@ -14,17 +14,13 @@ export default function PurchasesList() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [supplierSearch, setSupplierSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchTimeoutRef = useRef(null);
 
-  // Filters
-  const [filters, setFilters] = useState({
-    from_date: '',
-    to_date: '',
-    supplier_id: '',
-    status: '',
-    payment_status: ''
-  });
+  // Filters - live apply (no buttons)
+  const [activeFilter, setActiveFilter] = useState('all'); // all, cash, credit, due
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
 
   // Mark as Paid Modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -37,10 +33,24 @@ export default function PurchasesList() {
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
 
+  // Stats
+  const [stats, setStats] = useState({
+    purchasesToday: 0,
+    parkedCount: 0,
+    pendingDueCount: 0,
+    totalAmountToday: 0,
+    totalDueAmount: 0,
+    totalReturns: 0
+  });
+
   useEffect(() => {
     fetchData();
     fetchSuppliers();
   }, []);
+
+  useEffect(() => {
+    calculateStats();
+  }, [purchases, returns]);
 
   // Debounce search
   const handleSearchChange = (value) => {
@@ -74,15 +84,8 @@ export default function PurchasesList() {
     }
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filters.from_date) params.append('from_date', filters.from_date);
-      if (filters.to_date) params.append('to_date', filters.to_date);
-      if (filters.supplier_id) params.append('supplier_id', filters.supplier_id);
-      if (filters.status) params.append('status', filters.status);
-      params.append('page_size', '100');
-
       const [purchasesRes, returnsRes] = await Promise.all([
-        axios.get(`${API}/purchases?${params.toString()}`, {
+        axios.get(`${API}/purchases?page_size=500`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API}/purchase-returns`, {
@@ -90,7 +93,7 @@ export default function PurchasesList() {
         })
       ]);
       
-      setPurchases(purchasesRes.data.data || purchasesRes.data);
+      setPurchases(purchasesRes.data.data || purchasesRes.data || []);
       setReturns(returnsRes.data || []);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -100,131 +103,130 @@ export default function PurchasesList() {
     }
   };
 
-  const applyFilters = () => {
-    fetchData();
-  };
+  const calculateStats = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const clearFilters = () => {
-    setFilters({
-      from_date: '',
-      to_date: '',
-      supplier_id: '',
-      status: '',
-      payment_status: ''
+    let purchasesToday = 0;
+    let parkedCount = 0;
+    let pendingDueCount = 0;
+    let totalAmountToday = 0;
+    let totalDueAmount = 0;
+
+    purchases.forEach(purchase => {
+      const purchaseDate = new Date(purchase.purchase_date || purchase.created_at);
+      purchaseDate.setHours(0, 0, 0, 0);
+      const isToday = purchaseDate.getTime() === today.getTime();
+
+      if (purchase.status === 'draft') {
+        parkedCount++;
+      }
+
+      if (purchase.payment_status !== 'paid' && (purchase.status === 'confirmed' || purchase.status === 'received')) {
+        pendingDueCount++;
+        totalDueAmount += (purchase.total_value || 0) - (purchase.amount_paid || 0);
+      }
+
+      if (isToday) {
+        purchasesToday++;
+        if (purchase.status !== 'draft') {
+          totalAmountToday += purchase.total_value || 0;
+        }
+      }
     });
-    setSearchQuery('');
-    setDebouncedSearch('');
-    setTimeout(fetchData, 100);
+
+    setStats({
+      purchasesToday,
+      parkedCount,
+      pendingDueCount,
+      totalAmountToday,
+      totalDueAmount,
+      totalReturns: returns.length
+    });
   };
 
-  // Filter data based on search and payment status
+  // Filter data based on search and filter pills (live apply)
   const filterData = (data) => {
-    let filtered = data;
-    
-    if (debouncedSearch) {
-      const search = debouncedSearch.toLowerCase();
-      filtered = filtered.filter(item => 
-        item.purchase_number?.toLowerCase().includes(search) ||
-        item.return_number?.toLowerCase().includes(search) ||
-        item.supplier_name?.toLowerCase().includes(search) ||
-        item.supplier_invoice_no?.toLowerCase().includes(search)
-      );
-    }
-    
-    if (filters.payment_status) {
-      filtered = filtered.filter(item => item.payment_status === filters.payment_status);
-    }
-    
-    return filtered;
+    return data.filter(item => {
+      // Search filter
+      if (debouncedSearch) {
+        const search = debouncedSearch.toLowerCase();
+        const matchesSearch = 
+          item.purchase_number?.toLowerCase().includes(search) ||
+          item.return_number?.toLowerCase().includes(search) ||
+          item.supplier_name?.toLowerCase().includes(search) ||
+          item.supplier_invoice_no?.toLowerCase().includes(search);
+        if (!matchesSearch) return false;
+      }
+
+      // Supplier search filter
+      if (supplierSearch) {
+        const search = supplierSearch.toLowerCase();
+        if (!item.supplier_name?.toLowerCase().includes(search)) return false;
+      }
+
+      // Payment filter pills
+      if (activeFilter !== 'all') {
+        if (activeFilter === 'cash' && item.purchase_on !== 'cash') return false;
+        if (activeFilter === 'credit' && item.purchase_on !== 'credit') return false;
+        if (activeFilter === 'due' && item.payment_status === 'paid') return false;
+      }
+
+      return true;
+    });
   };
 
   const filteredPurchases = filterData(purchases);
   const filteredReturns = filterData(returns);
   const displayData = activeTab === 'purchases' ? filteredPurchases : filteredReturns;
 
-  const formatDate = () => {
-    return new Date().toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatDateTime = (dateStr) => {
+  const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   const formatCurrency = (amount) => {
     return `₹${(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   };
 
-  const getStatusBadge = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'confirmed':
-      case 'received':
-      case 'completed':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'pending':
-        return 'bg-orange-100 text-orange-700';
-      case 'cancelled':
-        return 'bg-rose-100 text-rose-700';
-      case 'draft':
-      default:
-        return 'bg-slate-100 text-slate-600';
-    }
+  const getDateRangeLabel = () => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 3, 1); // April 1st (Indian FY)
+    const endOfYear = new Date(now.getFullYear() + 1, 2, 31); // March 31st next year
+    
+    const formatShort = (date) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    };
+    
+    return `${formatShort(startOfYear)} — ${formatShort(endOfYear)}`;
   };
 
-  const getPaymentBadge = (paymentStatus, purchase) => {
-    const status = paymentStatus?.toLowerCase() || 'unpaid';
-    switch (status) {
-      case 'paid':
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700">
-            Paid
-          </span>
-        );
-      case 'partial':
-        return (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openPayModal(purchase);
-            }}
-            className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
-            data-testid={`pay-partial-${purchase.id}`}
-          >
-            Partial
-          </button>
-        );
-      case 'unpaid':
-      default:
-        // Only show clickable Due badge for confirmed purchases
-        if (purchase.status === 'confirmed' || purchase.status === 'received') {
-          return (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openPayModal(purchase);
-              }}
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors cursor-pointer"
-              data-testid={`pay-due-${purchase.id}`}
-            >
-              Due
-            </button>
-          );
-        }
-        return (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-500">
-            —
-          </span>
-        );
+  const getPaymentBadge = (paymentStatus, purchaseOn, purchase) => {
+    if (purchase?.status === 'draft') {
+      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Parked', clickable: false };
     }
+    if (paymentStatus === 'paid') {
+      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid', clickable: false };
+    }
+    if (paymentStatus === 'partial') {
+      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Partial', clickable: true };
+    }
+    // unpaid
+    if (purchaseOn === 'cash') {
+      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash', clickable: false };
+    }
+    return { bg: 'bg-red-100', text: 'text-red-700', label: 'Due', clickable: true };
   };
 
   const openPayModal = (purchase) => {
@@ -264,487 +266,280 @@ export default function PurchasesList() {
     }
   };
 
-  // Calculate summary stats
-  const purchaseStats = {
-    total: purchases.length,
-    draft: purchases.filter(p => p.status === 'draft').length,
-    confirmed: purchases.filter(p => p.status === 'confirmed' || p.status === 'received').length,
-    totalValue: purchases.reduce((sum, p) => sum + (p.total_value || 0), 0),
-    paidValue: purchases.filter(p => p.payment_status === 'paid').reduce((sum, p) => sum + (p.total_value || 0), 0),
-    dueValue: purchases.filter(p => p.payment_status !== 'paid' && (p.status === 'confirmed' || p.status === 'received'))
-      .reduce((sum, p) => sum + ((p.total_value || 0) - (p.amount_paid || 0)), 0),
-    dueCount: purchases.filter(p => p.payment_status !== 'paid' && (p.status === 'confirmed' || p.status === 'received')).length
-  };
-
-  const returnStats = {
-    total: returns.length,
-    pending: returns.filter(r => r.status === 'pending').length,
-    confirmed: returns.filter(r => r.status === 'confirmed').length,
-    totalValue: returns.reduce((sum, r) => sum + (r.total_value || 0), 0)
-  };
-
   return (
-    <div className="min-h-screen flex flex-col" style={{ fontFamily: 'Manrope, sans-serif', backgroundColor: '#f6f8f8' }}>
-      {/* Header */}
-      <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold">Purchase Operations</h2>
-          <div className="h-4 w-px bg-slate-200"></div>
-          <div className="flex items-center gap-2 text-slate-500">
-            <span className="material-symbols-outlined text-lg">calendar_today</span>
-            <span className="text-xs font-semibold">{formatDate()}</span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex-grow p-8 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-        {/* Top Bar - Tabs and Actions */}
-        <div className="flex items-center justify-between mb-6">
-          {/* Tabs */}
-          <div className="flex bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-            <button 
-              className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${
-                activeTab === 'purchases' 
-                  ? 'bg-primary/10 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-              style={activeTab === 'purchases' ? { color: '#13ecda' } : {}}
-              onClick={() => setActiveTab('purchases')}
-              data-testid="purchases-tab"
-            >
-              Purchases ({purchases.length})
-            </button>
-            <button 
-              className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${
-                activeTab === 'returns' 
-                  ? 'bg-primary/10 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-              style={activeTab === 'returns' ? { color: '#13ecda' } : {}}
-              onClick={() => setActiveTab('returns')}
-              data-testid="returns-tab"
-            >
-              Returns ({returns.length})
-            </button>
-          </div>
-
-          {/* Action Buttons */}
+    <div className="h-screen flex flex-col bg-[#f6f8f8]" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Page Header - Fix 2: Single header line like billing */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-gray-900">Purchase Operations</h1>
+            <span className="text-gray-300">·</span>
+            <span className="text-sm text-gray-500">
+              Today ₹{stats.totalAmountToday.toFixed(2)} · {stats.purchasesToday} purchases
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => navigate('/purchases/create?type=return')}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              data-testid="new-return-btn"
+            >
+              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M2 5.5h7M5.5 2v7"></path>
+              </svg>
+              Purchase Return
+            </button>
             <button 
               onClick={() => navigate('/purchases/create?type=purchase')}
-              className="px-5 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-sm text-slate-900"
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2"
               style={{ backgroundColor: '#13ecda' }}
               data-testid="new-purchase-btn"
             >
-              <span className="material-symbols-outlined text-base leading-none">add_circle</span>
+              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M5.5 1v9M1 5.5h9"></path>
+              </svg>
               New Purchase
             </button>
-            <button 
-              onClick={() => navigate('/purchases/create?type=return')}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 transition-all active:scale-95 shadow-sm"
-              data-testid="new-return-btn"
-            >
-              <span className="material-symbols-outlined text-base leading-none">keyboard_return</span>
-              New Return
-            </button>
           </div>
         </div>
-
-        {/* Summary Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Purchases</div>
-            <div className="text-2xl font-black mt-1" style={{ color: '#13ecda' }}>{purchaseStats.total}</div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              {purchaseStats.draft} draft, {purchaseStats.confirmed} confirmed
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Purchase Value</div>
-            <div className="text-2xl font-black text-emerald-600 mt-1">{formatCurrency(purchaseStats.totalValue)}</div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Due Amount</div>
-            <div className="text-2xl font-black text-rose-600 mt-1">{formatCurrency(purchaseStats.dueValue)}</div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              {purchaseStats.dueCount} pending payments
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Returns</div>
-            <div className="text-2xl font-black text-orange-600 mt-1">{returnStats.total}</div>
-            <div className="text-[10px] text-slate-500 mt-1">
-              Value: {formatCurrency(returnStats.totalValue)}
-            </div>
-          </div>
-        </div>
-
-        {/* Table Section */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-          {/* Search & Filters */}
-          <div className="p-6 border-b border-slate-100 flex flex-wrap items-center gap-4">
-            <div className="flex-grow max-w-md">
-              <div className="relative group">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-                <input 
-                  type="text"
-                  className="pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all w-full"
-                  placeholder="Search purchases, suppliers, or invoices..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  data-testid="search-input"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Supplier Filter */}
-              <select
-                value={filters.supplier_id}
-                onChange={(e) => setFilters({ ...filters, supplier_id: e.target.value })}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors appearance-none cursor-pointer min-w-[140px]"
-                data-testid="supplier-filter"
-              >
-                <option value="">All Suppliers</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors appearance-none cursor-pointer min-w-[120px]"
-                data-testid="status-filter"
-              >
-                <option value="">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="received">Received</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-
-              {/* Payment Status Filter */}
-              <select
-                value={filters.payment_status}
-                onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors appearance-none cursor-pointer min-w-[120px]"
-                data-testid="payment-filter"
-              >
-                <option value="">All Payments</option>
-                <option value="paid">Paid</option>
-                <option value="partial">Partial</option>
-                <option value="unpaid">Unpaid</option>
-              </select>
-
-              {/* Date Filters */}
-              <input
-                type="date"
-                value={filters.from_date}
-                onChange={(e) => setFilters({ ...filters, from_date: e.target.value })}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                data-testid="from-date"
-              />
-              <input
-                type="date"
-                value={filters.to_date}
-                onChange={(e) => setFilters({ ...filters, to_date: e.target.value })}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                data-testid="to-date"
-              />
-
-              <div className="w-px h-6 bg-slate-200 mx-1"></div>
-
-              {/* Apply/Clear Buttons */}
-              <button 
-                onClick={applyFilters}
-                className="px-4 py-2.5 rounded-lg font-bold text-xs transition-all text-white"
-                style={{ backgroundColor: '#13ecda', color: '#0f172a' }}
-                data-testid="apply-btn"
-              >
-                Apply
-              </button>
-              <button 
-                onClick={clearFilters}
-                className="px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg font-bold text-xs text-slate-600 hover:bg-slate-200 transition-all"
-                data-testid="clear-btn"
-              >
-                Clear
-              </button>
-
-              {/* Export Button */}
-              <button 
-                className="p-2.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg transition-colors"
-                onClick={() => toast.info('Export feature coming soon')}
-                data-testid="export-btn"
-              >
-                <span className="material-symbols-outlined text-xl">download</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-auto flex-grow" style={{ scrollbarWidth: 'thin' }}>
-            {activeTab === 'purchases' ? (
-              /* Purchases Table */
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Purchase #</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supplier</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="material-symbols-outlined text-4xl text-slate-300 animate-spin">progress_activity</span>
-                          <span className="text-sm text-slate-400">Loading purchases...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredPurchases.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="material-symbols-outlined text-4xl text-slate-300">inventory_2</span>
-                          <span className="text-sm text-slate-400">No purchases found</span>
-                          <button 
-                            onClick={() => navigate('/purchases/create?type=purchase')}
-                            className="mt-2 text-xs font-bold hover:underline"
-                            style={{ color: '#13ecda' }}
-                          >
-                            Create your first purchase
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredPurchases.map((purchase) => {
-                      return (
-                        <tr 
-                          key={purchase.id} 
-                          className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                          onClick={() => navigate(`/purchases/${purchase.id}`)}
-                        >
-                          <td className="px-6 py-4">
-                            <span className="text-xs font-bold text-slate-900">#{purchase.purchase_number}</span>
-                            {purchase.supplier_invoice_no && (
-                              <div className="text-[10px] text-slate-400 mt-0.5">Inv: {purchase.supplier_invoice_no}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-semibold">{purchase.supplier_name || 'Unknown Supplier'}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                            {formatDateTime(purchase.purchase_date)}
-                            {purchase.due_date && purchase.payment_status !== 'paid' && (
-                              <div className="text-[10px] text-amber-600 mt-0.5">Due: {formatDateTime(purchase.due_date)}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-xs font-bold text-slate-600">
-                            {String(purchase.items?.length || 0).padStart(2, '0')} Items
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusBadge(purchase.status)}`}>
-                              {purchase.status || 'DRAFT'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            {getPaymentBadge(purchase.payment_status, purchase)}
-                          </td>
-                          <td className="px-6 py-4 text-right text-sm font-black text-slate-900">
-                            {formatCurrency(purchase.total_value)}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex gap-1 justify-end">
-                              <button 
-                                className="p-1.5 hover:bg-slate-100 rounded transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/purchases/${purchase.id}`);
-                                }}
-                                data-testid={`view-${purchase.id}`}
-                              >
-                                <span className="material-symbols-outlined text-lg text-slate-400">visibility</span>
-                              </button>
-                              {purchase.status === 'draft' && (
-                                <button 
-                                  className="p-1.5 hover:bg-blue-100 rounded transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/purchases/edit/${purchase.id}?type=purchase`);
-                                  }}
-                                  data-testid={`edit-${purchase.id}`}
-                                >
-                                  <span className="material-symbols-outlined text-lg text-blue-500">edit</span>
-                                </button>
-                              )}
-                              {(purchase.status === 'confirmed' || purchase.status === 'received') && (
-                                <button 
-                                  className="p-1.5 hover:bg-orange-100 rounded transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/purchases/create?type=return&purchase_id=${purchase.id}`);
-                                  }}
-                                  data-testid={`return-${purchase.id}`}
-                                >
-                                  <span className="material-symbols-outlined text-lg text-orange-500">keyboard_return</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              /* Returns Table */
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Return #</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Original Purchase</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supplier</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="material-symbols-outlined text-4xl text-slate-300 animate-spin">progress_activity</span>
-                          <span className="text-sm text-slate-400">Loading returns...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredReturns.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="material-symbols-outlined text-4xl text-slate-300">keyboard_return</span>
-                          <span className="text-sm text-slate-400">No purchase returns found</span>
-                          <button 
-                            onClick={() => navigate('/purchases/create?type=return')}
-                            className="mt-2 text-xs font-bold hover:underline text-orange-500"
-                          >
-                            Create your first return
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredReturns.map((ret) => (
-                      <tr 
-                        key={ret.id} 
-                        className="group hover:bg-orange-50/30 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/purchases/${ret.id}`)}
-                      >
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-bold text-orange-600">#{ret.return_number}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-medium" style={{ color: '#13ecda' }}>{ret.purchase_number || '-'}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold">{ret.supplier_name || 'Unknown'}</span>
-                        </td>
-                        <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                          {formatDateTime(ret.return_date)}
-                        </td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-600">
-                          {String(ret.items?.length || 0).padStart(2, '0')} Items
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusBadge(ret.status)}`}>
-                            {ret.status || 'PENDING'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-black text-orange-600">
-                          {formatCurrency(ret.total_value)}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button 
-                            className="p-1.5 hover:bg-slate-100 rounded transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/purchases/${ret.id}`);
-                            }}
-                            data-testid={`view-return-${ret.id}`}
-                          >
-                            <span className="material-symbols-outlined text-lg text-slate-400">visibility</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
       </div>
 
-      {/* Footer Stats - Two Rows */}
-      <div className="bg-white border-t border-slate-200 shrink-0">
-        {/* Row 1: Counts */}
-        <div className="px-8 py-2 border-b border-slate-100 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4">
-            <span className="text-slate-500">
-              Showing <span className="font-bold text-slate-800">{displayData.length}</span> of {activeTab === 'purchases' ? purchases.length : returns.length}
-            </span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500">
-              Draft <span className="font-bold text-slate-600">{purchaseStats.draft}</span>
-            </span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500">
-              Pending payments <span className="font-bold text-rose-600">{purchaseStats.dueCount}</span>
-            </span>
-          </div>
-          <button 
-            className="text-xs font-bold uppercase tracking-wider hover:underline"
-            style={{ color: '#13ecda' }}
-            onClick={() => {
-              setFilters({ ...filters, payment_status: 'unpaid' });
-              fetchData();
-            }}
-          >
-            View Due Only
-          </button>
+      {/* Fix 1: Toolbar matching billing design - live filters, no Apply/Clear buttons */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
+        {/* Search by bill number */}
+        <div className="relative">
+          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="4.5" cy="4.5" r="3.2"></circle>
+            <path d="M7 7l2.5 2.5"></path>
+          </svg>
+          <input 
+            type="text"
+            placeholder="Bill no., invoice…"
+            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            data-testid="search-bill"
+          />
         </div>
 
-        {/* Row 2: Totals */}
-        <div className="px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6 text-sm">
-            <span className="text-slate-500">
-              Paid: <span className="font-bold text-emerald-600">{formatCurrency(purchaseStats.paidValue)}</span>
-            </span>
-            <span className="text-slate-500">
-              Due: <span className="font-bold text-rose-600">{formatCurrency(purchaseStats.dueValue)}</span>
-            </span>
-          </div>
-          <span className="text-slate-500 text-sm">
-            Total: <span className="font-black text-slate-900 text-base">{formatCurrency(purchaseStats.totalValue)}</span>
+        {/* Date range picker - single pill */}
+        <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+          <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <rect x=".5" y="1.5" width="10" height="9" rx="1.5"></rect>
+            <path d="M.5 5h10M3.5 0v2M7.5 0v2"></path>
+          </svg>
+          {getDateRangeLabel()}
+        </button>
+
+        {/* Supplier search */}
+        <div className="relative">
+          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="4.5" cy="4.5" r="3.2"></circle>
+            <path d="M7 7l2.5 2.5"></path>
+          </svg>
+          <input 
+            type="text"
+            placeholder="Distributor…"
+            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            value={supplierSearch}
+            onChange={(e) => setSupplierSearch(e.target.value)}
+            data-testid="search-supplier"
+          />
+        </div>
+
+        {/* Filter pills - live apply */}
+        <div className="flex items-center gap-1 ml-4">
+          {['all', 'cash', 'credit', 'due'].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+                activeFilter === filter
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              data-testid={`filter-${filter}`}
+            >
+              {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table - Fix 3: Correct columns */}
+      <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '50px' }}>Sr.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '100px' }}>Bill no.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '140px' }}>Entry date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '90px' }}>Bill date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '100px' }}>Entry by</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Distributor</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '120px' }}>Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '88px' }}>Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '68px' }}></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="px-4 py-12 text-center text-gray-400">
+                    Loading...
+                  </td>
+                </tr>
+              ) : displayData.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="px-4 py-12 text-center text-gray-400">
+                    No {activeTab === 'purchases' ? 'purchases' : 'returns'} found
+                  </td>
+                </tr>
+              ) : (
+                displayData.map((item, index) => {
+                  const payment = getPaymentBadge(item.payment_status, item.purchase_on, item);
+                  const isParked = item.status === 'draft';
+                  const isDue = item.payment_status !== 'paid' && item.status !== 'draft';
+                  
+                  return (
+                    <tr 
+                      key={item.id}
+                      className="group hover:bg-gray-50 cursor-pointer"
+                      onClick={() => navigate(`/purchases/${item.id}`)}
+                      data-testid={`purchase-row-${item.id}`}
+                    >
+                      {/* Sr No. */}
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {index + 1}
+                      </td>
+                      
+                      {/* Bill number */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {isParked ? (
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">
+                              Parked
+                            </span>
+                          ) : (
+                            <span className="font-mono text-sm font-semibold" style={{ color: '#0d9488' }}>
+                              #{item.purchase_number?.replace(/^#/, '') || item.return_number?.replace(/^#/, '')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      
+                      {/* Entry date */}
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-700">{formatDate(item.created_at)}</div>
+                        <div className="text-xs text-gray-400">{formatTime(item.created_at)}</div>
+                      </td>
+                      
+                      {/* Bill date */}
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-700">{formatDate(item.purchase_date || item.created_at)}</div>
+                      </td>
+                      
+                      {/* Entry by */}
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-700">{item.created_by_name || 'Owner'}</div>
+                      </td>
+                      
+                      {/* Distributor */}
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900">{item.supplier_name || 'Unknown'}</div>
+                        {item.supplier_invoice_no && (
+                          <div className="text-xs text-gray-400">Inv: {item.supplier_invoice_no}</div>
+                        )}
+                      </td>
+                      
+                      {/* Amount */}
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-sm font-semibold ${isDue ? 'text-red-600' : 'text-gray-900'}`}>
+                          ₹{(item.total_value || 0).toFixed(2)}
+                        </span>
+                      </td>
+                      
+                      {/* Payment badge */}
+                      <td className="px-4 py-3">
+                        {payment.clickable ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPayModal(item);
+                            }}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${payment.bg} ${payment.text} hover:opacity-80`}
+                            data-testid={`pay-${item.id}`}
+                          >
+                            {payment.label}
+                          </button>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${payment.bg} ${payment.text}`}>
+                            {payment.label}
+                          </span>
+                        )}
+                      </td>
+                      
+                      {/* Actions - visible on hover */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/purchases/${item.id}`);
+                            }}
+                            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                            title="View"
+                            data-testid={`view-${item.id}`}
+                          >
+                            <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                              <circle cx="5.5" cy="5.5" r="4"></circle>
+                              <circle cx="5.5" cy="5.5" r="1.5"></circle>
+                            </svg>
+                          </button>
+                          {isParked && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/purchases/edit/${item.id}?type=purchase`);
+                              }}
+                              className="p-1.5 hover:bg-blue-50 rounded text-blue-500 hover:text-blue-600"
+                              title="Edit"
+                              data-testid={`edit-${item.id}`}
+                            >
+                              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                                <path d="M8.5 1.5l1 1-6 6H2.5v-1l6-6z"></path>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Fix 4: Footer matching billing pattern */}
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0 overflow-x-auto">
+        <div className="flex items-center gap-4 shrink-0">
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            Purchases today <span className="font-bold text-gray-900">{stats.purchasesToday}</span>
           </span>
+          <span className="text-gray-300">·</span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
+          </span>
+          <span className="text-gray-300">·</span>
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
+          </span>
+        </div>
+        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
+          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toFixed(2)}</span>
         </div>
       </div>
 
@@ -767,7 +562,7 @@ export default function PurchasesList() {
                   <span className="font-semibold">{payingPurchase.purchase_number}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
-                  <span className="text-slate-500">Supplier</span>
+                  <span className="text-slate-500">Distributor</span>
                   <span className="font-semibold">{payingPurchase.supplier_name}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">

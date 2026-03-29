@@ -134,9 +134,9 @@ export default function SalesReturnsList() {
       'cash': { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash' },
       'upi': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'UPI' },
       'credit_to_account': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Credit' },
-      'same_as_original': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Same' }
+      'same_as_original': { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Same as original' }
     };
-    return badges[method] || { bg: 'bg-gray-100', text: 'text-gray-700', label: method || 'N/A' };
+    return badges[method] || { bg: 'bg-gray-100', text: 'text-gray-600', label: method || 'N/A' };
   };
 
   const getDateRangeLabel = () => {
@@ -368,14 +368,14 @@ export default function SalesReturnsList() {
       </div>
 
       {/* Footer */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0">
         <div className="flex items-center gap-4 shrink-0">
           <span className="text-sm text-gray-600 whitespace-nowrap">
             Returns today <span className="font-bold text-gray-900">{stats.returnsToday}</span>
           </span>
         </div>
-        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0">
-          Total refunded: <span className="font-bold text-red-600 text-base">₹{stats.totalRefundedToday.toFixed(2)}</span>
+        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
+          Total refunded: <span className="font-bold text-red-600 text-base">-₹{stats.totalRefundedToday.toFixed(2)}</span>
         </div>
       </div>
     </div>

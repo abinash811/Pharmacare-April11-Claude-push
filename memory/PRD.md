@@ -9,6 +9,69 @@ The user initiated a comprehensive audit and refactoring of the PharmaCare appli
 - **Cashier**: Limited access to billing and basic inventory viewing
 - **Inventory Staff**: Focused access to inventory management features
 
+
+## NEW: Purchases & Purchase Returns Module Overhaul (Mar 29, 2026)
+Complete redesign of Purchases module to match PharmaCare design system.
+
+### PurchasesList.js Enhancements
+- [x] Payment column with Paid/Due/Partial badges
+- [x] Due badge clickable - opens "Mark as Paid" modal
+- [x] Mark as Paid modal: Shows purchase info, outstanding amount, payment methods (CASH/Bank/CHEQUE/UPI), reference #, notes
+- [x] Two-row sticky footer like BillingOperations
+- [x] Summary stats cards: Total Purchases, Purchase Value, Due Amount, Total Returns
+- [x] Filter bar: Search, Supplier, Status, Payment Status, Date range
+
+### PurchaseNew.js Complete Redesign
+- [x] Top Controls row: PO # (coming soon), Gate Pass (coming soon), Settings gear
+- [x] Settings Modal with:
+  - Order Type (Direct/Credit/Consignment)
+  - GST (With GST/Without GST)
+  - Purchase On (Credit/Cash)
+  - Default Batch Priority (LIFA/LILA)
+- [x] Meta row: Supplier typeahead, Invoice #, Bill Date picker, Due Date picker (for credit)
+- [x] Order type, GST, and Payment badges displayed
+- [x] Product search bar with medicine search
+- [x] Items table columns: #, Medicine, Batch, Expiry, Qty, Free, PTR, MRP, GST%, LIFA, Amount, Delete
+- [x] Per-row LIFA/LILA dropdown
+- [x] Two-row sticky footer: Row 1 (Items/Qty/Free/Subtotal/GST/Round), Row 2 (Total/Credit badge/Actions)
+- [x] Invoice Breakdown modal on Confirm with summary and internal note
+
+### PurchaseDetail.js Redesign
+- [x] Header with status and payment badges
+- [x] Purchase info: Supplier, Purchase Date, Invoice #, Due Date, Total
+- [x] Items/Receipts tabs
+- [x] Items table with Ordered/Received/Pending columns and status icons
+- [x] Receive Goods dialog for partial receipts
+- [x] Totals breakdown (Subtotal, GST, Round Off, Total)
+
+### Backend Enhancements (server.py)
+- [x] Supplier model: Added `outstanding` (float) and `payment_history` (array) fields
+- [x] SupplierPayment model for tracking payment records
+- [x] StockBatch model: Added `ptr_per_unit`, `lp_per_unit`, `batch_priority` (LIFA/LILA), `purchase_id`
+- [x] Product model: Added `landing_price_per_unit` (LP) field
+- [x] PurchaseCreate: Added `due_date`, `order_type`, `with_gst`, `purchase_on`, `payment_status`
+- [x] PurchaseItemCreate: Added `free_qty_units`, `ptr_per_unit`, `batch_priority`
+- [x] POST /api/purchases: On confirmed purchase:
+  - Creates stock batch with PTR, LP, and batch_priority
+  - Updates product.landing_price_per_unit to PTR
+  - For credit purchases: adds total to supplier.outstanding
+- [x] POST /api/purchases/{id}/pay: Records payment, reduces supplier.outstanding, adds to payment_history
+- [x] Cash purchases auto-marked as paid when confirmed
+- [x] Due date auto-calculated from supplier.payment_terms_days
+
+### Business Rules
+- [x] LIFA (Last In First Available) = Newest batch sold first (default)
+- [x] LILA (Last In Last Available) = Oldest batch sold first (FIFO)
+- [x] LP = PTR for v1 (Landing Price equals Price To Retailer)
+- [x] Free quantity added to stock (qty_units + free_qty_units)
+- [x] Distributors = Suppliers (same collection, no duplication)
+
+### Test Status
+- Backend: 93.75% (15/16 tests passed) - iteration_16.json
+- Frontend: 100% (all UI elements verified)
+- Created: /app/backend/tests/test_purchases_module.py
+
+
 ## NEW: Sales Returns Module (Mar 26, 2026)
 Complete Sales Returns module implementation:
 
@@ -261,6 +324,7 @@ Complete Sales Returns module implementation:
 - **Bill Number Sequence**: ✅ 100% passed (iteration_15.json) - Feb 22, 2026
 - **Save as Draft**: ✅ Backend tested via curl, Frontend verified - Feb 22, 2026
 - **Billing UI/UX Overhaul (9 Fixes)**: ✅ Verified via screenshots - Mar 26, 2026
+- **Purchases Module Overhaul**: ✅ 93.75% backend, 100% frontend (iteration_16.json) - Mar 29, 2026
 - **API Cost Optimizations**: ✅ Implemented Feb 15, 2026
 
 ## NEW: Bill Number Sequence System (Feb 22, 2026)

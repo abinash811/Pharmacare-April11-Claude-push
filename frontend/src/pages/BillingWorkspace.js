@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Stethoscope } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Stethoscope, Printer, RotateCcw, History, CreditCard } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/calendar';
 import { format } from 'date-fns';
@@ -12,10 +12,14 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export default function BillingWorkspace() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { billId } = useParams();
+  const { id: billId } = useParams(); // billId from route params for viewing existing bills
   const searchInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
   const printRef = useRef(null);
+
+  // View Mode State - 'new', 'edit' (parked), 'view' (paid/due)
+  const [viewMode, setViewMode] = useState('new');
+  const [loadedBill, setLoadedBill] = useState(null);
 
   // Customer & Header State
   const [customerName, setCustomerName] = useState('');
@@ -117,28 +121,99 @@ export default function BillingWorkspace() {
   useEffect(() => {
     fetchUsers();
     
-    // Check if loading a draft from URL param
-    const draftId = searchParams.get('draft');
-    if (draftId) {
-      loadDraftBill(draftId);
+    // Check if viewing an existing bill via URL param
+    if (billId) {
+      loadExistingBill(billId);
     } else {
-      // Load local draft if exists
-      const savedDraft = localStorage.getItem('billing_draft');
-      if (savedDraft) {
-        try {
-          const draft = JSON.parse(savedDraft);
-          setCustomerName(draft.customerName || '');
-          setCustomerPhone(draft.customerPhone || '');
-          setDoctorName(draft.doctorName || '');
-          setBillItems(draft.items || []);
-          setPaymentType(draft.paymentType || 'cash');
-          setDraftNumber(draft.draftNumber || Math.floor(1000 + Math.random() * 9000));
-        } catch (e) {
-          console.error('Failed to load draft');
+      // Check if loading a draft from URL param
+      const draftId = searchParams.get('draft');
+      if (draftId) {
+        loadDraftBill(draftId);
+      } else {
+        // Load local draft if exists
+        const savedDraft = localStorage.getItem('billing_draft');
+        if (savedDraft) {
+          try {
+            const draft = JSON.parse(savedDraft);
+            setCustomerName(draft.customerName || '');
+            setCustomerPhone(draft.customerPhone || '');
+            setDoctorName(draft.doctorName || '');
+            setBillItems(draft.items || []);
+            setPaymentType(draft.paymentType || 'cash');
+            setDraftNumber(draft.draftNumber || Math.floor(1000 + Math.random() * 9000));
+          } catch (e) {
+            console.error('Failed to load draft');
+          }
         }
       }
     }
-  }, []);
+  }, [billId]);
+
+  // Load an existing bill by ID
+  const loadExistingBill = async (id) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await axios.get(`${API}/bills/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const bill = response.data;
+      setLoadedBill(bill);
+      
+      // Determine view mode based on status
+      const status = bill.status?.toLowerCase();
+      if (status === 'parked' || status === 'draft') {
+        setViewMode('edit'); // Editable - continue working on parked bill
+        setEditingDraftId(bill.id);
+      } else {
+        setViewMode('view'); // Read-only for paid/due bills
+      }
+      
+      // Populate form fields
+      setCustomerName(bill.customer_name || 'Walk-in Customer');
+      setCustomerPhone(bill.customer_mobile || bill.customer_phone || '');
+      setDoctorName(bill.doctor_name || '');
+      setPaymentType(bill.payment_method || bill.payment_type || 'cash');
+      setBilledBy(bill.cashier_name || bill.created_by?.name || '');
+      
+      if (bill.bill_date || bill.created_at) {
+        setBillDate(new Date(bill.bill_date || bill.created_at));
+      }
+      
+      // Convert bill items to workspace format
+      const items = (bill.items || []).map((item, index) => ({
+        id: item.id || Date.now() + index,
+        product_sku: item.product_sku || item.sku,
+        product_name: item.product_name || item.name || item.medicine_name,
+        manufacturer: item.manufacturer || '',
+        composition: item.composition || '',
+        batch_no: item.batch_no || item.batch_number,
+        batch_id: item.batch_id,
+        expiry_date: item.expiry_date,
+        qty: item.quantity || item.qty,
+        unit_price: item.unit_price || item.mrp,
+        cost_price: item.cost_price || (item.unit_price || item.mrp) * 0.7,
+        discount_percent: item.discount_percent || 0,
+        gst_percent: item.gst_percent || item.gst_rate || 5,
+        cess_percent: item.cess_percent || 0,
+        available_qty: item.available_qty || 999,
+        schedule: item.schedule || null,
+        scheduleH: item.scheduleH || item.schedule === 'H' || item.schedule === 'H1',
+        net_amount: item.line_total || item.net_amount || item.amount || 0
+      }));
+      
+      setBillItems(items);
+      
+    } catch (error) {
+      toast.error('Failed to load bill');
+      console.error('Load bill error:', error);
+      navigate('/billing');
+    }
+  };
+
+  // Load a draft/parked bill
+  const loadDraftBill = async (id) => {
+    await loadExistingBill(id);
+  };
 
   // Calculate totals whenever items or bill discount changes
   useEffect(() => {
@@ -900,9 +975,72 @@ export default function BillingWorkspace() {
                 <Link to="/billing" className="hover:text-teal-600 transition-colors">Bills</Link>
                 <span>/</span>
               </div>
-              <h1 className="text-xl font-bold text-gray-900">New Bill</h1>
+              <h1 className="text-xl font-bold text-gray-900">
+                {viewMode === 'new' ? 'New Bill' : viewMode === 'edit' ? 'Continue Bill' : `#${loadedBill?.bill_number || ''}`}
+              </h1>
             </div>
           </div>
+          
+          {/* View Mode Actions - Right side */}
+          {viewMode === 'view' && loadedBill && (
+            <div className="flex items-center gap-2">
+              {/* Status badge */}
+              {loadedBill.status === 'due' && (
+                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">Due</span>
+              )}
+              {loadedBill.status === 'paid' && (
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">Paid</span>
+              )}
+              
+              {/* Return indicator */}
+              {loadedBill.returns && loadedBill.returns.length > 0 && (
+                <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded">Returned</span>
+              )}
+              
+              {/* Collect Payment button for Due bills */}
+              {loadedBill.status === 'due' && (
+                <button
+                  onClick={() => toast.info('Collect payment functionality coming soon')}
+                  className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm font-semibold hover:bg-teal-600 flex items-center gap-2"
+                  data-testid="collect-payment-btn"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Collect Payment
+                </button>
+              )}
+              
+              {/* Return button for Paid bills */}
+              {loadedBill.status === 'paid' && (!loadedBill.returns || loadedBill.returns.length === 0) && (
+                <button
+                  onClick={() => navigate(`/billing/returns/new?billId=${loadedBill.id}`)}
+                  className="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 flex items-center gap-2"
+                  data-testid="return-btn"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Return
+                </button>
+              )}
+              
+              {/* Print button */}
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"
+                data-testid="print-btn"
+              >
+                <Printer className="w-4 h-4" />
+                Print
+              </button>
+              
+              {/* History button */}
+              <button
+                onClick={() => toast.info('History functionality coming soon')}
+                className="px-3 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50"
+                data-testid="history-btn"
+              >
+                <History className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -911,197 +1049,242 @@ export default function BillingWorkspace() {
         {/* Subbar - Single Row Compact Design */}
         <section className="bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2">
-            {/* Date Picker Chip */}
-            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-              <PopoverTrigger asChild>
-                <button
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                  data-testid="date-picker-btn"
-                >
-                  <CalendarIcon className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
-                    {format(billDate, 'dd MMM yyyy')}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={billDate}
-                  onSelect={(date) => { setBillDate(date || new Date()); setShowDatePicker(false); }}
-                  disabled={(date) => date > new Date()}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            {/* Date Picker Chip - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <CalendarIcon className="w-4 h-4 text-slate-500" />
+                <span className="text-sm font-medium text-slate-700">
+                  {format(billDate, 'dd MMM yyyy')}
+                </span>
+              </div>
+            ) : (
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <button
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                    data-testid="date-picker-btn"
+                  >
+                    <CalendarIcon className="w-4 h-4 text-slate-500" />
+                    <span className="text-sm font-medium text-slate-700">
+                      {format(billDate, 'dd MMM yyyy')}
+                    </span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={billDate}
+                    onSelect={(date) => { setBillDate(date || new Date()); setShowDatePicker(false); }}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
 
-            {/* Patient Chip */}
-            <button
-              onClick={() => setShowPatientModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
-              data-testid="patient-chip"
-            >
-              <span className="material-symbols-outlined text-slate-400 text-base">person</span>
-              <span className={`text-sm font-medium truncate max-w-[100px] ${customerName ? 'text-slate-900' : 'text-slate-400'}`}>
-                {customerName || 'Patient'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {/* Doctor Chip - Styled like Patient chip */}
-            <div className="relative" ref={doctorDropdownRef}>
+            {/* Patient Chip - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">person</span>
+                <span className="text-sm font-medium text-slate-900">{customerName || 'Walk-in'}</span>
+              </div>
+            ) : (
               <button
-                onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
+                onClick={() => setShowPatientModal(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
-                data-testid="doctor-chip"
+                data-testid="patient-chip"
               >
-                <Stethoscope className="w-4 h-4 text-slate-400" />
-                <span className={`text-sm font-medium truncate max-w-[100px] ${doctorName ? 'text-slate-900' : 'text-slate-400'}`}>
-                  {doctorName || 'Doctor'}
+                <span className="material-symbols-outlined text-slate-400 text-base">person</span>
+                <span className={`text-sm font-medium truncate max-w-[100px] ${customerName ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {customerName || 'Patient'}
                 </span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
-              {showDoctorDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-64 max-h-56 overflow-hidden">
-                  {/* Search input inside dropdown */}
-                  <div className="p-2 border-b border-slate-100">
-                    <input
-                      type="text"
-                      placeholder="Search doctor..."
-                      value={doctorSearch}
-                      onChange={(e) => searchDoctors(e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    {doctorLoading ? (
-                      <div className="px-3 py-2 text-sm text-slate-400">Searching...</div>
-                    ) : doctorResults.length > 0 ? (
-                      doctorResults.map((doctor) => (
-                        <button
-                          key={doctor.id}
-                          onClick={() => selectDoctor(doctor)}
-                          className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                        >
-                          <div className="text-sm font-medium">{doctor.name}</div>
-                          <div className="text-xs text-slate-400">{doctor.registration_no || doctor.clinic_name || ''}</div>
-                        </button>
-                      ))
-                    ) : doctorSearch.length > 0 ? (
-                      <div className="px-3 py-2 text-sm text-slate-400">No doctors found</div>
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-slate-400">Type to search doctors</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
 
-            {/* Billing For Chip */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">shopping_bag</span>
-              <select
-                value={billingFor}
-                onChange={(e) => setBillingFor(e.target.value)}
-                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
-                data-testid="billing-for"
-              >
-                <option value="self">Self</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+            {/* Doctor Chip - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <Stethoscope className="w-4 h-4 text-slate-400" />
+                <span className="text-sm font-medium text-slate-900">{doctorName || '-'}</span>
+              </div>
+            ) : (
+              <div className="relative" ref={doctorDropdownRef}>
+                <button
+                  onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+                  data-testid="doctor-chip"
+                >
+                  <Stethoscope className="w-4 h-4 text-slate-400" />
+                  <span className={`text-sm font-medium truncate max-w-[100px] ${doctorName ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {doctorName || 'Doctor'}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+                {showDoctorDropdown && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-64 max-h-56 overflow-hidden">
+                    <div className="p-2 border-b border-slate-100">
+                      <input
+                        type="text"
+                        placeholder="Search doctor..."
+                        value={doctorSearch}
+                        onChange={(e) => searchDoctors(e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {doctorLoading ? (
+                        <div className="px-3 py-2 text-sm text-slate-400">Searching...</div>
+                      ) : doctorResults.length > 0 ? (
+                        doctorResults.map((doctor) => (
+                          <button
+                            key={doctor.id}
+                            onClick={() => selectDoctor(doctor)}
+                            className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                          >
+                            <div className="text-sm font-medium">{doctor.name}</div>
+                            <div className="text-xs text-slate-400">{doctor.registration_no || doctor.clinic_name || ''}</div>
+                          </button>
+                        ))
+                      ) : doctorSearch.length > 0 ? (
+                        <div className="px-3 py-2 text-sm text-slate-400">No doctors found</div>
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-slate-400">Type to search doctors</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Billed By Chip */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">badge</span>
-              <select
-                value={billedBy}
-                onChange={(e) => setBilledBy(e.target.value)}
-                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1 max-w-[80px] truncate"
-                data-testid="billed-by"
-              >
-                <option value={currentUser?.name || ''}>{currentUser?.name || 'User'}</option>
-                {users.filter(u => u.name !== currentUser?.name).map(user => (
-                  <option key={user.id} value={user.name}>{user.name}</option>
-                ))}
-              </select>
-            </div>
+            {/* Billing For Chip - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">shopping_bag</span>
+                <span className="text-sm font-medium text-slate-700">{billingFor || 'Self'}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">shopping_bag</span>
+                <select
+                  value={billingFor}
+                  onChange={(e) => setBillingFor(e.target.value)}
+                  className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
+                  data-testid="billing-for"
+                >
+                  <option value="self">Self</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            )}
+
+            {/* Billed By Chip - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">badge</span>
+                <span className="text-sm font-medium text-slate-700">{billedBy || currentUser?.name || '-'}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">badge</span>
+                <select
+                  value={billedBy}
+                  onChange={(e) => setBilledBy(e.target.value)}
+                  className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1 max-w-[80px] truncate"
+                  data-testid="billed-by"
+                >
+                  <option value={currentUser?.name || ''}>{currentUser?.name || 'User'}</option>
+                  {users.filter(u => u.name !== currentUser?.name).map(user => (
+                    <option key={user.id} value={user.name}>{user.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Spacer */}
             <div className="flex-grow"></div>
 
-            {/* Payment Type Dropdown */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">payments</span>
-              <select
-                value={paymentType}
-                onChange={(e) => { setPaymentType(e.target.value); saveDraft(); }}
-                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
-                data-testid="payment-type"
-              >
-                <option value="">Payment</option>
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="credit">Credit</option>
-                <option value="card">CC/DC</option>
-                <option value="multiple">Multiple</option>
-              </select>
-            </div>
-
-            {/* Save Button with Dropdown */}
-            <div className="relative" ref={saveDropdownRef}>
-              <div className="flex">
-                <button
-                  onClick={() => saveBill(false)}
-                  className="px-3 py-1.5 font-semibold text-sm text-slate-900 rounded-l-lg flex items-center gap-1.5 hover:brightness-95 transition-all"
-                  style={{ backgroundColor: '#13ecda' }}
-                  data-testid="save-btn"
-                >
-                  <span className="material-symbols-outlined text-base">check_circle</span>
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowSaveDropdown(!showSaveDropdown)}
-                  className="px-1.5 py-1.5 text-slate-900 rounded-r-lg border-l border-slate-900/10 hover:brightness-95 transition-all"
-                  style={{ backgroundColor: '#13ecda' }}
-                  data-testid="save-dropdown-btn"
-                >
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showSaveDropdown ? 'rotate-180' : ''}`} />
-                </button>
+            {/* Payment Type - Read-only in view mode */}
+            {viewMode === 'view' ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
+                <span className="material-symbols-outlined text-slate-400 text-base">payments</span>
+                <span className="text-sm font-medium text-slate-700 capitalize">{paymentType || '-'}</span>
               </div>
-              
-              {/* Save Dropdown Menu */}
-              {showSaveDropdown && (
-                <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
-                  <button
-                    onClick={() => { setShowSaveDropdown(false); saveBillAndPrint(); }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm"
-                    data-testid="save-print-option"
+            ) : (
+              <>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
+                  <span className="material-symbols-outlined text-slate-400 text-base">payments</span>
+                  <select
+                    value={paymentType}
+                    onChange={(e) => { setPaymentType(e.target.value); saveDraft(); }}
+                    className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
+                    data-testid="payment-type"
                   >
-                    <span className="material-symbols-outlined text-slate-500">print</span>
-                    Save & Print
-                  </button>
-                  <button
-                    onClick={() => { setShowSaveDropdown(false); parkBill(); }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
-                    data-testid="park-bill-option"
-                  >
-                    <span className="material-symbols-outlined text-amber-500">pause_circle</span>
-                    Park bill
-                  </button>
-                  <button
-                    onClick={() => { setShowSaveDropdown(false); saveBillAndDeliver(); }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
-                    data-testid="save-deliver-option"
-                  >
-                    <span className="material-symbols-outlined text-blue-500">local_shipping</span>
-                    Save & Deliver
-                  </button>
+                    <option value="">Payment</option>
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="credit">Credit</option>
+                    <option value="card">CC/DC</option>
+                    <option value="multiple">Multiple</option>
+                  </select>
                 </div>
-              )}
-            </div>
+
+                {/* Save Button with Dropdown - Only in edit/new mode */}
+                <div className="relative" ref={saveDropdownRef}>
+                  <div className="flex">
+                    <button
+                      onClick={() => saveBill(false)}
+                      className="px-3 py-1.5 font-semibold text-sm text-slate-900 rounded-l-lg flex items-center gap-1.5 hover:brightness-95 transition-all"
+                      style={{ backgroundColor: '#13ecda' }}
+                      data-testid="save-btn"
+                    >
+                      <span className="material-symbols-outlined text-base">check_circle</span>
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+                      className="px-1.5 py-1.5 text-slate-900 rounded-r-lg border-l border-slate-900/10 hover:brightness-95 transition-all"
+                      style={{ backgroundColor: '#13ecda' }}
+                      data-testid="save-dropdown-btn"
+                    >
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showSaveDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                  
+                  {/* Save Dropdown Menu */}
+                  {showSaveDropdown && (
+                    <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden z-50">
+                      <button
+                        onClick={() => { setShowSaveDropdown(false); saveBillAndPrint(); }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm"
+                        data-testid="save-print-option"
+                      >
+                        <span className="material-symbols-outlined text-slate-500">print</span>
+                        Save & Print
+                      </button>
+                      <button
+                        onClick={() => { setShowSaveDropdown(false); parkBill(); }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
+                        data-testid="park-bill-option"
+                      >
+                        <span className="material-symbols-outlined text-amber-500">pause_circle</span>
+                        Park bill
+                      </button>
+                      <button
+                        onClick={() => { setShowSaveDropdown(false); saveBillAndDeliver(); }}
+                        className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center gap-3 text-sm border-t border-slate-100"
+                        data-testid="save-deliver-option"
+                      >
+                        <span className="material-symbols-outlined text-blue-500">local_shipping</span>
+                        Save & Deliver
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -1120,7 +1303,9 @@ export default function BillingWorkspace() {
                   <th className="w-24 px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Disc%/₹</th>
                   <th className="w-16 px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">GST</th>
                   <th className="w-28 px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                  <th className="w-10 px-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">×</th>
+                  {viewMode !== 'view' && (
+                    <th className="w-10 px-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">×</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1247,40 +1432,52 @@ export default function BillingWorkspace() {
                     
                     {/* MRP */}
                     <td className="px-4 py-2 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right font-medium"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                        data-testid={`price-${index}`}
-                      />
+                      {viewMode === 'view' ? (
+                        <span className="text-sm text-right font-medium">₹{item.unit_price?.toFixed(2)}</span>
+                      ) : (
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right font-medium"
+                          value={item.unit_price}
+                          onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          data-testid={`price-${index}`}
+                        />
+                      )}
                     </td>
                     
                     {/* Qty */}
                     <td className="px-4 py-2 text-right">
-                      <input
-                        type="number"
-                        className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right font-medium"
-                        value={item.qty}
-                        min="1"
-                        max={item.available_qty}
-                        onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 1)}
-                        data-testid={`qty-${index}`}
-                      />
+                      {viewMode === 'view' ? (
+                        <span className="text-sm text-right font-medium">{item.qty}</span>
+                      ) : (
+                        <input
+                          type="number"
+                          className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right font-medium"
+                          value={item.qty}
+                          min="1"
+                          max={item.available_qty}
+                          onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 1)}
+                          data-testid={`qty-${index}`}
+                        />
+                      )}
                     </td>
                     
                     {/* Disc%/₹ */}
                     <td className="px-4 py-2 text-right">
                       <div className="flex flex-col items-end">
-                        <input
-                          type="number"
-                          step="0.1"
-                          className={`w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right ${item.discount_percent > 0 ? 'text-rose-500' : ''}`}
-                          value={item.discount_percent}
-                          onChange={(e) => updateItem(index, 'discount_percent', parseFloat(e.target.value) || 0)}
-                          data-testid={`discount-${index}`}
-                        />
+                        {viewMode === 'view' ? (
+                          <span className={`text-sm text-right ${item.discount_percent > 0 ? 'text-rose-500' : ''}`}>{item.discount_percent?.toFixed(1)}%</span>
+                        ) : (
+                          <input
+                            type="number"
+                            step="0.1"
+                            className={`w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right ${item.discount_percent > 0 ? 'text-rose-500' : ''}`}
+                            value={item.discount_percent}
+                            onChange={(e) => updateItem(index, 'discount_percent', parseFloat(e.target.value) || 0)}
+                            data-testid={`discount-${index}`}
+                          />
+                        )}
                         <span className={`text-[10px] ${itemDiscountAmount > 0 ? 'text-green-600 font-medium' : 'text-slate-400'}`}>
                           {itemDiscountAmount > 0 ? `-₹${itemDiscountAmount.toFixed(2)}` : '₹0.00'}
                         </span>
@@ -1289,33 +1486,40 @@ export default function BillingWorkspace() {
                     
                     {/* GST */}
                     <td className="px-4 py-2 text-right">
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right"
-                        value={item.gst_percent}
-                        onChange={(e) => updateItem(index, 'gst_percent', parseFloat(e.target.value) || 0)}
-                        data-testid={`gst-${index}`}
-                      />
+                      {viewMode === 'view' ? (
+                        <span className="text-sm text-right">{item.gst_percent}%</span>
+                      ) : (
+                        <input
+                          type="number"
+                          step="0.1"
+                          className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right"
+                          value={item.gst_percent}
+                          onChange={(e) => updateItem(index, 'gst_percent', parseFloat(e.target.value) || 0)}
+                          data-testid={`gst-${index}`}
+                        />
+                      )}
                     </td>
                     
                     {/* Amount */}
-                    <td className="px-4 py-2 text-right text-sm font-bold text-slate-900">₹{item.net_amount.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right text-sm font-bold text-slate-900">₹{item.net_amount?.toFixed(2)}</td>
                     
-                    {/* Delete × */}
-                    <td className="px-2 py-2 text-center">
-                      <button
-                        onClick={() => removeItem(index)}
-                        className="text-slate-300 hover:text-red-500 transition-colors text-lg font-bold"
-                        data-testid={`remove-${index}`}
-                      >
-                        ×
-                      </button>
-                    </td>
+                    {/* Delete × - Only in edit/new mode */}
+                    {viewMode !== 'view' && (
+                      <td className="px-2 py-2 text-center">
+                        <button
+                          onClick={() => removeItem(index)}
+                          className="text-slate-300 hover:text-red-500 transition-colors text-lg font-bold"
+                          data-testid={`remove-${index}`}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    )}
                   </tr>
                   );
                 })}
-                {/* Empty row for adding new items */}
+                {/* Empty row for adding new items - Only in edit/new mode */}
+                {viewMode !== 'view' && (
                 <tr className="bg-slate-50/30">
                   <td className="px-4 py-2 text-xs font-medium text-slate-300">{String(billItems.length + 1).padStart(2, '0')}</td>
                   <td className="px-4 py-2 relative" colSpan="2">
@@ -1364,8 +1568,9 @@ export default function BillingWorkspace() {
                     )}
                   </td>
                   <td colSpan="6" className="px-4 py-2"></td>
-                  <td className="px-2 py-2"></td>
+                  {viewMode !== 'view' && <td className="px-2 py-2"></td>}
                 </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1413,32 +1618,53 @@ export default function BillingWorkspace() {
           
           {/* Row 2: Actions Strip */}
           <div className="px-4 py-3 flex items-center justify-between gap-4">
-            {/* Bill Discount Input */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600 font-medium">Bill discount</span>
-              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setBillDiscountType('%')}
-                  className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '%' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
-                >
-                  %
-                </button>
-                <button
-                  onClick={() => setBillDiscountType('₹')}
-                  className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '₹' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
-                >
-                  ₹
-                </button>
+            {/* Bill Discount Input - Only in edit/new mode */}
+            {viewMode !== 'view' ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600 font-medium">Bill discount</span>
+                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setBillDiscountType('%')}
+                    className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '%' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+                  >
+                    %
+                  </button>
+                  <button
+                    onClick={() => setBillDiscountType('₹')}
+                    className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '₹' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+                  >
+                    ₹
+                  </button>
+                </div>
+                <input
+                  type="number"
+                  value={billDiscount}
+                  onChange={(e) => setBillDiscount(parseFloat(e.target.value) || 0)}
+                  className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  placeholder="0"
+                  data-testid="bill-discount-input"
+                />
               </div>
-              <input
-                type="number"
-                value={billDiscount}
-                onChange={(e) => setBillDiscount(parseFloat(e.target.value) || 0)}
-                className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
-                placeholder="0"
-                data-testid="bill-discount-input"
-              />
-            </div>
+            ) : (
+              <div className="flex items-center gap-4 text-sm">
+                <div>
+                  <span className="text-slate-500">Subtotal:</span>
+                  <span className="ml-2 font-semibold">₹{mrpTotal.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Discount:</span>
+                  <span className="ml-2 font-semibold text-rose-500">-₹{totalDiscount.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">GST:</span>
+                  <span className="ml-2 font-semibold">₹{totalGst.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Total:</span>
+                  <span className="ml-2 font-bold text-lg">₹{grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
@@ -1447,7 +1673,7 @@ export default function BillingWorkspace() {
                 className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                 data-testid="footer-print-btn"
               >
-                <span className="material-symbols-outlined text-lg">print</span>
+                <Printer className="w-4 h-4" />
                 Print
               </button>
               <button
@@ -1465,15 +1691,18 @@ export default function BillingWorkspace() {
                 <span className="material-symbols-outlined text-lg">share</span>
                 WhatsApp
               </button>
-              <button
-                onClick={openFinaliseModal}
-                className="px-6 py-2 rounded-lg text-sm font-bold text-slate-900 flex items-center gap-2 hover:brightness-95"
-                style={{ backgroundColor: '#13ecda' }}
-                data-testid="footer-finalise-btn"
-              >
-                <span className="material-symbols-outlined text-lg">check_circle</span>
-                Finalise Bill
-              </button>
+              {/* Finalise button - Only in edit/new mode */}
+              {viewMode !== 'view' && (
+                <button
+                  onClick={openFinaliseModal}
+                  className="px-6 py-2 rounded-lg text-sm font-bold text-slate-900 flex items-center gap-2 hover:brightness-95"
+                  style={{ backgroundColor: '#13ecda' }}
+                  data-testid="footer-finalise-btn"
+                >
+                  <span className="material-symbols-outlined text-lg">check_circle</span>
+                  Finalise Bill
+                </button>
+              )}
             </div>
           </div>
         </section>

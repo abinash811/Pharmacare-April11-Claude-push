@@ -12,7 +12,6 @@ import BillingList from '@/pages/BillingList';
 import BillingOperations from '@/pages/BillingOperations';
 import Billing from '@/pages/BillingNew';
 import BillingWorkspace from '@/pages/BillingWorkspace';
-import BillDetail from '@/pages/BillDetail';
 import SalesReturnsList from '@/pages/SalesReturnsList';
 import SalesReturnCreate from '@/pages/SalesReturnCreate';
 import SalesReturnDetail from '@/pages/SalesReturnDetail';
@@ -157,7 +156,7 @@ function AppRoutes({ user }) {
         <Route path="billing/returns/new" element={<SalesReturnCreate />} />
         <Route path="billing/returns/edit/:id" element={<SalesReturnCreate />} />
         <Route path="billing/returns/:id" element={<SalesReturnDetail />} />
-        <Route path="billing/:id" element={<BillDetail />} />
+        <Route path="billing/:id" element={<BillingWorkspace />} />
         <Route path="inventory" element={<InventorySearch />} />
         <Route path="inventory-v2" element={<InventoryV2 />} />
         <Route path="inventory/product/:sku" element={<MedicineDetail />} />

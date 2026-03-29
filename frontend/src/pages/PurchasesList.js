@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -21,8 +22,20 @@ export default function PurchasesList() {
     from_date: '',
     to_date: '',
     supplier_id: '',
-    status: ''
+    status: '',
+    payment_status: ''
   });
+
+  // Mark as Paid Modal
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payingPurchase, setPayingPurchase] = useState(null);
+  const [paymentData, setPaymentData] = useState({
+    amount: 0,
+    payment_method: 'cash',
+    reference_no: '',
+    notes: ''
+  });
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -96,23 +109,33 @@ export default function PurchasesList() {
       from_date: '',
       to_date: '',
       supplier_id: '',
-      status: ''
+      status: '',
+      payment_status: ''
     });
     setSearchQuery('');
     setDebouncedSearch('');
     setTimeout(fetchData, 100);
   };
 
-  // Filter data based on search
+  // Filter data based on search and payment status
   const filterData = (data) => {
-    if (!debouncedSearch) return data;
-    const search = debouncedSearch.toLowerCase();
-    return data.filter(item => 
-      item.purchase_number?.toLowerCase().includes(search) ||
-      item.return_number?.toLowerCase().includes(search) ||
-      item.supplier_name?.toLowerCase().includes(search) ||
-      item.supplier_invoice_no?.toLowerCase().includes(search)
-    );
+    let filtered = data;
+    
+    if (debouncedSearch) {
+      const search = debouncedSearch.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.purchase_number?.toLowerCase().includes(search) ||
+        item.return_number?.toLowerCase().includes(search) ||
+        item.supplier_name?.toLowerCase().includes(search) ||
+        item.supplier_invoice_no?.toLowerCase().includes(search)
+      );
+    }
+    
+    if (filters.payment_status) {
+      filtered = filtered.filter(item => item.payment_status === filters.payment_status);
+    }
+    
+    return filtered;
   };
 
   const filteredPurchases = filterData(purchases);
@@ -137,12 +160,6 @@ export default function PurchasesList() {
     });
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
   const formatCurrency = (amount) => {
     return `₹${(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   };
@@ -163,17 +180,87 @@ export default function PurchasesList() {
     }
   };
 
-  const getPaymentIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'confirmed':
-      case 'received':
-        return { icon: 'check_circle', color: 'text-emerald-500' };
-      case 'pending':
-        return { icon: 'schedule', color: 'text-orange-500' };
-      case 'draft':
-        return { icon: 'edit_note', color: 'text-slate-400' };
+  const getPaymentBadge = (paymentStatus, purchase) => {
+    const status = paymentStatus?.toLowerCase() || 'unpaid';
+    switch (status) {
+      case 'paid':
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700">
+            Paid
+          </span>
+        );
+      case 'partial':
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openPayModal(purchase);
+            }}
+            className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
+            data-testid={`pay-partial-${purchase.id}`}
+          >
+            Partial
+          </button>
+        );
+      case 'unpaid':
       default:
-        return { icon: 'inventory_2', color: 'text-slate-400' };
+        // Only show clickable Due badge for confirmed purchases
+        if (purchase.status === 'confirmed' || purchase.status === 'received') {
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openPayModal(purchase);
+              }}
+              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors cursor-pointer"
+              data-testid={`pay-due-${purchase.id}`}
+            >
+              Due
+            </button>
+          );
+        }
+        return (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-500">
+            —
+          </span>
+        );
+    }
+  };
+
+  const openPayModal = (purchase) => {
+    setPayingPurchase(purchase);
+    const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
+    setPaymentData({
+      amount: outstanding,
+      payment_method: 'cash',
+      reference_no: '',
+      notes: ''
+    });
+    setShowPayModal(true);
+  };
+
+  const handlePayment = async () => {
+    if (!payingPurchase) return;
+    if (!paymentData.amount || paymentData.amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    setPaymentLoading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      await axios.post(`${API}/purchases/${payingPurchase.id}/pay`, paymentData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Payment recorded successfully');
+      setShowPayModal(false);
+      setPayingPurchase(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to record payment');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -182,7 +269,11 @@ export default function PurchasesList() {
     total: purchases.length,
     draft: purchases.filter(p => p.status === 'draft').length,
     confirmed: purchases.filter(p => p.status === 'confirmed' || p.status === 'received').length,
-    totalValue: purchases.reduce((sum, p) => sum + (p.total_value || 0), 0)
+    totalValue: purchases.reduce((sum, p) => sum + (p.total_value || 0), 0),
+    paidValue: purchases.filter(p => p.payment_status === 'paid').reduce((sum, p) => sum + (p.total_value || 0), 0),
+    dueValue: purchases.filter(p => p.payment_status !== 'paid' && (p.status === 'confirmed' || p.status === 'received'))
+      .reduce((sum, p) => sum + ((p.total_value || 0) - (p.amount_paid || 0)), 0),
+    dueCount: purchases.filter(p => p.payment_status !== 'paid' && (p.status === 'confirmed' || p.status === 'received')).length
   };
 
   const returnStats = {
@@ -274,15 +365,18 @@ export default function PurchasesList() {
             <div className="text-2xl font-black text-emerald-600 mt-1">{formatCurrency(purchaseStats.totalValue)}</div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Returns</div>
-            <div className="text-2xl font-black text-orange-600 mt-1">{returnStats.total}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Due Amount</div>
+            <div className="text-2xl font-black text-rose-600 mt-1">{formatCurrency(purchaseStats.dueValue)}</div>
             <div className="text-[10px] text-slate-500 mt-1">
-              {returnStats.pending} pending, {returnStats.confirmed} confirmed
+              {purchaseStats.dueCount} pending payments
             </div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Return Value</div>
-            <div className="text-2xl font-black text-rose-600 mt-1">{formatCurrency(returnStats.totalValue)}</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Returns</div>
+            <div className="text-2xl font-black text-orange-600 mt-1">{returnStats.total}</div>
+            <div className="text-[10px] text-slate-500 mt-1">
+              Value: {formatCurrency(returnStats.totalValue)}
+            </div>
           </div>
         </div>
 
@@ -328,8 +422,21 @@ export default function PurchasesList() {
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
                 <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
+                <option value="received">Received</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+
+              {/* Payment Status Filter */}
+              <select
+                value={filters.payment_status}
+                onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })}
+                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors appearance-none cursor-pointer min-w-[120px]"
+                data-testid="payment-filter"
+              >
+                <option value="">All Payments</option>
+                <option value="paid">Paid</option>
+                <option value="partial">Partial</option>
+                <option value="unpaid">Unpaid</option>
               </select>
 
               {/* Date Filters */}
@@ -379,7 +486,7 @@ export default function PurchasesList() {
           </div>
 
           {/* Table */}
-          <div className="overflow-auto" style={{ scrollbarWidth: 'thin' }}>
+          <div className="overflow-auto flex-grow" style={{ scrollbarWidth: 'thin' }}>
             {activeTab === 'purchases' ? (
               /* Purchases Table */
               <table className="w-full text-left border-collapse">
@@ -389,8 +496,8 @@ export default function PurchasesList() {
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supplier</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Items</th>
-                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
                     <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                   </tr>
@@ -423,7 +530,6 @@ export default function PurchasesList() {
                     </tr>
                   ) : (
                     filteredPurchases.map((purchase) => {
-                      const typeIcon = getPaymentIcon(purchase.status);
                       return (
                         <tr 
                           key={purchase.id} 
@@ -443,20 +549,20 @@ export default function PurchasesList() {
                           </td>
                           <td className="px-6 py-4 text-xs font-medium text-slate-500">
                             {formatDateTime(purchase.purchase_date)}
+                            {purchase.due_date && purchase.payment_status !== 'paid' && (
+                              <div className="text-[10px] text-amber-600 mt-0.5">Due: {formatDateTime(purchase.due_date)}</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-xs font-bold text-slate-600">
                             {String(purchase.items?.length || 0).padStart(2, '0')} Items
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`material-symbols-outlined text-sm ${typeIcon.color}`}>{typeIcon.icon}</span>
-                              <span className="text-[10px] font-bold uppercase">PURCHASE</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${getStatusBadge(purchase.status)}`}>
                               {purchase.status || 'DRAFT'}
                             </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {getPaymentBadge(purchase.payment_status, purchase)}
                           </td>
                           <td className="px-6 py-4 text-right text-sm font-black text-slate-900">
                             {formatCurrency(purchase.total_value)}
@@ -594,41 +700,169 @@ export default function PurchasesList() {
               </table>
             )}
           </div>
-
-          {/* Footer */}
-          {displayData.length > 0 && (
-            <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-              <span className="text-[10px] font-semibold text-slate-400">
-                Showing {displayData.length} of {activeTab === 'purchases' ? purchases.length : returns.length} {activeTab}
-              </span>
-              <button className="text-[10px] font-black uppercase tracking-[0.2em] hover:underline transition-all" style={{ color: '#13ecda' }}>
-                View All {activeTab === 'purchases' ? 'Purchases' : 'Returns'}
-              </button>
-            </div>
-          )}
         </section>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-white px-8 py-3 flex gap-8 text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 border-t border-slate-200">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          Terminal 01 Online
+      {/* Footer Stats - Two Rows */}
+      <div className="bg-white border-t border-slate-200 shrink-0">
+        {/* Row 1: Counts */}
+        <div className="px-8 py-2 border-b border-slate-100 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-4">
+            <span className="text-slate-500">
+              Showing <span className="font-bold text-slate-800">{displayData.length}</span> of {activeTab === 'purchases' ? purchases.length : returns.length}
+            </span>
+            <span className="text-slate-300">·</span>
+            <span className="text-slate-500">
+              Draft <span className="font-bold text-slate-600">{purchaseStats.draft}</span>
+            </span>
+            <span className="text-slate-300">·</span>
+            <span className="text-slate-500">
+              Pending payments <span className="font-bold text-rose-600">{purchaseStats.dueCount}</span>
+            </span>
+          </div>
+          <button 
+            className="text-xs font-bold uppercase tracking-wider hover:underline"
+            style={{ color: '#13ecda' }}
+            onClick={() => {
+              setFilters({ ...filters, payment_status: 'unpaid' });
+              fetchData();
+            }}
+          >
+            View Due Only
+          </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          Terminal 04 Online
+
+        {/* Row 2: Totals */}
+        <div className="px-8 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-6 text-sm">
+            <span className="text-slate-500">
+              Paid: <span className="font-bold text-emerald-600">{formatCurrency(purchaseStats.paidValue)}</span>
+            </span>
+            <span className="text-slate-500">
+              Due: <span className="font-bold text-rose-600">{formatCurrency(purchaseStats.dueValue)}</span>
+            </span>
+          </div>
+          <span className="text-slate-500 text-sm">
+            Total: <span className="font-black text-slate-900 text-base">{formatCurrency(purchaseStats.totalValue)}</span>
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          Terminal 02 Syncing
+      </div>
+
+      {/* Mark as Paid Modal */}
+      {showPayModal && payingPurchase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPayModal(false)}></div>
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Record Payment</h3>
+              <button onClick={() => setShowPayModal(false)} className="p-1 hover:bg-slate-100 rounded">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Purchase Info */}
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Purchase #</span>
+                  <span className="font-semibold">{payingPurchase.purchase_number}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-slate-500">Supplier</span>
+                  <span className="font-semibold">{payingPurchase.supplier_name}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-slate-500">Total Amount</span>
+                  <span className="font-bold">{formatCurrency(payingPurchase.total_value)}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-slate-500">Already Paid</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(payingPurchase.amount_paid || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1 pt-1 border-t border-slate-200">
+                  <span className="text-slate-500">Outstanding</span>
+                  <span className="font-bold text-rose-600">
+                    {formatCurrency((payingPurchase.total_value || 0) - (payingPurchase.amount_paid || 0))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Amount */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Payment Amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={paymentData.amount}
+                  onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 text-lg font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  data-testid="payment-amount"
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Payment Method</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['cash', 'bank_transfer', 'cheque', 'upi'].map(method => (
+                    <button
+                      key={method}
+                      onClick={() => setPaymentData({ ...paymentData, payment_method: method })}
+                      className={`px-3 py-2 text-xs font-semibold rounded-lg transition-colors ${
+                        paymentData.payment_method === method
+                          ? 'bg-teal-50 text-teal-700 border-2 border-teal-400'
+                          : 'bg-slate-100 text-slate-600 border-2 border-transparent'
+                      }`}
+                    >
+                      {method === 'bank_transfer' ? 'Bank' : method.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reference */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Reference # (Optional)</label>
+                <input
+                  type="text"
+                  value={paymentData.reference_no}
+                  onChange={(e) => setPaymentData({ ...paymentData, reference_no: e.target.value })}
+                  placeholder="Cheque/Transaction number"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Notes (Optional)</label>
+                <textarea
+                  value={paymentData.notes}
+                  onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
+                  placeholder="Add payment notes"
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => setShowPayModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayment}
+                disabled={paymentLoading || !paymentData.amount}
+                className="px-6 py-2 text-xs font-bold text-slate-900 rounded-lg disabled:opacity-50"
+                style={{ backgroundColor: '#13ecda' }}
+                data-testid="confirm-payment-btn"
+              >
+                {paymentLoading ? 'Processing...' : 'Record Payment'}
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="ml-auto flex items-center gap-4">
-          <span className="text-slate-400 uppercase tracking-wider">Cloud Sync: 2s ago</span>
-          <div className="h-3 w-px bg-slate-200"></div>
-          <span style={{ color: '#13ecda' }}>Software v4.2.0-stable</span>
-        </div>
-      </footer>
+      )}
     </div>
   );
 }

@@ -457,6 +457,7 @@ class Product(BaseModel):
     default_mrp: Optional[float] = None  # Legacy field
     default_mrp_per_unit: float = 0  # Phase 0: MRP per unit (not per pack)
     default_ptr_per_unit: Optional[float] = None  # Phase 0: PTR (Price to Retailer) per unit
+    landing_price_per_unit: Optional[float] = None  # LP (Landing Price) = PTR after schemes, updated on purchase
     gst_percent: float = 5.0
     hsn_code: Optional[str] = None
     description: Optional[str] = None
@@ -530,12 +531,16 @@ class StockBatch(BaseModel):
     qty_on_hand: int  # Quantity in PACKS (strips). Total units = qty_on_hand × product.units_per_pack
     cost_price_per_unit: float  # Phase 0: Cost price per individual unit
     mrp_per_unit: float  # Phase 0: MRP per individual unit
+    ptr_per_unit: Optional[float] = None  # PTR (Price to Retailer) per unit
+    lp_per_unit: Optional[float] = None  # LP (Landing Price) per unit = PTR after schemes
     supplier_name: Optional[str] = None
     supplier_invoice_no: Optional[str] = None  # Phase 0: supplier invoice number
     received_date: Optional[datetime] = None  # Phase 0: date received
     location: Optional[str] = "default"  # Phase 0: location field (not location_id)
     free_qty_units: Optional[int] = 0  # Phase 0: free quantity in units
+    batch_priority: str = "LIFA"  # LIFA = Last In First Available, LILA = Last In Last Available (FIFO)
     notes: Optional[str] = None  # Phase 0: notes field
+    purchase_id: Optional[str] = None  # Reference to purchase that created this batch
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_by: Optional[str] = None
@@ -806,6 +811,18 @@ class AuditLogCreate(BaseModel):
     reason: Optional[str] = None
 
 # ==================== SUPPLIER MODELS ====================
+class SupplierPayment(BaseModel):
+    """Record of a payment made to supplier"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    amount: float
+    payment_date: str  # ISO date string
+    payment_method: str = "cash"  # cash, bank_transfer, cheque, upi
+    reference_no: Optional[str] = None  # Cheque/transaction reference
+    notes: Optional[str] = None
+    purchase_ids: List[str] = []  # Purchases this payment applies to
+    created_by: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 class Supplier(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -820,6 +837,8 @@ class Supplier(BaseModel):
     credit_days: Optional[int] = None  # Alias for frontend compatibility
     notes: Optional[str] = None
     is_active: bool = True  # ADDED: For activate/deactivate functionality
+    outstanding: float = 0.0  # Outstanding balance owed to supplier
+    payment_history: List[SupplierPayment] = []  # History of payments made
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -857,9 +876,12 @@ class PurchaseItem(BaseModel):
     expiry_date: Optional[datetime] = None
     qty_packs: Optional[int] = None  # Input convenience
     qty_units: int  # Canonical quantity in units
-    cost_price_per_unit: float
+    free_qty_units: int = 0  # Free quantity from scheme
+    cost_price_per_unit: float  # Base cost
+    ptr_per_unit: Optional[float] = None  # PTR = Price to Retailer (what we pay)
     mrp_per_unit: float
     gst_percent: float = 5.0
+    batch_priority: str = "LIFA"  # LIFA or LILA
     line_total: float
     received_qty_units: int = 0  # Track how many units received so far
 
@@ -870,14 +892,20 @@ class Purchase(BaseModel):
     supplier_id: str
     supplier_name: str  # Denormalized
     purchase_date: datetime
+    due_date: Optional[datetime] = None  # Payment due date
     supplier_invoice_no: Optional[str] = None
     supplier_invoice_date: Optional[datetime] = None
-    status: str = "draft"  # draft, received, partially_received, closed, cancelled
+    order_type: str = "direct"  # direct, credit, consignment
+    with_gst: bool = True
+    purchase_on: str = "credit"  # credit, cash
+    status: str = "draft"  # draft, confirmed, received, partially_received, closed, cancelled
+    payment_status: str = "unpaid"  # unpaid, partial, paid
     items: List[PurchaseItem] = []
     subtotal: float = 0
     tax_value: float = 0
     round_off: float = 0
     total_value: float = 0
+    amount_paid: float = 0  # Amount paid so far
     payment_terms_days: int = 30
     note: Optional[str] = None
     created_by: str
@@ -892,18 +920,26 @@ class PurchaseItemCreate(BaseModel):
     expiry_date: Optional[str] = None  # ISO string
     qty_packs: Optional[int] = None
     qty_units: int
-    cost_price_per_unit: float
+    free_qty_units: Optional[int] = 0  # Free quantity from scheme
+    cost_price_per_unit: float  # Base cost before scheme
+    ptr_per_unit: Optional[float] = None  # PTR = Price to Retailer
     mrp_per_unit: float
     gst_percent: float = 5.0
+    batch_priority: str = "LIFA"  # LIFA or LILA
 
 class PurchaseCreate(BaseModel):
     supplier_id: str
     purchase_date: str  # ISO date string
+    due_date: Optional[str] = None  # Payment due date
     supplier_invoice_no: Optional[str] = None
     supplier_invoice_date: Optional[str] = None
+    order_type: str = "direct"  # direct, credit, consignment
+    with_gst: bool = True  # GST inclusive or not
+    purchase_on: str = "credit"  # credit, cash
     items: List[PurchaseItemCreate]
     note: Optional[str] = None
     status: Optional[str] = "draft"  # draft or confirmed
+    payment_status: str = "unpaid"  # unpaid, partial, paid
 
 class PurchaseUpdate(BaseModel):
     supplier_id: Optional[str] = None
@@ -5196,7 +5232,7 @@ async def create_purchase(
     purchase_data: PurchaseCreate,
     current_user: User = Depends(get_current_user)
 ):
-    """Create new purchase draft"""
+    """Create new purchase draft or confirm purchase with stock updates"""
     # Get supplier
     supplier = await db.suppliers.find_one({"id": purchase_data.supplier_id}, {"_id": 0})
     if not supplier:
@@ -5216,9 +5252,10 @@ async def create_purchase(
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
         
-        # Calculate line total
-        line_total = item_data.qty_units * item_data.cost_price_per_unit
-        tax_amount = line_total * (item_data.gst_percent / 100)
+        # Calculate line total (PTR is used if provided, else cost_price)
+        ptr = item_data.ptr_per_unit if item_data.ptr_per_unit else item_data.cost_price_per_unit
+        line_total = item_data.qty_units * ptr
+        tax_amount = line_total * (item_data.gst_percent / 100) if purchase_data.with_gst else 0
         
         item_dict = {
             "id": str(uuid.uuid4()),
@@ -5228,9 +5265,12 @@ async def create_purchase(
             "expiry_date": item_data.expiry_date,  # Keep as string
             "qty_packs": item_data.qty_packs,
             "qty_units": item_data.qty_units,
+            "free_qty_units": item_data.free_qty_units or 0,
             "cost_price_per_unit": item_data.cost_price_per_unit,
+            "ptr_per_unit": ptr,
             "mrp_per_unit": item_data.mrp_per_unit,
             "gst_percent": item_data.gst_percent,
+            "batch_priority": item_data.batch_priority or "LIFA",
             "line_total": line_total + tax_amount,
             "received_qty_units": 0
         }
@@ -5243,24 +5283,46 @@ async def create_purchase(
     round_off = round(total_value) - total_value
     total_value = round(total_value)
     
-    # Determine status
+    # Determine status and payment status
     status = purchase_data.status if purchase_data.status else "draft"
+    payment_status = purchase_data.payment_status if purchase_data.payment_status else "unpaid"
     
-    # Create purchase document directly
+    # If cash purchase and confirmed, mark as paid
+    if purchase_data.purchase_on == "cash" and status == "confirmed":
+        payment_status = "paid"
+    
+    # Calculate due date
+    due_date = None
+    if purchase_data.due_date:
+        due_date = purchase_data.due_date
+    elif purchase_data.purchase_on == "credit":
+        # Auto-calculate due date based on payment terms
+        from datetime import timedelta
+        purchase_dt = datetime.fromisoformat(purchase_data.purchase_date)
+        due_dt = purchase_dt + timedelta(days=supplier.get('payment_terms_days', 30))
+        due_date = due_dt.isoformat()
+    
+    # Create purchase document
     purchase_doc = {
         "id": str(uuid.uuid4()),
         "purchase_number": purchase_number,
         "supplier_id": purchase_data.supplier_id,
         "supplier_name": supplier['name'],
         "purchase_date": purchase_data.purchase_date,
+        "due_date": due_date,
         "supplier_invoice_no": purchase_data.supplier_invoice_no,
         "supplier_invoice_date": purchase_data.supplier_invoice_date,
+        "order_type": purchase_data.order_type or "direct",
+        "with_gst": purchase_data.with_gst,
+        "purchase_on": purchase_data.purchase_on or "credit",
         "status": status,
+        "payment_status": payment_status,
         "items": items,
         "subtotal": subtotal,
         "tax_value": tax_value,
         "round_off": round_off,
         "total_value": total_value,
+        "amount_paid": total_value if payment_status == "paid" else 0,
         "payment_terms_days": supplier.get('payment_terms_days', 30),
         "note": purchase_data.note,
         "created_by": current_user.id,
@@ -5270,23 +5332,42 @@ async def create_purchase(
     
     await db.purchases.insert_one(purchase_doc)
     
-    # If status is confirmed, create stock batches
+    # If status is confirmed, create stock batches and update product LP
     if status == 'confirmed':
         for item in items:
-            # Create stock batch
+            # Create stock batch with PTR and batch priority
             batch_doc = {
                 "id": str(uuid.uuid4()),
                 "product_sku": item['product_sku'],
                 "batch_no": item['batch_no'] or f"PUR-{purchase_number[:8]}",
                 "expiry_date": item['expiry_date'],
-                "qty_on_hand": item['qty_units'],
+                "qty_on_hand": item['qty_units'] + item.get('free_qty_units', 0),
                 "cost_price_per_unit": item['cost_price_per_unit'],
+                "ptr_per_unit": item['ptr_per_unit'],
+                "lp_per_unit": item['ptr_per_unit'],  # LP = PTR for v1
                 "mrp_per_unit": item['mrp_per_unit'],
+                "free_qty_units": item.get('free_qty_units', 0),
+                "batch_priority": item.get('batch_priority', 'LIFA'),
+                "supplier_name": supplier['name'],
+                "supplier_invoice_no": purchase_data.supplier_invoice_no,
                 "location": "default",
                 "purchase_id": purchase_doc['id'],
+                "created_by": current_user.id,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.stock_batches.insert_one(batch_doc)
+            
+            # Update product LP (Landing Price) to PTR from this purchase
+            await db.products.update_one(
+                {"sku": item['product_sku']},
+                {
+                    "$set": {
+                        "landing_price_per_unit": item['ptr_per_unit'],
+                        "default_ptr_per_unit": item['ptr_per_unit'],
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
             
             # Record stock movement
             movement_doc = {
@@ -5294,13 +5375,23 @@ async def create_purchase(
                 "product_sku": item['product_sku'],
                 "batch_id": batch_doc['id'],
                 "movement_type": "purchase",
-                "qty_delta_units": item['qty_units'],
+                "qty_delta_units": item['qty_units'] + item.get('free_qty_units', 0),
                 "reason": f"Purchase {purchase_number}",
                 "ref_id": purchase_doc['id'],
                 "performed_by": current_user.id,
                 "performed_at": datetime.now(timezone.utc).isoformat()
             }
             await db.stock_movements.insert_one(movement_doc)
+        
+        # If credit purchase, add to supplier outstanding
+        if purchase_data.purchase_on == "credit" and payment_status != "paid":
+            await db.suppliers.update_one(
+                {"id": purchase_data.supplier_id},
+                {
+                    "$inc": {"outstanding": total_value},
+                    "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+                }
+            )
     
     # Create audit log
     await db.audit_logs.insert_one({
@@ -5308,7 +5399,7 @@ async def create_purchase(
         "entity_type": "purchase",
         "entity_id": purchase_doc['id'],
         "action": "create",
-        "new_value": {"purchase_number": purchase_number, "status": status, "total_value": total_value},
+        "new_value": {"purchase_number": purchase_number, "status": status, "total_value": total_value, "payment_status": payment_status},
         "performed_by": current_user.id,
         "performed_by_name": current_user.name,
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -5453,6 +5544,90 @@ async def get_purchase(
     
     # Return as-is without date conversion (dates are stored as ISO strings)
     return purchase
+
+
+class PurchasePaymentRequest(BaseModel):
+    amount: float
+    payment_method: str = "cash"  # cash, bank_transfer, cheque, upi
+    reference_no: Optional[str] = None
+    notes: Optional[str] = None
+
+@api_router.post("/purchases/{purchase_id}/pay")
+async def mark_purchase_paid(
+    purchase_id: str,
+    payment: PurchasePaymentRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Record payment for a purchase and update supplier outstanding"""
+    purchase = await db.purchases.find_one({"id": purchase_id})
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    if purchase.get('payment_status') == 'paid':
+        raise HTTPException(status_code=400, detail="Purchase is already fully paid")
+    
+    total_value = purchase.get('total_value', 0)
+    amount_paid = purchase.get('amount_paid', 0) + payment.amount
+    
+    # Determine new payment status
+    if amount_paid >= total_value:
+        payment_status = "paid"
+        amount_paid = total_value  # Cap at total
+    else:
+        payment_status = "partial"
+    
+    # Update purchase
+    await db.purchases.update_one(
+        {"id": purchase_id},
+        {
+            "$set": {
+                "payment_status": payment_status,
+                "amount_paid": amount_paid,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    # Update supplier outstanding (reduce by payment amount)
+    supplier_id = purchase.get('supplier_id')
+    if supplier_id:
+        # Add payment to history
+        payment_record = {
+            "id": str(uuid.uuid4()),
+            "amount": payment.amount,
+            "payment_date": datetime.now(timezone.utc).isoformat(),
+            "payment_method": payment.payment_method,
+            "reference_no": payment.reference_no,
+            "notes": payment.notes,
+            "purchase_ids": [purchase_id],
+            "created_by": current_user.id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.suppliers.update_one(
+            {"id": supplier_id},
+            {
+                "$inc": {"outstanding": -payment.amount},
+                "$push": {"payment_history": payment_record},
+                "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+            }
+        )
+    
+    # Create audit log
+    await db.audit_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "entity_type": "purchase",
+        "entity_id": purchase_id,
+        "action": "payment",
+        "new_value": {"amount": payment.amount, "payment_method": payment.payment_method, "payment_status": payment_status},
+        "performed_by": current_user.id,
+        "performed_by_name": current_user.name,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    updated = await db.purchases.find_one({"id": purchase_id}, {"_id": 0})
+    return updated
+
 
 # ==================== BILL SEQUENCE SETTINGS ROUTES ====================
 

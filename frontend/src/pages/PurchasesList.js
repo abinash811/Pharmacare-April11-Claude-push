@@ -523,8 +523,8 @@ export default function PurchasesList() {
         </div>
       </div>
 
-      {/* FIX 2: Footer matching billing pattern - properly visible */}
-      <footer className="bg-white border-t border-gray-200 px-6 py-3 shrink-0">
+      {/* FIX 2: Footer matching billing pattern - properly visible with z-index */}
+      <footer className="bg-white border-t border-gray-200 px-6 py-3 shrink-0 relative z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">

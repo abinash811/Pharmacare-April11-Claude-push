@@ -876,8 +876,8 @@ export default function PurchaseNew() {
         </div>
       </div>
 
-      {/* FIX 5: Footer with Confirm & Save button */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      {/* FIX 5: Footer with Confirm & Save button - higher z-index to avoid badge overlap */}
+      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 relative z-50">
         <div className="flex items-center gap-4 text-sm">
           <span className="text-gray-600">
             Items <span className="font-bold text-gray-900">{totals.itemCount}</span>

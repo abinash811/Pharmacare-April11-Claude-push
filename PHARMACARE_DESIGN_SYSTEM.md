@@ -4,6 +4,33 @@ App: PharmaCare | React + Tailwind CSS + Shadcn UI + MongoDB | Single Indian pha
 
 ---
 
+# PRIMARY COLOR STANDARD
+
+**PRIMARY COLOR: Steel Blue**
+| Property | Value |
+|----------|-------|
+| Hex | `#4682B4` |
+| HSL | `207 44% 49%` |
+| Tailwind custom | `text-[#4682B4]`, `bg-[#4682B4]` |
+| Shadcn CSS variable | `--primary: 207 44% 49%` |
+| Darker shade (hover) | `#3a6d96` |
+| Light tint (10% opacity) | `bg-[#4682B4]/10` |
+
+**Usage:**
+- All primary action buttons (`<Button>` with `variant="default"`)
+- Active sidebar navigation item (`bg-[#4682B4]`)
+- Clickable table links (bill numbers, purchase numbers) (`text-[#4682B4]`)
+- DateRangePicker active state
+- Focus rings (`focus:ring-primary`)
+- Breadcrumb hover states (`hover:text-[#4682B4]`)
+
+**BANNED — Never use:**
+- `bg-teal-500`, `bg-teal-600`, `text-teal-500`, `text-teal-600`
+- `hover:bg-teal-600`, `border-teal-*`, `focus:ring-teal-*`
+- Any teal color variant anywhere in the codebase
+
+---
+
 # DESIGN REFERENCE: CUSTOMERS PAGE
 
 The `/app/frontend/src/pages/Customers.js` file is the official design reference. All modules must match it exactly.
@@ -53,9 +80,10 @@ The `/app/frontend/src/pages/Customers.js` file is the official design reference
 - WhatsApp: `text-green-600` on `hover:bg-green-50`
 
 ## Buttons
-- Primary (Add): `bg-teal-500 hover:bg-teal-600 text-white`
+- Primary (Add): Shadcn `<Button>` (auto uses `--primary` = Steel Blue `#4682B4`)
 - Secondary: Shadcn `variant="outline"`
 - Ghost: Shadcn `variant="ghost" size="sm"`
+- Custom (when needed): `bg-[#4682B4] hover:bg-[#3a6d96] text-white`
 
 ---
 
@@ -205,10 +233,11 @@ import {
 
 | Type | Component |
 |------|-----------|
-| Primary (Add) | `<Button className="bg-teal-500 hover:bg-teal-600 text-white">` |
+| Primary (Add) | `<Button>` (uses `--primary` CSS var = Steel Blue) |
 | Secondary | `<Button variant="outline">` |
 | Ghost | `<Button variant="ghost" size="sm">` |
 | Icon only | `<Button variant="ghost" size="sm" className="p-1.5 h-auto">` |
+| Custom primary | `<Button className="bg-[#4682B4] hover:bg-[#3a6d96] text-white">` |
 
 ---
 

@@ -218,7 +218,7 @@ export default function SalesReturnsList() {
                     data-testid={`return-row-${item.return_no}`}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-semibold text-blue-600">
+                      <span className="font-mono text-sm font-semibold text-[#4682B4]">
                         #{item.return_no}
                       </span>
                     </td>

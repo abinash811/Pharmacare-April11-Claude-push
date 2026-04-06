@@ -164,7 +164,7 @@ export default function PurchaseReturnDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-teal-600 transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
                 <span>/</span>
                 <span>Returns</span>
                 <span>/</span>
@@ -402,7 +402,7 @@ export default function PurchaseReturnDetail() {
                 <select
                   value={editBilledBy}
                   onChange={(e) => setEditBilledBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Select staff</option>
                   {users.map(u => (
@@ -417,7 +417,7 @@ export default function PurchaseReturnDetail() {
                   value={editNote}
                   onChange={(e) => setEditNote(e.target.value.slice(0, 150))}
                   placeholder="Add a note..."
-                  className="w-full h-24 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full h-24 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 <div className="text-right text-xs text-slate-400 mt-1">{editNote.length}/150</div>
               </div>

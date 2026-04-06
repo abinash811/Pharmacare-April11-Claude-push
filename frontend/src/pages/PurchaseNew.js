@@ -447,7 +447,7 @@ export default function PurchaseNew() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-teal-600 transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">
@@ -514,7 +514,7 @@ export default function PurchaseNew() {
           <div className="relative group" ref={supplierDropdownRef}>
             <button
               onClick={() => setShowSupplierDropdown(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-[#4682B4] transition-colors"
               style={{ maxWidth: '220px' }}
               data-testid="supplier-selector"
               title={selectedSupplier?.name || 'Select Distributor'}
@@ -541,7 +541,7 @@ export default function PurchaseNew() {
                     placeholder="Search distributors..."
                     value={supplierSearch}
                     onChange={(e) => setSupplierSearch(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                     autoFocus
                   />
                 </div>
@@ -644,7 +644,7 @@ export default function PurchaseNew() {
             placeholder="Search medicine by name or SKU..."
             value={searchQuery}
             onChange={(e) => handleProductSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             data-testid="product-search"
           />
 
@@ -666,7 +666,7 @@ export default function PurchaseNew() {
                     <div className="text-right">
                       <div className="text-xs font-bold text-slate-700">MRP ₹{product.default_mrp_per_unit}</div>
                       {product.landing_price_per_unit && (
-                        <div className="text-[10px] text-teal-600">LP ₹{product.landing_price_per_unit}</div>
+                        <div className="text-[10px] text-[#4682B4]">LP ₹{product.landing_price_per_unit}</div>
                       )}
                     </div>
                   </div>
@@ -951,7 +951,7 @@ export default function PurchaseNew() {
                       onClick={() => setOrderType(type)}
                       className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
                         orderType === type
-                          ? 'bg-teal-50 text-teal-700 border-2 border-teal-400'
+                          ? 'bg-[#4682B4]/10 text-[#4682B4] border-2 border-[#4682B4]'
                           : 'bg-slate-100 text-slate-600 border-2 border-transparent'
                       }`}
                     >
@@ -1023,7 +1023,7 @@ export default function PurchaseNew() {
                     onClick={() => setBatchPriority('LIFA')}
                     className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
                       batchPriority === 'LIFA'
-                        ? 'bg-teal-50 text-teal-700 border-2 border-teal-400'
+                        ? 'bg-[#4682B4]/10 text-[#4682B4] border-2 border-[#4682B4]'
                         : 'bg-slate-100 text-slate-600 border-2 border-transparent'
                     }`}
                   >
@@ -1033,7 +1033,7 @@ export default function PurchaseNew() {
                     onClick={() => setBatchPriority('LILA')}
                     className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
                       batchPriority === 'LILA'
-                        ? 'bg-teal-50 text-teal-700 border-2 border-teal-400'
+                        ? 'bg-[#4682B4]/10 text-[#4682B4] border-2 border-[#4682B4]'
                         : 'bg-slate-100 text-slate-600 border-2 border-transparent'
                     }`}
                   >
@@ -1099,7 +1099,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.totalDiscount}
                     onChange={(e) => updateInvoiceBreakdown('totalDiscount', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1115,7 +1115,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.cess}
                     onChange={(e) => updateInvoiceBreakdown('cess', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1133,7 +1133,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.adjustedCN}
                     onChange={(e) => updateInvoiceBreakdown('adjustedCN', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1144,7 +1144,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.tcs}
                     onChange={(e) => updateInvoiceBreakdown('tcs', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1155,7 +1155,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.extraCharges}
                     onChange={(e) => updateInvoiceBreakdown('extraCharges', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1166,7 +1166,7 @@ export default function PurchaseNew() {
                     step="0.01"
                     value={invoiceBreakdown.adjustmentAmount}
                     onChange={(e) => updateInvoiceBreakdown('adjustmentAmount', e.target.value)}
-                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
 
@@ -1202,7 +1202,7 @@ export default function PurchaseNew() {
                   onChange={(e) => setInternalNote(e.target.value)}
                   placeholder="Add a note (optional)"
                   rows={2}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>

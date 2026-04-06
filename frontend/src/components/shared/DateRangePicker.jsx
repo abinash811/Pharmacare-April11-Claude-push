@@ -96,23 +96,23 @@ export function DateRangePicker({ dateRange, onDateRangeChange, className = '' }
               : 'border border-gray-200 hover:bg-gray-50'
           } ${className}`}
           style={hasActiveFilter ? {
-            backgroundColor: '#E6F4F2',
-            borderColor: '#9DCEC8'
+            backgroundColor: '#E8F1F8',
+            borderColor: '#4682B4'
           } : {}}
         >
           <CalendarIcon 
             className="w-4 h-4" 
-            style={{ color: hasActiveFilter ? '#0C7A6B' : '#9ca3af' }}
+            style={{ color: hasActiveFilter ? '#4682B4' : '#9ca3af' }}
           />
           <span 
             className="font-medium"
-            style={{ color: hasActiveFilter ? '#0C7A6B' : '#374151' }}
+            style={{ color: hasActiveFilter ? '#4682B4' : '#374151' }}
           >
             {getDisplayLabel()}
           </span>
           <ChevronDown 
             className="w-3 h-3" 
-            style={{ color: hasActiveFilter ? '#0C7A6B' : '#9ca3af' }}
+            style={{ color: hasActiveFilter ? '#4682B4' : '#9ca3af' }}
           />
         </button>
       </PopoverTrigger>

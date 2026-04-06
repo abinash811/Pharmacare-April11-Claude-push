@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
  * Matches the Customers page design reference
  * 
  * @param {Object} props
- * @param {Function} props.onView - View action handler (optional - shows eye icon in blue/teal)
+ * @param {Function} props.onView - View action handler (optional - shows eye icon in Steel Blue)
  * @param {Function} props.onEdit - Edit action handler (optional - shows pencil icon in gray)
  * @param {Function} props.onDelete - Delete action handler (optional - shows trash icon in red)
  * @param {string} props.className - Optional additional classes

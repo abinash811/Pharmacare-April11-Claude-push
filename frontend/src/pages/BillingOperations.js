@@ -296,7 +296,7 @@ export default function BillingOperations() {
                           {isParked ? (
                             <StatusBadge status="parked" />
                           ) : (
-                            <span className="font-mono text-sm font-semibold text-blue-600">
+                            <span className="font-mono text-sm font-semibold text-[#4682B4]">
                               #{bill.bill_number?.replace(/^#/, '') || bill.id?.slice(-4)}
                             </span>
                           )}

@@ -359,7 +359,7 @@ export default function Reports() {
                     ) : (
                       reportData?.data?.map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-blue-600">{row.bill_number}</td>
+                          <td className="px-4 py-3 font-medium text-[#4682B4]">{row.bill_number}</td>
                           <td className="px-4 py-3 text-sm">{row.date}</td>
                           <td className="px-4 py-3">{row.customer_name || 'Walk-in'}</td>
                           <td className="px-4 py-3 text-center">{row.items_count}</td>

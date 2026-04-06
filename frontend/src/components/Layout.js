@@ -62,7 +62,7 @@ export default function Layout() {
                 `flex items-center space-x-1.5 px-2 py-1.5 rounded-lg transition-colors text-xs ${
                   isActive
                     ? 'bg-[#4682B4] text-white font-semibold'
-                    : 'text-blue-100 hover:bg-blue-900'
+                    : 'text-blue-100 hover:bg-[#3a6d96]'
                 }`
               }
               data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}

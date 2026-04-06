@@ -114,7 +114,7 @@ export default function SalesReturnDetail() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4682B4]"></div>
       </div>
     );
   }
@@ -144,9 +144,9 @@ export default function SalesReturnDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-teal-600 transition-colors">Sales</Link>
+                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Sales</Link>
                 <span>/</span>
-                <Link to="/billing/returns" className="hover:text-teal-600 transition-colors">Returns</Link>
+                <Link to="/billing/returns" className="hover:text-[#4682B4] transition-colors">Returns</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">#{returnData.return_no}</h1>
@@ -218,7 +218,7 @@ export default function SalesReturnDetail() {
           <div className="flex items-center gap-6">
             <div>
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">Return No.</span>
-              <span className="font-mono text-sm font-bold text-teal-600">#{returnData.return_no}</span>
+              <span className="font-mono text-sm font-bold text-[#4682B4]">#{returnData.return_no}</span>
             </div>
             {returnData.original_bill_no && (
               <div>
@@ -367,7 +367,7 @@ export default function SalesReturnDetail() {
                 <button
                   onClick={handleNonFinancialEdit}
                   disabled={isSaving}
-                  className="w-full px-4 py-2 bg-teal-500 text-white rounded-lg text-sm font-semibold hover:bg-teal-600 disabled:opacity-50"
+                  className="w-full px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] disabled:opacity-50"
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>

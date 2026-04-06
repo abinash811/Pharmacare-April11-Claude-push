@@ -306,7 +306,6 @@ export default function Customers() {
             <Button 
               onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} 
               data-testid="add-customer-btn"
-              className="bg-teal-500 hover:bg-teal-600 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
@@ -395,7 +394,6 @@ export default function Customers() {
             <Button 
               onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} 
               data-testid="add-doctor-btn"
-              className="bg-teal-500 hover:bg-teal-600 text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Doctor

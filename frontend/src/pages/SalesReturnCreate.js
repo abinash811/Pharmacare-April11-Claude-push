@@ -252,9 +252,9 @@ export default function SalesReturnCreate() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-teal-600 transition-colors">Sales</Link>
+                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Sales</Link>
                 <span>/</span>
-                <Link to="/billing/returns" className="hover:text-teal-600 transition-colors">Sales Return Order</Link>
+                <Link to="/billing/returns" className="hover:text-[#4682B4] transition-colors">Sales Return Order</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">Sales Return</h1>
@@ -415,7 +415,7 @@ export default function SalesReturnCreate() {
                             max={item.original_qty}
                             value={item.qty}
                             onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 0)}
-                            className={`w-16 text-right text-sm font-medium bg-transparent border-b ${item.error ? 'border-red-500 text-red-600' : 'border-transparent focus:border-teal-500'} focus:outline-none`}
+                            className={`w-16 text-right text-sm font-medium bg-transparent border-b ${item.error ? 'border-red-500 text-red-600' : 'border-transparent focus:border-primary'} focus:outline-none`}
                             data-testid={`qty-${index}`}
                           />
                           {item.error && (
@@ -431,7 +431,7 @@ export default function SalesReturnCreate() {
                           max="100"
                           value={item.disc_percent}
                           onChange={(e) => updateItem(index, 'disc_percent', parseFloat(e.target.value) || 0)}
-                          className="w-16 text-right text-sm bg-transparent border-b border-transparent focus:border-teal-500 focus:outline-none"
+                          className="w-16 text-right text-sm bg-transparent border-b border-transparent focus:border-primary focus:outline-none"
                           data-testid={`disc-${index}`}
                         />
                       </td>
@@ -564,7 +564,7 @@ export default function SalesReturnCreate() {
                   value={note}
                   onChange={(e) => setNote(e.target.value.slice(0, 150))}
                   placeholder="Add a note for this return..."
-                  className="w-full h-40 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full h-40 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="note-input"
                 />
                 <div className="text-right text-xs text-slate-400 mt-1">{note.length}/150</div>

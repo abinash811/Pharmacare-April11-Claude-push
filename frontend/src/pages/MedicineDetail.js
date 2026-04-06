@@ -783,7 +783,7 @@ export default function MedicineDetail() {
                     ) : (
                       transactions.sales.map((txn, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-blue-600">{txn.bill_number}</td>
+                          <td className="px-4 py-3 font-medium text-[#4682B4]">{txn.bill_number}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">{formatDateFull(txn.date)}</td>
                           <td className="px-4 py-3 text-sm text-gray-900">{txn.customer_name}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">{txn.batch_no}</td>

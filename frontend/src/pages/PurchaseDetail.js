@@ -192,7 +192,7 @@ export default function PurchaseDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-teal-600 transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
                 <span>/</span>
               </div>
               <div className="flex items-center gap-3">
@@ -501,7 +501,7 @@ export default function PurchaseDetail() {
                 <select
                   value={paymentData.payment_method}
                   onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="cash">Cash</option>
                   <option value="upi">UPI</option>
@@ -518,7 +518,7 @@ export default function PurchaseDetail() {
                   step="0.01"
                   value={paymentData.amount}
                   onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 text-lg font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="w-full px-3 py-2 text-lg font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="payment-amount"
                 />
                 <p className="text-xs text-slate-400 mt-1">
@@ -533,7 +533,7 @@ export default function PurchaseDetail() {
                   type="date"
                   value={paymentData.payment_date}
                   onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
@@ -545,7 +545,7 @@ export default function PurchaseDetail() {
                   value={paymentData.notes}
                   onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
                   placeholder="Add a note"
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-teal-400"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>

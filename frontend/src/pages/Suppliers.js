@@ -227,7 +227,6 @@ export default function Suppliers() {
           <Button 
             onClick={() => { resetForm(); setShowDialog(true); }}
             data-testid="add-supplier-btn"
-            className="bg-teal-500 hover:bg-teal-600 text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Supplier
@@ -301,7 +300,7 @@ export default function Suppliers() {
                     return (
                       <tr 
                         key={supplier.id}
-                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${isSelected ? 'bg-teal-50' : ''} ${!isActive ? 'opacity-60' : ''}`}
+                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${isSelected ? 'bg-[#4682B4]/10' : ''} ${!isActive ? 'opacity-60' : ''}`}
                         onClick={() => handleRowClick(supplier)}
                         data-testid={`supplier-row-${supplier.id}`}
                       >
@@ -389,7 +388,7 @@ export default function Suppliers() {
                       onClick={() => setActiveTab(tab)}
                       className={`py-3 text-sm font-medium border-b-2 transition-colors ${
                         activeTab === tab
-                          ? 'border-teal-600 text-teal-600'
+                          ? 'border-[#4682B4] text-[#4682B4]'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -581,7 +580,7 @@ export default function Suppliers() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -590,7 +589,7 @@ export default function Suppliers() {
                     type="text"
                     value={formData.contact_person}
                     onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -599,7 +598,7 @@ export default function Suppliers() {
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -608,7 +607,7 @@ export default function Suppliers() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div>
@@ -617,7 +616,7 @@ export default function Suppliers() {
                     type="text"
                     value={formData.gstin}
                     onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                   />
                 </div>
                 <div>
@@ -626,7 +625,7 @@ export default function Suppliers() {
                     type="number"
                     value={formData.credit_days}
                     onChange={(e) => setFormData({ ...formData, credit_days: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
                 <div className="col-span-2">
@@ -635,7 +634,7 @@ export default function Suppliers() {
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                 </div>
                 <div className="col-span-2">
@@ -644,7 +643,7 @@ export default function Suppliers() {
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                 </div>
               </div>
@@ -696,7 +695,7 @@ export default function Suppliers() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   max={selectedSupplier?.outstanding || 0}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                   placeholder="0.00"
                 />
               </div>
@@ -707,7 +706,7 @@ export default function Suppliers() {
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   placeholder="Optional note..."
                 />
               </div>

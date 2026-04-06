@@ -1,6 +1,32 @@
 # PHARMACARE RULES — MASTER REFERENCE FILE
 # Last updated: April 2026
 
+---
+
+# PRIMARY COLOR STANDARD
+
+**PRIMARY COLOR: Steel Blue**
+- Hex: `#4682B4`
+- HSL: `207 44% 49%`
+- Tailwind custom: Use CSS variable `--primary`
+- Shadcn CSS variable: `--primary: 207 44% 49%`
+- Darker shade (hover): `#3a6d96`
+- Light tint (backgrounds): `#4682B4` with 10% opacity (`bg-[#4682B4]/10`)
+
+**Usage:**
+- All primary action buttons (`<Button>` with `variant="default"`)
+- Active sidebar navigation item (`bg-[#4682B4]`)
+- Clickable table links (bill numbers, purchase numbers) (`text-[#4682B4]`)
+- DateRangePicker selected range highlight
+- Focus rings on inputs (`focus:ring-primary`)
+- Any primary interactive element
+
+**NEVER use in this codebase:**
+- `bg-teal-500`, `bg-teal-600`, `text-teal-600`, `hover:bg-teal-600`
+- Any other teal color variant
+
+---
+
 ## HOW TO USE THIS FILE
 Read this file before writing ANY new code. The Customers page is the official design reference.
 
@@ -193,9 +219,10 @@ const fyRange = getFinancialYearRange();
 - WhatsApp icon: `text-green-600` with `hover:bg-green-50`
 
 ## Button Colors
-- Primary teal: `bg-teal-500 hover:bg-teal-600 text-white` (Add buttons)
+- Primary Steel Blue: Shadcn `<Button>` (uses `--primary` CSS variable = `#4682B4`)
 - Secondary: Shadcn `variant="outline"`
 - Ghost: Shadcn `variant="ghost" size="sm"`
+- Custom primary (when needed): `bg-[#4682B4] hover:bg-[#3a6d96] text-white`
 
 ---
 
@@ -492,6 +519,7 @@ toast.info('Print functionality coming soon');
 9. **Uppercase table headers** — `text-xs font-semibold text-gray-600 uppercase`
 10. **Indian Financial Year** — default date ranges
 11. **en-IN locale** — for number formatting
+12. **Steel Blue primary color** — NEVER use teal variants (bg-teal-500, text-teal-600, etc.)
 
 ---
 

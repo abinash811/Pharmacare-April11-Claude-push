@@ -229,7 +229,7 @@ export default function PurchaseReturnsList() {
                     data-testid={`return-row-${ret.id}`}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-semibold text-blue-600">
+                      <span className="font-mono text-sm font-semibold text-[#4682B4]">
                         {ret.return_number}
                       </span>
                     </td>

@@ -972,7 +972,7 @@ export default function BillingWorkspace() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-teal-600 transition-colors">Bills</Link>
+                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Bills</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">
@@ -1001,7 +1001,7 @@ export default function BillingWorkspace() {
               {loadedBill.status === 'due' && (
                 <button
                   onClick={() => toast.info('Collect payment functionality coming soon')}
-                  className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm font-semibold hover:bg-teal-600 flex items-center gap-2"
+                  className="px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] flex items-center gap-2"
                   data-testid="collect-payment-btn"
                 >
                   <CreditCard className="w-4 h-4" />
@@ -1092,7 +1092,7 @@ export default function BillingWorkspace() {
             ) : (
               <button
                 onClick={() => setShowPatientModal(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-[#4682B4] transition-colors"
                 data-testid="patient-chip"
               >
                 <span className="material-symbols-outlined text-slate-400 text-base">person</span>
@@ -1113,7 +1113,7 @@ export default function BillingWorkspace() {
               <div className="relative" ref={doctorDropdownRef}>
                 <button
                   onClick={() => setShowDoctorDropdown(!showDoctorDropdown)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-300 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:border-[#4682B4] transition-colors"
                   data-testid="doctor-chip"
                 >
                   <Stethoscope className="w-4 h-4 text-slate-400" />
@@ -1130,7 +1130,7 @@ export default function BillingWorkspace() {
                         placeholder="Search doctor..."
                         value={doctorSearch}
                         onChange={(e) => searchDoctors(e.target.value)}
-                        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                        className="w-full px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         autoFocus
                       />
                     </div>
@@ -1355,7 +1355,7 @@ export default function BillingWorkspace() {
                     <td className="px-4 py-2 relative">
                       <button
                         onClick={() => openBatchPanel(index)}
-                        className="text-xs font-mono hover:text-teal-600 hover:underline cursor-pointer"
+                        className="text-xs font-mono hover:text-[#4682B4] hover:underline cursor-pointer"
                         data-testid={`batch-select-${index}`}
                       >
                         {item.batch_no}
@@ -1374,7 +1374,7 @@ export default function BillingWorkspace() {
                                 type="checkbox"
                                 checked={hidZeroStock}
                                 onChange={(e) => setHidZeroStock(e.target.checked)}
-                                className="rounded border-slate-300 text-teal-500 focus:ring-teal-500"
+                                className="rounded border-slate-300 text-[#4682B4] focus:ring-[#4682B4]"
                               />
                               Hide zero stock
                             </label>
@@ -1401,7 +1401,7 @@ export default function BillingWorkspace() {
                                     key={batch.id || batch.batch_no}
                                     onClick={() => selectBatch(index, batch)}
                                     className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-slate-100 last:border-0 ${
-                                      isSelected ? 'bg-teal-50 text-teal-700' : 'hover:bg-slate-50'
+                                      isSelected ? 'bg-[#4682B4]/10 text-[#4682B4]' : 'hover:bg-slate-50'
                                     }`}
                                   >
                                     <span className="font-mono font-medium">{batch.batch_no}</span>
@@ -1640,7 +1640,7 @@ export default function BillingWorkspace() {
                   type="number"
                   value={billDiscount}
                   onChange={(e) => setBillDiscount(parseFloat(e.target.value) || 0)}
-                  className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="0"
                   data-testid="bill-discount-input"
                 />
@@ -1760,7 +1760,7 @@ export default function BillingWorkspace() {
                   </div>
                   
                   {/* Net Payable - Highlighted */}
-                  <div className="flex justify-between py-4 mt-4 bg-teal-50 rounded-lg px-4 -mx-4">
+                  <div className="flex justify-between py-4 mt-4 bg-[#4682B4]/10 rounded-lg px-4 -mx-4">
                     <span className="text-base font-bold text-slate-900">Net Payable</span>
                     <span className="text-2xl font-black" style={{ color: '#0d9488' }}>₹{grandTotal.toFixed(2)}</span>
                   </div>
@@ -1784,7 +1784,7 @@ export default function BillingWorkspace() {
                     <textarea
                       value={internalNote}
                       onChange={(e) => setInternalNote(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                       rows="4"
                       placeholder="Internal notes (not visible to customer)"
                       data-testid="internal-note"
@@ -1796,7 +1796,7 @@ export default function BillingWorkspace() {
                     <textarea
                       value={deliveryNote}
                       onChange={(e) => setDeliveryNote(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                       rows="4"
                       placeholder="Delivery instructions (if applicable)"
                       data-testid="delivery-note"
@@ -1983,7 +1983,7 @@ export default function BillingWorkspace() {
                   placeholder="Search by name or phone..."
                   value={patientSearch}
                   onChange={(e) => searchPatients(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   autoFocus
                   data-testid="patient-search-input"
                 />
@@ -1995,11 +1995,11 @@ export default function BillingWorkspace() {
               {/* Counter Sale - Always First Option */}
               <button
                 onClick={() => selectPatient('counter')}
-                className="w-full px-4 py-3 text-left hover:bg-teal-50 flex items-center gap-3 border-b border-slate-100"
+                className="w-full px-4 py-3 text-left hover:bg-[#4682B4]/10 flex items-center gap-3 border-b border-slate-100"
                 data-testid="counter-sale-option"
               >
-                <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-teal-600">storefront</span>
+                <div className="w-10 h-10 rounded-full bg-[#4682B4]/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#4682B4]">storefront</span>
                 </div>
                 <div>
                   <div className="font-semibold text-slate-900">Counter Sale</div>

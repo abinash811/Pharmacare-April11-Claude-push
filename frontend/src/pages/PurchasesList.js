@@ -392,7 +392,7 @@ export default function PurchasesList() {
                           {isParked ? (
                             <StatusBadge status="parked" />
                           ) : (
-                            <span className="font-mono text-sm font-semibold text-blue-600">
+                            <span className="font-mono text-sm font-semibold text-[#4682B4]">
                               #{item.purchase_number?.replace(/^#/, '') || item.return_number?.replace(/^#/, '')}
                             </span>
                           )}

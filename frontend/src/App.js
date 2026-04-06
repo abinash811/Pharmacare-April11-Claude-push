@@ -8,18 +8,13 @@ import { toast } from 'sonner';
 // Pages
 import AuthPage from '@/pages/AuthPage';
 import Dashboard from '@/pages/Dashboard';
-import BillingList from '@/pages/BillingList';
 import BillingOperations from '@/pages/BillingOperations';
-import Billing from '@/pages/BillingNew';
 import BillingWorkspace from '@/pages/BillingWorkspace';
 import SalesReturnsList from '@/pages/SalesReturnsList';
 import SalesReturnCreate from '@/pages/SalesReturnCreate';
 import SalesReturnDetail from '@/pages/SalesReturnDetail';
-import Inventory from '@/pages/InventoryImproved';
-import InventoryV2 from '@/pages/InventoryV2';
 import InventorySearch from '@/pages/InventorySearch';
 import MedicineDetail from '@/pages/MedicineDetail';
-import Purchases from '@/pages/Purchases';
 import PurchasesList from '@/pages/PurchasesList';
 import PurchaseNew from '@/pages/PurchaseNew';
 import PurchaseDetail from '@/pages/PurchaseDetail';
@@ -154,16 +149,15 @@ function AppRoutes({ user }) {
         <Route path="billing" element={<BillingOperations />} />
         <Route path="billing/new" element={<BillingWorkspace />} />
         <Route path="billing/create" element={<BillingWorkspace />} />
-        <Route path="billing/edit/:id" element={<Billing />} />
+        <Route path="billing/edit/:id" element={<BillingWorkspace />} />
         <Route path="billing/returns" element={<SalesReturnsList />} />
         <Route path="billing/returns/new" element={<SalesReturnCreate />} />
         <Route path="billing/returns/edit/:id" element={<SalesReturnCreate />} />
         <Route path="billing/returns/:id" element={<SalesReturnDetail />} />
         <Route path="billing/:id" element={<BillingWorkspace />} />
         <Route path="inventory" element={<InventorySearch />} />
-        <Route path="inventory-v2" element={<InventoryV2 />} />
         <Route path="inventory/product/:sku" element={<MedicineDetail />} />
-        <Route path="inventory/edit/:sku" element={<InventoryV2 />} />
+        <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
         <Route path="purchases" element={<PurchasesList />} />
         <Route path="purchases/create" element={<PurchaseNew />} />
         <Route path="purchases/edit/:id" element={<PurchaseNew />} />

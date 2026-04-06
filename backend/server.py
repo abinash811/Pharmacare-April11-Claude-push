@@ -41,6 +41,17 @@ logger = logging.getLogger(__name__)
 
 # Create the main app
 app = FastAPI()
+
+# CORS Configuration - Required for frontend-backend communication
+cors_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins if cors_origins != ['*'] else ['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*']
+)
+
 api_router = APIRouter(prefix="/api")
 
 # ==================== BILL NUMBER GENERATION ====================

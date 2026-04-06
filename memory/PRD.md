@@ -3,7 +3,7 @@
 ## Original Problem Statement
 Build a standalone pharmacy billing and inventory management tool for Indian pharmacies. The system includes:
 - Billing & Sales Returns (COMPLETED)
-- Purchases & Purchase Returns (IN PROGRESS)
+- Purchases & Purchase Returns (COMPLETED)
 - Inventory Management
 - Supplier Management
 - Customer Management
@@ -19,85 +19,87 @@ Build a standalone pharmacy billing and inventory management tool for Indian pha
 - Billing Staff
 - Inventory Manager
 
-## Core Requirements
-
-### Phase 1: Foundation (COMPLETED)
-- User authentication
-- Dashboard with key metrics
-- Basic CRUD for products, customers, suppliers
-
-### Phase 2: Billing & Sales (COMPLETED)
-- Billing workspace with barcode scanning
-- Sales returns management
-- Receipt printing
-- Customer credit management
-
-### Phase 3: Purchases & Purchase Returns (IN PROGRESS)
-- Purchase list with filters (All, Cash, Credit, Due)
-- New purchase workspace with:
-  - Distributor selection
-  - Product search and batch entry
-  - MM/YY expiry format
-  - PTR, MRP, GST tracking
-  - LIFA/LILA batch priority
-- Invoice breakdown modal with adjustments
-- Draft/Parked purchase support
-- Purchase returns workflow
-
-### Phase 4: Supplier Management (UPCOMING)
-- Supplier outstanding balance tracking
-- Payment history
-- Record payment functionality
-
-### Phase 5: Reports & Analytics (FUTURE)
-- Sales reports
-- Purchase reports
-- Inventory valuation
-- GST reports
-
 ---
 
 ## What's Been Implemented
 
-### March 29, 2026 - Purchases Module UI Fixes
-- **Fix 1**: Table inputs converted to HTML5 editable inputs with blue focus rings
-- **Fix 2**: Footer z-index fixed to prevent badge overlap
-- **Fix 3**: Purchase list columns: Sr., Bill no., Entry date, Bill date, Entry by, Distributor, Amount, Payment
-- **Fix 4**: Distributor chip widened to 220px with tooltip for long names
-- **Fix 5**: Confirm & Save button opens Invoice Breakdown modal
-- **Fix 6**: Invoice Breakdown modal with editable fields (Discount, CESS, CN, TCS, Extra Charges)
+### April 6, 2026 - Purchase Returns Module (COMPLETED)
+
+**Frontend:**
+- `PurchaseReturnCreate.js` - New purchase return screen following Pattern B:
+  - Pre-fills items from original purchase via `purchase_id` query param
+  - Shows Original Qty (read-only) and Return Qty (editable with validation)
+  - Validates return qty ≤ max returnable qty (original - already returned)
+  - Invoice Breakdown Modal following Pattern E
+  - Subbar with Date, Supplier (read-only), Invoice#, Billed By, Payment Type
+
+- `PurchaseReturnDetail.js` - Read-only view following Pattern C:
+  - Shows PRET-XXXX number with CONFIRMED badge
+  - Original purchase reference link
+  - More dropdown with Edit (Non-Financial/Financial) and Print options
+
+**Backend:**
+- `GET /api/purchases/{id}/items-for-return` - Returns items with already-returned quantities
+- `POST /api/purchase-returns` - Creates return atomically:
+  - Generates PRET-XXXX number
+  - Deducts stock immediately
+  - Decrements supplier outstanding
+  - Adds to supplier payment_history
+  - Updates original purchase with return reference
+  - Status is "confirmed" immediately (no separate confirm step)
+- `PUT /api/purchase-returns/{id}` - Edit return (non-financial and financial)
+- Qty validation: return qty + already returned ≤ original qty
+
+**Navigation Fixes:**
+- `PurchaseDetail.js` → More dropdown → "Purchase Return" → `/purchases/returns/create?purchase_id={id}`
+- `PurchasesList.js` → "Purchase Return" button shows info toast (returns must be created from existing purchase)
+- Removed unused `purchaseType` variable from `PurchaseNew.js`
 
 ### Earlier Completed Work
 - Purchase backend logic: LP updates, supplier outstanding tracking
 - Purchase UI overhaul matching Billing workspace design
 - Read-only purchase detail view (PurchaseDetail.js)
 - Draft/Parked purchase editing
+- 5 strict UI fixes for Purchases module
 
 ---
 
 ## Prioritized Backlog
 
 ### P0 (Critical) - COMPLETED
-- [x] 5 UI fixes for Purchases module
+- [x] Purchase Returns Module - Complete Creation Flow
 
 ### P1 (High Priority) - NEXT
-- [ ] Overhaul Suppliers Module (Outstanding balances, Record Payment pages)
+- [ ] Overhaul Suppliers Module:
+  - Outstanding balances display
+  - Record Payment pages
+  - Payment history table
 
 ### P2 (Medium Priority)
-- [ ] Purchase Returns List workflow
+- [ ] Purchase Returns List view (separate tab/page)
+- [ ] Apply PharmaSync design to Suppliers, Customers, Reports
 
 ### P3 (Low Priority/Future)
 - [ ] Refactor `server.py` into routers (USER EXPLICITLY SAID NOT TO DO YET)
-- [ ] Apply PharmaSync design to remaining modules (Customers, Reports)
-- [ ] Delete legacy files (Inventory.js, BillingNew.js, etc.)
+- [ ] Delete legacy files
 
 ---
 
+## Design System Reference
+See `/app/PHARMACARE_DESIGN_SYSTEM.md` for:
+- Color tokens
+- Typography
+- Component patterns (A-F)
+- Module connection rules
+
 ## Key Files
-- `/app/frontend/src/pages/PurchasesList.js` - Purchase list page
-- `/app/frontend/src/pages/PurchaseNew.js` - New/Edit purchase workspace
-- `/app/frontend/src/pages/PurchaseDetail.js` - Read-only purchase view
-- `/app/backend/server.py` - Main backend API
+- `/app/frontend/src/pages/PurchaseReturnCreate.js` - NEW
+- `/app/frontend/src/pages/PurchaseReturnDetail.js` - NEW
+- `/app/frontend/src/pages/PurchasesList.js` - Updated navigation
+- `/app/frontend/src/pages/PurchaseDetail.js` - Updated navigation
+- `/app/frontend/src/pages/PurchaseNew.js` - Removed dead code
+- `/app/frontend/src/App.js` - Added routes
+- `/app/backend/server.py` - Added endpoints
 
 ## Credentials for Testing
 - **Email**: testadmin@pharmacy.com

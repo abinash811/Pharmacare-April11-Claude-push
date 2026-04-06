@@ -23,6 +23,8 @@ import Purchases from '@/pages/Purchases';
 import PurchasesList from '@/pages/PurchasesList';
 import PurchaseNew from '@/pages/PurchaseNew';
 import PurchaseDetail from '@/pages/PurchaseDetail';
+import PurchaseReturnCreate from '@/pages/PurchaseReturnCreate';
+import PurchaseReturnDetail from '@/pages/PurchaseReturnDetail';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
@@ -164,6 +166,8 @@ function AppRoutes({ user }) {
         <Route path="purchases" element={<PurchasesList />} />
         <Route path="purchases/create" element={<PurchaseNew />} />
         <Route path="purchases/edit/:id" element={<PurchaseNew />} />
+        <Route path="purchases/returns/create" element={<PurchaseReturnCreate />} />
+        <Route path="purchases/returns/:id" element={<PurchaseReturnDetail />} />
         <Route path="purchases/:id" element={<PurchaseDetail />} />
         <Route path="customers" element={<Customers />} />
         <Route path="suppliers" element={<Suppliers />} />

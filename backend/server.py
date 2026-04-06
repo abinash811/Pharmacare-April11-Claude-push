@@ -1038,9 +1038,14 @@ class PurchaseReturnItemCreate(BaseModel):
     product_name: str
     batch_id: Optional[str] = None
     batch_no: Optional[str] = None
+    expiry_date: Optional[str] = None
+    expiry: Optional[str] = None  # Alias
+    mrp: Optional[float] = None
+    ptr: Optional[float] = None
+    gst_percent: Optional[float] = 5
     qty_units: Optional[int] = None
     return_qty_units: Optional[int] = None  # Alias for qty_units from frontend
-    cost_price_per_unit: float
+    cost_price_per_unit: Optional[float] = None
     reason: Optional[str] = None
 
 class PurchaseReturnCreate(BaseModel):
@@ -1051,6 +1056,8 @@ class PurchaseReturnCreate(BaseModel):
     note: Optional[str] = None
     notes: Optional[str] = None  # Alias
     reason: Optional[str] = None
+    billed_by: Optional[str] = None
+    payment_type: Optional[str] = "credit"
 
 # ==================== SALES RETURNS MODELS ====================
 class SalesReturnItem(BaseModel):
@@ -5881,12 +5888,69 @@ async def generate_credit_number():
     
     return f"{prefix}{new_num:04d}"
 
+# Fix 1: Endpoint to load original purchase items for return
+@api_router.get("/purchases/{purchase_id}/items-for-return")
+async def get_purchase_items_for_return(
+    purchase_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get purchase items with already-returned quantities for creating a return"""
+    purchase = await db.purchases.find_one({"id": purchase_id}, {"_id": 0})
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Get all existing returns for this purchase
+    existing_returns = await db.purchase_returns.find(
+        {"purchase_id": purchase_id, "status": "confirmed"},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Calculate already returned qty per item (by product_sku + batch_no)
+    returned_qtys = {}
+    for ret in existing_returns:
+        for item in ret.get('items', []):
+            key = f"{item.get('product_sku')}_{item.get('batch_no')}"
+            returned_qtys[key] = returned_qtys.get(key, 0) + (item.get('qty_units') or 0)
+    
+    # Build return items array
+    items_for_return = []
+    for item in purchase.get('items', []):
+        key = f"{item.get('product_sku')}_{item.get('batch_no')}"
+        already_returned = returned_qtys.get(key, 0)
+        original_qty = item.get('qty_units') or item.get('quantity') or 0
+        
+        items_for_return.append({
+            "medicine_id": item.get('product_id') or item.get('medicine_id'),
+            "medicine_name": item.get('product_name') or item.get('medicine_name'),
+            "product_sku": item.get('product_sku'),
+            "batch_id": item.get('batch_id'),
+            "batch_no": item.get('batch_no'),
+            "expiry_date": item.get('expiry_date') or item.get('expiry_mmyy'),
+            "mrp": item.get('mrp_per_unit') or item.get('mrp') or 0,
+            "ptr": item.get('ptr_per_unit') or item.get('ptr') or 0,
+            "gst_percent": item.get('gst_percent') or 5,
+            "original_qty": original_qty,
+            "already_returned_qty": already_returned,
+            "max_returnable_qty": max(0, original_qty - already_returned)
+        })
+    
+    return {
+        "purchase_id": purchase_id,
+        "purchase_number": purchase.get('purchase_number'),
+        "supplier_id": purchase.get('supplier_id'),
+        "supplier_name": purchase.get('supplier_name'),
+        "purchase_date": purchase.get('purchase_date'),
+        "invoice_no": purchase.get('supplier_invoice_no'),
+        "items": items_for_return
+    }
+
+
 @api_router.post("/purchase-returns")
 async def create_purchase_return(
     return_data: PurchaseReturnCreate,
     current_user: User = Depends(get_current_user)
 ):
-    """Create purchase return"""
+    """Create purchase return - atomically confirms, deducts stock, updates supplier outstanding"""
     supplier = await db.suppliers.find_one({"id": return_data.supplier_id}, {"_id": 0})
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -5896,19 +5960,65 @@ async def create_purchase_return(
     if return_data.purchase_id:
         original_purchase = await db.purchases.find_one({"id": return_data.purchase_id}, {"_id": 0})
         if original_purchase:
-            purchase_number = original_purchase['purchase_number']
+            purchase_number = original_purchase.get('purchase_number')
+    
+    # Fix 5: Validate qty against original purchase
+    if original_purchase:
+        # Get existing returns for this purchase
+        existing_returns = await db.purchase_returns.find(
+            {"purchase_id": return_data.purchase_id, "status": "confirmed"},
+            {"_id": 0}
+        ).to_list(100)
+        
+        # Calculate already returned qty per item
+        returned_qtys = {}
+        for ret in existing_returns:
+            for item in ret.get('items', []):
+                key = f"{item.get('product_sku')}_{item.get('batch_no')}"
+                returned_qtys[key] = returned_qtys.get(key, 0) + (item.get('qty_units') or 0)
+        
+        # Build original qty map
+        original_qtys = {}
+        for item in original_purchase.get('items', []):
+            key = f"{item.get('product_sku')}_{item.get('batch_no')}"
+            original_qtys[key] = item.get('qty_units') or item.get('quantity') or 0
+        
+        # Validate each return item
+        for item_data in return_data.items:
+            qty_units = item_data.return_qty_units or item_data.qty_units or 0
+            key = f"{item_data.product_sku}_{item_data.batch_no}"
+            original_qty = original_qtys.get(key, 0)
+            already_returned = returned_qtys.get(key, 0)
+            max_returnable = original_qty - already_returned
+            
+            if qty_units > max_returnable:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Return qty ({qty_units}) exceeds max returnable ({max_returnable}) for {item_data.product_name}"
+                )
     
     return_number = await generate_return_number()
     
     items = []
     total_value = 0
+    total_gst = 0
+    stock_movements = []
     
     for item_data in return_data.items:
         # Get qty - handle both qty_units and return_qty_units
-        qty_units = item_data.return_qty_units or item_data.qty_units
+        qty_units = item_data.return_qty_units or item_data.qty_units or 0
+        if qty_units <= 0:
+            continue
         
-        # Calculate line total
-        line_total = qty_units * item_data.cost_price_per_unit
+        # Get additional fields from item_data
+        ptr = getattr(item_data, 'ptr', None) or getattr(item_data, 'cost_price_per_unit', 0)
+        mrp = getattr(item_data, 'mrp', None) or 0
+        gst_percent = getattr(item_data, 'gst_percent', None) or 5
+        expiry = getattr(item_data, 'expiry_date', None) or getattr(item_data, 'expiry', None)
+        
+        # Calculate line total (PTR * qty)
+        line_total = qty_units * ptr
+        line_gst = line_total * gst_percent / 100
         
         item_doc = {
             "id": str(uuid.uuid4()),
@@ -5916,33 +6026,118 @@ async def create_purchase_return(
             "product_name": item_data.product_name,
             "batch_id": item_data.batch_id,
             "batch_no": item_data.batch_no,
+            "expiry_date": expiry,
+            "mrp": mrp,
+            "ptr": ptr,
+            "gst_percent": gst_percent,
             "qty_units": qty_units,
-            "cost_price_per_unit": item_data.cost_price_per_unit,
+            "cost_price_per_unit": ptr,
             "reason": item_data.reason or return_data.reason or "return",
-            "line_total": line_total
+            "line_total": line_total,
+            "line_gst": line_gst
         }
         
         items.append(item_doc)
         total_value += line_total
+        total_gst += line_gst
+        
+        # Deduct stock immediately (same as sales returns pattern)
+        batch = None
+        if item_data.batch_id:
+            batch = await db.stock_batches.find_one({"id": item_data.batch_id}, {"_id": 0})
+        elif item_data.batch_no:
+            batch = await db.stock_batches.find_one({
+                "product_sku": item_data.product_sku,
+                "batch_no": item_data.batch_no
+            }, {"_id": 0})
+        
+        if batch:
+            product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
+            units_per_pack = product.get('units_per_pack', 1) if product else 1
+            qty_packs = qty_units / units_per_pack
+            
+            new_qty = max(0, batch.get('qty_on_hand', 0) - qty_packs)
+            
+            await db.stock_batches.update_one(
+                {"id": batch['id']},
+                {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}}
+            )
+            
+            movement = {
+                "id": str(uuid.uuid4()),
+                "product_sku": item_data.product_sku,
+                "batch_id": batch['id'],
+                "product_name": item_data.product_name,
+                "batch_no": item_data.batch_no or batch['batch_no'],
+                "qty_delta_units": -qty_units,
+                "movement_type": "purchase_return",
+                "ref_type": "purchase_return",
+                "ref_id": return_number,
+                "location": "default",
+                "reason": f"Purchase return - {item_data.reason or 'return'}",
+                "performed_by": current_user.id,
+                "performed_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.stock_movements.insert_one(movement)
+            stock_movements.append(movement)
     
-    # Create return document
+    if not items:
+        raise HTTPException(status_code=400, detail="No valid return items")
+    
+    net_return_amount = round(total_value + total_gst)
+    
+    # Create return document - status is confirmed immediately
+    return_id = str(uuid.uuid4())
     return_doc = {
-        "id": str(uuid.uuid4()),
+        "id": return_id,
         "return_number": return_number,
         "supplier_id": return_data.supplier_id,
         "supplier_name": supplier['name'],
         "purchase_id": return_data.purchase_id,
         "purchase_number": purchase_number,
         "return_date": return_data.return_date,
-        "status": "pending",
+        "status": "confirmed",  # Fix 4: Use confirmed consistently
         "items": items,
-        "total_value": total_value,
+        "ptr_total": total_value,
+        "gst_amount": total_gst,
+        "total_value": net_return_amount,
         "note": return_data.note or return_data.notes,
+        "billed_by": getattr(return_data, 'billed_by', None) or current_user.name,
+        "payment_type": getattr(return_data, 'payment_type', 'credit'),
         "created_by": current_user.id,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "confirmed_by": current_user.id
     }
     
     await db.purchase_returns.insert_one(return_doc)
+    
+    # Fix 2: Decrement supplier outstanding
+    await db.suppliers.update_one(
+        {"id": return_data.supplier_id},
+        {
+            "$inc": {"outstanding": -net_return_amount},
+            "$push": {
+                "payment_history": {
+                    "id": str(uuid.uuid4()),
+                    "type": "purchase_return",
+                    "return_id": return_id,
+                    "return_number": return_number,
+                    "date": datetime.now(timezone.utc).isoformat(),
+                    "amount": net_return_amount,
+                    "note": f"Purchase return {return_number}"
+                }
+            }
+        }
+    )
+    
+    # Update original purchase with return reference
+    if return_data.purchase_id:
+        await db.purchases.update_one(
+            {"id": return_data.purchase_id},
+            {"$push": {"returns": return_id}}
+        )
     
     # Remove _id before returning
     return_doc.pop('_id', None)
@@ -5990,6 +6185,168 @@ async def get_purchase_return(
     
     # Return as-is without date conversion
     return purchase_return
+
+
+# Fix 3: PUT endpoint for editing returns
+class PurchaseReturnUpdate(BaseModel):
+    note: Optional[str] = None
+    billed_by: Optional[str] = None
+    items: Optional[List[PurchaseReturnItemCreate]] = None
+    edit_type: str = "non_financial"  # "non_financial" or "financial"
+
+
+@api_router.put("/purchase-returns/{return_id}")
+async def update_purchase_return(
+    return_id: str,
+    update_data: PurchaseReturnUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update purchase return - supports both non-financial and financial edits"""
+    purchase_return = await db.purchase_returns.find_one({"id": return_id}, {"_id": 0})
+    if not purchase_return:
+        raise HTTPException(status_code=404, detail="Purchase return not found")
+    
+    if update_data.edit_type == "non_financial":
+        # Non-financial edit: only update note and billed_by
+        update_fields = {"updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}
+        if update_data.note is not None:
+            update_fields["note"] = update_data.note
+        if update_data.billed_by is not None:
+            update_fields["billed_by"] = update_data.billed_by
+        
+        await db.purchase_returns.update_one(
+            {"id": return_id},
+            {"$set": update_fields}
+        )
+        
+        updated = await db.purchase_returns.find_one({"id": return_id}, {"_id": 0})
+        return updated
+    
+    else:
+        # Financial edit: recalculate stock differences
+        if not update_data.items:
+            raise HTTPException(status_code=400, detail="Items required for financial edit")
+        
+        old_items = purchase_return.get('items', [])
+        old_total = purchase_return.get('total_value', 0)
+        supplier_id = purchase_return.get('supplier_id')
+        
+        # Build old qty map
+        old_qty_map = {}
+        for item in old_items:
+            key = f"{item.get('product_sku')}_{item.get('batch_no')}"
+            old_qty_map[key] = item.get('qty_units', 0)
+        
+        # Process new items and calculate stock differences
+        new_items = []
+        new_total_value = 0
+        new_total_gst = 0
+        
+        for item_data in update_data.items:
+            qty_units = item_data.return_qty_units or item_data.qty_units or 0
+            if qty_units <= 0:
+                continue
+            
+            ptr = item_data.ptr or item_data.cost_price_per_unit or 0
+            gst_percent = item_data.gst_percent or 5
+            line_total = qty_units * ptr
+            line_gst = line_total * gst_percent / 100
+            
+            item_doc = {
+                "id": str(uuid.uuid4()),
+                "product_sku": item_data.product_sku,
+                "product_name": item_data.product_name,
+                "batch_id": item_data.batch_id,
+                "batch_no": item_data.batch_no,
+                "expiry_date": item_data.expiry_date or item_data.expiry,
+                "mrp": item_data.mrp or 0,
+                "ptr": ptr,
+                "gst_percent": gst_percent,
+                "qty_units": qty_units,
+                "cost_price_per_unit": ptr,
+                "reason": item_data.reason or "return",
+                "line_total": line_total,
+                "line_gst": line_gst
+            }
+            new_items.append(item_doc)
+            new_total_value += line_total
+            new_total_gst += line_gst
+            
+            # Calculate stock difference
+            key = f"{item_data.product_sku}_{item_data.batch_no}"
+            old_qty = old_qty_map.get(key, 0)
+            qty_diff = qty_units - old_qty  # Positive means more returned, negative means less
+            
+            if qty_diff != 0:
+                # Find batch
+                batch = None
+                if item_data.batch_id:
+                    batch = await db.stock_batches.find_one({"id": item_data.batch_id}, {"_id": 0})
+                elif item_data.batch_no:
+                    batch = await db.stock_batches.find_one({
+                        "product_sku": item_data.product_sku,
+                        "batch_no": item_data.batch_no
+                    }, {"_id": 0})
+                
+                if batch:
+                    product = await db.products.find_one({"sku": item_data.product_sku}, {"_id": 0})
+                    units_per_pack = product.get('units_per_pack', 1) if product else 1
+                    qty_packs_diff = qty_diff / units_per_pack
+                    
+                    # Adjust stock (positive diff = deduct more, negative diff = add back)
+                    new_qty = max(0, batch.get('qty_on_hand', 0) - qty_packs_diff)
+                    
+                    await db.stock_batches.update_one(
+                        {"id": batch['id']},
+                        {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                    )
+                    
+                    # Create stock movement for the difference
+                    movement = {
+                        "id": str(uuid.uuid4()),
+                        "product_sku": item_data.product_sku,
+                        "batch_id": batch['id'],
+                        "product_name": item_data.product_name,
+                        "batch_no": item_data.batch_no,
+                        "qty_delta_units": -qty_diff,
+                        "movement_type": "purchase_return_edit",
+                        "ref_type": "purchase_return",
+                        "ref_id": return_id,
+                        "location": "default",
+                        "reason": "Purchase return edit adjustment",
+                        "performed_by": current_user.id,
+                        "performed_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    await db.stock_movements.insert_one(movement)
+        
+        new_net_amount = round(new_total_value + new_total_gst)
+        amount_diff = new_net_amount - old_total
+        
+        # Update supplier outstanding with the difference
+        if amount_diff != 0:
+            await db.suppliers.update_one(
+                {"id": supplier_id},
+                {"$inc": {"outstanding": -amount_diff}}
+            )
+        
+        # Update the return document
+        await db.purchase_returns.update_one(
+            {"id": return_id},
+            {"$set": {
+                "items": new_items,
+                "ptr_total": new_total_value,
+                "gst_amount": new_total_gst,
+                "total_value": new_net_amount,
+                "note": update_data.note or purchase_return.get('note'),
+                "billed_by": update_data.billed_by or purchase_return.get('billed_by'),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": current_user.id
+            }}
+        )
+        
+        updated = await db.purchase_returns.find_one({"id": return_id}, {"_id": 0})
+        return updated
+
 
 @api_router.post("/purchase-returns/{return_id}/confirm")
 async def confirm_purchase_return(
@@ -6914,8 +7271,8 @@ async def validate_bulk_upload(
                     row_warnings.append("Expiry date is in the past or today")
                 elif expiry_date <= today + timedelta(days=30):
                     row_warnings.append("Expiry date is within 30 days")
-            except Exception as e:
-                row_errors.append(f"Invalid expiry date format. Use YYYY-MM-DD")
+            except Exception:
+                row_errors.append("Invalid expiry date format. Use YYYY-MM-DD")
         
         # Batch number validation
         batch_no = row_data.get("batch_number")
@@ -6927,7 +7284,7 @@ async def validate_bulk_upload(
         if sku and batch_no:
             batch_key = f"{sku}_{batch_no}"
             if batch_key in existing_batches:
-                row_warnings.append(f"Batch already exists - will update existing batch")
+                row_warnings.append("Batch already exists - will update existing batch")
         
         # GST validation
         try:

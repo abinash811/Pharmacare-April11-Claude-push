@@ -13,7 +13,6 @@ export default function PurchaseNew() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id: editPurchaseId } = useParams();
-  const purchaseType = searchParams.get('type') || 'purchase';
   const searchInputRef = useRef(null);
   const searchTimeoutRef = useRef(null);
 

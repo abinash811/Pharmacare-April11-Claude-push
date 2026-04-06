@@ -252,7 +252,7 @@ export default function PurchaseDetail() {
                   <button
                     onClick={() => {
                       setShowMoreMenu(false);
-                      navigate(`/purchases/create?type=return&purchase_id=${id}`);
+                      navigate(`/purchases/returns/create?purchase_id=${id}`);
                     }}
                     className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                   >

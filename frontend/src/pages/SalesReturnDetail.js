@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown, X, Stethoscope } from 'lucide-react';
 import { format } from 'date-fns';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -113,15 +114,15 @@ export default function SalesReturnDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4682B4]"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <InlineLoader text="Loading return..." />
       </div>
     );
   }
 
   if (!returnData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-500">Return not found</p>
       </div>
     );

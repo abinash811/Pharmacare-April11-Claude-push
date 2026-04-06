@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, PageSkeleton } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -130,11 +130,7 @@ export default function SalesReturnsList() {
   const filteredData = getFilteredData();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { ArrowLeft, MoreVertical, Printer, X, Edit2, RotateCcw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -154,15 +155,15 @@ export default function PurchaseDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
-        <div className="text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <InlineLoader text="Loading purchase..." />
       </div>
     );
   }
 
   if (!purchase) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-gray-500">Purchase not found</div>
       </div>
     );
@@ -171,8 +172,8 @@ export default function PurchaseDetail() {
   // Draft purchases are redirected via useEffect above - show loading while redirect happens
   if (isParked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
-        <div className="text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <InlineLoader text="Redirecting..." />
       </div>
     );
   }

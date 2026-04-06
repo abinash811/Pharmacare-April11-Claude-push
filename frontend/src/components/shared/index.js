@@ -7,3 +7,4 @@ export { DataCard } from './DataCard';
 export { TableActions } from './TableActions';
 export { SearchInput } from './SearchInput';
 export { StatusBadge, CustomerTypeBadge, PaymentStatusBadge } from './StatusBadge';
+export { TableSkeleton, PageSkeleton, InlineLoader, CardSkeleton } from './TableSkeleton';

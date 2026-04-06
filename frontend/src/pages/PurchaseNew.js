@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronDown, Settings, Search, Trash2, X, FileText, Truck } 
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/calendar';
 import { format } from 'date-fns';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -426,8 +427,8 @@ export default function PurchaseNew() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
-        <div className="text-gray-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <InlineLoader text="Loading purchase..." />
       </div>
     );
   }

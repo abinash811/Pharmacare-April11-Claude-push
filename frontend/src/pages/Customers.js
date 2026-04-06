@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
-import { SearchInput } from '@/components/shared';
+import { SearchInput, PageSkeleton } from '@/components/shared';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -249,11 +249,7 @@ export default function Customers() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (

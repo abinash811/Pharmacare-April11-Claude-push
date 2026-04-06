@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Printer, MoreVertical, Edit, FileText, X } from 'lucide-react';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -130,15 +131,15 @@ export default function PurchaseReturnDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f6f8f8' }}>
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <InlineLoader text="Loading return..." />
       </div>
     );
   }
 
   if (!purchaseReturn) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f6f8f8' }}>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-gray-500">Purchase return not found</div>
       </div>
     );

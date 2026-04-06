@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -285,7 +285,9 @@ export default function Suppliers() {
               <tbody className="divide-y">
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-12 text-center text-gray-400">Loading...</td>
+                    <td colSpan="5" className="p-0">
+                      <TableSkeleton rows={6} columns={5} />
+                    </td>
                   </tr>
                 ) : filteredSuppliers.length === 0 ? (
                   <tr>
@@ -454,7 +456,7 @@ export default function Suppliers() {
                 {activeTab === 'history' && (
                   <div>
                     {historyLoading ? (
-                      <div className="py-12 text-center text-gray-400">Loading...</div>
+                      <InlineLoader text="Loading history..." />
                     ) : purchaseHistory.length === 0 ? (
                       <div className="py-12 text-center text-gray-400">No purchase history</div>
                     ) : (

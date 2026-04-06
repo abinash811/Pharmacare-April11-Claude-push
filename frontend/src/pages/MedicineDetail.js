@@ -7,6 +7,7 @@ import {
   Calendar, FileText, ChevronRight, Trash2, QrCode, Check,
   ArrowLeft, Plus, ShoppingCart, RotateCcw, TrendingUp, TrendingDown, X
 } from 'lucide-react';
+import { InlineLoader, TableSkeleton } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -233,8 +234,8 @@ export default function MedicineDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFB] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <InlineLoader text="Loading medicine details..." />
       </div>
     );
   }
@@ -615,8 +616,8 @@ export default function MedicineDetail() {
             </div>
             {transactionsLoading ? (
               <div className="p-12 text-center">
-                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading transactions...</p>
+                <InlineLoader text="Loading transactions..." />
+                
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -686,8 +687,8 @@ export default function MedicineDetail() {
             </div>
             {transactionsLoading ? (
               <div className="p-12 text-center">
-                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading transactions...</p>
+                <InlineLoader text="Loading transactions..." />
+                
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -754,8 +755,8 @@ export default function MedicineDetail() {
             </div>
             {transactionsLoading ? (
               <div className="p-12 text-center">
-                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading transactions...</p>
+                <InlineLoader text="Loading transactions..." />
+                
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -823,8 +824,8 @@ export default function MedicineDetail() {
             </div>
             {transactionsLoading ? (
               <div className="p-12 text-center">
-                <div className="w-8 h-8 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading transactions...</p>
+                <InlineLoader text="Loading transactions..." />
+                
               </div>
             ) : (
               <div className="overflow-x-auto">

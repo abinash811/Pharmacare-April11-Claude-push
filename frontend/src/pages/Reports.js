@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner';
 import { exportToExcel, formatReportForExcel } from '@/utils/excelExport';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
+import { InlineLoader } from '../components/shared';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -299,7 +300,7 @@ export default function Reports() {
       {/* Report Content */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <InlineLoader text="Generating report..." />
         </div>
       ) : (
         <Card>

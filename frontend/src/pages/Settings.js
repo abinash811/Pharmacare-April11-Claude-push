@@ -3,6 +3,7 @@ import axios from 'axios';
 import { AuthContext } from '@/App';
 import { Save, Settings as SettingsIcon, Package, ShoppingCart, Globe, RotateCcw, Hash, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -221,8 +222,7 @@ export default function Settings() {
         <div className="p-6">
           {loading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-2">Loading settings...</p>
+              <InlineLoader text="Loading settings..." />
             </div>
           ) : (
             <>
@@ -395,8 +395,7 @@ export default function Settings() {
 
                     {sequenceLoading ? (
                       <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="text-gray-600 mt-2">Loading sequences...</p>
+                        <InlineLoader text="Loading sequences..." />
                       </div>
                     ) : (
                       <>

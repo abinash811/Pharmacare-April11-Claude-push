@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ExcelBulkUploadWizard from '../components/ExcelBulkUploadWizard';
 import { getFromCache, setInCache } from '../utils/cache';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -463,8 +464,7 @@ export default function InventorySearch() {
           /* Loading State */
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12">
             <div className="flex flex-col items-center">
-              <div className="w-10 h-10 border-4 border-[#00CED1] border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-gray-500">Searching inventory...</p>
+              <InlineLoader text="Searching inventory..." />
             </div>
           </div>
         ) : inventory.length === 0 ? (

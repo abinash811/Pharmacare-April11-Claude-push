@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -209,9 +209,8 @@ export default function PurchaseReturnsList() {
             <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    Loading...
+                  <td colSpan="9" className="p-0">
+                    <TableSkeleton rows={6} columns={8} />
                   </td>
                 </tr>
               ) : filteredReturns.length === 0 ? (

@@ -3,6 +3,7 @@ import { AuthContext } from '@/App';
 import axios from 'axios';
 import { Plus, Edit, Trash2, CheckCircle, XCircle, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -261,8 +262,7 @@ export default function Users() {
       <div className="bg-white rounded-lg shadow">
         {loading ? (
           <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-2">Loading users...</p>
+            <InlineLoader text="Loading users..." />
           </div>
         ) : (
           <div className="overflow-x-auto">

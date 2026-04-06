@@ -2,22 +2,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Download, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { DataCard, InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const Button = ({ children, onClick, variant = 'primary', disabled = false, className = '' }) => {
-  const baseStyles = 'rounded font-medium transition-colors px-4 py-2';
-  const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-  };
-  
-  return (
-    <button onClick={onClick} disabled={disabled} className={`${baseStyles} ${variants[variant]} ${className}`}>
-      {children}
-    </button>
-  );
-};
 
 export default function GSTReport() {
   const [loading, setLoading] = useState(false);
@@ -48,81 +36,99 @@ export default function GSTReport() {
     if (!reportData) return;
     
     // Create CSV content
-    let csv = 'Type,GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
+    let csv = 'GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
     
-    if (reportData.sales) {
-      reportData.sales.forEach(row => {
-        csv += `Sales,${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
-      });
-    }
+    // Sales GST
+    csv += '\nSales GST (Output Tax)\n';
+    reportData.sales_gst.breakup.forEach(row => {
+      csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
+    });
+    csv += `Total,${reportData.sales_gst.total_taxable},${reportData.sales_gst.total_cgst},${reportData.sales_gst.total_sgst},${reportData.sales_gst.total_igst},${reportData.sales_gst.total_gst}\n`;
     
-    if (reportData.purchases) {
-      reportData.purchases.forEach(row => {
-        csv += `Purchases,${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
-      });
-    }
+    // Purchase GST
+    csv += '\nPurchase GST (Input Tax Credit)\n';
+    reportData.purchase_gst.breakup.forEach(row => {
+      csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
+    });
+    csv += `Total,${reportData.purchase_gst.total_taxable},${reportData.purchase_gst.total_cgst},${reportData.purchase_gst.total_sgst},${reportData.purchase_gst.total_igst},${reportData.purchase_gst.total_gst}\n`;
     
-    // Download CSV
+    // Download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gst-report-${dateRange.start_date}-to-${dateRange.end_date}.csv`;
+    a.download = `gst_report_${dateRange.start_date}_to_${dateRange.end_date}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    
-    toast.success('Report exported successfully');
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2
+    }).format(amount || 0);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-          <FileText className="w-8 h-8" />
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <FileText className="w-7 h-7 text-[#4682B4]" />
           GST / Tax Report
         </h1>
-        <p className="text-gray-600 mt-1">View GST collected and paid for compliance</p>
+        <p className="text-sm text-gray-500 mt-1">View GST collected and paid for compliance</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex items-end gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={dateRange.start_date}
-              onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-            />
+      <DataCard className="mb-6" noPadding={false}>
+        <div className="p-4">
+          <div className="flex items-end gap-4 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Start Date</label>
+              <input
+                type="date"
+                value={dateRange.start_date}
+                onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">End Date</label>
+              <input
+                type="date"
+                value={dateRange.end_date}
+                onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            <Button onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
+              <Calendar className="w-4 h-4 mr-2" />
+              {loading ? 'Generating...' : 'Generate Report'}
+            </Button>
           </div>
-          
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-            <input
-              type="date"
-              value={dateRange.end_date}
-              onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-            />
-          </div>
-          
-          <Button onClick={fetchGSTReport} disabled={loading}>
-            <Calendar className="w-4 h-4 mr-2 inline" />
-            {loading ? 'Loading...' : 'Generate Report'}
-          </Button>
         </div>
-      </div>
+      </DataCard>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="py-12">
+          <InlineLoader text="Generating GST report..." />
+        </div>
+      )}
 
       {/* Report Display */}
-      {reportData && (
+      {!loading && reportData && (
         <>
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="px-6 py-4 border-b flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Sales GST (Output Tax)</h2>
-              <Button variant="secondary" onClick={exportToCSV}>
-                <Download className="w-4 h-4 mr-2 inline" />
+          {/* Sales GST Table */}
+          <DataCard className="mb-6">
+            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-base font-semibold text-gray-900">Sales GST (Output Tax)</h2>
+              <Button variant="outline" size="sm" onClick={exportToCSV}>
+                <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
             </div>
@@ -131,112 +137,124 @@ export default function GSTReport() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">GST Rate</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Taxable Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">CGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">SGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">IGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total GST</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GST Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Taxable Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">CGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">IGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total GST</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {reportData.sales?.map((row, idx) => (
-                    <tr key={idx}>
-                      <td className="px-6 py-4">{row.gst_rate}%</td>
-                      <td className="px-6 py-4 text-right">₹{row.taxable_amount?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.cgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.sgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.igst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-semibold">₹{row.total_gst?.toLocaleString()}</td>
+                  {reportData.sales_gst.breakup.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-[#4682B4]">{row.gst_rate}%</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.taxable_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.cgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.sgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.igst)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium">{formatCurrency(row.total_gst)}</td>
                     </tr>
                   ))}
-                  {reportData.sales_summary && (
-                    <tr className="bg-blue-50 font-semibold">
-                      <td className="px-6 py-4">Total</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.sales_summary.total_taxable?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.sales_summary.total_cgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.sales_summary.total_sgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.sales_summary.total_igst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.sales_summary.total_gst?.toLocaleString()}</td>
-                    </tr>
-                  )}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="px-4 py-3 text-sm">Total</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-[#4682B4]">{formatCurrency(reportData.sales_gst.total_gst)}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
-          </div>
+          </DataCard>
 
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Purchases GST (Input Tax Credit)</h2>
+          {/* Purchase GST Table */}
+          <DataCard className="mb-6">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h2 className="text-base font-semibold text-gray-900">Purchase GST (Input Tax Credit)</h2>
             </div>
             
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">GST Rate</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Taxable Amount</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">CGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">SGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">IGST</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total GST</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GST Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Taxable Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">CGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">IGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total GST</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {reportData.purchases?.map((row, idx) => (
-                    <tr key={idx}>
-                      <td className="px-6 py-4">{row.gst_rate}%</td>
-                      <td className="px-6 py-4 text-right">₹{row.taxable_amount?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.cgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.sgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{row.igst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-semibold">₹{row.total_gst?.toLocaleString()}</td>
+                  {reportData.purchase_gst.breakup.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-[#4682B4]">{row.gst_rate}%</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.taxable_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.cgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.sgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.igst)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium">{formatCurrency(row.total_gst)}</td>
                     </tr>
                   ))}
-                  {reportData.purchases_summary && (
-                    <tr className="bg-green-50 font-semibold">
-                      <td className="px-6 py-4">Total</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.purchases_summary.total_taxable?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.purchases_summary.total_cgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.purchases_summary.total_sgst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.purchases_summary.total_igst?.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">₹{reportData.purchases_summary.total_gst?.toLocaleString()}</td>
-                    </tr>
-                  )}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="px-4 py-3 text-sm">Total</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-[#4682B4]">{formatCurrency(reportData.purchase_gst.total_gst)}</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
-          </div>
+          </DataCard>
 
-          {/* Net GST Liability */}
-          {reportData.net_liability && (
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow p-8 mt-6 text-white">
-              <h3 className="text-xl font-semibold mb-4">Net GST Liability</h3>
-              <div className="grid grid-cols-3 gap-6">
-                <div>
-                  <p className="text-blue-200 text-sm">Output Tax (Sales)</p>
-                  <p className="text-3xl font-bold">₹{reportData.sales_summary?.total_gst?.toLocaleString() || 0}</p>
+          {/* Summary Card */}
+          <DataCard noPadding={false}>
+            <div className="p-4">
+              <h2 className="text-base font-semibold text-gray-900 mb-4">GST Summary</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <p className="text-xs font-semibold text-green-600 uppercase">Output Tax (Sales)</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(reportData.sales_gst.total_gst)}</p>
                 </div>
-                <div>
-                  <p className="text-blue-200 text-sm">Input Tax Credit (Purchases)</p>
-                  <p className="text-3xl font-bold">₹{reportData.purchases_summary?.total_gst?.toLocaleString() || 0}</p>
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <p className="text-xs font-semibold text-blue-600 uppercase">Input Tax Credit (Purchases)</p>
+                  <p className="text-2xl font-bold text-blue-700 mt-1">{formatCurrency(reportData.purchase_gst.total_gst)}</p>
                 </div>
-                <div>
-                  <p className="text-blue-200 text-sm">Net Payable</p>
-                  <p className="text-3xl font-bold">₹{reportData.net_liability?.toLocaleString() || 0}</p>
+                <div className={`rounded-lg p-4 border ${
+                  reportData.net_gst_liability >= 0 
+                    ? 'bg-red-50 border-red-200' 
+                    : 'bg-emerald-50 border-emerald-200'
+                }`}>
+                  <p className={`text-xs font-semibold uppercase ${
+                    reportData.net_gst_liability >= 0 ? 'text-red-600' : 'text-emerald-600'
+                  }`}>
+                    {reportData.net_gst_liability >= 0 ? 'Net GST Payable' : 'Net ITC Available'}
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${
+                    reportData.net_gst_liability >= 0 ? 'text-red-700' : 'text-emerald-700'
+                  }`}>
+                    {formatCurrency(Math.abs(reportData.net_gst_liability))}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
+          </DataCard>
         </>
       )}
 
-      {!reportData && !loading && (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">No report generated</p>
-          <p className="text-gray-500 text-sm mt-2">Select date range and click "Generate Report"</p>
-        </div>
+      {/* Empty State */}
+      {!loading && !reportData && (
+        <DataCard noPadding={false}>
+          <div className="p-12 text-center">
+            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-base font-medium text-gray-900 mb-1">No report generated</h3>
+            <p className="text-sm text-gray-500">Select a date range and click "Generate Report" to view GST data</p>
+          </div>
+        </DataCard>
       )}
     </div>
   );

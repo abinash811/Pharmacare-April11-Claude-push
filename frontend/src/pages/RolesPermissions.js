@@ -3,32 +3,10 @@ import { AuthContext } from '@/App';
 import axios from 'axios';
 import { Plus, Edit, Trash2, Shield, CheckSquare, Square, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader } from '../components/shared';
+import { InlineLoader, DeleteConfirmDialog, DataCard } from '../components/shared';
+import { Button } from '@/components/ui/button';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '' }) => {
-  const baseStyles = 'rounded font-medium transition-colors';
-  const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700'
-  };
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2'
-  };
-  
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-    >
-      {children}
-    </button>
-  );
-};
 
 const Dialog = ({ open, onClose, title, children, size = 'md' }) => {
   if (!open) return null;
@@ -62,6 +40,7 @@ export default function RolesPermissions() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, roleId: null, roleName: '', loading: false });
   
   const [formData, setFormData] = useState({
     name: '',
@@ -151,20 +130,26 @@ export default function RolesPermissions() {
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('Are you sure you want to delete this role?')) {
-      return;
-    }
+  const handleDeleteRole = async (roleId, roleName) => {
+    setDeleteDialog({ open: true, roleId, roleName, loading: false });
+  };
+
+  const confirmDeleteRole = async () => {
+    const roleId = deleteDialog.roleId;
+    if (!roleId) return;
     
+    setDeleteDialog(prev => ({ ...prev, loading: true }));
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`${API}/roles/${roleId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Role deleted successfully');
+      setDeleteDialog({ open: false, roleId: null, roleName: '', loading: false });
       fetchRoles();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to delete role');
+      setDeleteDialog(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -234,24 +219,24 @@ export default function RolesPermissions() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Roles & Permissions</h1>
-          <p className="text-gray-600 mt-1">Create custom roles and assign granular permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1>
+          <p className="text-sm text-gray-500 mt-1">Create custom roles and assign granular permissions</p>
         </div>
         <Button onClick={() => {
           setFormData({ name: '', display_name: '', selectedPermissions: [] });
           setShowCreateDialog(true);
         }}>
-          <Plus className="w-4 h-4 mr-2 inline" />
+          <Plus className="w-4 h-4 mr-2" />
           Create Custom Role
         </Button>
       </div>
 
       {/* Roles Table */}
-      <div className="bg-white rounded-lg shadow">
+      <DataCard>
         {loading ? (
           <div className="p-8 text-center">
             <InlineLoader text="Loading roles..." />
@@ -261,28 +246,28 @@ export default function RolesPermissions() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissions Count</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Permissions Count</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {roles.map((role) => (
                   <tr key={role.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium">{role.display_name}</div>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-[#4682B4]">{role.display_name}</div>
                       <div className="text-xs text-gray-500">{role.name}</div>
                     </td>
-                    <td className="px-6 py-4">{getRoleBadge(role)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                    <td className="px-4 py-3">{getRoleBadge(role)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
                       {role.permissions.includes('*') || role.is_super_admin ? (
                         <span className="text-purple-600 font-medium">All Permissions</span>
                       ) : (
                         `${role.permissions.length} permissions`
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
                         {!role.is_default && (
                           <>
@@ -304,7 +289,7 @@ export default function RolesPermissions() {
                             <Button
                               size="sm"
                               variant="danger"
-                              onClick={() => handleDeleteRole(role.id)}
+                              onClick={() => handleDeleteRole(role.id, role.display_name)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -321,7 +306,7 @@ export default function RolesPermissions() {
             </table>
           </div>
         )}
-      </div>
+      </DataCard>
 
       {/* Create Role Dialog */}
       <Dialog open={showCreateDialog} onClose={() => setShowCreateDialog(false)} title="Create Custom Role" size="xl">
@@ -465,6 +450,15 @@ export default function RolesPermissions() {
           </div>
         </form>
       </Dialog>
+
+      {/* Delete Role Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, roleId: null, roleName: '', loading: false })}
+        onConfirm={confirmDeleteRole}
+        itemName={deleteDialog.roleName ? `role "${deleteDialog.roleName}"` : 'this role'}
+        isLoading={deleteDialog.loading}
+      />
     </div>
   );
 }

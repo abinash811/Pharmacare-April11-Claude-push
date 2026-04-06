@@ -46,13 +46,41 @@ All modules must match the Customers page design exactly. When building new feat
 ## Import Path
 ```javascript
 import { 
+  // Layout Components
   PageHeader, 
   DataCard, 
+  
+  // Table Components
   TableActions, 
-  SearchInput, 
+  SearchInput,
+  TableSkeleton,
+  
+  // Status Components
   StatusBadge, 
   CustomerTypeBadge, 
   PaymentStatusBadge,
+  
+  // Empty States
+  EmptyState,
+  BillingEmptyState,
+  PurchasesEmptyState,
+  SalesReturnsEmptyState,
+  PurchaseReturnsEmptyState,
+  SuppliersEmptyState,
+  CustomersEmptyState,
+  InventoryEmptyState,
+  
+  // Loading States
+  PageSkeleton,
+  InlineLoader,
+  CardSkeleton,
+  
+  // Dialogs
+  ConfirmDialog,
+  DeleteConfirmDialog,
+  DiscardConfirmDialog,
+  
+  // Date Picker
   DateRangePicker,
   getFinancialYearRange 
 } from '@/components/shared';
@@ -183,6 +211,117 @@ const fyRange = getFinancialYearRange();
 - Last Month
 - This FY (Indian Financial Year)
 - All Time
+
+### TableSkeleton (NEW)
+```jsx
+import { TableSkeleton, PageSkeleton, InlineLoader, CardSkeleton } from '@/components/shared';
+
+// For table loading states
+{loading ? (
+  <tr>
+    <td colSpan="8" className="p-0">
+      <TableSkeleton rows={6} columns={7} />
+    </td>
+  </tr>
+) : ...}
+
+// For full page loading
+if (loading) return <PageSkeleton />;
+
+// For inline loading (search results, detail views)
+{loading ? <InlineLoader text="Loading data..." /> : ...}
+```
+**Props (TableSkeleton):**
+- `rows` (number, default: 5) - Number of skeleton rows
+- `columns` (number, default: 5) - Number of columns per row
+- `className` (string, optional) - Additional CSS classes
+
+**Props (InlineLoader):**
+- `text` (string, default: "Loading...") - Loading message text
+
+### EmptyState (NEW)
+```jsx
+import { 
+  EmptyState, 
+  BillingEmptyState, 
+  PurchasesEmptyState,
+  SalesReturnsEmptyState,
+  PurchaseReturnsEmptyState,
+  SuppliersEmptyState,
+  CustomersEmptyState,
+  InventoryEmptyState
+} from '@/components/shared';
+
+// Generic usage
+<EmptyState
+  icon={Receipt}           // Lucide icon component
+  title="No bills yet"     // Main message
+  description="..."        // Secondary text
+  action={<Button>...</Button>}  // Optional CTA
+/>
+
+// Module-specific (pre-configured)
+<BillingEmptyState 
+  filtered={!!searchQuery}  // Shows different message if filtered
+  action={<Button>New Bill</Button>}
+/>
+```
+**Props (EmptyState):**
+- `icon` (Lucide component, default: FileText) - Icon to display
+- `title` (string, default: "No data found") - Main message
+- `description` (string, default: "Try adjusting...") - Secondary message
+- `action` (ReactNode, optional) - Action button
+
+**Module Icons:**
+| Module | Component | Icon |
+|--------|-----------|------|
+| Billing | BillingEmptyState | Receipt |
+| Purchases | PurchasesEmptyState | ShoppingCart |
+| Sales Returns | SalesReturnsEmptyState | RotateCcw |
+| Purchase Returns | PurchaseReturnsEmptyState | RotateCcw |
+| Suppliers | SuppliersEmptyState | Truck |
+| Customers | CustomersEmptyState | Users |
+| Inventory | InventoryEmptyState | Package |
+
+### ConfirmDialog (NEW)
+```jsx
+import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/components/shared';
+
+// Generic confirmation
+<ConfirmDialog
+  open={dialogOpen}
+  onClose={() => setDialogOpen(false)}
+  onConfirm={handleConfirm}
+  title="Are you sure?"
+  description="This action cannot be undone."
+  confirmLabel="Confirm"
+  isDestructive={false}
+  isLoading={loading}
+/>
+
+// Pre-configured delete dialog
+<DeleteConfirmDialog
+  open={deleteOpen}
+  onClose={() => setDeleteOpen(false)}
+  onConfirm={handleDelete}
+  itemName='customer "John Doe"'
+  isLoading={deleting}
+/>
+```
+**Props (ConfirmDialog):**
+- `open` (boolean, required) - Whether dialog is visible
+- `onClose` (function, required) - Called to close dialog
+- `onConfirm` (function, required) - Called when confirmed
+- `title` (string, default: "Are you sure?") - Dialog title
+- `description` (string, default: "This action...") - Message
+- `confirmLabel` (string, default: "Confirm") - Button text
+- `cancelLabel` (string, default: "Cancel") - Button text
+- `isDestructive` (boolean, default: false) - Red confirm button if true
+- `isLoading` (boolean, default: false) - Shows spinner, disables buttons
+
+**Props (DeleteConfirmDialog):**
+- `open`, `onClose`, `onConfirm`, `isLoading` - Same as above
+- `itemName` (string, default: "this item") - Item being deleted
 
 ---
 

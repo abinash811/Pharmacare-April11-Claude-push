@@ -3,34 +3,10 @@ import { AuthContext } from '@/App';
 import axios from 'axios';
 import { Plus, Edit, Trash2, CheckCircle, XCircle, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader } from '../components/shared';
+import { InlineLoader, ConfirmDialog, DataCard, TableSkeleton } from '../components/shared';
+import { Button } from '@/components/ui/button';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const Button = ({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '' }) => {
-  const baseStyles = 'rounded font-medium transition-colors';
-  const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-    success: 'bg-green-600 text-white hover:bg-green-700'
-  };
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg'
-  };
-  
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-    >
-      {children}
-    </button>
-  );
-};
 
 const Dialog = ({ open, onClose, title, children }) => {
   if (!open) return null;
@@ -57,6 +33,7 @@ export default function Users() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deactivateDialog, setDeactivateDialog] = useState({ open: false, userId: null, loading: false });
   
   const [formData, setFormData] = useState({
     name: '',
@@ -143,19 +120,25 @@ export default function Users() {
   };
 
   const handleDeactivateUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) {
-      return;
-    }
+    setDeactivateDialog({ open: true, userId, loading: false });
+  };
+
+  const confirmDeactivateUser = async () => {
+    const userId = deactivateDialog.userId;
+    if (!userId) return;
     
+    setDeactivateDialog(prev => ({ ...prev, loading: true }));
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`${API}/users/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('User deactivated successfully');
+      setDeactivateDialog({ open: false, userId: null, loading: false });
       fetchUsers();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to deactivate user');
+      setDeactivateDialog(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -236,30 +219,30 @@ export default function Users() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage users and their access permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage users and their access permissions</p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={() => setShowPasswordDialog(true)}>
-            <Key className="w-4 h-4 mr-2 inline" />
+          <Button variant="outline" onClick={() => setShowPasswordDialog(true)}>
+            <Key className="w-4 h-4 mr-2" />
             Change My Password
           </Button>
           <Button onClick={() => {
             setFormData({ name: '', email: '', password: '', role: '' });
             setShowAddDialog(true);
           }}>
-            <Plus className="w-4 h-4 mr-2 inline" />
+            <Plus className="w-4 h-4 mr-2" />
             Add User
           </Button>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-lg shadow">
+      <DataCard>
         {loading ? (
           <div className="p-8 text-center">
             <InlineLoader text="Loading users..." />
@@ -269,11 +252,11 @@ export default function Users() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -337,7 +320,7 @@ export default function Users() {
             </table>
           </div>
         )}
-      </div>
+      </DataCard>
 
       {/* Add User Dialog */}
       <Dialog open={showAddDialog} onClose={() => setShowAddDialog(false)} title="Add New User">
@@ -481,6 +464,18 @@ export default function Users() {
           </div>
         </form>
       </Dialog>
+
+      {/* Deactivate User Confirmation */}
+      <ConfirmDialog
+        open={deactivateDialog.open}
+        onClose={() => setDeactivateDialog({ open: false, userId: null, loading: false })}
+        onConfirm={confirmDeactivateUser}
+        title="Deactivate User?"
+        description="Are you sure you want to deactivate this user? They will no longer be able to access the system."
+        confirmLabel="Deactivate"
+        isDestructive={true}
+        isLoading={deactivateDialog.loading}
+      />
     </div>
   );
 }

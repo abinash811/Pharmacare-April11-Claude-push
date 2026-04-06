@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
-import { SearchInput, PageSkeleton, CustomersEmptyState } from '@/components/shared';
+import { SearchInput, PageSkeleton, CustomersEmptyState, DeleteConfirmDialog, DataCard } from '@/components/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -48,6 +48,10 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerStats, setCustomerStats] = useState(null);
   const [customerPurchases, setCustomerPurchases] = useState([]);
+  
+  // Delete Confirmation Dialogs
+  const [deleteCustomerDialog, setDeleteCustomerDialog] = useState({ open: false, customer: null, loading: false });
+  const [deleteDoctorDialog, setDeleteDoctorDialog] = useState({ open: false, doctor: null, loading: false });
 
   useEffect(() => {
     fetchData();
@@ -134,17 +138,25 @@ export default function Customers() {
   };
 
   const handleDeleteCustomer = async (customer) => {
-    if (!window.confirm(`Delete customer "${customer.name}"? This action cannot be undone.`)) return;
+    setDeleteCustomerDialog({ open: true, customer, loading: false });
+  };
+
+  const confirmDeleteCustomer = async () => {
+    const customer = deleteCustomerDialog.customer;
+    if (!customer) return;
     
+    setDeleteCustomerDialog(prev => ({ ...prev, loading: true }));
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`${API}/customers/${customer.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Customer deleted');
+      setDeleteCustomerDialog({ open: false, customer: null, loading: false });
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to delete customer');
+      setDeleteCustomerDialog(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -193,17 +205,25 @@ export default function Customers() {
   };
 
   const handleDeleteDoctor = async (doctor) => {
-    if (!window.confirm(`Delete doctor "${doctor.name}"?`)) return;
+    setDeleteDoctorDialog({ open: true, doctor, loading: false });
+  };
+
+  const confirmDeleteDoctor = async () => {
+    const doctor = deleteDoctorDialog.doctor;
+    if (!doctor) return;
     
+    setDeleteDoctorDialog(prev => ({ ...prev, loading: true }));
     const token = localStorage.getItem('token');
     try {
       await axios.delete(`${API}/doctors/${doctor.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Doctor deleted');
+      setDeleteDoctorDialog({ open: false, doctor: null, loading: false });
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to delete doctor');
+      setDeleteDoctorDialog(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -309,20 +329,19 @@ export default function Customers() {
             </Button>
           </div>
 
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full" data-testid="customers-table">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Customer</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Type</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Credit Limit</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
+          <DataCard>
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="customers-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Type</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Credit Limit</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
                     {filteredCustomers.length === 0 ? (
                       <tr>
                         <td colSpan="5" className="p-0">
@@ -388,8 +407,7 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+          </DataCard>
         </TabsContent>
 
         {/* Doctors Tab */}
@@ -404,27 +422,26 @@ export default function Customers() {
             </Button>
           </div>
 
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full" data-testid="doctors-table">
-                  <thead className="bg-gray-50 border-b">
+          <DataCard>
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="doctors-table">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Doctor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Specialization</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredDoctors.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Doctor</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Specialization</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {filteredDoctors.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" className="p-0">
-                          <EmptyState
-                            icon={Stethoscope}
-                            title={searchQuery ? 'No doctors match your search' : 'No doctors yet'}
-                            description={searchQuery ? 'Try a different search term' : 'Add referring doctors to track referrals'}
-                            action={
+                      <td colSpan="4" className="p-0">
+                        <EmptyState
+                          icon={Stethoscope}
+                          title={searchQuery ? 'No doctors match your search' : 'No doctors yet'}
+                          description={searchQuery ? 'Try a different search term' : 'Add referring doctors to track referrals'}
+                          action={
                               <Button onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} data-testid="empty-add-doctor-btn">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add Doctor
@@ -483,8 +500,7 @@ export default function Customers() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
+          </DataCard>
         </TabsContent>
       </Tabs>
 
@@ -732,6 +748,24 @@ export default function Customers() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Customer Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteCustomerDialog.open}
+        onClose={() => setDeleteCustomerDialog({ open: false, customer: null, loading: false })}
+        onConfirm={confirmDeleteCustomer}
+        itemName={deleteCustomerDialog.customer?.name ? `customer "${deleteCustomerDialog.customer.name}"` : 'this customer'}
+        isLoading={deleteCustomerDialog.loading}
+      />
+
+      {/* Delete Doctor Confirmation */}
+      <DeleteConfirmDialog
+        open={deleteDoctorDialog.open}
+        onClose={() => setDeleteDoctorDialog({ open: false, doctor: null, loading: false })}
+        onConfirm={confirmDeleteDoctor}
+        itemName={deleteDoctorDialog.doctor?.name ? `doctor "${deleteDoctorDialog.doctor.name}"` : 'this doctor'}
+        isLoading={deleteDoctorDialog.loading}
+      />
     </div>
   );
 }

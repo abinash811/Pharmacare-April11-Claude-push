@@ -20,3 +20,4 @@ export {
   SearchEmptyState,
   ErrorEmptyState
 } from './EmptyState';
+export { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from './ConfirmDialog';

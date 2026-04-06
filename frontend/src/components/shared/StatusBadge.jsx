@@ -11,9 +11,9 @@ const STATUS_STYLES = {
   active: 'bg-green-100 text-green-700',
   confirmed: 'bg-green-100 text-green-700',
   
-  // Warning/pending statuses
-  due: 'bg-red-100 text-red-700',
-  unpaid: 'bg-red-100 text-red-700',
+  // Warning/pending statuses - Amber for warnings
+  due: 'bg-amber-100 text-amber-700',
+  unpaid: 'bg-amber-100 text-amber-700',
   overdue: 'bg-red-100 text-red-700',
   cancelled: 'bg-red-100 text-red-700',
   inactive: 'bg-red-100 text-red-700',
@@ -30,6 +30,10 @@ const STATUS_STYLES = {
   card: 'bg-purple-100 text-purple-700',
   adjusted: 'bg-purple-100 text-purple-700',
   
+  // Sales returns specific - human readable labels
+  same_as_original: 'bg-gray-100 text-gray-700',
+  credit_to_account: 'bg-purple-100 text-purple-700',
+  
   // Customer types
   regular: 'bg-blue-100 text-blue-700',
   wholesale: 'bg-purple-100 text-purple-700',
@@ -37,6 +41,15 @@ const STATUS_STYLES = {
   
   // Default
   default: 'bg-gray-100 text-gray-700'
+};
+
+/**
+ * Human readable label mappings for database values
+ */
+const LABEL_MAPPINGS = {
+  'same_as_original': 'Same as Original',
+  'credit_to_account': 'Credit to Account',
+  'adjust_outstanding': 'Adjusted'
 };
 
 /**
@@ -62,8 +75,11 @@ export function StatusBadge({ status, label, fallback = '-', className = '' }) {
   const normalizedStatus = status.toLowerCase().trim();
   const styleClass = STATUS_STYLES[normalizedStatus] || STATUS_STYLES.default;
   
-  // Display label: use provided label, or capitalize the status
-  const displayLabel = label || (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase());
+  // Display label: use provided label, or check LABEL_MAPPINGS, or capitalize the status
+  let displayLabel = label;
+  if (!displayLabel) {
+    displayLabel = LABEL_MAPPINGS[normalizedStatus] || (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase());
+  }
   
   return (
     <span 

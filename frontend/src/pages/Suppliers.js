@@ -213,48 +213,37 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f6f8f8]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Page Header - Pattern D */}
+    <div className="min-h-screen bg-gray-50" data-testid="suppliers-page">
+      {/* Page Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-gray-900">Suppliers</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Suppliers</h1>
             <span className="text-gray-300">·</span>
             <span className="text-sm text-gray-500">
               {suppliers.length} suppliers · {suppliers.filter(s => (s.outstanding || 0) > 0).length} with outstanding
             </span>
           </div>
-          <button 
+          <Button 
             onClick={() => { resetForm(); setShowDialog(true); }}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2"
-            style={{ backgroundColor: '#13ecda' }}
             data-testid="add-supplier-btn"
+            className="bg-teal-500 hover:bg-teal-600 text-white"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-2" />
             Add Supplier
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Toolbar - Pattern A filter bar */}
+      {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-        {/* Search */}
-        <div className="relative">
-          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="4.5" cy="4.5" r="3.2"></circle>
-            <path d="M7 7l2.5 2.5"></path>
-          </svg>
-          <input 
-            type="text"
-            placeholder="Name, phone, GSTIN…"
-            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            data-testid="supplier-search"
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onChange={handleSearchChange}
+          placeholder="Name, phone, GSTIN..."
+          className="w-64"
+        />
 
-        {/* Date range */}
         <DateRangePicker
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
@@ -280,21 +269,21 @@ export default function Suppliers() {
       </div>
 
       {/* Main Content - Split view */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
         {/* Left: List */}
-        <div className={`overflow-auto ${selectedSupplier ? 'w-1/2 border-r border-gray-200' : 'w-full'} p-4`}>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className={`overflow-auto ${selectedSupplier ? 'w-1/2 border-r border-gray-200' : 'w-full'} p-6`}>
+          <DataCard>
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Supplier</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">GSTIN</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Outstanding</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Supplier</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Contact</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GSTIN</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Outstanding</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y">
                 {loading ? (
                   <tr>
                     <td colSpan="5" className="px-4 py-12 text-center text-gray-400">Loading...</td>
@@ -359,7 +348,7 @@ export default function Suppliers() {
                 )}
               </tbody>
             </table>
-          </div>
+          </DataCard>
         </div>
 
         {/* Right: Detail Panel - Pattern D */}

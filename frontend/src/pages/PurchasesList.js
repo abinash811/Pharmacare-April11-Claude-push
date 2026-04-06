@@ -213,19 +213,20 @@ export default function PurchasesList() {
 
   const getPaymentBadge = (paymentStatus, purchaseOn, purchase) => {
     if (purchase?.status === 'draft') {
-      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Parked', clickable: false };
+      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Parked', clickable: false, status: 'parked' };
     }
     if (paymentStatus === 'paid') {
-      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid', clickable: false };
+      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid', clickable: false, status: 'paid' };
     }
     if (paymentStatus === 'partial') {
-      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Partial', clickable: true };
+      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Partial', clickable: true, status: 'partial' };
     }
     // unpaid
     if (purchaseOn === 'cash') {
-      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash', clickable: false };
+      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash', clickable: false, status: 'cash' };
     }
-    return { bg: 'bg-red-100', text: 'text-red-700', label: 'Due', clickable: true };
+    // Due badge - amber/orange to match warning convention
+    return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Due', clickable: true, status: 'due' };
   };
 
   const openPayModal = (purchase) => {
@@ -448,16 +449,14 @@ export default function PurchasesList() {
                           >
                             <Eye className="w-4 h-4 text-blue-600" />
                           </Button>
-                          {isParked && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              className="p-1.5 h-auto hover:bg-gray-100"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }}
-                            >
-                              <Edit className="w-4 h-4 text-gray-600" />
-                            </Button>
-                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="p-1.5 h-auto hover:bg-gray-100"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }}
+                          >
+                            <Edit className="w-4 h-4 text-gray-600" />
+                          </Button>
                         </div>
                       </td>
                     </tr>

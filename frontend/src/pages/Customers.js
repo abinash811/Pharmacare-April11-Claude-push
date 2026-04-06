@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Plus, Search, Edit, Trash2, Eye, Phone, Mail, MapPin, User, 
+  Plus, Edit, Trash2, Eye, Phone, Mail, MapPin, User, 
   Stethoscope, CreditCard, ShoppingBag, X, AlertCircle, FileSpreadsheet, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
+import { SearchInput } from '@/components/shared';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -276,15 +277,12 @@ export default function Customers() {
             </TabsTrigger>
           </TabsList>
 
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-9 w-full"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Search..."
+            className="w-64"
+          />
         </div>
 
         {/* Customers Tab */}
@@ -305,7 +303,11 @@ export default function Customers() {
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               Export Excel
             </Button>
-            <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} data-testid="add-customer-btn">
+            <Button 
+              onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} 
+              data-testid="add-customer-btn"
+              className="bg-teal-500 hover:bg-teal-600 text-white"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
@@ -390,7 +392,11 @@ export default function Customers() {
         {/* Doctors Tab */}
         <TabsContent value="doctors">
           <div className="mb-4 flex justify-end">
-            <Button onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} data-testid="add-doctor-btn">
+            <Button 
+              onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} 
+              data-testid="add-doctor-btn"
+              className="bg-teal-500 hover:bg-teal-600 text-white"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Doctor
             </Button>

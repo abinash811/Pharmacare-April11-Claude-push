@@ -29,6 +29,13 @@ export default function PurchaseDetail() {
     fetchPurchase();
   }, [id]);
 
+  // Redirect draft purchases to edit mode (after data is loaded)
+  useEffect(() => {
+    if (!loading && purchase && purchase.status === 'draft') {
+      navigate(`/purchases/edit/${id}?type=purchase`, { replace: true });
+    }
+  }, [loading, purchase, id, navigate]);
+
   const fetchPurchase = async () => {
     const token = localStorage.getItem('token');
     setLoading(true);
@@ -161,10 +168,13 @@ export default function PurchaseDetail() {
     );
   }
 
-  // For draft purchases, redirect to edit mode
+  // Draft purchases are redirected via useEffect above - show loading while redirect happens
   if (isParked) {
-    navigate(`/purchases/edit/${id}?type=purchase`);
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f6f8f8]">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
   }
 
   return (

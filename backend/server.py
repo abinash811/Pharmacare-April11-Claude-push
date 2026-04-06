@@ -2085,17 +2085,29 @@ async def get_inventory_with_health(
     # Get all products (for severity calculation)
     products = await db.products.find(query, {"_id": 0}).to_list(10000)
     
+    # Fetch all batches for all products in ONE query (N+1 optimization)
+    product_skus = [p['sku'] for p in products]
+    all_batches = await db.stock_batches.find(
+        {"product_sku": {"$in": product_skus}}, 
+        {"_id": 0}
+    ).to_list(100000)
+    
+    # Group batches by product_sku for O(1) lookup
+    batches_by_sku = {}
+    for batch in all_batches:
+        sku = batch.get('product_sku')
+        if sku not in batches_by_sku:
+            batches_by_sku[sku] = []
+        batches_by_sku[sku].append(batch)
+    
     # Calculate inventory health for each product
     inventory_items = []
     today = datetime.now(timezone.utc)
     near_expiry_threshold = today + timedelta(days=near_expiry_days)
     
     for product in products:
-        # Get all batches for this product
-        batches = await db.stock_batches.find(
-            {"product_sku": product['sku']}, 
-            {"_id": 0}
-        ).to_list(1000)
+        # Get all batches for this product from pre-fetched data
+        batches = batches_by_sku.get(product['sku'], [])
         
         if not batches:
             # Out of stock

@@ -18,6 +18,8 @@ The `/app/frontend/src/pages/Customers.js` file is the official design reference
 4. All new pages must match the Customers page design.
 5. No hardcoded or dummy data anywhere.
 6. Never show NaN — handle null/undefined values with fallbacks.
+7. Do NOT rewrite files — use search_replace for edits.
+8. Do NOT add new libraries without explicit approval.
 
 ---
 
@@ -35,10 +37,11 @@ The `/app/frontend/src/pages/Customers.js` file is the official design reference
 - Muted: `text-gray-500` (#6b7280) — subtitles, secondary text
 - Light: `text-gray-400` (#9ca3af) — icons, placeholders
 
-## Semantic Colors
+## Semantic Colors (UPDATED)
 - Success/Paid/Cash: `bg-green-100 text-green-700`
-- Error/Due/Cancelled: `bg-red-100 text-red-700`
-- Warning/Parked/Pending: `bg-amber-100 text-amber-700`
+- Warning/Due/Unpaid: `bg-amber-100 text-amber-700` (changed from red)
+- Error/Overdue/Cancelled: `bg-red-100 text-red-700`
+- Pending/Parked/Draft: `bg-amber-100 text-amber-700`
 - Info/UPI: `bg-blue-100 text-blue-700`
 - Credit/Card: `bg-purple-100 text-purple-700`
 
@@ -46,6 +49,13 @@ The `/app/frontend/src/pages/Customers.js` file is the official design reference
 - View: `text-blue-600` on `hover:bg-blue-50`
 - Edit: `text-gray-600` on `hover:bg-gray-100`
 - Delete: `text-red-600` on `hover:bg-red-50`
+- Print: `text-gray-600` on `hover:bg-gray-100`
+- WhatsApp: `text-green-600` on `hover:bg-green-50`
+
+## Buttons
+- Primary (Add): `bg-teal-500 hover:bg-teal-600 text-white`
+- Secondary: Shadcn `variant="outline"`
+- Ghost: Shadcn `variant="ghost" size="sm"`
 
 ---
 
@@ -72,32 +82,38 @@ import {
   TableActions, 
   SearchInput, 
   StatusBadge,
-  DateRangePicker 
+  CustomerTypeBadge,
+  PaymentStatusBadge,
+  DateRangePicker,
+  getFinancialYearRange
 } from '@/components/shared';
 ```
 
 ## Components
 
-| Component | Purpose |
-|-----------|---------|
-| `PageHeader` | Title + subtitle + action buttons |
-| `DataCard` | White card wrapper for tables |
-| `TableActions` | View/Edit/Delete icon buttons |
-| `SearchInput` | Search with icon |
-| `StatusBadge` | Colored status pills |
-| `DateRangePicker` | Date range with FY default |
+| Component | Purpose | Key Props |
+|-----------|---------|-----------|
+| `PageHeader` | Title + subtitle + action buttons | title, subtitle, actions, className |
+| `DataCard` | White card wrapper for tables | children, noPadding (default: true), className |
+| `TableActions` | View/Edit/Delete icon buttons | onView, onEdit, onDelete, className |
+| `SearchInput` | Search with icon | value, onChange (receives string), placeholder, className |
+| `StatusBadge` | Colored status pills | status, label, fallback, className |
+| `CustomerTypeBadge` | Customer type badge | type (defaults to "Regular") |
+| `PaymentStatusBadge` | Payment status badge | status, paymentMethod |
+| `DateRangePicker` | Date range with FY default | dateRange, onDateRangeChange, className |
+| `getFinancialYearRange` | Utility function | Returns { start, end } for current FY |
 
 ---
 
-# PAGE LAYOUT PATTERN
+# PAGE LAYOUT PATTERNS
 
+## Pattern A: List Pages
 ```
 ┌─────────────────────────────────────────┐
-│ PageHeader (title + subtitle)           │
+│ PageHeader (title + subtitle + actions) │
 ├─────────────────────────────────────────┤
-│ Tabs | Search                           │
-├─────────────────────────────────────────┤
-│ Action buttons (Export | Add)           │
+│ Filters Row                             │
+│ [Search] [DatePicker] [Pills]   [Stats] │
 ├─────────────────────────────────────────┤
 │                                         │
 │  DataCard                               │
@@ -109,6 +125,25 @@ import {
 │  │ Row 2                            │   │
 │  └─────────────────────────────────┘   │
 │                                         │
+└─────────────────────────────────────────┘
+```
+
+## Pattern B/C: Detail and Create Pages
+```
+┌─────────────────────────────────────────┐
+│ Header Bar (white bg, border-b)         │
+├─────────────────────────────────────────┤
+│                                         │
+│  bg-gray-50 padding                     │
+│  ┌─────────────────────────────────┐   │
+│  │ White card section 1             │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ White card section 2 (table)     │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│ Footer Bar (white bg, totals)           │
 └─────────────────────────────────────────┘
 ```
 
@@ -157,7 +192,7 @@ import {
       
       <DialogFooter>
         <Button variant="outline">Cancel</Button>
-        <Button type="submit">Save</Button>
+        <Button type="submit" className="bg-teal-500 hover:bg-teal-600 text-white">Save</Button>
       </DialogFooter>
     </form>
   </DialogContent>
@@ -170,25 +205,54 @@ import {
 
 | Type | Component |
 |------|-----------|
-| Primary | `<Button>` (Shadcn default) |
+| Primary (Add) | `<Button className="bg-teal-500 hover:bg-teal-600 text-white">` |
 | Secondary | `<Button variant="outline">` |
 | Ghost | `<Button variant="ghost" size="sm">` |
 | Icon only | `<Button variant="ghost" size="sm" className="p-1.5 h-auto">` |
 
 ---
 
-# STATUS BADGE MAPPINGS
+# STATUS BADGE MAPPINGS (CURRENT)
 
-| Status | Style |
-|--------|-------|
-| paid, cash, active, completed, confirmed | Green |
-| due, unpaid, overdue, cancelled, inactive | Red |
-| partial, parked, pending, draft | Amber |
-| upi | Blue |
-| credit, card, adjusted | Purple |
-| regular (customer) | Blue |
-| wholesale (customer) | Purple |
-| institution (customer) | Green |
+| Status | Style | Notes |
+|--------|-------|-------|
+| paid, cash, active, completed, confirmed | Green | Success |
+| due, unpaid | Amber | Warning (changed from red) |
+| overdue, cancelled, inactive | Red | Error |
+| partial, parked, pending, draft | Amber | Pending |
+| upi | Blue | Payment method |
+| credit, card, adjusted, credit_to_account | Purple | Credit |
+| same_as_original | Gray | Neutral |
+| regular (customer) | Blue | Customer type |
+| wholesale (customer) | Purple | Customer type |
+| institution (customer) | Green | Customer type |
+
+## Label Auto-Formatting
+StatusBadge automatically converts database snake_case to readable labels:
+| Database Value | Displayed As |
+|----------------|--------------|
+| `same_as_original` | "Same as Original" |
+| `credit_to_account` | "Credit to Account" |
+| `adjust_outstanding` | "Adjusted" |
+
+---
+
+# SPECIAL ACTIONS
+
+## WhatsApp Send (Billing)
+In BillingOperations.js, the third action icon is WhatsApp for sending bills:
+```jsx
+const WhatsAppIcon = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    {/* WhatsApp logo path */}
+  </svg>
+);
+
+// Usage
+<Button variant="ghost" size="sm" title="Send via WhatsApp">
+  <WhatsAppIcon className="w-4 h-4 text-green-600" />
+</Button>
+```
 
 ---
 
@@ -197,6 +261,26 @@ import {
 Default date range: 01 April to 31 March
 - If month >= April (3): FY starts current year
 - If month < April (0-2): FY started previous year
+
+```javascript
+import { getFinancialYearRange } from '@/components/shared';
+
+const fyRange = getFinancialYearRange();
+// { start: Date, end: Date }
+```
+
+---
+
+# NUMBER FORMATTING
+
+Use Indian locale for currency:
+```javascript
+amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })
+// 1,23,456.00
+
+`₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+// ₹1,23,456.00
+```
 
 ---
 
@@ -217,7 +301,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { PageHeader, DataCard, TableActions, SearchInput, StatusBadge, DateRangePicker } from '@/components/shared';
 
 // Icons
-import { Plus, Eye, Edit, Trash2, Search, FileSpreadsheet } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Search, FileSpreadsheet, Printer } from 'lucide-react';
 
 // Toast
 import { toast } from 'sonner';
@@ -228,6 +312,22 @@ import { toast } from 'sonner';
 # SIDEBAR NAVIGATION ORDER
 
 Dashboard → Billing → Inventory → Purchases → Customers → Suppliers → Reports → GST Report → Settings → Users → Roles
+
+---
+
+# WORKFLOW CHECKLIST
+
+## Before Coding
+- [ ] Read PHARMACARE_RULES.md
+- [ ] Read PHARMACARE_DESIGN_SYSTEM.md
+- [ ] Check if shared component exists
+- [ ] Match Customers page design
+
+## After Coding
+- [ ] List every file changed
+- [ ] List every file NOT touched
+- [ ] Confirm zero functionality broken
+- [ ] Take screenshots for visual changes
 
 ---
 

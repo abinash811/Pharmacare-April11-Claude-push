@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { DateRangePicker } from '../components/shared/DateRangePicker';
+import { Button } from '@/components/ui/button';
+import { Plus, Printer, Eye, Edit, MessageCircle } from 'lucide-react';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -149,26 +151,6 @@ export default function BillingOperations() {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
-  const getPaymentBadge = (method, status) => {
-    if (status === 'parked') {
-      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Parked' };
-    }
-    if (status === 'due') {
-      return { bg: 'bg-red-100', text: 'text-red-700', label: 'Due' };
-    }
-    switch (method?.toLowerCase()) {
-      case 'upi':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'UPI' };
-      case 'card':
-      case 'cc/dc':
-        return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Card' };
-      case 'credit':
-        return { bg: 'bg-red-100', text: 'text-red-700', label: 'Credit' };
-      default:
-        return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash' };
-    }
-  };
-
   const handlePrint = (e, bill) => {
     e.stopPropagation();
     toast.info(`Printing bill #${bill.bill_number}...`);
@@ -186,175 +168,145 @@ export default function BillingOperations() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f6f8f8]" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-gray-50 p-6" data-testid="billing-operations-page">
       {/* Page Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-gray-900">Sales & Billing</h1>
-            <span className="text-gray-300">·</span>
-            <span className="text-sm text-gray-500">
-              Today ₹{stats.totalAmountToday.toFixed(2)} · {stats.billsToday} bills
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
+      <PageHeader
+        title="Sales & Billing"
+        subtitle={`Today ₹${stats.totalAmountToday.toFixed(2)} · ${stats.billsToday} bills`}
+        actions={
+          <>
+            <Button 
+              variant="outline"
               onClick={() => navigate('/billing/returns')}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               data-testid="sales-return-btn"
             >
-              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M2 5.5h7M5.5 2v7"></path>
-              </svg>
-              Sales Return
-            </button>
-            <button 
+              Sales Returns
+            </Button>
+            <Button 
               onClick={() => navigate('/billing/new')}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2"
-              style={{ backgroundColor: '#13ecda' }}
               data-testid="new-bill-btn"
             >
-              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M5.5 1v9M1 5.5h9"></path>
-              </svg>
+              <Plus className="w-4 h-4 mr-2" />
               New Bill
-            </button>
+            </Button>
+          </>
+        }
+      />
+
+      {/* Filters Row */}
+      <div className="flex justify-between items-center gap-4 mb-4">
+        <div className="flex items-center gap-4">
+          {/* Search */}
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Bill no., patient..."
+            className="w-64"
+          />
+
+          {/* Date range picker */}
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+
+          {/* Filter pills */}
+          <div className="flex items-center gap-1">
+            {['all', 'cash', 'upi', 'due', 'parked'].map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+                  activeFilter === filter
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                data-testid={`filter-${filter}`}
+              >
+                {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-        {/* Search by bill number */}
-        <div className="relative">
-          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="4.5" cy="4.5" r="3.2"></circle>
-            <path d="M7 7l2.5 2.5"></path>
-          </svg>
-          <input 
-            type="text"
-            placeholder="Bill no., patient…"
-            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            data-testid="search-bill"
-          />
-        </div>
-
-        {/* Date range picker */}
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
-
-        {/* Search by name/mobile */}
-        <div className="relative">
-          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="4.5" cy="4.5" r="3.2"></circle>
-            <path d="M7 7l2.5 2.5"></path>
-          </svg>
-          <input 
-            type="text"
-            placeholder="Name / mobile…"
-            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            data-testid="search-patient"
-          />
-        </div>
-
-        {/* Filter pills */}
-        <div className="flex items-center gap-1 ml-4">
-          {['all', 'cash', 'upi', 'due', 'parked'].map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                activeFilter === filter
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              data-testid={`filter-${filter}`}
-            >
-              {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </button>
-          ))}
+        {/* Stats Summary */}
+        <div className="flex items-center gap-4 text-sm text-gray-600">
+          <span>Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span></span>
+          <span className="text-gray-300">·</span>
+          <span>Due <span className="font-bold text-red-600">{stats.pendingDueCount}</span></span>
         </div>
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+      <DataCard>
+        <div className="overflow-x-auto">
+          <table className="w-full" data-testid="billing-table">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '76px' }}>Bill no.</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '160px' }}>Patient</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '150px' }}>Entry date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '90px' }}>Bill date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '88px' }}>Billed by</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '120px' }}>Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '88px' }}>Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '68px' }}></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill No.</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Patient</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Billed By</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                     Loading...
                   </td>
                 </tr>
               ) : filteredBills.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                     No bills found
                   </td>
                 </tr>
               ) : (
                 filteredBills.map((bill) => {
-                  const payment = getPaymentBadge(bill.payment_method, bill.status);
-                  const isParked = bill.status === 'parked';
+                  const isParked = bill.status === 'parked' || bill.status === 'draft' || bill.bill_number?.toLowerCase().includes('draft');
                   const isDue = bill.status === 'due';
-                  
-                  // Check if bill is parked (status or bill_number contains 'Draft')
-                  const isActuallyParked = isParked || bill.bill_number?.toLowerCase().includes('draft');
                   
                   return (
                     <tr 
                       key={bill.id}
-                      className="group hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => navigate(`/billing/${bill.id}`)}
                       data-testid={`bill-row-${bill.id}`}
                     >
-                      {/* Bill number - teal monospace for paid, amber label for parked */}
+                      {/* Bill number */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {isActuallyParked ? (
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded">
-                              Parked
-                            </span>
+                          {isParked ? (
+                            <StatusBadge status="parked" />
                           ) : (
-                            <span className="font-mono text-sm font-semibold" style={{ color: '#0d9488' }}>
+                            <span className="font-mono text-sm font-semibold text-blue-600">
                               #{bill.bill_number?.replace(/^#/, '') || bill.id?.slice(-4)}
                             </span>
                           )}
                           {bill.returns && bill.returns.length > 0 && (
-                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] font-semibold rounded">
-                              Returned
-                            </span>
+                            <StatusBadge status="adjusted" label="Ret" />
                           )}
                         </div>
                       </td>
                       
                       {/* Patient */}
                       <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">{bill.customer_name || 'Counter Sale'}</div>
-                        <div className="text-xs text-gray-400">{bill.customer_mobile || ''}</div>
+                        <div className="font-medium text-gray-800">{bill.customer_name || 'Counter Sale'}</div>
+                        {bill.customer_mobile && (
+                          <div className="text-xs text-gray-500">{bill.customer_mobile}</div>
+                        )}
                       </td>
                       
                       {/* Entry date */}
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-700">{formatDate(bill.created_at)}</div>
-                        <div className="text-xs text-gray-400">{formatTime(bill.created_at)}</div>
+                        <div className="text-xs text-gray-500">{formatTime(bill.created_at)}</div>
                       </td>
                       
                       {/* Bill date */}
@@ -369,53 +321,49 @@ export default function BillingOperations() {
                       
                       {/* Amount */}
                       <td className="px-4 py-3 text-right">
-                        <span className={`text-sm font-semibold ${isDue ? 'text-red-600' : 'text-gray-900'}`}>
+                        <span className={`font-medium ${isDue ? 'text-red-600' : 'text-gray-800'}`}>
                           ₹{(bill.total_amount || bill.grand_total || 0).toFixed(2)}
                         </span>
-                        {isDue && (
-                          <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded">
-                            Due
-                          </span>
-                        )}
                       </td>
                       
                       {/* Payment badge */}
-                      <td className="px-4 py-3">
-                        {isActuallyParked ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                            Parked
-                          </span>
+                      <td className="px-4 py-3 text-center">
+                        {isParked ? (
+                          <StatusBadge status="parked" />
+                        ) : isDue ? (
+                          <StatusBadge status="due" />
                         ) : (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${payment.bg} ${payment.text}`}>
-                            {payment.label}
-                          </span>
+                          <StatusBadge status={bill.payment_method || 'cash'} />
                         )}
                       </td>
                       
-                      {/* Actions - visible on hover */}
+                      {/* Actions */}
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="p-1.5 h-auto hover:bg-blue-50"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/billing/${bill.id}`); }}
+                          >
+                            <Eye className="w-4 h-4 text-blue-600" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="p-1.5 h-auto hover:bg-gray-100"
                             onClick={(e) => handlePrint(e, bill)}
-                            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-                            title="Print"
-                            data-testid={`print-${bill.id}`}
                           >
-                            <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                              <rect x="1.5" y="4.5" width="8" height="5" rx="1"></rect>
-                              <path d="M3.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M3.5 7.5h4"></path>
-                            </svg>
-                          </button>
-                          <button
+                            <Printer className="w-4 h-4 text-gray-600" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="p-1.5 h-auto hover:bg-green-50"
                             onClick={(e) => handleWhatsApp(e, bill)}
-                            className="p-1.5 hover:bg-green-50 rounded text-green-600 hover:text-green-700"
-                            title="WhatsApp"
-                            data-testid={`whatsapp-${bill.id}`}
                           >
-                            <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                              <path d="M5.5 1C3 1 1 3 1 5.5c0 .85.23 1.64.64 2.32L1 10l2.25-.63C3.9 9.74 4.68 10 5.5 10 8 10 10 8 10 5.5S8 1 5.5 1z"></path>
-                            </svg>
-                          </button>
+                            <MessageCircle className="w-4 h-4 text-green-600" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -425,27 +373,7 @@ export default function BillingOperations() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Footer Stats */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0 overflow-x-auto">
-        <div className="flex items-center gap-4 shrink-0">
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Bills today <span className="font-bold text-gray-900">{stats.billsToday}</span>
-          </span>
-          <span className="text-gray-300">·</span>
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span>
-          </span>
-          <span className="text-gray-300">·</span>
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Pending due <span className="font-bold text-red-600">{stats.pendingDueCount}</span>
-          </span>
-        </div>
-        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
-          Total amount: <span className="font-bold text-gray-900 text-base">₹{stats.totalAmountToday.toFixed(2)}</span>
-        </div>
-      </div>
+      </DataCard>
     </div>
   );
 }

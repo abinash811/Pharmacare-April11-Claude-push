@@ -1,0 +1,9 @@
+// Shared Components - PharmaCare Design System
+// Import from: @/components/shared
+
+export { DateRangePicker, getFinancialYearRange } from './DateRangePicker';
+export { PageHeader } from './PageHeader';
+export { DataCard } from './DataCard';
+export { TableActions } from './TableActions';
+export { SearchInput } from './SearchInput';
+export { StatusBadge, CustomerTypeBadge, PaymentStatusBadge } from './StatusBadge';

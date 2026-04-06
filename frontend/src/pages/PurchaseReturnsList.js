@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { DateRangePicker } from '../components/shared/DateRangePicker';
+import { Plus, Printer, Eye, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -120,230 +122,178 @@ export default function PurchaseReturnsList() {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
-  const getPaymentBadge = (paymentType) => {
-    switch (paymentType?.toLowerCase()) {
-      case 'upi':
-        return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'UPI' };
-      case 'cash':
-        return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash' };
-      case 'adjust_outstanding':
-        return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Adjusted' };
-      default:
-        return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Credit' };
-    }
-  };
-
   const handlePrint = (e, ret) => {
     e.stopPropagation();
     toast.info(`Printing return #${ret.return_number}...`);
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f6f8f8]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Page Header - Pattern A */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-gray-900">Purchase Returns</h1>
-            <span className="text-gray-300">·</span>
-            <span className="text-sm text-gray-500">
-              Today ₹{stats.totalReturnedToday.toFixed(2)} · {stats.returnsToday} returns
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
+    <div className="min-h-screen bg-gray-50 p-6" data-testid="purchase-returns-page">
+      {/* Page Header */}
+      <PageHeader
+        title="Purchase Returns"
+        subtitle={`Today ₹${stats.totalReturnedToday.toFixed(2)} · ${stats.returnsToday} returns`}
+        actions={
+          <>
+            <Button 
+              variant="outline"
               onClick={() => navigate('/purchases')}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               data-testid="back-to-purchases-btn"
             >
-              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M7 2L3 5.5L7 9"></path>
-              </svg>
+              <ArrowLeft className="w-4 h-4 mr-2" />
               Purchases
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={() => toast.info('Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return')}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2"
-              style={{ backgroundColor: '#13ecda' }}
               data-testid="new-return-btn"
             >
-              <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M5.5 1v9M1 5.5h9"></path>
-              </svg>
+              <Plus className="w-4 h-4 mr-2" />
               Purchase Return
-            </button>
+            </Button>
+          </>
+        }
+      />
+
+      {/* Filters Row */}
+      <div className="flex justify-between items-center gap-4 mb-4">
+        <div className="flex items-center gap-4">
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Return no., supplier..."
+            className="w-64"
+          />
+
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+
+          {/* Filter pills */}
+          <div className="flex items-center gap-1">
+            {['all', 'credit', 'cash', 'upi'].map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+                  activeFilter === filter
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                data-testid={`filter-${filter}`}
+              >
+                {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Toolbar - Pattern A */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-        {/* Search */}
-        <div className="relative">
-          <svg viewBox="0 0 11 11" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <circle cx="4.5" cy="4.5" r="3.2"></circle>
-            <path d="M7 7l2.5 2.5"></path>
-          </svg>
-          <input 
-            type="text"
-            placeholder="Return no., supplier…"
-            className="pl-9 pr-4 py-2 w-48 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            data-testid="search-return"
-          />
-        </div>
-
-        {/* Date range picker */}
-        <DateRangePicker
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
-
-        {/* Filter pills */}
-        <div className="flex items-center gap-1 ml-4">
-          {['all', 'credit', 'cash', 'upi'].map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                activeFilter === filter
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              data-testid={`filter-${filter}`}
-            >
-              {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table - Pattern A */}
-      <div className="flex-1 overflow-auto px-6 py-4 min-h-0">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+      {/* Table */}
+      <DataCard>
+        <div className="overflow-x-auto">
+          <table className="w-full" data-testid="purchase-returns-table">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '120px' }}>Return No.</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '120px' }}>Original Purchase</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '180px' }}>Supplier</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '150px' }}>Entry Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '100px' }}>Return Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '100px' }}>Entry By</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '120px' }}>Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '90px' }}>Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide" style={{ width: '60px' }}></th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Return No.</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Original Purchase</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Supplier</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Return Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry By</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                     Loading...
                   </td>
                 </tr>
               ) : filteredReturns.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                     No purchase returns found
                   </td>
                 </tr>
               ) : (
-                filteredReturns.map((ret) => {
-                  const payment = getPaymentBadge(ret.payment_type);
-                  
-                  return (
-                    <tr 
-                      key={ret.id}
-                      className="group hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate(`/purchases/returns/${ret.id}`)}
-                      data-testid={`return-row-${ret.id}`}
-                    >
-                      {/* Return number - teal monospace */}
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-sm font-semibold" style={{ color: '#0C7A6B' }}>
-                          {ret.return_number}
-                        </span>
-                      </td>
-                      
-                      {/* Original Purchase */}
-                      <td className="px-4 py-3">
-                        <span className="font-mono text-sm" style={{ color: '#0C7A6B' }}>
-                          {ret.purchase_number || '—'}
-                        </span>
-                      </td>
-                      
-                      {/* Supplier */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">{ret.supplier_name || '—'}</div>
-                      </td>
-                      
-                      {/* Entry date */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{formatDate(ret.created_at)}</div>
-                        <div className="text-xs text-gray-400">{formatTime(ret.created_at)}</div>
-                      </td>
-                      
-                      {/* Return date */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{formatDate(ret.return_date)}</div>
-                      </td>
-                      
-                      {/* Entry by */}
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{ret.billed_by || 'Owner'}</div>
-                      </td>
-                      
-                      {/* Amount - red */}
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-sm font-semibold font-mono" style={{ color: '#CC2F2F' }}>
-                          ₹{(ret.total_value || 0).toFixed(2)}
-                        </span>
-                      </td>
-                      
-                      {/* Payment badge */}
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${payment.bg} ${payment.text}`}>
-                          {payment.label}
-                        </span>
-                      </td>
-                      
-                      {/* Actions - visible on hover */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => handlePrint(e, ret)}
-                            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-                            title="Print"
-                          >
-                            <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                              <rect x="1.5" y="4.5" width="8" height="5" rx="1"></rect>
-                              <path d="M3.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M3.5 7.5h4"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                filteredReturns.map((ret) => (
+                  <tr 
+                    key={ret.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => navigate(`/purchases/returns/${ret.id}`)}
+                    data-testid={`return-row-${ret.id}`}
+                  >
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-sm font-semibold text-blue-600">
+                        {ret.return_number}
+                      </span>
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-sm text-gray-700">
+                        {ret.purchase_number || '—'}
+                      </span>
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-800">{ret.supplier_name || '—'}</div>
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-700">{formatDate(ret.created_at)}</div>
+                      <div className="text-xs text-gray-500">{formatTime(ret.created_at)}</div>
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-700">{formatDate(ret.return_date)}</div>
+                    </td>
+                    
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-700">{ret.billed_by || 'Owner'}</div>
+                    </td>
+                    
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-medium text-red-600">
+                        -₹{(ret.total_value || 0).toFixed(2)}
+                      </span>
+                    </td>
+                    
+                    <td className="px-4 py-3 text-center">
+                      <StatusBadge status={ret.payment_type || 'credit'} />
+                    </td>
+                    
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="p-1.5 h-auto hover:bg-blue-50"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/purchases/returns/${ret.id}`); }}
+                        >
+                          <Eye className="w-4 h-4 text-blue-600" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="p-1.5 h-auto hover:bg-gray-100"
+                          onClick={(e) => handlePrint(e, ret)}
+                        >
+                          <Printer className="w-4 h-4 text-gray-600" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Footer Stats - Pattern A */}
-      <div className="bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between shrink-0 min-w-0 overflow-x-auto">
-        <div className="flex items-center gap-4 shrink-0">
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            Returns today <span className="font-bold text-gray-900">{stats.returnsToday}</span>
-          </span>
-        </div>
-        <div className="text-sm text-gray-600 whitespace-nowrap shrink-0 ml-4">
-          Total returned: <span className="font-bold text-base" style={{ color: '#CC2F2F' }}>₹{stats.totalReturnedToday.toFixed(2)}</span>
-        </div>
-      </div>
+      </DataCard>
     </div>
   );
 }

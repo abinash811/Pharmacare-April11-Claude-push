@@ -237,9 +237,12 @@ export default function Customers() {
       wholesale: 'bg-purple-100 text-purple-700',
       institution: 'bg-green-100 text-green-700'
     };
+    // Fix NaN bug: default to 'regular' if type is null/undefined/empty
+    const safeType = type && typeof type === 'string' && type.trim() ? type.toLowerCase() : 'regular';
+    const displayType = safeType.charAt(0).toUpperCase() + safeType.slice(1);
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[type] || styles.regular}`}>
-        {type?.charAt(0).toUpperCase() + type?.slice(1)}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[safeType] || styles.regular}`}>
+        {displayType}
       </span>
     );
   };

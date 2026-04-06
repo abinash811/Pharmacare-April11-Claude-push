@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit, X, Phone, Mail, MapPin, Building2, FileText, CreditCard, Banknote } from 'lucide-react';
+import { Plus, Edit, X, Phone, Mail, MapPin, Building2, FileText, CreditCard, Banknote, Eye, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DateRangePicker } from '../components/shared/DateRangePicker';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 

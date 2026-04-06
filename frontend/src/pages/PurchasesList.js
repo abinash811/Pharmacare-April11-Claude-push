@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, PurchasesEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -367,8 +367,16 @@ export default function PurchasesList() {
                 </tr>
               ) : displayData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
-                    No {activeTab === 'purchases' ? 'purchases' : 'returns'} found
+                  <td colSpan="9" className="p-0">
+                    <PurchasesEmptyState 
+                      filtered={searchQuery || startDate || endDate}
+                      action={
+                        <Button onClick={() => navigate('/purchases/create')} data-testid="empty-new-purchase-btn">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Purchase
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (

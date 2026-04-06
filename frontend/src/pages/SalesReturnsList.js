@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, PageSkeleton } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, PageSkeleton, SalesReturnsEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -201,8 +201,16 @@ export default function SalesReturnsList() {
             <tbody className="divide-y">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
-                    No sales returns found
+                  <td colSpan="9" className="p-0">
+                    <SalesReturnsEmptyState 
+                      filtered={searchQuery || startDate || endDate}
+                      action={
+                        <Button onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Sales Return
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (

@@ -14,7 +14,8 @@ import {
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
-import { SearchInput, PageSkeleton } from '@/components/shared';
+import { SearchInput, PageSkeleton, CustomersEmptyState } from '@/components/shared';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -324,9 +325,16 @@ export default function Customers() {
                   <tbody className="divide-y">
                     {filteredCustomers.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                          <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p>{searchQuery ? 'No customers match your search' : 'No customers found'}</p>
+                        <td colSpan="5" className="p-0">
+                          <CustomersEmptyState 
+                            filtered={!!searchQuery}
+                            action={
+                              <Button onClick={() => { resetCustomerForm(); setShowCustomerDialog(true); }} data-testid="empty-add-customer-btn">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Customer
+                              </Button>
+                            }
+                          />
                         </td>
                       </tr>
                     ) : (
@@ -411,9 +419,18 @@ export default function Customers() {
                   <tbody className="divide-y">
                     {filteredDoctors.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
-                          <Stethoscope className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p>{searchQuery ? 'No doctors match your search' : 'No doctors found'}</p>
+                        <td colSpan="4" className="p-0">
+                          <EmptyState
+                            icon={Stethoscope}
+                            title={searchQuery ? 'No doctors match your search' : 'No doctors yet'}
+                            description={searchQuery ? 'Try a different search term' : 'Add referring doctors to track referrals'}
+                            action={
+                              <Button onClick={() => { resetDoctorForm(); setShowDoctorDialog(true); }} data-testid="empty-add-doctor-btn">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Add Doctor
+                              </Button>
+                            }
+                          />
                         </td>
                       </tr>
                     ) : (

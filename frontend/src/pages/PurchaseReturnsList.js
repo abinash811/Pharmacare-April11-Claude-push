@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, PurchaseReturnsEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -215,8 +215,16 @@ export default function PurchaseReturnsList() {
                 </tr>
               ) : filteredReturns.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
-                    No purchase returns found
+                  <td colSpan="9" className="p-0">
+                    <PurchaseReturnsEmptyState 
+                      filtered={searchQuery || startDate || endDate}
+                      action={
+                        <Button onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Purchase Return
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (

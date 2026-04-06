@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, InlineLoader } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, InlineLoader, SuppliersEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -291,7 +291,17 @@ export default function Suppliers() {
                   </tr>
                 ) : filteredSuppliers.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-12 text-center text-gray-400">No suppliers found</td>
+                    <td colSpan="5" className="p-0">
+                      <SuppliersEmptyState 
+                        filtered={!!searchQuery}
+                        action={
+                          <Button onClick={() => { resetForm(); setShowDialog(true); }} data-testid="empty-add-supplier-btn">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Supplier
+                          </Button>
+                        }
+                      />
+                    </td>
                   </tr>
                 ) : (
                   filteredSuppliers.map((supplier) => {

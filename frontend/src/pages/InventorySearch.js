@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import ExcelBulkUploadWizard from '../components/ExcelBulkUploadWizard';
 import { getFromCache, setInCache } from '../utils/cache';
-import { InlineLoader } from '../components/shared';
+import { InlineLoader, InventoryEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -469,16 +469,19 @@ export default function InventorySearch() {
           </div>
         ) : inventory.length === 0 ? (
           /* No Results */
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12">
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Search className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No medicines found</h3>
-              <p className="text-gray-500 text-center max-w-md">
-                Refine search or use Add Stock to add new medicines.
-              </p>
-            </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-0">
+            <InventoryEmptyState 
+              filtered={!!searchQuery || hasActiveFilters}
+              action={
+                <button 
+                  onClick={() => setShowBulkUpload(true)}
+                  className="px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-medium hover:bg-[#3a6d96] flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Add Stock
+                </button>
+              }
+            />
           </div>
         ) : (
           /* Results Table */

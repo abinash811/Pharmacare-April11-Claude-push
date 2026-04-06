@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus, Printer, Eye, Edit } from 'lucide-react';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton } from '../components/shared';
+import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, BillingEmptyState } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -273,8 +273,16 @@ export default function BillingOperations() {
                 </tr>
               ) : filteredBills.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                    No bills found
+                  <td colSpan="8" className="p-0">
+                    <BillingEmptyState 
+                      filtered={searchQuery || startDate || endDate}
+                      action={
+                        <Button onClick={() => navigate('/billing/new')} data-testid="empty-new-bill-btn">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Bill
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ) : (

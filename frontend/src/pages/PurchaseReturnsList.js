@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { DateRangePicker } from '../components/shared/DateRangePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -15,6 +16,7 @@ export default function PurchaseReturnsList() {
 
   // Filters
   const [activeFilter, setActiveFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
 
   // Stats
   const [stats, setStats] = useState({
@@ -85,6 +87,12 @@ export default function PurchaseReturnsList() {
         if (!matchesSearch) return false;
       }
 
+      // Date range filter
+      if (dateRange.start && dateRange.end) {
+        const itemDate = new Date(item.return_date || item.created_at);
+        if (itemDate < dateRange.start || itemDate > dateRange.end) return false;
+      }
+
       if (activeFilter !== 'all') {
         if (activeFilter === 'credit' && item.payment_type !== 'credit') return false;
         if (activeFilter === 'cash' && item.payment_type !== 'cash') return false;
@@ -123,19 +131,6 @@ export default function PurchaseReturnsList() {
       default:
         return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Credit' };
     }
-  };
-
-  const getDateRangeLabel = () => {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 3, 1);
-    const endOfYear = new Date(now.getFullYear() + 1, 2, 31);
-    
-    const formatShort = (date) => {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-    };
-    
-    return `${formatShort(startOfYear)} — ${formatShort(endOfYear)}`;
   };
 
   const handlePrint = (e, ret) => {
@@ -200,13 +195,10 @@ export default function PurchaseReturnsList() {
         </div>
 
         {/* Date range picker */}
-        <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-          <svg viewBox="0 0 11 11" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <rect x=".5" y="1.5" width="10" height="9" rx="1.5"></rect>
-            <path d="M.5 5h10M3.5 0v2M7.5 0v2"></path>
-          </svg>
-          {getDateRangeLabel()}
-        </button>
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
 
         {/* Filter pills */}
         <div className="flex items-center gap-1 ml-4">

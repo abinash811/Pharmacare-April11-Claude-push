@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { Plus, Printer, Search, Calendar, ChevronDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { Calendar as CalendarComponent } from '../components/ui/calendar';
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { Plus, Printer, Search } from 'lucide-react';
+import { DateRangePicker } from '../components/shared/DateRangePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -22,7 +20,6 @@ export default function SalesReturnsList() {
   // Filters
   const [activeFilter, setActiveFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -139,41 +136,6 @@ export default function SalesReturnsList() {
     return badges[method] || { bg: 'bg-gray-100', text: 'text-gray-600', label: method || 'N/A' };
   };
 
-  const getDateRangeLabel = () => {
-    if (!dateRange.start || !dateRange.end) {
-      const now = new Date();
-      const startOfY = startOfYear(now);
-      const endOfY = endOfYear(now);
-      return `${format(startOfY, 'dd MMM yyyy')} — ${format(endOfY, 'dd MMM yyyy')}`;
-    }
-    return `${format(dateRange.start, 'dd MMM yyyy')} — ${format(dateRange.end, 'dd MMM yyyy')}`;
-  };
-
-  const setQuickDateRange = (range) => {
-    const now = new Date();
-    switch (range) {
-      case 'today':
-        setDateRange({ start: now, end: now });
-        break;
-      case 'thisMonth':
-        setDateRange({ start: startOfMonth(now), end: endOfMonth(now) });
-        break;
-      case 'lastMonth':
-        const lastMonth = subMonths(now, 1);
-        setDateRange({ start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) });
-        break;
-      case 'thisYear':
-        setDateRange({ start: startOfYear(now), end: endOfYear(now) });
-        break;
-      case 'all':
-        setDateRange({ start: null, end: null });
-        break;
-      default:
-        break;
-    }
-    setShowDatePicker(false);
-  };
-
   const filteredData = getFilteredData();
 
   if (loading) {
@@ -226,35 +188,10 @@ export default function SalesReturnsList() {
           </div>
 
           {/* Date Range Picker */}
-          <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-700">{getDateRangeLabel()}</span>
-                <ChevronDown className="w-3 h-3 text-gray-400" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="p-2 border-b">
-                <div className="grid grid-cols-2 gap-1">
-                  <button onClick={() => setQuickDateRange('today')} className="px-3 py-1.5 text-sm hover:bg-gray-100 rounded">Today</button>
-                  <button onClick={() => setQuickDateRange('thisMonth')} className="px-3 py-1.5 text-sm hover:bg-gray-100 rounded">This Month</button>
-                  <button onClick={() => setQuickDateRange('lastMonth')} className="px-3 py-1.5 text-sm hover:bg-gray-100 rounded">Last Month</button>
-                  <button onClick={() => setQuickDateRange('thisYear')} className="px-3 py-1.5 text-sm hover:bg-gray-100 rounded">This Year</button>
-                  <button onClick={() => setQuickDateRange('all')} className="px-3 py-1.5 text-sm hover:bg-gray-100 rounded col-span-2">All Time</button>
-                </div>
-              </div>
-              <CalendarComponent
-                mode="range"
-                selected={{ from: dateRange.start, to: dateRange.end }}
-                onSelect={(range) => {
-                  setDateRange({ start: range?.from, end: range?.to });
-                  if (range?.from && range?.to) setShowDatePicker(false);
-                }}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
 
           {/* Payment Type Filter */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">

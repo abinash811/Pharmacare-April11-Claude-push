@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit, X, Phone, Mail, MapPin, Building2, Calendar, FileText, CreditCard, Banknote } from 'lucide-react';
+import { Plus, Edit, X, Phone, Mail, MapPin, Building2, FileText, CreditCard, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
+import { DateRangePicker } from '../components/shared/DateRangePicker';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -12,6 +13,7 @@ export default function Suppliers() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchTimeoutRef = useRef(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
   
   // Selected supplier for detail panel
   const [selectedSupplier, setSelectedSupplier] = useState(null);
@@ -200,17 +202,6 @@ export default function Suppliers() {
     return `${day}-${month}-${year}`;
   };
 
-  const getDateRangeLabel = () => {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 3, 1);
-    const endOfYear = new Date(now.getFullYear() + 1, 2, 31);
-    const formatShort = (date) => {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
-    };
-    return `${formatShort(startOfYear)} — ${formatShort(endOfYear)}`;
-  };
-
   const handleRowClick = (supplier) => {
     setSelectedSupplier(supplier);
     setActiveTab('overview');
@@ -259,10 +250,10 @@ export default function Suppliers() {
         </div>
 
         {/* Date range */}
-        <button className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-          <Calendar className="w-4 h-4" />
-          {getDateRangeLabel()}
-        </button>
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
 
         {/* Filter pills */}
         <div className="flex items-center gap-1 ml-4">

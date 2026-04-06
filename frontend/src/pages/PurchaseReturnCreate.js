@@ -244,7 +244,7 @@ export default function PurchaseReturnCreate() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ fontFamily: 'DM Sans, sans-serif', backgroundColor: '#f6f8f8' }}>
+    <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       {/* Header - Pattern B */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">

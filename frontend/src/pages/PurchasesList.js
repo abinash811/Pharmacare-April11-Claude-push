@@ -280,7 +280,7 @@ export default function PurchasesList() {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => toast.info('Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return')}
+              onClick={() => navigate('/purchases/returns')}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               data-testid="new-return-btn"
             >

@@ -208,7 +208,7 @@ export default function PurchaseReturnCreate() {
       }
       
       setShowFinaliseModal(false);
-      navigate('/purchases');
+      navigate('/purchases/returns');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create return');
     }
@@ -217,8 +217,21 @@ export default function PurchaseReturnCreate() {
 
   const formatExpiry = (expiry) => {
     if (!expiry) return '—';
-    if (expiry.includes('/')) return expiry;
-    if (expiry.length === 7) return expiry.slice(5, 7) + '/' + expiry.slice(2, 4);
+    // If already MM/YY format, return as-is
+    if (expiry.includes('/') && expiry.length <= 5) return expiry;
+    // If YYYY-MM-DD or YYYY-MM format, convert to MM/YY
+    if (expiry.length >= 7) {
+      const parts = expiry.split('-');
+      if (parts.length >= 2) {
+        const month = parts[1];
+        const year = parts[0].slice(-2);
+        return `${month}/${year}`;
+      }
+    }
+    // If MM/YYYY format
+    if (expiry.length === 7 && expiry.includes('/')) {
+      return expiry.slice(0, 2) + '/' + expiry.slice(5, 7);
+    }
     return expiry;
   };
 

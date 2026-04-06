@@ -5,7 +5,7 @@ Build a standalone pharmacy billing and inventory management tool for Indian pha
 - Billing & Sales Returns (COMPLETED)
 - Purchases & Purchase Returns (COMPLETED)
 - Inventory Management
-- Supplier Management
+- Supplier Management (UPDATED)
 - Customer Management
 - Reports & Analytics
 
@@ -14,92 +14,73 @@ Build a standalone pharmacy billing and inventory management tool for Indian pha
 - **Backend**: FastAPI (Python)
 - **Database**: MongoDB
 
-## User Personas
-- Pharmacy Owner/Admin
-- Billing Staff
-- Inventory Manager
-
 ---
 
 ## What's Been Implemented
 
-### April 6, 2026 - Purchase Returns Module (COMPLETED)
+### April 6, 2026 - 3 Fixes for Purchase Returns & Suppliers
 
-**Frontend:**
-- `PurchaseReturnCreate.js` - New purchase return screen following Pattern B:
-  - Pre-fills items from original purchase via `purchase_id` query param
-  - Shows Original Qty (read-only) and Return Qty (editable with validation)
-  - Validates return qty ≤ max returnable qty (original - already returned)
-  - Invoice Breakdown Modal following Pattern E
-  - Subbar with Date, Supplier (read-only), Invoice#, Billed By, Payment Type
+**Fix 1: Purchase Returns List (Pattern A)**
+- Created `PurchaseReturnsList.js` at `/purchases/returns`
+- Header: "Purchase Returns" with today's stats
+- Filter bar: Search, date range, filter pills (All/Credit/Cash/UPI)
+- Table columns: Return No. (teal), Original Purchase (teal), Supplier, Entry Date, Return Date, Entry By, Amount (red), Payment
+- Footer: "Returns today X | Total returned ₹X"
+- Navigation: Save redirects to returns list, "+Purchase Return" button in purchases navigates here
 
-- `PurchaseReturnDetail.js` - Read-only view following Pattern C:
-  - Shows PRET-XXXX number with CONFIRMED badge
-  - Original purchase reference link
-  - More dropdown with Edit (Non-Financial/Financial) and Print options
+**Fix 2: Suppliers Module (Pattern D)**
+- Completely rewrote `Suppliers.js` to match design system
+- Title: "Suppliers" (not "Supplier Management")
+- Filter bar matching billing list pattern
+- Row click opens split-panel detail view with tabs:
+  - Overview: Contact info in card grid
+  - Purchase History: Table of purchases from this supplier
+  - Outstanding: Current balance (red), "Record Payment" button (teal), Payment History table
 
-**Backend:**
-- `GET /api/purchases/{id}/items-for-return` - Returns items with already-returned quantities
-- `POST /api/purchase-returns` - Creates return atomically:
-  - Generates PRET-XXXX number
-  - Deducts stock immediately
-  - Decrements supplier outstanding
-  - Adds to supplier payment_history
-  - Updates original purchase with return reference
-  - Status is "confirmed" immediately (no separate confirm step)
-- `PUT /api/purchase-returns/{id}` - Edit return (non-financial and financial)
-- Qty validation: return qty + already returned ≤ original qty
+**Fix 3: Expiry Date Format**
+- Updated `formatExpiry()` in `PurchaseReturnCreate.js` and `PurchaseReturnDetail.js`
+- Now shows MM/YY format (e.g., "11/26") instead of full date (e.g., "2026-11-30")
+- Matches purchase workspace and billing workspace format
 
-**Navigation Fixes:**
-- `PurchaseDetail.js` → More dropdown → "Purchase Return" → `/purchases/returns/create?purchase_id={id}`
-- `PurchasesList.js` → "Purchase Return" button shows info toast (returns must be created from existing purchase)
-- Removed unused `purchaseType` variable from `PurchaseNew.js`
-
-### Earlier Completed Work
-- Purchase backend logic: LP updates, supplier outstanding tracking
-- Purchase UI overhaul matching Billing workspace design
-- Read-only purchase detail view (PurchaseDetail.js)
-- Draft/Parked purchase editing
-- 5 strict UI fixes for Purchases module
+### Earlier Work (Same Session)
+- Purchase Returns Module complete creation flow
+- Backend endpoints for purchase returns CRUD
+- Supplier outstanding tracking and payment history
 
 ---
 
 ## Prioritized Backlog
 
 ### P0 (Critical) - COMPLETED
-- [x] Purchase Returns Module - Complete Creation Flow
+- [x] Purchase Returns List (Pattern A)
+- [x] Suppliers Module redesign (Pattern D)
+- [x] Expiry date format fix (MM/YY)
 
 ### P1 (High Priority) - NEXT
-- [ ] Overhaul Suppliers Module:
-  - Outstanding balances display
-  - Record Payment pages
-  - Payment history table
+- [ ] Apply design system to Customers module (similar to Suppliers)
 
 ### P2 (Medium Priority)
-- [ ] Purchase Returns List view (separate tab/page)
-- [ ] Apply PharmaSync design to Suppliers, Customers, Reports
+- [ ] Apply design system to remaining modules
 
 ### P3 (Low Priority/Future)
 - [ ] Refactor `server.py` into routers (USER EXPLICITLY SAID NOT TO DO YET)
-- [ ] Delete legacy files
 
 ---
 
 ## Design System Reference
 See `/app/PHARMACARE_DESIGN_SYSTEM.md` for:
-- Color tokens
-- Typography
+- Color tokens (Primary teal #0C7A6B, Red #CC2F2F, etc.)
+- Typography (DM Sans, DM Mono)
 - Component patterns (A-F)
 - Module connection rules
 
-## Key Files
-- `/app/frontend/src/pages/PurchaseReturnCreate.js` - NEW
-- `/app/frontend/src/pages/PurchaseReturnDetail.js` - NEW
+## Key Files Updated
+- `/app/frontend/src/pages/PurchaseReturnsList.js` - NEW (Pattern A)
+- `/app/frontend/src/pages/Suppliers.js` - REWRITTEN (Pattern D)
+- `/app/frontend/src/pages/PurchaseReturnCreate.js` - Fixed expiry format
+- `/app/frontend/src/pages/PurchaseReturnDetail.js` - Fixed expiry format
 - `/app/frontend/src/pages/PurchasesList.js` - Updated navigation
-- `/app/frontend/src/pages/PurchaseDetail.js` - Updated navigation
-- `/app/frontend/src/pages/PurchaseNew.js` - Removed dead code
-- `/app/frontend/src/App.js` - Added routes
-- `/app/backend/server.py` - Added endpoints
+- `/app/frontend/src/App.js` - Added route for returns list
 
 ## Credentials for Testing
 - **Email**: testadmin@pharmacy.com

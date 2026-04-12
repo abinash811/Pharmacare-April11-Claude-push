@@ -1,80 +1,30 @@
 from __future__ import annotations
 
-import uuid
 import logging
-from datetime import datetime, timezone
+import uuid
+from datetime import date, datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import db
+from deps import get_db
+from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register, SalesReturn as SalesReturnORM
+from models.customers import Doctor as DoctorORM
+from models.pharmacy import PharmacySettings
+from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["billing"])
 logger = logging.getLogger(__name__)
 
 
-# ── helpers ────────────────────────────────────────────────────────────────────
-
-async def _generate_bill_number(invoice_type: str = "SALE", branch_id: Optional[str] = None) -> str:
-    default_prefix = "RTN" if invoice_type == "SALES_RETURN" else "INV"
-    sequence_doc = await db.bill_number_sequences.find_one_and_update(
-        {"prefix": default_prefix, "branch_id": branch_id},
-        {
-            "$inc": {"current_sequence": 1},
-            "$setOnInsert": {"id": str(uuid.uuid4()), "prefix": default_prefix, "branch_id": branch_id, "sequence_length": 6, "allow_prefix_change": True, "created_at": datetime.now(timezone.utc).isoformat()},
-            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()},
-        },
-        upsert=True, return_document=True, projection={"_id": 0},
-    )
-    prefix = sequence_doc.get("prefix", default_prefix)
-    sequence = sequence_doc.get("current_sequence", 1)
-    length = sequence_doc.get("sequence_length", 6)
-    return f"{prefix}-{str(sequence).zfill(length)}"
-
-
-async def _create_audit_log(entity_type: str, entity_id: str, action: str, user: User,
-                             old_value: Optional[dict] = None, new_value: Optional[dict] = None, reason: Optional[str] = None):
-    log_doc = {
-        "id": str(uuid.uuid4()),
-        "entity_type": entity_type, "entity_id": entity_id, "action": action,
-        "old_value": old_value, "new_value": new_value,
-        "performed_by": user.id, "performed_by_name": user.name,
-        "reason": reason, "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.audit_logs.insert_one(log_doc)
-
-
-# ── Pydantic models ────────────────────────────────────────────────────────────
-
-class Bill(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    bill_number: str
-    invoice_type: str = "SALE"
-    ref_invoice_id: Optional[str] = None
-    status: str = "paid"
-    customer_id: Optional[str] = None
-    customer_name: Optional[str] = None
-    customer_mobile: Optional[str] = None
-    doctor_id: Optional[str] = None
-    doctor_name: Optional[str] = None
-    items: List[Dict[str, Any]]
-    subtotal: float
-    discount: float = 0
-    tax_rate: float
-    tax_amount: float
-    total_amount: float
-    paid_amount: float = 0
-    due_amount: float = 0
-    payment_method: Optional[str] = None
-    cashier_id: str
-    cashier_name: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
+# ── Pydantic request models ──────────────────────────────────────────────────
 
 class BillCreate(BaseModel):
     customer_id: Optional[str] = None
@@ -93,38 +43,12 @@ class BillCreate(BaseModel):
     refund: Optional[Dict[str, Any]] = None
 
 
-class Payment(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    invoice_id: str
-    amount: float
-    payment_method: str
-    reference_number: Optional[str] = None
-    notes: Optional[str] = None
-    created_by: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-
 class PaymentCreate(BaseModel):
     invoice_id: str
     amount: float
     payment_method: str
     reference_number: Optional[str] = None
     notes: Optional[str] = None
-
-
-class Refund(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    return_invoice_id: str
-    original_invoice_id: Optional[str] = None
-    amount: float
-    refund_method: str
-    reference_number: Optional[str] = None
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    created_by: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RefundCreate(BaseModel):
@@ -137,295 +61,617 @@ class RefundCreate(BaseModel):
     notes: Optional[str] = None
 
 
-class ScheduleH1Entry(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    dispensed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    product_sku: str
-    product_name: str
-    batch_no: str
-    quantity_dispensed: int
-    prescriber_name: str
-    prescriber_address: str
-    prescriber_registration_no: str
-    patient_name: str
-    patient_address: Optional[str] = None
-    bill_id: str
-    bill_number: str
-    dispensed_by: str
-    dispensed_by_name: str
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+async def _generate_bill_number(pharmacy_id: uuid.UUID, invoice_type: str, db: AsyncSession) -> str:
+    result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    ps = result.scalar_one_or_none()
+
+    if invoice_type == "SALES_RETURN":
+        prefix = "RTN"
+        # For returns, derive sequence from existing return bills
+        last_result = await db.execute(
+            select(BillORM.bill_number)
+            .where(BillORM.pharmacy_id == pharmacy_id, BillORM.bill_number.like(f"{prefix}-%"))
+            .order_by(BillORM.bill_number.desc()).limit(1)
+        )
+        last = last_result.scalar_one_or_none()
+        new_num = int(last.split("-")[-1]) + 1 if last else 1
+        return f"{prefix}-{str(new_num).zfill(6)}"
+
+    prefix = ps.bill_prefix if ps else "INV"
+    length = ps.bill_number_length if ps else 6
+    seq = ps.bill_sequence_number if ps else 1
+
+    bill_number = f"{prefix}-{str(seq).zfill(length)}"
+
+    # Increment sequence
+    if ps:
+        ps.bill_sequence_number = seq + 1
+    else:
+        ps = PharmacySettings(pharmacy_id=pharmacy_id, bill_sequence_number=2)
+        db.add(ps)
+
+    return bill_number
 
 
-class StockMovement(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    product_sku: str
-    batch_id: str
-    product_name: str
-    batch_no: str
-    qty_delta_units: int
-    movement_type: str
-    ref_type: str
-    ref_id: str
-    location: Optional[str] = "default"
-    reason: Optional[str] = None
-    performed_by: str
-    performed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID,
+    old_values: dict | None, new_values: dict | None, db: AsyncSession,
+) -> None:
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id,
+        old_values=old_values, new_values=new_values,
+    ))
+
+
+def _bill_response(b: BillORM, items: list[BillItemORM]) -> dict:
+    return {
+        "id": str(b.id),
+        "bill_number": b.bill_number,
+        "invoice_type": b.invoice_type,
+        "status": b.status,
+        "customer_id": str(b.customer_id) if b.customer_id else None,
+        "customer_name": b.customer_name,
+        "customer_mobile": b.customer_phone,
+        "doctor_id": str(b.doctor_id) if b.doctor_id else None,
+        "doctor_name": b.doctor_name,
+        "items": [_bill_item_response(i) for i in items],
+        "subtotal": b.subtotal_paise / 100,
+        "discount": b.total_discount_paise / 100,
+        "tax_rate": 0,
+        "tax_amount": b.total_gst_paise / 100,
+        "total_amount": b.grand_total_paise / 100,
+        "paid_amount": b.amount_paid_paise / 100,
+        "due_amount": b.balance_paise / 100,
+        "payment_method": b.payment_method,
+        "cashier_id": str(b.billed_by) if b.billed_by else None,
+        "cashier_name": "",
+        "created_at": b.created_at.isoformat() if b.created_at else None,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+    }
+
+
+def _bill_item_response(i: BillItemORM) -> dict:
+    return {
+        "id": str(i.id),
+        "product_id": str(i.product_id),
+        "product_name": i.product_name,
+        "batch_id": str(i.batch_id),
+        "batch_no": i.batch_number,
+        "batch_number": i.batch_number,
+        "expiry_date": i.expiry_date.isoformat() if i.expiry_date else None,
+        "quantity": i.quantity,
+        "unit_price": i.sale_price_paise / 100,
+        "mrp": i.mrp_paise / 100,
+        "cost_price": i.cost_price_paise / 100,
+        "discount": float(i.discount_percent),
+        "disc_percent": float(i.discount_percent),
+        "gst_percent": float(i.gst_rate),
+        "line_total": i.line_total_paise / 100,
+        "total": i.line_total_paise / 100,
+        "product_sku": "",
+        "medicine_name": i.product_name,
+        "schedule": i.drug_schedule,
+    }
+
+
+def _bill_list_response(b: BillORM) -> dict:
+    return {
+        "id": str(b.id),
+        "bill_number": b.bill_number,
+        "invoice_type": b.invoice_type or "SALE",
+        "status": b.status or "paid",
+        "customer_name": b.customer_name,
+        "customer_mobile": b.customer_phone,
+        "doctor_name": b.doctor_name,
+        "subtotal": b.subtotal_paise / 100,
+        "discount": b.total_discount_paise / 100,
+        "tax_amount": b.total_gst_paise / 100,
+        "total_amount": b.grand_total_paise / 100,
+        "paid_amount": b.amount_paid_paise / 100,
+        "due_amount": b.balance_paise / 100,
+        "payment_method": b.payment_method,
+        "created_at": b.created_at.isoformat() if b.created_at else None,
+    }
+
+
+async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID, db: AsyncSession) -> tuple[BatchORM | None, ProductORM | None]:
+    """Resolve a batch and product from bill item data."""
+    batch: BatchORM | None = None
+    product: ProductORM | None = None
+    batch_id = item.get("batch_id")
+    product_id = item.get("product_id") or item.get("medicine_id")
+    product_sku = item.get("product_sku")
+    batch_no = item.get("batch_no") or item.get("batch_number")
+
+    # Try batch by ID
+    if batch_id:
+        try:
+            result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
+            batch = result.scalar_one_or_none()
+        except ValueError:
+            pass
+
+    # Try batch by product + batch_number
+    if not batch and product_sku and batch_no:
+        prod_result = await db.execute(
+            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+        )
+        product = prod_result.scalar_one_or_none()
+        if product:
+            batch_result = await db.execute(
+                select(BatchORM).where(BatchORM.product_id == product.id, BatchORM.batch_number == batch_no)
+            )
+            batch = batch_result.scalar_one_or_none()
+
+    # Try batch by product_id FEFO
+    if not batch and product_id:
+        try:
+            pid = uuid.UUID(product_id)
+            batch_result = await db.execute(
+                select(BatchORM).where(BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0, BatchORM.is_active == True)
+                .order_by(BatchORM.expiry_date).limit(1)
+            )
+            batch = batch_result.scalar_one_or_none()
+        except ValueError:
+            pass
+
+    # Resolve product if not yet found
+    if batch and not product:
+        prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
+        product = prod_result.scalar_one_or_none()
+    if not product and product_id:
+        try:
+            prod_result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
+            product = prod_result.scalar_one_or_none()
+        except ValueError:
+            pass
+    if not product and product_sku:
+        prod_result = await db.execute(
+            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+        )
+        product = prod_result.scalar_one_or_none()
+
+    return batch, product
+
+
+async def _deduct_stock_and_record(
+    batch: BatchORM, product: ProductORM, quantity: int, is_sale: bool,
+    bill_id: uuid.UUID, pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
+) -> None:
+    """Deduct (or restore) stock and create a movement record."""
+    units_per_pack = product.units_per_pack or 1
+    pack_change = quantity // units_per_pack if units_per_pack > 1 else quantity
+    old_qty = batch.quantity_on_hand
+
+    if is_sale:
+        batch.quantity_on_hand = max(0, old_qty - pack_change)
+        batch.quantity_sold = (batch.quantity_sold or 0) + pack_change
+        qty_delta = -quantity
+    else:
+        batch.quantity_on_hand = old_qty + pack_change
+        qty_delta = quantity
+
+    db.add(MovementORM(
+        pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
+        movement_type="sale" if is_sale else "sales_return",
+        quantity=qty_delta,
+        quantity_before=old_qty, quantity_after=batch.quantity_on_hand,
+        reference_type="invoice", reference_id=bill_id,
+        user_id=user_id, notes=None,
+    ))
+
+
+async def _create_h1_entry(
+    product: ProductORM, batch: BatchORM, quantity: int,
+    bill: BillORM, bill_item: BillItemORM,
+    doctor_name: str | None, customer_name: str | None,
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
+) -> None:
+    """Create Schedule H1 register entry if product is H1."""
+    if product.drug_schedule != "H1":
+        return
+
+    prescriber_address = ""
+    prescriber_reg = ""
+    if doctor_name:
+        doc_result = await db.execute(
+            select(DoctorORM).where(
+                DoctorORM.pharmacy_id == pharmacy_id,
+                func.lower(DoctorORM.name) == doctor_name.lower(),
+            )
+        )
+        doctor = doc_result.scalar_one_or_none()
+        if doctor:
+            prescriber_address = doctor.address or ""
+            prescriber_reg = doctor.registration_number or doctor.phone or ""
+
+    db.add(ScheduleH1Register(
+        pharmacy_id=pharmacy_id,
+        bill_id=bill.id,
+        bill_item_id=bill_item.id,
+        product_id=product.id,
+        product_name=product.name,
+        quantity=quantity,
+        batch_number=batch.batch_number,
+        prescriber_name=doctor_name or "N/A",
+        prescriber_registration_number=prescriber_reg,
+        prescriber_address=prescriber_address,
+        patient_name=customer_name or "Walk-in Customer",
+        dispensed_by=user_id,
+    ))
 
 
 # ── /bills ─────────────────────────────────────────────────────────────────────
 
-@router.post("/bills", response_model=Bill)
-async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user)):
-    bill_number = "Draft" if bill_data.status == "draft" else await _generate_bill_number(bill_data.invoice_type)
-
-    subtotal = sum(item.get("line_total", item.get("total", 0)) for item in bill_data.items)
-    tax_amount = sum(
-        (item.get("unit_price", item.get("mrp", 0)) * item.get("quantity", 0) - item.get("discount", 0)) * (item.get("gst_percent", bill_data.tax_rate or 5) / 100)
-        for item in bill_data.items
-    )
-    total_amount = subtotal - (bill_data.discount or 0)
-
-    paid_amount = 0
-    if bill_data.payments:
-        paid_amount = sum(p.get("amount", 0) if isinstance(p, dict) else getattr(p, "amount", 0) for p in bill_data.payments)
-    elif bill_data.refund and bill_data.invoice_type == "SALES_RETURN":
-        paid_amount = bill_data.refund.get("amount", total_amount) if isinstance(bill_data.refund, dict) else total_amount
-    elif bill_data.payment_method:
-        paid_amount = total_amount if bill_data.status == "paid" else 0
-
-    due_amount = max(0, total_amount - paid_amount)
+@router.post("/bills")
+async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    user_id = uuid.UUID(current_user.id)
     is_draft = bill_data.status == "draft"
+    is_sale = bill_data.invoice_type == "SALE"
+
+    bill_number = "Draft" if is_draft else await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+
+    # Pre-check H1 drugs require doctor
+    if not is_draft and is_sale:
+        for item in bill_data.items:
+            product_sku = item.get("product_sku")
+            if product_sku:
+                prod_result = await db.execute(
+                    select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+                )
+                product = prod_result.scalar_one_or_none()
+                if product and product.drug_schedule == "H1" and (not bill_data.doctor_name or not bill_data.doctor_name.strip()):
+                    raise HTTPException(status_code=400, detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+
+    # Calculate totals from items
+    subtotal_paise = 0
+    mrp_total_paise = 0
+    item_discount_paise = 0
+    gst_paise = 0
+    cost_total_paise = 0
+    item_orms: list[tuple[BillItemORM, BatchORM, ProductORM]] = []
+
+    for item in bill_data.items:
+        batch, product = await _resolve_batch(item, pharmacy_id, db)
+        if not batch or not product:
+            if not is_draft:
+                logger.warning(f"No batch/product found for item {item.get('product_name', 'unknown')}")
+            continue
+
+        quantity = item.get("quantity", 0)
+        mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
+        sale_price_paise = mrp_paise
+        disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
+        disc_paise = int(mrp_paise * quantity * disc_percent / 100)
+        taxable_paise = mrp_paise * quantity - disc_paise
+        gst_rate = item.get("gst_percent", bill_data.tax_rate or 5)
+        line_gst_paise = int(taxable_paise * gst_rate / 100)
+        line_total_paise = taxable_paise + line_gst_paise
+        line_cost_paise = batch.cost_price_paise * quantity
+
+        bill_item = BillItemORM(
+            product_id=product.id,
+            batch_id=batch.id,
+            product_name=item.get("product_name", item.get("medicine_name", product.name)),
+            generic_name=product.generic_name,
+            batch_number=batch.batch_number,
+            expiry_date=batch.expiry_date,
+            hsn_code=product.hsn_code,
+            drug_schedule=product.drug_schedule,
+            quantity=quantity,
+            mrp_paise=mrp_paise,
+            sale_price_paise=sale_price_paise,
+            cost_price_paise=batch.cost_price_paise,
+            discount_percent=disc_percent,
+            discount_paise=disc_paise,
+            gst_rate=gst_rate,
+            cgst_rate=gst_rate / 2,
+            sgst_rate=gst_rate / 2,
+            taxable_amount_paise=taxable_paise,
+            cgst_paise=line_gst_paise // 2,
+            sgst_paise=line_gst_paise - line_gst_paise // 2,
+            gst_paise=line_gst_paise,
+            line_total_paise=line_total_paise,
+            line_cost_paise=line_cost_paise,
+        )
+        item_orms.append((bill_item, batch, product))
+        subtotal_paise += taxable_paise
+        mrp_total_paise += mrp_paise * quantity
+        item_discount_paise += disc_paise
+        gst_paise += line_gst_paise
+        cost_total_paise += line_cost_paise
+
+    bill_discount_paise = int((bill_data.discount or 0) * 100)
+    total_discount_paise = item_discount_paise + bill_discount_paise
+    grand_total_paise = subtotal_paise + gst_paise - bill_discount_paise
+    grand_total_paise = round(grand_total_paise / 100) * 100  # round to nearest rupee
+
+    # Determine payment
+    paid_paise = 0
+    if bill_data.payments:
+        paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
+    elif bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
+        paid_paise = int(bill_data.refund.get("amount", grand_total_paise / 100) * 100)
+    elif bill_data.payment_method and bill_data.status == "paid":
+        paid_paise = grand_total_paise
+
+    balance_paise = max(0, grand_total_paise - paid_paise)
+
     if is_draft:
-        status = "due"
+        status = "draft"
     elif bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
         status = "paid"
-    elif abs(due_amount) < 0.01:
+    elif balance_paise <= 0:
         status = "paid"
     else:
         status = "due"
 
-    bill = Bill(
-        bill_number=bill_number, invoice_type=bill_data.invoice_type, ref_invoice_id=bill_data.ref_invoice_id,
-        status=status, customer_id=bill_data.customer_id, customer_name=bill_data.customer_name,
-        customer_mobile=bill_data.customer_mobile, doctor_id=bill_data.doctor_id, doctor_name=bill_data.doctor_name,
-        items=bill_data.items, subtotal=subtotal, discount=bill_data.discount, tax_rate=bill_data.tax_rate,
-        tax_amount=tax_amount, total_amount=total_amount, paid_amount=paid_amount, due_amount=due_amount,
-        payment_method=bill_data.payment_method, cashier_id=current_user.id, cashier_name=current_user.name,
+    margin_paise = grand_total_paise - cost_total_paise
+    margin_percent = (margin_paise / grand_total_paise * 100) if grand_total_paise > 0 else 0
+
+    bill = BillORM(
+        pharmacy_id=pharmacy_id,
+        bill_number=bill_number,
+        invoice_type=bill_data.invoice_type or "SALE",
+        bill_date=date.today(),
+        customer_id=uuid.UUID(bill_data.customer_id) if bill_data.customer_id else None,
+        customer_name=bill_data.customer_name,
+        customer_phone=bill_data.customer_mobile,
+        doctor_id=uuid.UUID(bill_data.doctor_id) if bill_data.doctor_id else None,
+        doctor_name=bill_data.doctor_name,
+        subtotal_paise=subtotal_paise,
+        mrp_total_paise=mrp_total_paise,
+        item_discount_paise=item_discount_paise,
+        bill_discount_paise=bill_discount_paise,
+        total_discount_paise=total_discount_paise,
+        taxable_amount_paise=subtotal_paise,
+        total_cgst_paise=gst_paise // 2,
+        total_sgst_paise=gst_paise - gst_paise // 2,
+        total_gst_paise=gst_paise,
+        grand_total_paise=grand_total_paise,
+        amount_paid_paise=paid_paise,
+        balance_paise=balance_paise,
+        payment_method=bill_data.payment_method,
+        cost_total_paise=cost_total_paise,
+        margin_paise=margin_paise,
+        margin_percent=round(margin_percent, 2),
+        status=status,
+        billed_by=user_id,
     )
+    db.add(bill)
+    await db.flush()
 
-    if bill_data.status != "draft":
-        # H1 pre-check
-        for item in bill_data.items:
-            product_sku = item.get("product_sku")
-            if product_sku:
-                product = await db.products.find_one({"sku": product_sku}, {"_id": 0})
-                if product and product.get("schedule") == "H1" and (not bill_data.doctor_name or not bill_data.doctor_name.strip()):
-                    raise HTTPException(status_code=400, detail=f"Prescription details required for Schedule H1 drug: {product['name']}")
+    # Create bill items and handle stock
+    final_items: list[BillItemORM] = []
+    for bill_item, batch, product in item_orms:
+        bill_item.bill_id = bill.id
+        db.add(bill_item)
+        await db.flush()
+        final_items.append(bill_item)
 
-        for item in bill_data.items:
-            batch_id = item.get("batch_id")
-            product_id = item.get("product_id") or item.get("medicine_id")
-            product_sku = item.get("product_sku")
-            batch_no = item.get("batch_no") or item.get("batch_number")
+        if not is_draft:
+            await _deduct_stock_and_record(batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
+            if is_sale:
+                await _create_h1_entry(product, batch, bill_item.quantity, bill, bill_item, bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
 
-            if not batch_id and batch_no and product_sku:
-                batch_doc = await db.stock_batches.find_one({"product_sku": product_sku, "batch_no": batch_no}, {"_id": 0})
-                if batch_doc:
-                    batch_id = batch_doc["id"]
+    await _record_audit(
+        pharmacy_id, user_id, "create", "invoice", bill.id, None,
+        {"bill_number": bill_number, "invoice_type": bill.invoice_type, "status": status,
+         "customer_name": bill.customer_name, "total_amount": grand_total_paise / 100,
+         "paid_amount": paid_paise / 100, "due_amount": balance_paise / 100},
+        db,
+    )
+    await db.flush()
 
-            if not batch_id and product_id:
-                batches = await db.stock_batches.find({"product_id": product_id, "qty_on_hand": {"$gt": 0}}, {"_id": 0}).sort("expiry_date", 1).to_list(1)
-                if batches:
-                    batch_id = batches[0]["id"]
-                else:
-                    logger.warning(f"No batch found for product {product_id}")
-                    continue
-
-            if not batch_id:
-                continue
-
-            product = await db.products.find_one({"id": product_id}, {"_id": 0}) if product_id else None
-            if not product and product_sku:
-                product = await db.products.find_one({"sku": product_sku}, {"_id": 0})
-            if not product:
-                batch_doc = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-                if batch_doc and "product_sku" in batch_doc:
-                    product = await db.products.find_one({"sku": batch_doc["product_sku"]}, {"_id": 0})
-            if not product:
-                logger.error(f"Product {product_id} not found")
-                continue
-
-            units_per_pack = product.get("units_per_pack", 1)
-            product_sku = product.get("sku")
-            quantity_in_units = item["quantity"]
-            pack_change = -(quantity_in_units / units_per_pack) if bill_data.invoice_type == "SALE" else (quantity_in_units / units_per_pack)
-
-            result = await db.stock_batches.update_one({"id": batch_id}, {"$inc": {"qty_on_hand": pack_change}})
-            if result.matched_count == 0:
-                logger.error(f"Batch {batch_id} not found")
-                continue
-
-            batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-            qty_delta_units = int(pack_change * units_per_pack)
-            movement = StockMovement(
-                product_sku=product_sku, batch_id=batch_id,
-                product_name=product["name"] if product else item.get("product_name", "Unknown"),
-                batch_no=batch["batch_no"] if batch else item.get("batch_no", "N/A"),
-                qty_delta_units=qty_delta_units,
-                movement_type="sale" if bill_data.invoice_type == "SALE" else "sales_return",
-                ref_type="invoice", ref_id=bill.id,
-                location=batch.get("location", "default") if batch else "default",
-                performed_by=current_user.id,
-            )
-            movement_doc = movement.model_dump()
-            movement_doc["performed_at"] = movement_doc["performed_at"].isoformat()
-            await db.stock_movements.insert_one(movement_doc)
-
-            if product.get("schedule") == "H1" and bill_data.invoice_type == "SALE":
-                prescriber_address = prescriber_reg = ""
-                if bill_data.doctor_name:
-                    doctor = await db.doctors.find_one({"name": {"$regex": f"^{bill_data.doctor_name}$", "$options": "i"}}, {"_id": 0})
-                    if doctor:
-                        prescriber_address = doctor.get("clinic_address", "") or doctor.get("address", "") or ""
-                        prescriber_reg = doctor.get("registration_no", "") or doctor.get("contact", "") or ""
-
-                h1_entry = ScheduleH1Entry(
-                    product_sku=product_sku, product_name=product["name"],
-                    batch_no=batch["batch_no"] if batch else item.get("batch_no", "N/A"),
-                    quantity_dispensed=abs(qty_delta_units), prescriber_name=bill_data.doctor_name,
-                    prescriber_address=prescriber_address, prescriber_registration_no=prescriber_reg,
-                    patient_name=bill_data.customer_name or "Walk-in Customer",
-                    bill_id=bill.id, bill_number=bill_number, dispensed_by=current_user.id, dispensed_by_name=current_user.name,
-                )
-                h1_doc = h1_entry.model_dump()
-                h1_doc["dispensed_at"] = h1_doc["dispensed_at"].isoformat()
-                await db.schedule_h1_register.insert_one(h1_doc)
-
-    doc = bill.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    await db.bills.insert_one(doc)
-
-    if bill_data.payments:
-        for payment_data in bill_data.payments:
-            payment = Payment(
-                invoice_id=bill.id, amount=payment_data.get("amount", 0),
-                payment_method=payment_data.get("method", "cash"),
-                reference_number=payment_data.get("reference"), notes=payment_data.get("notes"),
-                created_by=current_user.id,
-            )
-            pdoc = payment.model_dump()
-            pdoc["created_at"] = pdoc["created_at"].isoformat()
-            await db.payments.insert_one(pdoc)
-
-    if bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
-        refund = Refund(
-            return_invoice_id=bill.id, original_invoice_id=bill_data.ref_invoice_id,
-            amount=bill_data.refund.get("amount", total_amount), refund_method=bill_data.refund.get("method", "cash"),
-            reference_number=bill_data.refund.get("reference"), reason=bill_data.refund.get("reason"),
-            notes=bill_data.refund.get("notes"), created_by=current_user.id,
-        )
-        rdoc = refund.model_dump()
-        rdoc["created_at"] = rdoc["created_at"].isoformat()
-        await db.refunds.insert_one(rdoc)
-        await _create_audit_log("refund", refund.id, "create", current_user, new_value=rdoc, reason=bill_data.refund.get("reason"))
-
-    await _create_audit_log("invoice", bill.id, "create", current_user, new_value={"bill_number": bill.bill_number, "invoice_type": bill.invoice_type, "status": bill.status, "customer_name": bill.customer_name, "total_amount": bill.total_amount, "paid_amount": bill.paid_amount, "due_amount": bill.due_amount})
-
-    return bill
+    return _bill_response(bill, final_items)
 
 
 @router.put("/bills/{bill_id}")
-async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = Depends(get_current_user)):
-    existing_bill = await db.bills.find_one({"id": bill_id})
-    if not existing_bill:
+async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    user_id = uuid.UUID(current_user.id)
+    bid = uuid.UUID(bill_id)
+
+    result = await db.execute(select(BillORM).where(BillORM.id == bid))
+    bill = result.scalar_one_or_none()
+    if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
-    if existing_bill.get("status") != "draft":
+    if bill.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft bills can be edited")
 
-    subtotal = sum(item.get("line_total", item.get("total", 0)) for item in bill_data.items)
-    total_discount = bill_data.discount or 0
-    total_tax = sum((item.get("unit_price", item.get("mrp", 0)) * item.get("quantity", 0) - item.get("discount", 0)) * (item.get("gst_percent", 5) / 100) for item in bill_data.items)
-    total_amount = subtotal - total_discount + total_tax
+    # Delete old items
+    old_items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bid))
+    for old_item in old_items_result.scalars().all():
+        await db.delete(old_item)
+    await db.flush()
 
-    update_data = {
-        "customer_name": bill_data.customer_name or "Counter Sale",
-        "customer_mobile": bill_data.customer_mobile, "doctor_name": bill_data.doctor_name,
-        "items": bill_data.items, "subtotal": round(subtotal, 2), "total_discount": round(total_discount, 2),
-        "total_tax": round(total_tax, 2), "total_amount": round(total_amount, 2),
-        "discount": bill_data.discount or 0, "status": bill_data.status or "draft",
-        "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id,
-    }
+    # Rebuild items
+    subtotal_paise = 0
+    mrp_total_paise = 0
+    item_discount_paise = 0
+    gst_paise = 0
+    cost_total_paise = 0
+    item_orms: list[tuple[BillItemORM, BatchORM, ProductORM]] = []
 
-    if bill_data.status == "paid" and existing_bill.get("status") == "draft" and bill_data.payments:
-        paid_amount = sum(p.get("amount", 0) if isinstance(p, dict) else getattr(p, "amount", 0) for p in bill_data.payments)
-        update_data["paid_amount"] = round(paid_amount, 2)
-        update_data["due_amount"] = round(max(0, total_amount - paid_amount), 2)
-        for pd in bill_data.payments:
-            payment = Payment(
-                invoice_id=bill_id, amount=pd.get("amount", 0) if isinstance(pd, dict) else pd.amount,
-                payment_method=pd.get("method", "cash") if isinstance(pd, dict) else pd.method,
-                reference_number=pd.get("reference") if isinstance(pd, dict) else getattr(pd, "reference", None),
-                created_by=current_user.id,
-            )
-            pdoc = payment.model_dump()
-            pdoc["created_at"] = pdoc["created_at"].isoformat()
-            await db.payments.insert_one(pdoc)
+    for item in bill_data.items:
+        batch, product = await _resolve_batch(item, pharmacy_id, db)
+        if not batch or not product:
+            continue
 
-    await db.bills.update_one({"id": bill_id}, {"$set": update_data})
-    return await db.bills.find_one({"id": bill_id}, {"_id": 0})
+        quantity = item.get("quantity", 0)
+        mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
+        disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
+        disc_paise = int(mrp_paise * quantity * disc_percent / 100)
+        taxable_paise = mrp_paise * quantity - disc_paise
+        gst_rate = item.get("gst_percent", bill_data.tax_rate or 5)
+        line_gst_paise = int(taxable_paise * gst_rate / 100)
+        line_total_paise = taxable_paise + line_gst_paise
+        line_cost_paise = batch.cost_price_paise * quantity
+
+        bill_item = BillItemORM(
+            bill_id=bid,
+            product_id=product.id,
+            batch_id=batch.id,
+            product_name=item.get("product_name", item.get("medicine_name", product.name)),
+            generic_name=product.generic_name,
+            batch_number=batch.batch_number,
+            expiry_date=batch.expiry_date,
+            hsn_code=product.hsn_code,
+            drug_schedule=product.drug_schedule,
+            quantity=quantity,
+            mrp_paise=mrp_paise,
+            sale_price_paise=mrp_paise,
+            cost_price_paise=batch.cost_price_paise,
+            discount_percent=disc_percent,
+            discount_paise=disc_paise,
+            gst_rate=gst_rate,
+            cgst_rate=gst_rate / 2,
+            sgst_rate=gst_rate / 2,
+            taxable_amount_paise=taxable_paise,
+            cgst_paise=line_gst_paise // 2,
+            sgst_paise=line_gst_paise - line_gst_paise // 2,
+            gst_paise=line_gst_paise,
+            line_total_paise=line_total_paise,
+            line_cost_paise=line_cost_paise,
+        )
+        db.add(bill_item)
+        item_orms.append((bill_item, batch, product))
+        subtotal_paise += taxable_paise
+        mrp_total_paise += mrp_paise * quantity
+        item_discount_paise += disc_paise
+        gst_paise += line_gst_paise
+        cost_total_paise += line_cost_paise
+
+    bill_discount_paise = int((bill_data.discount or 0) * 100)
+    total_discount_paise = item_discount_paise + bill_discount_paise
+    grand_total_paise = round((subtotal_paise + gst_paise - bill_discount_paise) / 100) * 100
+
+    new_status = bill_data.status or "draft"
+    is_finalizing = new_status == "paid" and bill.status == "draft"
+
+    # Generate bill number on finalize
+    if is_finalizing and bill.bill_number == "Draft":
+        bill.bill_number = await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+
+    paid_paise = 0
+    if is_finalizing and bill_data.payments:
+        paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
+    elif is_finalizing and bill_data.payment_method:
+        paid_paise = grand_total_paise
+
+    balance_paise = max(0, grand_total_paise - paid_paise)
+    if is_finalizing:
+        new_status = "paid" if balance_paise <= 0 else "due"
+
+    bill.subtotal_paise = subtotal_paise
+    bill.mrp_total_paise = mrp_total_paise
+    bill.item_discount_paise = item_discount_paise
+    bill.bill_discount_paise = bill_discount_paise
+    bill.total_discount_paise = total_discount_paise
+    bill.taxable_amount_paise = subtotal_paise
+    bill.total_cgst_paise = gst_paise // 2
+    bill.total_sgst_paise = gst_paise - gst_paise // 2
+    bill.total_gst_paise = gst_paise
+    bill.grand_total_paise = grand_total_paise
+    bill.amount_paid_paise = paid_paise
+    bill.balance_paise = balance_paise
+    bill.cost_total_paise = cost_total_paise
+    bill.margin_paise = grand_total_paise - cost_total_paise
+    bill.margin_percent = round((bill.margin_paise / grand_total_paise * 100) if grand_total_paise > 0 else 0, 2)
+    bill.customer_name = bill_data.customer_name or "Counter Sale"
+    bill.customer_phone = bill_data.customer_mobile
+    bill.doctor_name = bill_data.doctor_name
+    bill.payment_method = bill_data.payment_method
+    bill.status = new_status
+
+    await db.flush()
+
+    # Deduct stock if finalizing
+    if is_finalizing:
+        for bill_item, batch, product in item_orms:
+            is_sale = bill_data.invoice_type == "SALE"
+            await _deduct_stock_and_record(batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
+            if is_sale:
+                await _create_h1_entry(product, batch, bill_item.quantity, bill, bill_item, bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
+
+    await db.flush()
+
+    items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bid))
+    return _bill_response(bill, items_result.scalars().all())
 
 
 @router.get("/bills")
 async def get_bills(
     invoice_type: Optional[str] = None, status: Optional[str] = None,
     search: Optional[str] = None, from_date: Optional[str] = None, to_date: Optional[str] = None,
-    page: int = 1, page_size: int = 50, current_user: User = Depends(get_current_user),
+    page: int = 1, page_size: int = 50,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
-    query: dict = {}
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+
+    query = select(BillORM).where(BillORM.pharmacy_id == pharmacy_id, BillORM.deleted_at.is_(None))
     if invoice_type:
-        query["invoice_type"] = invoice_type
+        query = query.where(BillORM.invoice_type == invoice_type)
     if status:
-        query["status"] = status
+        query = query.where(BillORM.status == status)
     if search:
-        query["$or"] = [{"bill_number": {"$regex": search, "$options": "i"}}, {"customer_name": {"$regex": search, "$options": "i"}}, {"customer_phone": {"$regex": search, "$options": "i"}}]
+        p = f"%{search}%"
+        query = query.where(or_(
+            BillORM.bill_number.ilike(p),
+            BillORM.customer_name.ilike(p),
+            BillORM.customer_phone.ilike(p),
+        ))
     if from_date:
-        query["created_at"] = {"$gte": from_date}
+        query = query.where(BillORM.bill_date >= date.fromisoformat(from_date[:10]))
     if to_date:
-        query.setdefault("created_at", {})["$lte"] = to_date
+        query = query.where(BillORM.bill_date <= date.fromisoformat(to_date[:10]))
 
-    total = await db.bills.count_documents(query)
-    skip = (page - 1) * page_size
-    bills = await db.bills.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(page_size).to_list(page_size)
-    for bill in bills:
-        if isinstance(bill.get("created_at"), str):
-            bill["created_at"] = datetime.fromisoformat(bill["created_at"])
-        bill.setdefault("invoice_type", "SALE")
-        bill.setdefault("status", "paid")
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar()
 
-    return {"data": bills, "pagination": {"page": page, "page_size": page_size, "total": total, "total_pages": (total + page_size - 1) // page_size, "has_next": page * page_size < total, "has_prev": page > 1}}
+    offset = (page - 1) * page_size
+    result = await db.execute(query.order_by(BillORM.created_at.desc()).offset(offset).limit(page_size))
+    bills = result.scalars().all()
+
+    return {
+        "data": [_bill_list_response(b) for b in bills],
+        "pagination": {
+            "page": page, "page_size": page_size, "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+            "has_next": page * page_size < total, "has_prev": page > 1,
+        },
+    }
 
 
-@router.get("/bills/{bill_id}", response_model=Bill)
-async def get_bill(bill_id: str, current_user: User = Depends(get_current_user)):
-    bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
+@router.get("/bills/{bill_id}")
+async def get_bill(bill_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(BillORM).where(BillORM.id == uuid.UUID(bill_id)))
+    bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
-    if isinstance(bill.get("created_at"), str):
-        bill["created_at"] = datetime.fromisoformat(bill["created_at"])
-    return Bill(**bill)
+    items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
+    return _bill_response(bill, items_result.scalars().all())
 
 
 @router.get("/bills/{bill_id}/pdf")
-async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_current_user)):
+async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
 
-    bill = await db.bills.find_one({"id": bill_id}, {"_id": 0})
+    result = await db.execute(select(BillORM).where(BillORM.id == uuid.UUID(bill_id)))
+    bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
+
+    items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
+    items = items_result.scalars().all()
 
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
@@ -436,15 +682,15 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
     pdf.setFont("Helvetica", 10)
     pdf.drawString(50, height - 70, "Pharmacy Management System")
     pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawString(50, height - 110, bill["invoice_type"])
+    pdf.drawString(50, height - 110, bill.invoice_type or "SALE")
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(50, height - 130, f"Invoice No: {bill['bill_number']}")
-    pdf.drawString(50, height - 145, f"Date: {str(bill.get('created_at', ''))[:10]}")
-    pdf.drawString(50, height - 175, f"Customer: {bill.get('customer_name', 'Counter Sale')}")
-    if bill.get("customer_mobile"):
-        pdf.drawString(50, height - 190, f"Mobile: {bill['customer_mobile']}")
-    if bill.get("doctor_name"):
-        pdf.drawString(50, height - 205, f"Doctor: {bill['doctor_name']}")
+    pdf.drawString(50, height - 130, f"Invoice No: {bill.bill_number}")
+    pdf.drawString(50, height - 145, f"Date: {bill.bill_date.isoformat() if bill.bill_date else ''}")
+    pdf.drawString(50, height - 175, f"Customer: {bill.customer_name or 'Counter Sale'}")
+    if bill.customer_phone:
+        pdf.drawString(50, height - 190, f"Mobile: {bill.customer_phone}")
+    if bill.doctor_name:
+        pdf.drawString(50, height - 205, f"Doctor: {bill.doctor_name}")
 
     y = height - 250
     pdf.setFont("Helvetica-Bold", 10)
@@ -452,12 +698,12 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
         pdf.drawString(col, y, label)
     pdf.setFont("Helvetica", 9)
     y -= 20
-    for item in bill["items"]:
-        pdf.drawString(50, y, (item.get("product_name") or item.get("medicine_name", "Item"))[:25])
-        pdf.drawString(250, y, (item.get("batch_no") or item.get("batch_number", ""))[:15])
-        pdf.drawString(350, y, str(item["quantity"]))
-        pdf.drawString(400, y, f"₹{item.get('unit_price', item.get('mrp', 0))}")
-        pdf.drawString(480, y, f"₹{item.get('line_total', item.get('total', 0)):.2f}")
+    for item in items:
+        pdf.drawString(50, y, (item.product_name or "Item")[:25])
+        pdf.drawString(250, y, (item.batch_number or "")[:15])
+        pdf.drawString(350, y, str(item.quantity))
+        pdf.drawString(400, y, f"₹{item.sale_price_paise / 100:.2f}")
+        pdf.drawString(480, y, f"₹{item.line_total_paise / 100:.2f}")
         y -= 15
         if y < 100:
             pdf.showPage()
@@ -465,110 +711,200 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
 
     y -= 20
     pdf.setFont("Helvetica-Bold", 10)
-    for label, val in [("Subtotal", bill["subtotal"]), ("Discount", -bill["discount"]), ("GST", bill["tax_amount"])]:
+    subtotal = bill.subtotal_paise / 100
+    discount = bill.total_discount_paise / 100
+    gst = bill.total_gst_paise / 100
+    for label, val in [("Subtotal", subtotal), ("Discount", -discount), ("GST", gst)]:
         pdf.drawString(400, y, f"{label}: ₹{val:.2f}")
         y -= 15
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(400, y, f"TOTAL: ₹{bill['total_amount']:.2f}")
+    pdf.drawString(400, y, f"TOTAL: ₹{bill.grand_total_paise / 100:.2f}")
     pdf.setFont("Helvetica", 8)
     pdf.drawString(50, 50, "Thank you for your business!")
-    pdf.drawString(50, 35, f"Cashier: {bill.get('cashier_name', '')}")
     pdf.save()
     buffer.seek(0)
 
-    return StreamingResponse(buffer, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={bill['bill_number']}.pdf"})
+    return StreamingResponse(
+        buffer, media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={bill.bill_number}.pdf"},
+    )
 
 
 # ── /payments ──────────────────────────────────────────────────────────────────
 
-@router.post("/payments", response_model=Payment)
-async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(get_current_user)):
-    invoice = await db.bills.find_one({"id": payment_data.invoice_id}, {"_id": 0})
-    if not invoice:
+@router.post("/payments")
+async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    bid = uuid.UUID(payment_data.invoice_id)
+
+    result = await db.execute(select(BillORM).where(BillORM.id == bid))
+    bill = result.scalar_one_or_none()
+    if not bill:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
-    payment = Payment(**payment_data.model_dump(), created_by=current_user.id)
-    pdoc = payment.model_dump()
-    pdoc["created_at"] = pdoc["created_at"].isoformat()
-    await db.payments.insert_one(pdoc)
+    payment_paise = int(payment_data.amount * 100)
+    new_paid = bill.amount_paid_paise + payment_paise
+    new_balance = max(0, bill.grand_total_paise - new_paid)
+    new_status = "paid" if new_balance <= 0 else "due"
 
-    total_paid = await db.payments.aggregate([{"$match": {"invoice_id": payment_data.invoice_id}}, {"$group": {"_id": None, "total": {"$sum": "$amount"}}}]).to_list(1)
-    new_paid = total_paid[0]["total"] if total_paid else 0
-    new_due = invoice["total_amount"] - new_paid
-    new_status = "paid" if new_due <= 0 else "due"
-    await db.bills.update_one({"id": payment_data.invoice_id}, {"$set": {"paid_amount": new_paid, "due_amount": new_due, "status": new_status}})
+    old_status = bill.status
+    bill.amount_paid_paise = new_paid
+    bill.balance_paise = new_balance
+    bill.status = new_status
+    bill.payment_method = payment_data.payment_method
 
-    await _create_audit_log("payment", payment.id, "create", current_user, new_value=pdoc)
-    if invoice.get("status") != new_status:
-        await _create_audit_log("invoice", payment_data.invoice_id, "status_change", current_user, old_value={"status": invoice.get("status"), "due_amount": invoice.get("due_amount", 0)}, new_value={"status": new_status, "due_amount": new_due})
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "payment", "invoice", bid, None,
+        {"amount": payment_data.amount, "payment_method": payment_data.payment_method, "new_status": new_status},
+        db,
+    )
 
-    return payment
+    if old_status != new_status:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "status_change", "invoice", bid,
+            {"status": old_status, "due_amount": (bill.grand_total_paise - bill.amount_paid_paise + payment_paise) / 100},
+            {"status": new_status, "due_amount": new_balance / 100},
+            db,
+        )
+
+    await db.flush()
+
+    return {
+        "id": str(uuid.uuid4()),
+        "invoice_id": str(bid),
+        "amount": payment_data.amount,
+        "payment_method": payment_data.payment_method,
+        "reference_number": payment_data.reference_number,
+        "notes": payment_data.notes,
+        "created_by": current_user.id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/payments")
-async def get_payments(invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
-    query = {"invoice_id": invoice_id} if invoice_id else {}
-    payments = await db.payments.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    for p in payments:
-        if isinstance(p.get("created_at"), str):
-            p["created_at"] = datetime.fromisoformat(p["created_at"])
-    return payments
+async def get_payments(invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not invoice_id:
+        return []
+    bid = uuid.UUID(invoice_id)
+    result = await db.execute(select(BillORM).where(BillORM.id == bid))
+    bill = result.scalar_one_or_none()
+    if not bill:
+        return []
+    # Return payment info from the bill itself
+    if bill.amount_paid_paise > 0:
+        return [{
+            "id": str(uuid.uuid4()),
+            "invoice_id": str(bid),
+            "amount": bill.amount_paid_paise / 100,
+            "payment_method": bill.payment_method or "cash",
+            "created_at": bill.created_at.isoformat() if bill.created_at else None,
+        }]
+    return []
 
 
 # ── /refunds ───────────────────────────────────────────────────────────────────
 
-@router.post("/refunds", response_model=Refund)
-async def create_refund(refund_data: RefundCreate, current_user: User = Depends(get_current_user)):
-    return_invoice = await db.bills.find_one({"id": refund_data.return_invoice_id}, {"_id": 0})
-    if not return_invoice:
+@router.post("/refunds")
+async def create_refund(refund_data: RefundCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    bid = uuid.UUID(refund_data.return_invoice_id)
+    result = await db.execute(select(BillORM).where(BillORM.id == bid))
+    bill = result.scalar_one_or_none()
+    if not bill:
         raise HTTPException(status_code=404, detail="Return invoice not found")
-    if return_invoice.get("invoice_type") != "SALES_RETURN":
+    if bill.invoice_type != "SALES_RETURN":
         raise HTTPException(status_code=400, detail="Invoice is not a sales return")
 
-    refund = Refund(**refund_data.model_dump(), created_by=current_user.id)
-    rdoc = refund.model_dump()
-    rdoc["created_at"] = rdoc["created_at"].isoformat()
-    await db.refunds.insert_one(rdoc)
-    await db.bills.update_one({"id": refund_data.return_invoice_id}, {"$set": {"status": "refunded"}})
-    return refund
+    bill.status = "refunded"
+
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id),
+        "create", "refund", bid, None,
+        {"amount": refund_data.amount, "refund_method": refund_data.refund_method, "reason": refund_data.reason},
+        db,
+    )
+    await db.flush()
+
+    return {
+        "id": str(uuid.uuid4()),
+        "return_invoice_id": str(bid),
+        "original_invoice_id": refund_data.original_invoice_id,
+        "amount": refund_data.amount,
+        "refund_method": refund_data.refund_method,
+        "reference_number": refund_data.reference_number,
+        "reason": refund_data.reason,
+        "notes": refund_data.notes,
+        "created_by": current_user.id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/refunds")
-async def get_refunds(return_invoice_id: Optional[str] = None, original_invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user)):
-    query: dict = {}
-    if return_invoice_id:
-        query["return_invoice_id"] = return_invoice_id
-    if original_invoice_id:
-        query["original_invoice_id"] = original_invoice_id
-    refunds = await db.refunds.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    for r in refunds:
-        if isinstance(r.get("created_at"), str):
-            r["created_at"] = datetime.fromisoformat(r["created_at"])
-    return refunds
+async def get_refunds(return_invoice_id: Optional[str] = None, original_invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Refunds are tracked via bill status and audit logs
+    if not return_invoice_id:
+        return []
+    bid = uuid.UUID(return_invoice_id)
+    result = await db.execute(select(BillORM).where(BillORM.id == bid))
+    bill = result.scalar_one_or_none()
+    if not bill or bill.status != "refunded":
+        return []
+    return [{
+        "id": str(uuid.uuid4()),
+        "return_invoice_id": str(bid),
+        "amount": bill.grand_total_paise / 100,
+        "refund_method": bill.payment_method or "cash",
+        "created_at": bill.updated_at.isoformat() if bill.updated_at else None,
+    }]
 
 
 # ── /audit-logs ────────────────────────────────────────────────────────────────
 
 @router.get("/audit-logs")
-async def get_audit_logs(entity_type: Optional[str] = None, entity_id: Optional[str] = None, action: Optional[str] = None, limit: int = 100, current_user: User = Depends(get_current_user)):
-    query: dict = {}
+async def get_audit_logs(
+    entity_type: Optional[str] = None, entity_id: Optional[str] = None,
+    action: Optional[str] = None, limit: int = 100,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    query = select(AuditLog).where(AuditLog.pharmacy_id == pharmacy_id)
     if entity_type:
-        query["entity_type"] = entity_type
+        query = query.where(AuditLog.entity_type == entity_type)
     if entity_id:
-        query["entity_id"] = entity_id
+        query = query.where(AuditLog.entity_id == uuid.UUID(entity_id))
     if action:
-        query["action"] = action
-    logs = await db.audit_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
-    for log in logs:
-        if isinstance(log.get("created_at"), str):
-            log["created_at"] = datetime.fromisoformat(log["created_at"])
-    return logs
+        query = query.where(AuditLog.action == action)
+
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(limit))
+    logs = result.scalars().all()
+
+    return [{
+        "id": str(l.id),
+        "entity_type": l.entity_type,
+        "entity_id": str(l.entity_id) if l.entity_id else None,
+        "action": l.action,
+        "old_value": l.old_values,
+        "new_value": l.new_values,
+        "performed_by": str(l.user_id) if l.user_id else None,
+        "created_at": l.created_at.isoformat() if l.created_at else None,
+    } for l in logs]
 
 
 @router.get("/audit-logs/entity/{entity_type}/{entity_id}")
-async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(get_current_user)):
-    logs = await db.audit_logs.find({"entity_type": entity_type, "entity_id": entity_id}, {"_id": 0}).sort("created_at", 1).to_list(1000)
-    for log in logs:
-        if isinstance(log.get("created_at"), str):
-            log["created_at"] = datetime.fromisoformat(log["created_at"])
-    return logs
+async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(AuditLog)
+        .where(AuditLog.entity_type == entity_type, AuditLog.entity_id == uuid.UUID(entity_id))
+        .order_by(AuditLog.created_at)
+    )
+    logs = result.scalars().all()
+
+    return [{
+        "id": str(l.id),
+        "entity_type": l.entity_type,
+        "entity_id": str(l.entity_id) if l.entity_id else None,
+        "action": l.action,
+        "old_value": l.old_values,
+        "new_value": l.new_values,
+        "performed_by": str(l.user_id) if l.user_id else None,
+        "created_at": l.created_at.isoformat() if l.created_at else None,
+    } for l in logs]

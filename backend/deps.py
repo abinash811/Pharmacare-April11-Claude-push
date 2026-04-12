@@ -1,15 +1,6 @@
-"""Shared dependencies for all routers — MongoDB client, db object, and helpers."""
+"""Shared dependencies for all routers — SQLAlchemy async session."""
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from database import get_db, AsyncSessionLocal, engine  # noqa: F401 — re-exported for routers
 
-from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / ".env")
-
-mongo_url: str = os.environ["MONGO_URL"]
-_client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_url)
-db = _client[os.environ["DB_NAME"]]
+__all__ = ["get_db", "AsyncSessionLocal", "engine"]

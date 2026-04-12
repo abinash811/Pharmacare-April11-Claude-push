@@ -8,6 +8,53 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from deps import db
+
+DEFAULT_ROLES = [
+    {
+        "name": "admin",
+        "display_name": "Administrator",
+        "permissions": ["*"],
+        "is_default": True,
+        "is_super_admin": True,
+    },
+    {
+        "name": "manager",
+        "display_name": "Manager",
+        "permissions": [
+            "dashboard:view", "billing:create", "billing:view", "billing:edit",
+            "inventory:view", "inventory:edit", "inventory:create", "inventory:batches_view",
+            "inventory:batches_create", "inventory:stock_adjust",
+            "purchases:create", "purchases:view", "purchase_returns:create",
+            "purchase_returns:view", "sales_returns:create", "sales_returns:view",
+            "customers:view", "customers:edit", "customers:create", "reports:view",
+        ],
+        "is_default": True,
+        "is_super_admin": False,
+    },
+    {
+        "name": "cashier",
+        "display_name": "Cashier",
+        "permissions": [
+            "dashboard:view", "billing:create", "billing:view", "inventory:view",
+            "sales_returns:create", "sales_returns:view", "customers:view",
+            "customers:edit", "customers:create",
+        ],
+        "is_default": True,
+        "is_super_admin": False,
+    },
+    {
+        "name": "inventory_staff",
+        "display_name": "Inventory Staff",
+        "permissions": [
+            "dashboard:view", "inventory:view", "inventory:edit", "inventory:create",
+            "inventory:batches_view", "inventory:batches_create", "inventory:stock_adjust",
+            "purchases:create", "purchases:view", "purchase_returns:create",
+            "purchase_returns:view",
+        ],
+        "is_default": True,
+        "is_super_admin": False,
+    },
+]
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["settings"])

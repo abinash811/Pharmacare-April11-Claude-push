@@ -1,37 +1,39 @@
-"""Shared auth helpers — imported by all routers that need get_current_user."""
+"""Shared auth helpers — JWT, password helpers, and get_current_user dependency."""
 from __future__ import annotations
 
-import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
 from fastapi import Cookie, Depends, HTTPException, Request
 from passlib.context import CryptContext
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from deps import db
+from config import settings
+from deps import get_db
+from models.users import Role as RoleORM, User as UserORM
 
 # ── security config ────────────────────────────────────────────────────────────
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-SECRET_KEY: str = os.environ.get("JWT_SECRET", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+SECRET_KEY: str = settings.SECRET_KEY
+ALGORITHM: str = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES: int = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
-# ── user model (used as the current-user type throughout the app) ──────────────
+# ── current-user Pydantic model (carried through every request) ────────────────
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: __import__("uuid").uuid4().__str__())
-    email: EmailStr
+    id: str
+    email: str
     name: str
-    role: str
-    password_hash: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: Optional[datetime] = None
+    role: str        # role name — for checks like: current_user.role == "admin"
+    role_id: str
+    pharmacy_id: str
     is_active: bool = True
-    created_by: Optional[str] = None
-    updated_by: Optional[str] = None
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ def create_access_token(data: dict) -> str:
 async def get_current_user(
     request: Request,
     session_token: Optional[str] = Cookie(None),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     token = session_token
     if not token:
@@ -64,43 +67,36 @@ async def get_current_user(
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    async def _load_from_session(tok: str) -> User:
-        session = await db.sessions.find_one({"session_token": tok}, {"_id": 0})
-        if not session:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        expires_at = session["expires_at"]
-        if isinstance(expires_at, str):
-            expires_at = datetime.fromisoformat(expires_at)
-        if datetime.now(timezone.utc) > expires_at:
-            raise HTTPException(status_code=401, detail="Session expired")
-        user = await db.users.find_one({"id": session["user_id"]}, {"_id": 0})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return User(**user)
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
+        user_id: str = payload.get("sub")
+        if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
-        user = await db.users.find_one({"id": user_id}, {"_id": 0})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return User(**user)
     except jwt.ExpiredSignatureError:
-        return await _load_from_session(token)
+        raise HTTPException(status_code=401, detail="Session expired")
     except jwt.InvalidTokenError:
-        return await _load_from_session(token)
+        raise HTTPException(status_code=401, detail="Invalid token")
 
+    result = await db.execute(
+        select(UserORM)
+        .options(joinedload(UserORM.role))
+        .where(UserORM.id == uuid.UUID(user_id))
+    )
+    user_row = result.scalar_one_or_none()
+    if not user_row:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user_row.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
 
-def parse_fields_param(fields: Optional[str]) -> dict:
-    if not fields:
-        return {"_id": 0}
-    field_list = [f.strip() for f in fields.split(",") if f.strip()]
-    projection: dict = {"_id": 0}
-    for f in field_list:
-        projection[f] = 1
-    return projection
+    return User(
+        id=str(user_row.id),
+        email=user_row.email,
+        name=user_row.name,
+        role=user_row.role.name,
+        role_id=str(user_row.role_id),
+        pharmacy_id=str(user_row.pharmacy_id),
+        is_active=user_row.is_active,
+    )
 
 
 def paginate_response(items: list, page: int, page_size: int, total: int) -> dict:
@@ -117,11 +113,20 @@ def paginate_response(items: list, page: int, page_size: int, total: int) -> dic
     }
 
 
-async def has_permission(user_role: str, permission: str) -> bool:
-    role = await db.roles.find_one({"name": user_role}, {"_id": 0})
+async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
+    """Check if a user's role has the given permission (e.g. 'billing:create')."""
+    result = await db.execute(
+        select(RoleORM).where(RoleORM.id == uuid.UUID(user.role_id))
+    )
+    role = result.scalar_one_or_none()
     if not role:
         return False
-    perms = role.get("permissions", [])
-    if "*" in perms or role.get("is_super_admin", False):
-        return True
-    return permission in perms
+    perms = role.permissions
+    if isinstance(perms, list):
+        return "*" in perms or permission in perms
+    if isinstance(perms, dict):
+        if perms.get("*"):
+            return True
+        module, _, action = permission.partition(":")
+        return bool(perms.get(module, {}).get(action, False))
+    return False

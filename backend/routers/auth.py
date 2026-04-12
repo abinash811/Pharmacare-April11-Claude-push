@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-
 import httpx
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from deps import db
+from deps import get_db
+from models.pharmacy import Pharmacy
+from models.users import Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
     User,
     create_access_token,
@@ -32,51 +33,58 @@ class UserLogin(BaseModel):
     password: str
 
 
-class SessionCreate(BaseModel):
-    user_id: str
-    session_token: str
-    email: str
-    name: str
-    expires_at: datetime
-
-
 @router.post("/auth/register")
-async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
+async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    existing = await db.execute(select(UserORM).where(UserORM.email == user_data.email))
+    if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user = User(
-        email=user_data.email,
+    pharm_result = await db.execute(select(Pharmacy).limit(1))
+    pharmacy = pharm_result.scalar_one_or_none()
+    if not pharmacy:
+        raise HTTPException(status_code=500, detail="No pharmacy configured. Run setup first.")
+
+    role_result = await db.execute(
+        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == user_data.role)
+    )
+    role = role_result.scalar_one_or_none()
+    if not role:
+        raise HTTPException(status_code=400, detail=f"Role '{user_data.role}' not found")
+
+    user = UserORM(
+        pharmacy_id=pharmacy.id,
+        role_id=role.id,
         name=user_data.name,
-        role=user_data.role,
+        email=user_data.email,
         password_hash=hash_password(user_data.password),
     )
-    doc = user.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    await db.users.insert_one(doc)
+    db.add(user)
+    await db.flush()
 
-    token = create_access_token({"sub": user.id, "email": user.email})
-    return {"token": token, "user": {"id": user.id, "email": user.email, "name": user.name, "role": user.role}}
+    token = create_access_token({"sub": str(user.id), "email": user.email})
+    return {"token": token, "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": user_data.role}}
 
 
 @router.post("/auth/login")
-async def login(credentials: UserLogin):
-    user_doc = await db.users.find_one({"email": credentials.email}, {"_id": 0})
-    if not user_doc:
+async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.email == credentials.email)
+    )
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not verify_password(credentials.password, user_doc["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
 
-    token = create_access_token({"sub": user_doc["id"], "email": user_doc["email"]})
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
         "token": token,
-        "user": {"id": user_doc["id"], "email": user_doc["email"], "name": user_doc["name"], "role": user_doc["role"]},
+        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name},
     }
 
 
 @router.post("/auth/session")
-async def create_session(request: Request, response: Response):
+async def create_session(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     session_id = request.headers.get("X-Session-ID")
     if not session_id:
         raise HTTPException(status_code=400, detail="Session ID required")
@@ -92,46 +100,50 @@ async def create_session(request: Request, response: Response):
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to validate session: {str(e)}")
 
-    user_doc = await db.users.find_one({"email": session_data["email"]}, {"_id": 0})
-    if not user_doc:
-        user_count = await db.users.count_documents({})
-        role = "admin" if user_count == 0 else "cashier"
-        user = User(email=session_data["email"], name=session_data["name"], role=role)
-        doc = user.model_dump()
-        doc["created_at"] = doc["created_at"].isoformat()
-        await db.users.insert_one(doc)
-        user_id = user.id
+    result = await db.execute(
+        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.email == session_data["email"])
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        pharm_result = await db.execute(select(Pharmacy).limit(1))
+        pharmacy = pharm_result.scalar_one_or_none()
+        if not pharmacy:
+            raise HTTPException(status_code=500, detail="No pharmacy configured")
+
+        count_result = await db.execute(select(func.count()).select_from(UserORM))
+        role_name = "admin" if count_result.scalar() == 0 else "cashier"
+
+        role_result = await db.execute(
+            select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == role_name)
+        )
+        role = role_result.scalar_one_or_none()
+        if not role:
+            raise HTTPException(status_code=500, detail=f"Role '{role_name}' not configured")
+
+        user = UserORM(
+            pharmacy_id=pharmacy.id,
+            role_id=role.id,
+            name=session_data["name"],
+            email=session_data["email"],
+            password_hash="",
+        )
+        db.add(user)
+        await db.flush()
+        role_name_out = role_name
     else:
-        user_id = user_doc["id"]
-        user = User(**user_doc)
+        role_name_out = user.role.name
 
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    session = SessionCreate(
-        user_id=user_id,
-        session_token=session_data["session_token"],
-        email=session_data["email"],
-        name=session_data["name"],
-        expires_at=expires_at,
-    )
-    session_doc = session.model_dump()
-    session_doc["expires_at"] = session_doc["expires_at"].isoformat()
-    await db.sessions.insert_one(session_doc)
-
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     response.set_cookie(
-        key="session_token",
-        value=session_data["session_token"],
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=60 * 60 * 24 * 7,
+        key="session_token", value=token, httponly=True,
+        secure=True, samesite="none", path="/", max_age=60 * 60 * 24 * 7,
     )
-    return {"user": {"id": user.id, "email": user.email, "name": user.name, "role": user.role}}
+    return {"user": {"id": str(user.id), "email": user.email, "name": user.name, "role": role_name_out}}
 
 
 @router.post("/auth/logout")
 async def logout(response: Response, current_user: User = Depends(get_current_user)):
-    await db.sessions.delete_many({"user_id": current_user.id})
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
 

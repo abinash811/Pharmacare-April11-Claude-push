@@ -1,451 +1,542 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import db
+from deps import get_db
+from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register as H1ORM
+from models.customers import Customer as CustomerORM, Doctor as DoctorORM
+from models.products import Product as ProductORM, StockBatch as BatchORM
+from models.purchases import (
+    Purchase as PurchaseORM,
+    PurchaseItem as PurchaseItemORM,
+    PurchaseReturn as PurchaseReturnORM,
+)
+from models.suppliers import Supplier as SupplierORM
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["reports"])
 logger = logging.getLogger(__name__)
 
 
+def _p2r(paise: int) -> float:
+    """Paise → rupees for API responses."""
+    return round((paise or 0) / 100, 2)
+
+
+# ── sales summary ─────────────────────────────────────────────────────────────
+
+
 @router.get("/reports/sales-summary")
-async def get_sales_summary(from_date: Optional[str] = None, to_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
+async def get_sales_summary(
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     try:
-        bills = await db.bills.find({"invoice_type": "SALE", "status": {"$in": ["paid", "due"]}}, {"_id": 0}).to_list(10000)
-        filtered = []
-        for bill in bills:
-            try:
-                created_at = bill.get("created_at")
-                if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at)
-                bill_date = created_at.strftime("%Y-%m-%d") if created_at else None
-                if from_date and bill_date and bill_date < from_date:
-                    continue
-                if to_date and bill_date and bill_date > to_date:
-                    continue
-                filtered.append({"bill_number": bill.get("bill_number"), "date": created_at.strftime("%d/%m/%Y") if created_at else "N/A", "customer_name": bill.get("customer_name") or "Walk-in", "items_count": len(bill.get("items", [])), "payment_method": bill.get("payment_method", "cash"), "total_amount": bill.get("total_amount", 0)})
-            except Exception as e:
-                logger.warning(f"Error processing bill for report: {e}")
-        total_sales = sum(b["total_amount"] for b in filtered)
-        return {"summary": {"total_bills": len(filtered), "total_sales": round(total_sales, 2)}, "data": filtered}
+        pid = current_user.pharmacy_id
+        conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None)]
+        if from_date:
+            conds.append(BillORM.bill_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(BillORM.bill_date <= date.fromisoformat(to_date))
+
+        item_count_sub = (
+            select(BillItemORM.bill_id, func.count(BillItemORM.id).label("cnt"))
+            .group_by(BillItemORM.bill_id).subquery()
+        )
+        stmt = (
+            select(BillORM.bill_number, BillORM.bill_date, BillORM.customer_name,
+                   BillORM.payment_method, BillORM.grand_total_paise,
+                   func.coalesce(item_count_sub.c.cnt, 0).label("items_count"))
+            .outerjoin(item_count_sub, item_count_sub.c.bill_id == BillORM.id)
+            .where(*conds).order_by(BillORM.bill_date.desc())
+        )
+        rows = (await db.execute(stmt)).all()
+        data = []
+        total = 0
+        for r in rows:
+            amt = _p2r(r.grand_total_paise)
+            total += amt
+            data.append({
+                "bill_number": r.bill_number,
+                "date": r.bill_date.strftime("%d/%m/%Y") if r.bill_date else "N/A",
+                "customer_name": r.customer_name or "Walk-in",
+                "items_count": r.items_count,
+                "payment_method": r.payment_method or "cash",
+                "total_amount": amt,
+            })
+        return {"summary": {"total_bills": len(data), "total_sales": round(total, 2)}, "data": data}
     except Exception as e:
         logger.error(f"Sales report error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── low stock ─────────────────────────────────────────────────────────────────
+
+
 @router.get("/reports/low-stock")
-async def get_low_stock_report(current_user: User = Depends(get_current_user)):
+async def get_low_stock_report(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        products = await db.products.find({"status": "active"}, {"_id": 0}).to_list(10000)
-        batches = await db.stock_batches.find({}, {"_id": 0}).to_list(10000)
-        product_stock: dict = {}
-        for batch in batches:
-            sku = batch.get("product_sku")
-            if sku:
-                product_stock[sku] = product_stock.get(sku, 0) + batch.get("qty_on_hand", 0)
-        low_stock = []
-        for product in products:
-            sku = product.get("sku")
-            current = product_stock.get(sku, 0)
-            reorder = product.get("low_stock_threshold_units", 10)
-            if current <= reorder:
-                low_stock.append({"product_name": product.get("name"), "sku": sku, "current_stock": current, "reorder_level": reorder, "shortage": max(0, reorder - current)})
-        low_stock.sort(key=lambda x: (-x["shortage"], x["current_stock"]))
-        return {"summary": {"total_items": len(low_stock), "out_of_stock": sum(1 for i in low_stock if i["current_stock"] == 0)}, "data": low_stock}
+        pid = current_user.pharmacy_id
+        stock_sub = (
+            select(BatchORM.product_id, func.coalesce(func.sum(BatchORM.quantity_on_hand), 0).label("total"))
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True))
+            .group_by(BatchORM.product_id).subquery()
+        )
+        stmt = (
+            select(ProductORM.name, ProductORM.sku, func.coalesce(stock_sub.c.total, 0).label("current_stock"), ProductORM.reorder_level)
+            .outerjoin(stock_sub, stock_sub.c.product_id == ProductORM.id)
+            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None))
+        )
+        rows = (await db.execute(stmt)).all()
+        data = [{"product_name": r.name, "sku": r.sku, "current_stock": int(r.current_stock), "reorder_level": r.reorder_level,
+                 "shortage": max(0, r.reorder_level - int(r.current_stock))}
+                for r in rows if int(r.current_stock) <= r.reorder_level]
+        data.sort(key=lambda x: (-x["shortage"], x["current_stock"]))
+        return {"summary": {"total_items": len(data), "out_of_stock": sum(1 for i in data if i["current_stock"] == 0)}, "data": data}
     except Exception as e:
         logger.error(f"Low stock report error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── expiry ────────────────────────────────────────────────────────────────────
+
+
 @router.get("/reports/expiry")
-async def get_expiry_report(days: int = 30, current_user: User = Depends(get_current_user)):
+async def get_expiry_report(days: int = 30, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        now = datetime.now(timezone.utc)
-        threshold = now + timedelta(days=days)
-        batches = await db.stock_batches.find({"qty_on_hand": {"$gt": 0}}, {"_id": 0}).to_list(10000)
-        products = await db.products.find({}, {"_id": 0}).to_list(10000)
-        product_lookup = {p["sku"]: p for p in products}
-        expiring = []
+        pid = current_user.pharmacy_id
+        today = date.today()
+        threshold = today + timedelta(days=days)
+        stmt = (
+            select(BatchORM, ProductORM.name.label("product_name"))
+            .join(ProductORM, ProductORM.id == BatchORM.product_id)
+            .where(BatchORM.pharmacy_id == pid, BatchORM.quantity_on_hand > 0, BatchORM.is_active.is_(True), BatchORM.expiry_date <= threshold)
+            .order_by(BatchORM.expiry_date)
+        )
+        rows = (await db.execute(stmt)).all()
+        data = []
         total_value = 0
-        for batch in batches:
-            try:
-                expiry = batch.get("expiry_date")
-                if not expiry:
-                    continue
-                if isinstance(expiry, str):
-                    expiry = datetime.fromisoformat(expiry)
-                if expiry.tzinfo is None:
-                    expiry = expiry.replace(tzinfo=timezone.utc)
-                if expiry <= threshold:
-                    product = product_lookup.get(batch.get("product_sku"), {})
-                    qty = batch.get("qty_on_hand", 0)
-                    stock_value = qty * batch.get("mrp_per_unit", 0)
-                    expiring.append({"product_name": product.get("name", "Unknown"), "batch_no": batch.get("batch_no"), "qty": qty, "expiry_date": expiry.strftime("%d/%m/%Y"), "days_to_expiry": (expiry - now).days, "stock_value": round(stock_value, 2)})
-                    total_value += stock_value
-            except Exception as e:
-                logger.warning(f"Expiry batch error: {e}")
-        expiring.sort(key=lambda x: x["days_to_expiry"])
-        return {"summary": {"total_items": len(expiring), "total_value": round(total_value, 2), "expired": sum(1 for i in expiring if i["days_to_expiry"] < 0)}, "data": expiring}
+        for batch, product_name in rows:
+            qty = batch.quantity_on_hand
+            sv = _p2r(qty * batch.mrp_paise)
+            dte = (batch.expiry_date - today).days
+            data.append({"product_name": product_name, "batch_no": batch.batch_number, "qty": qty,
+                         "expiry_date": batch.expiry_date.strftime("%d/%m/%Y"), "days_to_expiry": dte, "stock_value": sv})
+            total_value += sv
+        return {"summary": {"total_items": len(data), "total_value": round(total_value, 2),
+                            "expired": sum(1 for i in data if i["days_to_expiry"] < 0)}, "data": data}
     except Exception as e:
         logger.error(f"Expiry report error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── dashboard stats ───────────────────────────────────────────────────────────
+
+
 @router.get("/reports/dashboard")
-async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
+async def get_dashboard_stats(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
-        today_sales = total_sales = 0
-        for bill in all_bills:
-            try:
-                created_at = bill["created_at"]
-                if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at)
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
-                total_sales += bill.get("total_amount", 0)
-                if created_at >= today_start:
-                    today_sales += bill.get("total_amount", 0)
-            except Exception:
-                pass
-        medicines = await db.medicines.find({}, {"_id": 0}).to_list(10000)
-        total_medicines = len(medicines)
-        low_stock_count = len([m for m in medicines if m.get("quantity", 0) < 10])
-        thirty_days_later = datetime.now(timezone.utc) + timedelta(days=30)
-        expiring_count = total_stock_value = 0
-        for med in medicines:
-            try:
-                expiry = med.get("expiry_date")
-                if expiry:
-                    if isinstance(expiry, str):
-                        expiry = datetime.fromisoformat(expiry)
-                    if expiry.tzinfo is None:
-                        expiry = expiry.replace(tzinfo=timezone.utc)
-                    if expiry <= thirty_days_later:
-                        expiring_count += 1
-                total_stock_value += med.get("quantity", 0) * med.get("purchase_rate", 0)
-            except Exception:
-                pass
-        return {"today_sales": round(today_sales, 2), "total_sales": round(total_sales, 2), "total_medicines": total_medicines, "low_stock_count": low_stock_count, "expiring_soon_count": expiring_count, "total_stock_value": round(total_stock_value, 2)}
+        pid = current_user.pharmacy_id
+        today = date.today()
+        thirty_days = today + timedelta(days=30)
+        base = [BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None)]
+        row = (await db.execute(select(
+            func.coalesce(func.sum(BillORM.grand_total_paise), 0),
+            func.coalesce(func.sum(func.case((BillORM.bill_date == today, BillORM.grand_total_paise), else_=0)), 0),
+        ).where(*base))).one()
+        total_paise, today_paise = row[0], row[1]
+        product_count = (await db.execute(select(func.count()).where(
+            ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None)))).scalar()
+        stock_sub = (
+            select(BatchORM.product_id, func.sum(BatchORM.quantity_on_hand).label("total"))
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)).group_by(BatchORM.product_id).subquery()
+        )
+        low_count = (await db.execute(
+            select(func.count()).select_from(ProductORM).outerjoin(stock_sub, stock_sub.c.product_id == ProductORM.id)
+            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None),
+                   func.coalesce(stock_sub.c.total, 0) < 10)
+        )).scalar()
+        exp_count = (await db.execute(select(func.count(func.distinct(BatchORM.product_id))).where(
+            BatchORM.pharmacy_id == pid, BatchORM.quantity_on_hand > 0, BatchORM.is_active.is_(True), BatchORM.expiry_date <= thirty_days))).scalar()
+        sv_paise = (await db.execute(select(func.coalesce(
+            func.sum(BatchORM.quantity_on_hand * BatchORM.cost_price_paise), 0
+        )).where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)))).scalar()
+        return {"today_sales": _p2r(today_paise), "total_sales": _p2r(total_paise), "total_medicines": product_count,
+                "low_stock_count": low_count, "expiring_soon_count": exp_count, "total_stock_value": _p2r(sv_paise)}
     except Exception as e:
         logger.error(f"Dashboard stats error: {e}")
         return {"today_sales": 0, "total_sales": 0, "total_medicines": 0, "low_stock_count": 0, "expiring_soon_count": 0, "total_stock_value": 0}
 
 
+# ── sales report ──────────────────────────────────────────────────────────────
+
+
 @router.get("/reports/sales")
-async def get_sales_report(start_date: Optional[str] = None, end_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
-    bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
+async def get_sales_report(start_date: Optional[str] = None, end_date: Optional[str] = None,
+                           db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    pid = current_user.pharmacy_id
+    conds = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
     if start_date:
-        start = datetime.fromisoformat(start_date)
-        bills = [b for b in bills if datetime.fromisoformat(b["created_at"] if isinstance(b["created_at"], str) else b["created_at"].isoformat()) >= start]
+        conds.append(BillORM.bill_date >= date.fromisoformat(start_date))
     if end_date:
-        end = datetime.fromisoformat(end_date)
-        bills = [b for b in bills if datetime.fromisoformat(b["created_at"] if isinstance(b["created_at"], str) else b["created_at"].isoformat()) <= end]
-    total_sales = sum(b.get("total_amount", 0) for b in bills)
-    total_tax = sum(b.get("tax_amount", 0) for b in bills)
-    return {"bills": bills, "summary": {"total_bills": len(bills), "total_sales": round(total_sales, 2), "total_tax": round(total_tax, 2)}}
+        conds.append(BillORM.bill_date <= date.fromisoformat(end_date))
+    bills = (await db.execute(select(BillORM).where(*conds).order_by(BillORM.bill_date.desc()))).scalars().all()
+    total_sales = sum(b.grand_total_paise for b in bills)
+    total_tax = sum(b.total_gst_paise for b in bills)
+    bill_data = [{
+        "id": str(b.id), "bill_number": b.bill_number, "bill_date": b.bill_date.isoformat() if b.bill_date else None,
+        "customer_name": b.customer_name or "Walk-in", "status": b.status, "invoice_type": b.invoice_type,
+        "payment_method": b.payment_method or "cash", "total_amount": _p2r(b.grand_total_paise),
+        "tax_amount": _p2r(b.total_gst_paise), "created_at": b.created_at.isoformat() if b.created_at else None,
+    } for b in bills]
+    return {"bills": bill_data, "summary": {"total_bills": len(bill_data), "total_sales": _p2r(total_sales), "total_tax": _p2r(total_tax)}}
+
+
+# ── GST report ────────────────────────────────────────────────────────────────
 
 
 @router.get("/reports/gst")
-async def get_gst_report(start_date: str, end_date: str, current_user: User = Depends(get_current_user)):
-    start = datetime.fromisoformat(start_date)
-    end = datetime.fromisoformat(end_date)
+async def get_gst_report(start_date: str, end_date: str,
+                         db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    pid = current_user.pharmacy_id
+    start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
 
-    bills = await db.bills.find({"status": "paid", "created_at": {"$gte": start.isoformat(), "$lte": end.isoformat()}}, {"_id": 0}).to_list(10000)
+    # Sales side — bill items
+    sales_items = (await db.execute(
+        select(BillItemORM).join(BillORM, BillORM.id == BillItemORM.bill_id)
+        .where(BillORM.pharmacy_id == pid, BillORM.status == "paid", BillORM.deleted_at.is_(None),
+               BillORM.bill_date >= start, BillORM.bill_date <= end)
+    )).scalars().all()
     sales_by_gst: dict = {}
-    for bill in bills:
-        for item in bill.get("items", []):
-            gst_rate = item.get("gst_percent", 0)
-            taxable = item.get("quantity", 0) * item.get("mrp", 0) / (1 + gst_rate / 100)
-            gst_amt = taxable * (gst_rate / 100)
-            if gst_rate not in sales_by_gst:
-                sales_by_gst[gst_rate] = {"gst_rate": gst_rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0}
-            sales_by_gst[gst_rate]["taxable_amount"] += taxable
-            sales_by_gst[gst_rate]["cgst"] += gst_amt / 2
-            sales_by_gst[gst_rate]["sgst"] += gst_amt / 2
-            sales_by_gst[gst_rate]["total_gst"] += gst_amt
+    for it in sales_items:
+        rate = float(it.gst_rate)
+        bucket = sales_by_gst.setdefault(rate, {"gst_rate": rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0})
+        bucket["taxable_amount"] += _p2r(it.taxable_amount_paise)
+        bucket["cgst"] += _p2r(it.cgst_paise)
+        bucket["sgst"] += _p2r(it.sgst_paise)
+        bucket["igst"] += _p2r(it.igst_paise)
+        bucket["total_gst"] += _p2r(it.gst_paise)
 
-    purchases = await db.purchases.find({"status": "confirmed", "purchase_date": {"$gte": start.isoformat(), "$lte": end.isoformat()}}, {"_id": 0}).to_list(10000)
+    # Purchases side — purchase items
+    purchase_items = (await db.execute(
+        select(PurchaseItemORM).join(PurchaseORM, PurchaseORM.id == PurchaseItemORM.purchase_id)
+        .where(PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed", PurchaseORM.deleted_at.is_(None),
+               PurchaseORM.purchase_date >= start, PurchaseORM.purchase_date <= end)
+    )).scalars().all()
     purchases_by_gst: dict = {}
-    for purchase in purchases:
-        for item in purchase.get("items", []):
-            gst_rate = item.get("gst_percent", 0)
-            taxable = item.get("qty_units", 0) * item.get("cost_price_per_unit", 0) / (1 + gst_rate / 100)
-            gst_amt = taxable * (gst_rate / 100)
-            if gst_rate not in purchases_by_gst:
-                purchases_by_gst[gst_rate] = {"gst_rate": gst_rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0}
-            purchases_by_gst[gst_rate]["taxable_amount"] += taxable
-            purchases_by_gst[gst_rate]["cgst"] += gst_amt / 2
-            purchases_by_gst[gst_rate]["sgst"] += gst_amt / 2
-            purchases_by_gst[gst_rate]["total_gst"] += gst_amt
+    for it in purchase_items:
+        rate = float(it.gst_rate)
+        gst_amt = _p2r(it.gst_amount_paise)
+        taxable = _p2r(it.taxable_amount_paise)
+        bucket = purchases_by_gst.setdefault(rate, {"gst_rate": rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0})
+        bucket["taxable_amount"] += taxable
+        bucket["cgst"] += round(gst_amt / 2, 2)
+        bucket["sgst"] += round(gst_amt / 2, 2)
+        bucket["total_gst"] += gst_amt
 
-    sales_summary = {k: sum(v[k] for v in sales_by_gst.values()) for k in ("taxable_amount", "cgst", "sgst", "igst", "total_gst")}
-    sales_summary["total_taxable"] = sales_summary.pop("taxable_amount")
-    purchases_summary = {k: sum(v[k] for v in purchases_by_gst.values()) for k in ("taxable_amount", "cgst", "sgst", "igst", "total_gst")}
-    purchases_summary["total_taxable"] = purchases_summary.pop("taxable_amount")
+    def _summary(by_gst):
+        return {"total_taxable": round(sum(v["taxable_amount"] for v in by_gst.values()), 2),
+                "cgst": round(sum(v["cgst"] for v in by_gst.values()), 2),
+                "sgst": round(sum(v["sgst"] for v in by_gst.values()), 2),
+                "igst": round(sum(v["igst"] for v in by_gst.values()), 2),
+                "total_gst": round(sum(v["total_gst"] for v in by_gst.values()), 2)}
 
-    return {"sales": list(sales_by_gst.values()), "purchases": list(purchases_by_gst.values()), "sales_summary": sales_summary, "purchases_summary": purchases_summary, "net_liability": round(sales_summary["total_gst"] - purchases_summary["total_gst"], 2), "period": {"start_date": start_date, "end_date": end_date}}
+    ss, ps = _summary(sales_by_gst), _summary(purchases_by_gst)
+    return {"sales": list(sales_by_gst.values()), "purchases": list(purchases_by_gst.values()),
+            "sales_summary": ss, "purchases_summary": ps,
+            "net_liability": round(ss["total_gst"] - ps["total_gst"], 2),
+            "period": {"start_date": start_date, "end_date": end_date}}
 
 
-# ── compliance ─────────────────────────────────────────────────────────────────
+# ── compliance ────────────────────────────────────────────────────────────────
+
 
 @router.get("/compliance/schedule-h1-register")
-async def get_schedule_h1_register(from_date: Optional[str] = None, to_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
+async def get_schedule_h1_register(from_date: Optional[str] = None, to_date: Optional[str] = None,
+                                   db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role not in ["admin", "manager"]:
         raise HTTPException(status_code=403, detail="Access denied. Schedule H1 register is restricted to admin and manager roles.")
-    query: dict = {}
-    if from_date or to_date:
-        date_filter: dict = {}
-        if from_date:
-            date_filter["$gte"] = from_date
-        if to_date:
-            date_filter["$lte"] = to_date
-        if date_filter:
-            query["dispensed_at"] = date_filter
-    entries = await db.schedule_h1_register.find(query, {"_id": 0}).sort("dispensed_at", -1).to_list(10000)
-    return {"entries": entries, "total_count": len(entries), "period": {"from_date": from_date, "to_date": to_date}}
+    pid = current_user.pharmacy_id
+    conds = [H1ORM.pharmacy_id == pid]
+    if from_date:
+        conds.append(H1ORM.supply_date >= date.fromisoformat(from_date))
+    if to_date:
+        conds.append(H1ORM.supply_date <= date.fromisoformat(to_date))
+    entries = (await db.execute(select(H1ORM).where(*conds).order_by(H1ORM.supply_date.desc()))).scalars().all()
+    data = [{
+        "id": str(e.id), "product_name": e.product_name, "quantity": e.quantity, "batch_number": e.batch_number,
+        "prescriber_name": e.prescriber_name, "prescriber_registration_number": e.prescriber_registration_number,
+        "patient_name": e.patient_name, "patient_address": e.patient_address, "patient_age": e.patient_age,
+        "supply_date": e.supply_date.isoformat() if e.supply_date else None,
+        "created_at": e.created_at.isoformat() if e.created_at else None,
+    } for e in entries]
+    return {"entries": data, "total_count": len(data), "period": {"from_date": from_date, "to_date": to_date}}
 
 
-# ── analytics ──────────────────────────────────────────────────────────────────
+# ── analytics summary ─────────────────────────────────────────────────────────
+
 
 @router.get("/analytics/summary")
-async def get_analytics_summary(current_user: User = Depends(get_current_user)):
+async def get_analytics_summary(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
-        gross_sales = returns = pending_amount = draft_count = today_sales = 0
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        for bill in all_bills:
-            try:
-                created_at = bill["created_at"]
-                if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at)
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
-                invoice_type = bill.get("invoice_type", "SALE")
-                status = bill.get("status", "paid")
-                amount = bill.get("total_amount", 0)
-                if invoice_type == "SALE":
-                    if status in ["paid", "due"]:
-                        gross_sales += amount
-                        if created_at >= today_start and status == "paid":
-                            today_sales += amount
-                    if status == "due":
-                        pending_amount += amount
-                    elif status == "draft":
-                        draft_count += 1
-                elif invoice_type == "SALES_RETURN" and status in ["paid", "refunded"]:
-                    returns += amount
-            except Exception as e:
-                logger.warning(f"Analytics bill error: {e}")
-        net_sales = gross_sales - returns
-        return {"gross_sales": round(gross_sales, 2), "returns": round(returns, 2), "net_sales": round(net_sales, 2), "return_percentage": round((returns / gross_sales * 100) if gross_sales > 0 else 0, 2), "pending_amount": round(pending_amount, 2), "today_sales": round(today_sales, 2), "draft_count": draft_count}
+        pid = current_user.pharmacy_id
+        today = date.today()
+        base = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
+        row = (await db.execute(select(
+            func.coalesce(func.sum(func.case((BillORM.status.in_(["paid", "due"]), BillORM.grand_total_paise), else_=0)), 0),
+            func.coalesce(func.sum(func.case((BillORM.status == "due", BillORM.grand_total_paise), else_=0)), 0),
+            func.count(func.case((BillORM.status == "draft", 1))),
+            func.coalesce(func.sum(func.case(
+                (BillORM.status.in_(["paid", "due"]) & (BillORM.bill_date == today), BillORM.grand_total_paise), else_=0)), 0),
+        ).where(*base))).one()
+        gross_paise, pending_paise, draft_count, today_paise = row[0], row[1], row[2], row[3]
+
+        # Returns
+        returns_paise = (await db.execute(select(
+            func.coalesce(func.sum(func.case((BillORM.status.in_(["paid", "refunded"]), BillORM.grand_total_paise), else_=0)), 0)
+        ).where(BillORM.pharmacy_id == pid, BillORM.invoice_type == "SALES_RETURN", BillORM.deleted_at.is_(None)))).scalar()
+
+        gross = _p2r(gross_paise)
+        ret = _p2r(returns_paise)
+        return {"gross_sales": gross, "returns": ret, "net_sales": round(gross - ret, 2),
+                "return_percentage": round((ret / gross * 100) if gross > 0 else 0, 2),
+                "pending_amount": _p2r(pending_paise), "today_sales": _p2r(today_paise), "draft_count": draft_count}
     except Exception as e:
         logger.error(f"Analytics summary error: {e}")
         return {"gross_sales": 0, "returns": 0, "net_sales": 0, "return_percentage": 0, "pending_amount": 0, "today_sales": 0, "draft_count": 0}
 
 
+# ── daily analytics ───────────────────────────────────────────────────────────
+
+
 @router.get("/analytics/daily")
-async def get_daily_analytics(days: int = 7, current_user: User = Depends(get_current_user)):
+async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
-        daily_data: dict = {}
-        for bill in all_bills:
-            try:
-                created_at = bill["created_at"]
-                if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at)
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
-                if created_at < start_date:
-                    continue
-                date_key = created_at.strftime("%Y-%m-%d")
-                daily_data.setdefault(date_key, {"sales": 0, "returns": 0, "net": 0})
-                invoice_type = bill.get("invoice_type", "SALE")
-                amount = bill.get("total_amount", 0)
-                if invoice_type == "SALE" and bill.get("status") in ["paid", "due"]:
-                    daily_data[date_key]["sales"] += amount
-                elif invoice_type == "SALES_RETURN" and bill.get("status") in ["paid", "refunded"]:
-                    daily_data[date_key]["returns"] += amount
-                daily_data[date_key]["net"] = daily_data[date_key]["sales"] - daily_data[date_key]["returns"]
-            except Exception:
-                pass
-        return [{"date": d, "sales": round(v["sales"], 2), "returns": round(v["returns"], 2), "net": round(v["net"], 2)} for d, v in sorted(daily_data.items())]
+        pid = current_user.pharmacy_id
+        start = date.today() - timedelta(days=days)
+        bills = (await db.execute(select(BillORM).where(
+            BillORM.pharmacy_id == pid, BillORM.bill_date >= start, BillORM.deleted_at.is_(None),
+            BillORM.status.in_(["paid", "due", "refunded"]),
+        ))).scalars().all()
+        daily: dict = {}
+        for b in bills:
+            dk = b.bill_date.isoformat() if b.bill_date else None
+            if not dk:
+                continue
+            daily.setdefault(dk, {"sales": 0, "returns": 0, "net": 0})
+            amt = b.grand_total_paise or 0
+            if b.invoice_type != "SALES_RETURN" and b.status in ["paid", "due"]:
+                daily[dk]["sales"] += amt
+            elif b.invoice_type == "SALES_RETURN" and b.status in ["paid", "refunded"]:
+                daily[dk]["returns"] += amt
+            daily[dk]["net"] = daily[dk]["sales"] - daily[dk]["returns"]
+        return [{"date": d, "sales": _p2r(v["sales"]), "returns": _p2r(v["returns"]), "net": _p2r(v["net"])}
+                for d, v in sorted(daily.items())]
     except Exception as e:
         logger.error(f"Daily analytics error: {e}")
         return []
 
 
+# ── dashboard analytics ───────────────────────────────────────────────────────
+
+
 @router.get("/analytics/dashboard")
-async def get_dashboard_analytics(current_user: User = Depends(get_current_user)):
+async def get_dashboard_analytics(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
-        now = datetime.now(timezone.utc)
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = today_start - timedelta(days=today_start.weekday())
-        month_start = today_start.replace(day=1)
-        yesterday_start = today_start - timedelta(days=1)
+        pid = current_user.pharmacy_id
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+        month_start = today.replace(day=1)
+        yesterday = today - timedelta(days=1)
         last_week_start = week_start - timedelta(days=7)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+        thirty_ago = today - timedelta(days=30)
+        thirty_ahead = today + timedelta(days=30)
 
-        all_bills = await db.bills.find({}, {"_id": 0}).to_list(10000)
-        all_products = await db.products.find({}, {"_id": 0}).to_list(10000)
-        all_batches = await db.stock_batches.find({}, {"_id": 0}).to_list(10000)
+        base = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
+        bills = (await db.execute(select(BillORM).where(*base))).scalars().all()
 
-        today_sales = yesterday_sales = week_sales = last_week_sales = month_sales = last_month_sales = total_sales = pending_payments = draft_bills = month_returns = 0
-        category_sales: dict = {}
-        product_sales: dict = {}
+        today_sales = yesterday_sales = week_sales = last_week_sales = month_sales = last_month_sales = 0
+        total_sales = pending_payments = draft_bills = month_returns = 0
         customer_sales: dict = {}
-        daily_sales: dict = {(today_start - timedelta(days=i)).strftime("%Y-%m-%d"): {"sales": 0, "returns": 0, "bills": 0} for i in range(30)}
+        daily_sales: dict = {(today - timedelta(days=i)).isoformat(): {"sales": 0, "returns": 0, "bills": 0} for i in range(30)}
         recent_bills: list = []
 
-        for bill in all_bills:
-            try:
-                created_at = bill.get("created_at")
-                if not created_at:
-                    continue
-                if isinstance(created_at, str):
-                    created_at = datetime.fromisoformat(created_at)
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
-                invoice_type = bill.get("invoice_type", "SALE")
-                status = bill.get("status", "paid")
-                amount = bill.get("total_amount", 0) or 0
-                if status == "draft":
-                    draft_bills += 1
-                    continue
-                elif status == "due":
-                    pending_payments += amount
-                if invoice_type == "SALE" and status in ["paid", "due"]:
-                    total_sales += amount
-                    if created_at >= today_start:
-                        today_sales += amount
-                    if yesterday_start <= created_at < today_start:
-                        yesterday_sales += amount
-                    if created_at >= week_start:
-                        week_sales += amount
-                    if last_week_start <= created_at < week_start:
-                        last_week_sales += amount
-                    if created_at >= month_start:
-                        month_sales += amount
-                    if last_month_start <= created_at < month_start:
-                        last_month_sales += amount
-                    date_key = created_at.strftime("%Y-%m-%d")
-                    if date_key in daily_sales:
-                        daily_sales[date_key]["sales"] += amount
-                        daily_sales[date_key]["bills"] += 1
-                    for item in bill.get("items", []):
-                        psku = item.get("product_sku") or item.get("product_id", "")
-                        pname = item.get("product_name", "Unknown")
-                        lt = item.get("line_total") or item.get("total", 0) or 0
-                        product_sales.setdefault(psku, {"name": pname, "revenue": 0, "qty": 0})
-                        product_sales[psku]["revenue"] += lt
-                        product_sales[psku]["qty"] += item.get("quantity", 0)
-                    cname = bill.get("customer_name", "Walk-in")
-                    if cname:
-                        customer_sales.setdefault(cname, {"revenue": 0, "bills": 0})
-                        customer_sales[cname]["revenue"] += amount
-                        customer_sales[cname]["bills"] += 1
-                    if len(recent_bills) < 10:
-                        recent_bills.append({"id": bill.get("id"), "bill_number": bill.get("bill_number"), "customer_name": bill.get("customer_name", "Walk-in"), "amount": amount, "status": status, "created_at": created_at.isoformat()})
-                elif invoice_type == "SALES_RETURN" and status in ["paid", "refunded"]:
-                    if created_at >= month_start:
-                        month_returns += amount
-                    date_key = created_at.strftime("%Y-%m-%d")
-                    if date_key in daily_sales:
-                        daily_sales[date_key]["returns"] += amount
-            except Exception as e:
-                logger.warning(f"Dashboard bill error: {e}")
+        for b in bills:
+            bd = b.bill_date
+            if not bd:
+                continue
+            amt = b.grand_total_paise or 0
+            if b.status == "draft":
+                draft_bills += 1
+                continue
+            if b.status == "due":
+                pending_payments += amt
+            if b.invoice_type != "SALES_RETURN" and b.status in ["paid", "due"]:
+                total_sales += amt
+                if bd == today:
+                    today_sales += amt
+                if bd == yesterday:
+                    yesterday_sales += amt
+                if bd >= week_start:
+                    week_sales += amt
+                if last_week_start <= bd < week_start:
+                    last_week_sales += amt
+                if bd >= month_start:
+                    month_sales += amt
+                if last_month_start <= bd < month_start:
+                    last_month_sales += amt
+                dk = bd.isoformat()
+                if dk in daily_sales:
+                    daily_sales[dk]["sales"] += amt
+                    daily_sales[dk]["bills"] += 1
+                cn = b.customer_name or "Walk-in"
+                customer_sales.setdefault(cn, {"revenue": 0, "bills": 0})
+                customer_sales[cn]["revenue"] += amt
+                customer_sales[cn]["bills"] += 1
+                if len(recent_bills) < 10:
+                    recent_bills.append({"id": str(b.id), "bill_number": b.bill_number,
+                                         "customer_name": cn, "amount": _p2r(amt), "status": b.status,
+                                         "created_at": b.created_at.isoformat() if b.created_at else None})
+            elif b.invoice_type == "SALES_RETURN" and b.status in ["paid", "refunded"]:
+                if bd >= month_start:
+                    month_returns += amt
+                dk = bd.isoformat()
+                if dk in daily_sales:
+                    daily_sales[dk]["returns"] += amt
+
+        # Top products from bill items in last 30 days
+        product_sales_rows = (await db.execute(
+            select(BillItemORM.product_name, func.sum(BillItemORM.line_total_paise).label("rev"), func.sum(BillItemORM.quantity).label("qty"))
+            .join(BillORM, BillORM.id == BillItemORM.bill_id)
+            .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None), BillORM.bill_date >= thirty_ago)
+            .group_by(BillItemORM.product_name).order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(5)
+        )).all()
+
+        # Category sales
+        cat_rows = (await db.execute(
+            select(ProductORM.category, func.sum(BillItemORM.line_total_paise).label("rev"))
+            .join(BillItemORM, BillItemORM.product_id == ProductORM.id)
+            .join(BillORM, BillORM.id == BillItemORM.bill_id)
+            .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None), BillORM.bill_date >= thirty_ago)
+            .group_by(ProductORM.category).order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(6)
+        )).all()
+
+        # Stock health
+        low_stock_items = (await db.execute(
+            select(ProductORM.name, BatchORM.batch_number, BatchORM.quantity_on_hand)
+            .join(BatchORM, BatchORM.product_id == ProductORM.id)
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < 10)
+            .order_by(BatchORM.quantity_on_hand).limit(5)
+        )).all()
+        expiring_items = (await db.execute(
+            select(ProductORM.name, BatchORM.batch_number, BatchORM.expiry_date, BatchORM.quantity_on_hand)
+            .join(BatchORM, BatchORM.product_id == ProductORM.id)
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead)
+            .order_by(BatchORM.expiry_date).limit(5)
+        )).all()
+        # Counts for quick stats
+        product_count = (await db.execute(select(func.count()).where(
+            ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None)))).scalar()
+        sv_paise = (await db.execute(select(func.coalesce(func.sum(BatchORM.quantity_on_hand * BatchORM.cost_price_paise), 0)).where(
+            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)))).scalar()
+        low_total = (await db.execute(select(func.count()).where(
+            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < 10))).scalar()
+        exp_total = (await db.execute(select(func.count()).where(
+            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead))).scalar()
 
         def calc_change(cur, prev):
             if prev == 0:
                 return 100 if cur > 0 else 0
             return round((cur - prev) / prev * 100, 1)
 
-        top_products = sorted(product_sales.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
         top_customers = sorted(customer_sales.items(), key=lambda x: x[1]["revenue"], reverse=True)[:5]
-        product_lookup = {p["sku"]: p for p in all_products}
-        for product in all_products:
-            cat = product.get("category", "Uncategorized") or "Uncategorized"
-            if product.get("sku", "") in product_sales:
-                category_sales[cat] = category_sales.get(cat, 0) + product_sales[product["sku"]]["revenue"]
-
-        total_stock_value = 0
-        low_stock_items: list = []
-        expiring_items: list = []
-        thirty_days = now + timedelta(days=30)
-        for batch in all_batches:
-            try:
-                qty = batch.get("qty_on_hand", 0)
-                total_stock_value += qty * batch.get("cost_price_per_unit", 0)
-                pname = product_lookup.get(batch.get("product_sku", ""), {}).get("name", "Unknown")
-                if 0 < qty < 10:
-                    low_stock_items.append({"product_name": pname, "batch_no": batch.get("batch_no", "N/A"), "qty": qty})
-                expiry = batch.get("expiry_date")
-                if expiry and qty > 0:
-                    if isinstance(expiry, str):
-                        expiry = datetime.fromisoformat(expiry)
-                    if expiry.tzinfo is None:
-                        expiry = expiry.replace(tzinfo=timezone.utc)
-                    if expiry <= thirty_days:
-                        expiring_items.append({"product_name": pname, "batch_no": batch.get("batch_no", "N/A"), "expiry_date": expiry.strftime("%Y-%m-%d"), "qty": qty})
-            except Exception:
-                pass
-
-        low_stock_items.sort(key=lambda x: x["qty"])
-        expiring_items.sort(key=lambda x: x["expiry_date"])
-        recent_bills.sort(key=lambda x: x["created_at"], reverse=True)
+        recent_bills.sort(key=lambda x: x["created_at"] or "", reverse=True)
 
         return {
-            "metrics": {"today_sales": round(today_sales, 2), "today_change": calc_change(today_sales, yesterday_sales), "week_sales": round(week_sales, 2), "week_change": calc_change(week_sales, last_week_sales), "month_sales": round(month_sales, 2), "month_change": calc_change(month_sales, last_month_sales), "total_sales": round(total_sales, 2)},
-            "daily_trend": [{"date": d, "sales": round(v["sales"], 2), "returns": round(v["returns"], 2), "bills": v["bills"]} for d, v in sorted(daily_sales.items())][-14:],
-            "category_sales": sorted([{"category": c, "revenue": round(r, 2)} for c, r in category_sales.items()], key=lambda x: x["revenue"], reverse=True)[:6],
-            "top_products": [{"sku": sku, "name": d["name"], "revenue": round(d["revenue"], 2), "qty": d["qty"]} for sku, d in top_products],
-            "top_customers": [{"name": n, "revenue": round(d["revenue"], 2), "bills": d["bills"]} for n, d in top_customers],
-            "low_stock": low_stock_items[:5], "expiring_soon": expiring_items[:5], "recent_bills": recent_bills[:5],
-            "quick_stats": {"pending_payments": round(pending_payments, 2), "draft_bills": draft_bills, "month_returns": round(month_returns, 2), "total_products": len(all_products), "stock_value": round(total_stock_value, 2), "low_stock_count": len(low_stock_items), "expiring_count": len(expiring_items)},
+            "metrics": {"today_sales": _p2r(today_sales), "today_change": calc_change(today_sales, yesterday_sales),
+                        "week_sales": _p2r(week_sales), "week_change": calc_change(week_sales, last_week_sales),
+                        "month_sales": _p2r(month_sales), "month_change": calc_change(month_sales, last_month_sales),
+                        "total_sales": _p2r(total_sales)},
+            "daily_trend": [{"date": d, "sales": _p2r(v["sales"]), "returns": _p2r(v["returns"]), "bills": v["bills"]}
+                            for d, v in sorted(daily_sales.items())][-14:],
+            "category_sales": [{"category": c or "Uncategorized", "revenue": _p2r(r)} for c, r in cat_rows],
+            "top_products": [{"name": n, "revenue": _p2r(r), "qty": q} for n, r, q in product_sales_rows],
+            "top_customers": [{"name": n, "revenue": _p2r(d["revenue"]), "bills": d["bills"]} for n, d in top_customers],
+            "low_stock": [{"product_name": n, "batch_no": bn, "qty": q} for n, bn, q in low_stock_items],
+            "expiring_soon": [{"product_name": n, "batch_no": bn, "expiry_date": ed.isoformat(), "qty": q} for n, bn, ed, q in expiring_items],
+            "recent_bills": recent_bills[:5],
+            "quick_stats": {"pending_payments": _p2r(pending_payments), "draft_bills": draft_bills, "month_returns": _p2r(month_returns),
+                            "total_products": product_count, "stock_value": _p2r(sv_paise), "low_stock_count": low_total, "expiring_count": exp_total},
         }
     except Exception as e:
         logger.error(f"Dashboard analytics error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── purchase analytics ────────────────────────────────────────────────────────
+
+
 @router.get("/analytics/purchases")
-async def get_purchase_analytics(from_date: Optional[str] = None, to_date: Optional[str] = None, current_user: User = Depends(get_current_user)):
-    query: dict = {"status": {"$nin": ["cancelled", "draft"]}}
+async def get_purchase_analytics(from_date: Optional[str] = None, to_date: Optional[str] = None,
+                                 db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    pid = current_user.pharmacy_id
+    pconds = [PurchaseORM.pharmacy_id == pid, PurchaseORM.status.notin_(["cancelled", "draft"]), PurchaseORM.deleted_at.is_(None)]
     if from_date:
-        query["purchase_date"] = {"$gte": from_date}
+        pconds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
     if to_date:
-        query.setdefault("purchase_date", {})["$lte"] = to_date
-    purchases = await db.purchases.find(query, {"_id": 0}).to_list(10000)
-    total_purchases_value = sum(p.get("total_value", 0) for p in purchases)
+        pconds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+    p_row = (await db.execute(select(func.coalesce(func.sum(PurchaseORM.grand_total_paise), 0), func.count()).where(*pconds))).one()
+    total_p, count_p = p_row[0], p_row[1]
 
-    rquery: dict = {"status": "confirmed"}
+    rconds = [PurchaseReturnORM.pharmacy_id == pid, PurchaseReturnORM.status == "confirmed"]
     if from_date:
-        rquery["return_date"] = {"$gte": from_date}
+        rconds.append(PurchaseReturnORM.return_date >= date.fromisoformat(from_date))
     if to_date:
-        rquery.setdefault("return_date", {})["$lte"] = to_date
-    purchase_returns = await db.purchase_returns.find(rquery, {"_id": 0}).to_list(10000)
-    total_pr_value = sum(r.get("total_value", 0) for r in purchase_returns)
+        rconds.append(PurchaseReturnORM.return_date <= date.fromisoformat(to_date))
+    r_row = (await db.execute(select(func.coalesce(func.sum(PurchaseReturnORM.grand_total_paise), 0), func.count()).where(*rconds))).one()
+    total_r, count_r = r_row[0], r_row[1]
 
-    return {"total_purchases_value": total_purchases_value, "total_purchase_returns_value": total_pr_value, "net_purchases": total_purchases_value - total_pr_value, "total_purchases_count": len(purchases), "total_returns_count": len(purchase_returns)}
+    return {"total_purchases_value": _p2r(total_p), "total_purchase_returns_value": _p2r(total_r),
+            "net_purchases": _p2r(total_p - total_r), "total_purchases_count": count_p, "total_returns_count": count_r}
+
+
+# ── backup export ─────────────────────────────────────────────────────────────
 
 
 @router.get("/backup/export")
-async def export_data(current_user: User = Depends(get_current_user)):
+async def export_data(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can export data")
+    pid = current_user.pharmacy_id
+
+    async def _dump(model):
+        rows = (await db.execute(select(model).where(model.pharmacy_id == pid))).scalars().all()
+        result = []
+        for r in rows:
+            d = {c.name: getattr(r, c.name) for c in r.__table__.columns}
+            for k, v in d.items():
+                if isinstance(v, (datetime, date)):
+                    d[k] = v.isoformat()
+                elif hasattr(v, "hex"):
+                    d[k] = str(v)
+            result.append(d)
+        return result
+
     return {
         "export_date": datetime.now(timezone.utc).isoformat(),
-        "medicines": await db.medicines.find({}, {"_id": 0}).to_list(10000),
-        "bills": await db.bills.find({}, {"_id": 0}).to_list(10000),
-        "purchases": await db.purchases.find({}, {"_id": 0}).to_list(10000),
-        "customers": await db.customers.find({}, {"_id": 0}).to_list(10000),
-        "doctors": await db.doctors.find({}, {"_id": 0}).to_list(10000),
-        "suppliers": await db.suppliers.find({}, {"_id": 0}).to_list(10000),
+        "medicines": await _dump(ProductORM),
+        "bills": await _dump(BillORM),
+        "purchases": await _dump(PurchaseORM),
+        "customers": await _dump(CustomerORM),
+        "doctors": await _dump(DoctorORM),
+        "suppliers": await _dump(SupplierORM),
     }

@@ -8,7 +8,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from deps import db
 from routers import auth, users, settings, inventory, batches, billing, customers, reports, suppliers, purchases, purchase_returns, sales_returns
 from utils import excel
-from routers.settings import DEFAULT_ROLES, Role
+from constants import DEFAULT_ROLES
+from pydantic import BaseModel, ConfigDict, Field
+import uuid
+from datetime import datetime, timezone
+from typing import List, Optional
+
+# Temporary Pydantic Role model — used by startup_db until main.py is fully migrated
+class Role(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    display_name: str
+    permissions: List[str]
+    is_default: bool = False
+    is_super_admin: bool = False
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
 
 app = FastAPI(title="PharmaCare API", version="2.0.0")
 

@@ -2,54 +2,25 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import db
+from deps import get_db
+from models.purchases import Purchase
+from models.suppliers import Supplier as SupplierORM
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
 
 
-# ── Pydantic models ────────────────────────────────────────────────────────────
-
-class SupplierPayment(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    amount: float
-    payment_date: str
-    payment_method: str = "cash"
-    reference_no: Optional[str] = None
-    notes: Optional[str] = None
-    purchase_ids: List[str] = []
-    created_by: Optional[str] = None
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-
-
-class Supplier(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    contact_name: Optional[str] = None
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    gstin: Optional[str] = None
-    address: Optional[str] = None
-    payment_terms_days: int = 30
-    credit_days: Optional[int] = None
-    notes: Optional[str] = None
-    is_active: bool = True
-    outstanding: float = 0.0
-    payment_history: List[SupplierPayment] = []
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
+# ── Pydantic request models ──────────────────────────────────────────────────
 
 class SupplierCreate(BaseModel):
     name: str
-    contact_name: Optional[str] = None
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -62,7 +33,6 @@ class SupplierCreate(BaseModel):
 
 class SupplierUpdate(BaseModel):
     name: Optional[str] = None
-    contact_name: Optional[str] = None
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -74,149 +44,194 @@ class SupplierUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-# ── /suppliers ─────────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def _supplier_response(s: SupplierORM, outstanding_paise: int = 0) -> dict:
+    return {
+        "id": str(s.id),
+        "name": s.name,
+        "contact_person": s.contact_person,
+        "phone": s.phone,
+        "email": s.email,
+        "gstin": s.gstin,
+        "address": s.address,
+        "city": s.city,
+        "state": s.state,
+        "pincode": s.pincode,
+        "drug_license_number": s.drug_license_number,
+        "payment_terms_days": s.credit_days,
+        "credit_days": s.credit_days,
+        "is_active": s.is_active,
+        "outstanding": outstanding_paise / 100,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+# ── /suppliers ────────────────────────────────────────────────────────────────
 
 @router.get("/suppliers")
 async def get_suppliers(
-    search: Optional[str] = None,
-    active_only: Optional[bool] = None,
-    page: int = 1,
-    page_size: int = 50,
-    current_user: User = Depends(get_current_user),
+    search: Optional[str] = None, active_only: Optional[bool] = None,
+    page: int = 1, page_size: int = 50,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    query: dict = {}
+    query = select(SupplierORM).where(SupplierORM.pharmacy_id == pharmacy_id, SupplierORM.deleted_at.is_(None))
     if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"contact_name": {"$regex": search, "$options": "i"}},
-            {"phone": {"$regex": search, "$options": "i"}},
-            {"gstin": {"$regex": search, "$options": "i"}},
-        ]
+        pattern = f"%{search}%"
+        query = query.where(or_(
+            SupplierORM.name.ilike(pattern),
+            SupplierORM.contact_person.ilike(pattern),
+            SupplierORM.phone.ilike(pattern),
+            SupplierORM.gstin.ilike(pattern),
+        ))
     if active_only:
-        query["is_active"] = {"$ne": False}
+        query = query.where(SupplierORM.is_active == True)
 
-    total = await db.suppliers.count_documents(query)
-    skip = (page - 1) * page_size
-    suppliers = await db.suppliers.find(query, {"_id": 0}).sort("name", 1).skip(skip).limit(page_size).to_list(page_size)
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar()
 
-    for supplier in suppliers:
-        if isinstance(supplier.get("created_at"), str):
-            supplier["created_at"] = datetime.fromisoformat(supplier["created_at"])
-        if isinstance(supplier.get("updated_at"), str):
-            supplier["updated_at"] = datetime.fromisoformat(supplier["updated_at"])
-        if "is_active" not in supplier:
-            supplier["is_active"] = True
+    offset = (page - 1) * page_size
+    result = await db.execute(query.order_by(SupplierORM.name).offset(offset).limit(page_size))
+    suppliers = [_supplier_response(s) for s in result.scalars().all()]
 
     return {
         "data": suppliers,
         "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
+            "page": page, "page_size": page_size, "total": total,
             "total_pages": (total + page_size - 1) // page_size,
-            "has_next": page * page_size < total,
-            "has_prev": page > 1,
+            "has_next": page * page_size < total, "has_prev": page > 1,
         },
     }
 
 
-@router.post("/suppliers", response_model=Supplier)
-async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(get_current_user)):
-    existing = await db.suppliers.find_one({"name": supplier_data.name}, {"_id": 0})
-    if existing:
+@router.post("/suppliers")
+async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    existing = await db.execute(
+        select(SupplierORM).where(SupplierORM.pharmacy_id == pharmacy_id, SupplierORM.name == supplier_data.name, SupplierORM.deleted_at.is_(None))
+    )
+    if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Supplier with this name already exists")
 
-    supplier = Supplier(**supplier_data.model_dump())
-    doc = supplier.model_dump()
-    doc["created_at"] = doc["created_at"].isoformat()
-    doc["updated_at"] = doc["updated_at"].isoformat()
-    await db.suppliers.insert_one(doc)
-    return supplier
+    supplier = SupplierORM(
+        pharmacy_id=pharmacy_id,
+        name=supplier_data.name,
+        contact_person=supplier_data.contact_person,
+        phone=supplier_data.phone,
+        email=supplier_data.email,
+        gstin=supplier_data.gstin,
+        address=supplier_data.address,
+        credit_days=supplier_data.payment_terms_days if supplier_data.credit_days is None else supplier_data.credit_days,
+    )
+    db.add(supplier)
+    await db.flush()
+    return _supplier_response(supplier)
 
 
-@router.get("/suppliers/{supplier_id}", response_model=Supplier)
-async def get_supplier(supplier_id: str, current_user: User = Depends(get_current_user)):
-    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+@router.get("/suppliers/{supplier_id}")
+async def get_supplier(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
+    supplier = result.scalar_one_or_none()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    if isinstance(supplier["created_at"], str):
-        supplier["created_at"] = datetime.fromisoformat(supplier["created_at"])
-    if isinstance(supplier["updated_at"], str):
-        supplier["updated_at"] = datetime.fromisoformat(supplier["updated_at"])
-    return supplier
+
+    outstanding = await _calc_outstanding(supplier.id, db)
+    return _supplier_response(supplier, outstanding)
 
 
 @router.put("/suppliers/{supplier_id}")
-async def update_supplier(supplier_id: str, supplier_data: SupplierUpdate, current_user: User = Depends(get_current_user)):
-    update_dict = {k: v for k, v in supplier_data.model_dump().items() if v is not None}
-    if not update_dict:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = await db.suppliers.update_one({"id": supplier_id}, {"$set": update_dict})
-    if result.matched_count == 0:
+async def update_supplier(supplier_id: str, supplier_data: SupplierUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
+    supplier = result.scalar_one_or_none()
+    if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
+
+    update_fields = supplier_data.model_dump(exclude_unset=True)
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    field_map = {"payment_terms_days": "credit_days"}
+    for key, value in update_fields.items():
+        col = field_map.get(key, key)
+        if hasattr(supplier, col):
+            setattr(supplier, col, value)
+
+    await db.flush()
     return {"message": "Supplier updated successfully"}
 
 
 @router.delete("/suppliers/{supplier_id}")
-async def delete_supplier(supplier_id: str, current_user: User = Depends(get_current_user)):
-    purchase_count = await db.purchases.count_documents({"supplier_id": supplier_id})
+async def delete_supplier(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    sid = uuid.UUID(supplier_id)
+    result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
+    supplier = result.scalar_one_or_none()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    count_result = await db.execute(select(func.count()).select_from(Purchase).where(Purchase.supplier_id == sid))
+    purchase_count = count_result.scalar()
     if purchase_count > 0:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot delete supplier: {purchase_count} purchase(s) exist. Deactivate instead.",
         )
-    result = await db.suppliers.delete_one({"id": supplier_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    supplier.deleted_at = datetime.now(timezone.utc)
+    await db.flush()
     return {"message": "Supplier deleted successfully"}
 
 
 @router.patch("/suppliers/{supplier_id}/toggle-status")
-async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(get_current_user)):
-    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
+    supplier = result.scalar_one_or_none()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    new_status = not supplier.get("is_active", True)
-    await db.suppliers.update_one(
-        {"id": supplier_id},
-        {"$set": {"is_active": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}},
-    )
-    status_text = "activated" if new_status else "deactivated"
-    return {"message": f"Supplier {status_text} successfully", "is_active": new_status}
+
+    supplier.is_active = not supplier.is_active
+    await db.flush()
+    status_text = "activated" if supplier.is_active else "deactivated"
+    return {"message": f"Supplier {status_text} successfully", "is_active": supplier.is_active}
 
 
 @router.get("/suppliers/{supplier_id}/summary")
-async def get_supplier_summary(supplier_id: str, current_user: User = Depends(get_current_user)):
-    supplier = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+async def get_supplier_summary(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    sid = uuid.UUID(supplier_id)
+    result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
+    supplier = result.scalar_one_or_none()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
 
-    purchases = await db.purchases.find(
-        {"supplier_id": supplier_id, "status": {"$in": ["confirmed", "draft"]}},
-        {"_id": 0, "purchase_date": 1, "total_value": 1, "status": 1},
-    ).to_list(10000)
+    purchases_result = await db.execute(
+        select(Purchase.grand_total_paise, Purchase.purchase_date, Purchase.status)
+        .where(Purchase.supplier_id == sid, Purchase.status.in_(["confirmed", "draft"]))
+    )
+    purchases = purchases_result.all()
 
     total_purchases = len(purchases)
-    total_value = sum(p.get("total_value", 0) or 0 for p in purchases)
-    confirmed_purchases = [p for p in purchases if p.get("status") == "confirmed"]
+    total_value = sum(p.grand_total_paise for p in purchases) / 100
+    confirmed = [p for p in purchases if p.status == "confirmed"]
+    last_purchase_date = max((p.purchase_date for p in confirmed), default=None)
 
-    last_purchase_date = None
-    if confirmed_purchases:
-        dates = []
-        for p in confirmed_purchases:
-            pd = p.get("purchase_date")
-            if pd:
-                dates.append(pd if isinstance(pd, str) else pd.isoformat())
-        if dates:
-            last_purchase_date = max(dates)
+    outstanding = await _calc_outstanding(sid, db)
 
     return {
-        "supplier": supplier,
+        "supplier": _supplier_response(supplier, outstanding),
         "total_purchases": total_purchases,
         "total_purchase_value": round(total_value, 2),
-        "last_purchase_date": last_purchase_date,
+        "last_purchase_date": last_purchase_date.isoformat() if last_purchase_date else None,
     }
+
+
+async def _calc_outstanding(supplier_id: uuid.UUID, db: AsyncSession) -> int:
+    """Calculate outstanding paise = sum(grand_total - amount_paid) for unpaid/partial purchases."""
+    result = await db.execute(
+        select(func.coalesce(func.sum(Purchase.grand_total_paise - Purchase.amount_paid_paise), 0))
+        .where(Purchase.supplier_id == supplier_id, Purchase.payment_status.in_(["unpaid", "partial"]))
+    )
+    return result.scalar()

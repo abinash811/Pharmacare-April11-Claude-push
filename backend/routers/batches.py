@@ -1,45 +1,22 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from deps import db
+from deps import get_db
+from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["batches"])
 
 
-# ── Pydantic models ────────────────────────────────────────────────────────────
-
-class StockBatch(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    product_sku: str
-    batch_no: str
-    manufacture_date: Optional[datetime] = None
-    expiry_date: datetime
-    qty_on_hand: int
-    cost_price_per_unit: float
-    mrp_per_unit: float
-    ptr_per_unit: Optional[float] = None
-    lp_per_unit: Optional[float] = None
-    supplier_name: Optional[str] = None
-    supplier_invoice_no: Optional[str] = None
-    received_date: Optional[datetime] = None
-    location: Optional[str] = "default"
-    free_qty_units: Optional[int] = 0
-    batch_priority: str = "LIFA"
-    notes: Optional[str] = None
-    purchase_id: Optional[str] = None
-    created_by: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_by: Optional[str] = None
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
+# ── Pydantic request models ──────────────────────────────────────────────────
 
 class StockBatchCreate(BaseModel):
     product_sku: str
@@ -72,23 +49,6 @@ class StockBatchUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-class StockMovement(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    product_sku: str
-    batch_id: str
-    product_name: str
-    batch_no: str
-    qty_delta_units: int
-    movement_type: str
-    ref_type: str
-    ref_id: str
-    location: Optional[str] = "default"
-    reason: Optional[str] = None
-    performed_by: str
-    performed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-
 class StockMovementCreate(BaseModel):
     product_sku: str
     batch_id: str
@@ -111,192 +71,274 @@ class StockAdjustment(BaseModel):
     notes: Optional[str] = None
 
 
-# ── /stock/batches ─────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
 
-@router.post("/stock/batches", response_model=StockBatch)
-async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(get_current_user)):
-    product = await db.products.find_one({"sku": batch_data.product_sku}, {"_id": 0})
+def _batch_response(b: BatchORM, product: ProductORM) -> dict:
+    units_per_pack = product.units_per_pack or 1
+    return {
+        "id": str(b.id),
+        "product_sku": product.sku,
+        "product_name": product.name,
+        "product_brand": product.brand or "",
+        "batch_no": b.batch_number,
+        "manufacture_date": b.manufacture_date.isoformat() if b.manufacture_date else None,
+        "expiry_date": b.expiry_date.isoformat() if b.expiry_date else None,
+        "qty_on_hand": b.quantity_on_hand,
+        "total_units": b.quantity_on_hand * units_per_pack,
+        "cost_price_per_unit": b.cost_price_paise / 100,
+        "mrp_per_unit": b.mrp_paise / 100,
+        "location": "default",
+        "is_active": b.is_active,
+        "created_at": b.created_at.isoformat() if b.created_at else None,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+    }
+
+
+def _movement_response(m: MovementORM) -> dict:
+    return {
+        "id": str(m.id),
+        "product_id": str(m.product_id),
+        "batch_id": str(m.batch_id),
+        "movement_type": m.movement_type,
+        "qty_delta_units": m.quantity,
+        "quantity_before": m.quantity_before,
+        "quantity_after": m.quantity_after,
+        "ref_type": m.reference_type,
+        "ref_id": str(m.reference_id) if m.reference_id else None,
+        "reason": m.notes,
+        "performed_at": m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+async def _get_product_by_sku(pharmacy_id: uuid.UUID, sku: str, db: AsyncSession) -> ProductORM:
+    result = await db.execute(
+        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == sku)
+    )
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
-    existing = await db.stock_batches.find_one({
-        "product_sku": batch_data.product_sku, "batch_no": batch_data.batch_no, "location": batch_data.location or "default"
-    }, {"_id": 0})
-    if existing:
+
+async def _get_batch(batch_id: str, db: AsyncSession) -> BatchORM:
+    result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
+    batch = result.scalar_one_or_none()
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return batch
+
+
+async def _record_movement(
+    pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: uuid.UUID,
+    movement_type: str, quantity: int, qty_before: int, qty_after: int,
+    ref_type: str, ref_id: uuid.UUID, user_id: uuid.UUID, notes: str | None,
+    db: AsyncSession,
+) -> MovementORM:
+    movement = MovementORM(
+        pharmacy_id=pharmacy_id, product_id=product_id, batch_id=batch_id,
+        movement_type=movement_type, quantity=quantity,
+        quantity_before=qty_before, quantity_after=qty_after,
+        reference_type=ref_type, reference_id=ref_id,
+        user_id=user_id, notes=notes,
+    )
+    db.add(movement)
+    return movement
+
+
+# ── /stock/batches ─────────────────────────────────────────────────────────────
+
+@router.post("/stock/batches")
+async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    product = await _get_product_by_sku(pharmacy_id, batch_data.product_sku, db)
+
+    # Check duplicate batch
+    existing = await db.execute(
+        select(BatchORM).where(
+            BatchORM.product_id == product.id,
+            BatchORM.batch_number == batch_data.batch_no,
+        )
+    )
+    if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Batch with this number already exists for this product at this location")
 
-    data = batch_data.model_dump()
-    data["expiry_date"] = datetime.fromisoformat(batch_data.expiry_date)
-    if batch_data.manufacture_date:
-        data["manufacture_date"] = datetime.fromisoformat(batch_data.manufacture_date)
-    if batch_data.received_date:
-        data["received_date"] = datetime.fromisoformat(batch_data.received_date)
+    expiry = date.fromisoformat(batch_data.expiry_date[:10])
+    mfg = date.fromisoformat(batch_data.manufacture_date[:10]) if batch_data.manufacture_date else None
 
-    batch = StockBatch(**data, created_by=current_user.id, updated_by=current_user.id)
-    doc = batch.model_dump()
-    for f in ("created_at", "updated_at", "expiry_date"):
-        doc[f] = doc[f].isoformat()
-    if doc.get("manufacture_date"):
-        doc["manufacture_date"] = doc["manufacture_date"].isoformat()
-    if doc.get("received_date"):
-        doc["received_date"] = doc["received_date"].isoformat()
-    await db.stock_batches.insert_one(doc)
-
-    units_per_pack = product.get("units_per_pack", 1)
-    movement = StockMovement(
-        product_sku=batch_data.product_sku, batch_id=batch.id, product_name=product["name"],
-        batch_no=batch_data.batch_no, qty_delta_units=batch_data.qty_on_hand * units_per_pack,
-        movement_type="opening_stock", ref_type="opening", ref_id=batch.id,
-        location=batch_data.location or "default", reason="Initial stock entry", performed_by=current_user.id,
+    batch = BatchORM(
+        pharmacy_id=pharmacy_id,
+        product_id=product.id,
+        batch_number=batch_data.batch_no,
+        expiry_date=expiry,
+        manufacture_date=mfg,
+        mrp_paise=int(batch_data.mrp_per_unit * 100),
+        cost_price_paise=int(batch_data.cost_price_per_unit * 100),
+        quantity_received=batch_data.qty_on_hand,
+        quantity_on_hand=batch_data.qty_on_hand,
     )
-    movement_doc = movement.model_dump()
-    movement_doc["performed_at"] = movement_doc["performed_at"].isoformat()
-    await db.stock_movements.insert_one(movement_doc)
+    db.add(batch)
+    await db.flush()
 
-    return batch
+    units_per_pack = product.units_per_pack or 1
+    await _record_movement(
+        pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
+        movement_type="opening_stock", quantity=batch_data.qty_on_hand * units_per_pack,
+        qty_before=0, qty_after=batch_data.qty_on_hand,
+        ref_type="opening", ref_id=batch.id,
+        user_id=uuid.UUID(current_user.id), notes="Initial stock entry", db=db,
+    )
+    await db.flush()
+
+    return _batch_response(batch, product)
 
 
 @router.get("/stock/batches")
-async def get_stock_batches(product_sku: Optional[str] = None, location: Optional[str] = None, current_user: User = Depends(get_current_user)):
-    query: dict = {}
+async def get_stock_batches(product_sku: Optional[str] = None, location: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    query = select(BatchORM).where(BatchORM.pharmacy_id == pharmacy_id)
+
     if product_sku:
-        query["product_sku"] = product_sku
-    if location:
-        query["location"] = location
+        prod_result = await db.execute(
+            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+        )
+        product = prod_result.scalar_one_or_none()
+        if not product:
+            return []
+        query = query.where(BatchORM.product_id == product.id)
 
-    batches = await db.stock_batches.find(query, {"_id": 0}).sort("expiry_date", 1).to_list(10000)
-    for batch in batches:
-        for f in ("created_at", "updated_at", "expiry_date", "manufacture_date", "received_date"):
-            if isinstance(batch.get(f), str):
-                batch[f] = datetime.fromisoformat(batch[f])
-        psku = batch.get("product_sku") or batch.get("product_id")
-        if psku:
-            p = await db.products.find_one({"sku": psku}, {"_id": 0, "name": 1, "brand": 1, "sku": 1, "units_per_pack": 1})
-            if p:
-                batch["product_name"] = p.get("name", "")
-                batch["product_brand"] = p.get("brand", "")
-                batch["product_sku"] = p.get("sku", "")
-                batch["total_units"] = batch.get("qty_on_hand", 0) * p.get("units_per_pack", 1)
-                continue
-        batch.setdefault("product_name", "")
-        batch.setdefault("product_brand", "")
-        batch["total_units"] = batch.get("qty_on_hand", 0)
+    result = await db.execute(query.order_by(BatchORM.expiry_date))
+    batches = result.scalars().all()
 
-    return batches
+    # Gather product info for all batches
+    product_ids = {b.product_id for b in batches}
+    prod_result = await db.execute(select(ProductORM).where(ProductORM.id.in_(product_ids)))
+    products_by_id = {p.id: p for p in prod_result.scalars().all()}
+
+    return [_batch_response(b, products_by_id[b.product_id]) for b in batches if b.product_id in products_by_id]
 
 
 @router.get("/stock/batches/{batch_id}")
-async def get_stock_batch(batch_id: str, current_user: User = Depends(get_current_user)):
-    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    for f in ("created_at", "updated_at", "expiry_date"):
-        if isinstance(batch.get(f), str):
-            batch[f] = datetime.fromisoformat(batch[f])
-    return batch
+async def get_stock_batch(batch_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    batch = await _get_batch(batch_id, db)
+    prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
+    product = prod_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return _batch_response(batch, product)
 
 
 @router.put("/stock/batches/{batch_id}")
-async def update_stock_batch(batch_id: str, batch_data: StockBatchUpdate, current_user: User = Depends(get_current_user)):
+async def update_stock_batch(batch_id: str, batch_data: StockBatchUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update stock batches")
-    update_dict = {k: v for k, v in batch_data.model_dump().items() if v is not None}
-    if not update_dict:
+
+    batch = await _get_batch(batch_id, db)
+    updates = batch_data.model_dump(exclude_unset=True)
+    if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
-    update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
-    result = await db.stock_batches.update_one({"id": batch_id}, {"$set": update_dict})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Batch not found")
+
+    field_map = {
+        "batch_no": "batch_number",
+        "qty_on_hand": "quantity_on_hand",
+        "cost_price_per_unit": None,  # special handling
+        "mrp_per_unit": None,  # special handling
+    }
+
+    for key, value in updates.items():
+        if key == "cost_price_per_unit":
+            batch.cost_price_paise = int(value * 100)
+        elif key == "mrp_per_unit":
+            batch.mrp_paise = int(value * 100)
+        elif key == "expiry_date":
+            batch.expiry_date = date.fromisoformat(value[:10])
+        elif key == "manufacture_date":
+            batch.manufacture_date = date.fromisoformat(value[:10])
+        else:
+            col = field_map.get(key, key)
+            if col and hasattr(batch, col):
+                setattr(batch, col, value)
+
+    await db.flush()
     return {"message": "Batch updated successfully"}
 
 
 @router.delete("/stock/batches/{batch_id}")
-async def delete_stock_batch(batch_id: str, current_user: User = Depends(get_current_user)):
+async def delete_stock_batch(batch_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete stock batches")
-    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    if batch.get("qty_on_hand", 0) > 0:
+
+    batch = await _get_batch(batch_id, db)
+    if batch.quantity_on_hand > 0:
         raise HTTPException(status_code=400, detail="Cannot delete batch with stock. Adjust quantity to 0 first.")
-    result = await db.stock_batches.delete_one({"id": batch_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Batch not found")
+
+    batch.is_active = False
+    await db.flush()
     return {"message": "Batch deleted successfully"}
 
 
 # ── /batches/:id/adjust & writeoff ────────────────────────────────────────────
 
 @router.post("/batches/{batch_id}/adjust")
-async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(get_current_user)):
-    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    product = await db.products.find_one({"sku": batch["product_sku"]}, {"_id": 0})
+async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    batch = await _get_batch(batch_id, db)
+    prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
+    product = prod_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    units_per_pack = product.get("units_per_pack", 1)
+    units_per_pack = product.units_per_pack or 1
     qty_delta_units = adjustment.qty_units if adjustment.adjustment_type == "add" else -adjustment.qty_units
     pack_delta = qty_delta_units / units_per_pack
-    new_qty = batch["qty_on_hand"] + pack_delta
+    old_qty = batch.quantity_on_hand
+    new_qty = old_qty + pack_delta
 
     if new_qty < 0:
-        raise HTTPException(status_code=400, detail=f"Cannot remove {adjustment.qty_units} units. Only {int(batch['qty_on_hand'] * units_per_pack)} units available.")
+        raise HTTPException(status_code=400, detail=f"Cannot remove {adjustment.qty_units} units. Only {int(old_qty * units_per_pack)} units available.")
 
-    await db.stock_batches.update_one({"id": batch_id}, {"$set": {"qty_on_hand": new_qty, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id}})
+    batch.quantity_on_hand = int(new_qty)
 
-    movement = StockMovement(
-        product_sku=batch["product_sku"], batch_id=batch_id, product_name=product["name"],
-        batch_no=batch["batch_no"], qty_delta_units=qty_delta_units, movement_type="adjustment",
-        ref_type="adjustment", ref_id=str(uuid.uuid4()), location=batch.get("location", "default"),
-        reason=adjustment.reason, performed_by=current_user.id,
+    await _record_movement(
+        pharmacy_id=batch.pharmacy_id, product_id=batch.product_id, batch_id=batch.id,
+        movement_type="adjustment", quantity=qty_delta_units,
+        qty_before=old_qty, qty_after=int(new_qty),
+        ref_type="adjustment", ref_id=uuid.uuid4(),
+        user_id=uuid.UUID(current_user.id), notes=adjustment.reason, db=db,
     )
-    movement_doc = movement.model_dump()
-    movement_doc["performed_at"] = movement_doc["performed_at"].isoformat()
-    movement_doc["reference_number"] = adjustment.reference_number
-    movement_doc["notes"] = adjustment.notes
-    await db.stock_movements.insert_one(movement_doc)
+    await db.flush()
 
     return {"message": "Stock adjusted successfully", "new_qty_packs": new_qty, "new_qty_units": int(new_qty * units_per_pack), "adjustment_units": qty_delta_units}
 
 
 @router.post("/batches/{batch_id}/writeoff-expiry")
-async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(get_current_user)):
-    batch = await db.stock_batches.find_one({"id": batch_id}, {"_id": 0})
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    product = await db.products.find_one({"sku": batch["product_sku"]}, {"_id": 0})
+async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    batch = await _get_batch(batch_id, db)
+    prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
+    product = prod_result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    expiry_str = batch.get("expiry_date")
-    if expiry_str:
-        try:
-            expiry_date = datetime.fromisoformat(str(expiry_str).replace("Z", "+00:00")) if isinstance(expiry_str, str) else expiry_str
-            if expiry_date >= datetime.now(timezone.utc):
-                raise HTTPException(status_code=400, detail="Batch is not expired yet")
-        except HTTPException:
-            raise
-        except Exception:
-            pass
+    if batch.expiry_date and batch.expiry_date >= date.today():
+        raise HTTPException(status_code=400, detail="Batch is not expired yet")
 
-    units_per_pack = product.get("units_per_pack", 1)
-    qty_units = int(batch.get("qty_on_hand", 0) * units_per_pack)
+    units_per_pack = product.units_per_pack or 1
+    qty_units = int(batch.quantity_on_hand * units_per_pack)
     if qty_units <= 0:
         raise HTTPException(status_code=400, detail="No stock to write off")
 
-    await db.stock_batches.update_one({"id": batch_id}, {"$set": {"qty_on_hand": 0, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": current_user.id, "status": "written_off"}})
+    old_qty = batch.quantity_on_hand
+    batch.quantity_on_hand = 0
+    batch.quantity_written_off = (batch.quantity_written_off or 0) + old_qty
+    batch.is_active = False
 
-    movement = StockMovement(
-        product_sku=batch["product_sku"], batch_id=batch_id, product_name=product["name"],
-        batch_no=batch["batch_no"], qty_delta_units=-qty_units, movement_type="expiry_writeoff",
-        ref_type="writeoff", ref_id=str(uuid.uuid4()), location=batch.get("location", "default"),
-        reason=writeoff_data.get("reason", "Expired stock write-off"), performed_by=current_user.id,
+    await _record_movement(
+        pharmacy_id=batch.pharmacy_id, product_id=batch.product_id, batch_id=batch.id,
+        movement_type="expiry_writeoff", quantity=-qty_units,
+        qty_before=old_qty, qty_after=0,
+        ref_type="writeoff", ref_id=uuid.uuid4(),
+        user_id=uuid.UUID(current_user.id),
+        notes=writeoff_data.get("reason", "Expired stock write-off"), db=db,
     )
-    movement_doc = movement.model_dump()
-    movement_doc["performed_at"] = movement_doc["performed_at"].isoformat()
-    await db.stock_movements.insert_one(movement_doc)
+    await db.flush()
 
     return {"message": "Expired stock written off successfully", "qty_written_off_units": qty_units, "batch_id": batch_id}
 
@@ -304,30 +346,43 @@ async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_use
 # ── /stock-movements ───────────────────────────────────────────────────────────
 
 @router.post("/stock-movements")
-async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(get_current_user)):
-    movement = StockMovement(**movement_data.model_dump(), performed_by=current_user.id)
-    doc = movement.model_dump()
-    doc["performed_at"] = doc["performed_at"].isoformat()
-    await db.stock_movements.insert_one(doc)
-    return {"message": "Stock movement recorded", "id": movement.id}
+async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
+    batch = await _get_batch(movement_data.batch_id, db)
+
+    movement = await _record_movement(
+        pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
+        movement_type=movement_data.movement_type, quantity=movement_data.qty_delta_units,
+        qty_before=batch.quantity_on_hand, qty_after=batch.quantity_on_hand + movement_data.qty_delta_units,
+        ref_type=movement_data.ref_type, ref_id=uuid.UUID(movement_data.ref_id) if movement_data.ref_id else uuid.uuid4(),
+        user_id=uuid.UUID(current_user.id), notes=movement_data.reason, db=db,
+    )
+    await db.flush()
+    return {"message": "Stock movement recorded", "id": str(movement.id)}
 
 
 @router.get("/stock-movements")
 async def get_stock_movements(
     product_sku: Optional[str] = None, batch_id: Optional[str] = None,
     movement_type: Optional[str] = None, limit: int = 100,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
-    query: dict = {}
-    if product_sku:
-        query["product_sku"] = product_sku
-    if batch_id:
-        query["batch_id"] = batch_id
-    if movement_type:
-        query["movement_type"] = movement_type
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    query = select(MovementORM).where(MovementORM.pharmacy_id == pharmacy_id)
 
-    movements = await db.stock_movements.find(query, {"_id": 0}).sort("performed_at", -1).limit(limit).to_list(limit)
-    for m in movements:
-        if isinstance(m.get("performed_at"), str):
-            m["performed_at"] = datetime.fromisoformat(m["performed_at"])
-    return movements
+    if product_sku:
+        prod_result = await db.execute(
+            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+        )
+        product = prod_result.scalar_one_or_none()
+        if not product:
+            return []
+        query = query.where(MovementORM.product_id == product.id)
+    if batch_id:
+        query = query.where(MovementORM.batch_id == uuid.UUID(batch_id))
+    if movement_type:
+        query = query.where(MovementORM.movement_type == movement_type)
+
+    result = await db.execute(query.order_by(MovementORM.created_at.desc()).limit(limit))
+    return [_movement_response(m) for m in result.scalars().all()]

@@ -2,22 +2,25 @@ from __future__ import annotations
 
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Dict
 
 import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
-from deps import db
-from routers.auth_helpers import User, get_current_user
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from deps import AsyncSessionLocal, get_db
+from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
+from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["excel"])
 
-# ── In-memory job store ────────────────────────────────────────────────────────
+# ── In-memory job store ───────────────────────────────────────────────────────
 bulk_upload_jobs: Dict[str, Dict] = {}
 
 # ── Column auto-detection keywords ────────────────────────────────────────────
@@ -40,7 +43,11 @@ REQUIRED_FIELDS = ["sku", "name", "price", "quantity", "expiry_date", "batch_num
 OPTIONAL_FIELDS = ["brand", "category", "cost_price", "gst_percent", "hsn_code", "units_per_pack"]
 
 
-# ── Pydantic models ────────────────────────────────────────────────────────────
+def _rupees_to_paise(rupees: float) -> int:
+    return int(round(rupees * 100))
+
+
+# ── Pydantic models ──────────────────────────────────────────────────────────
 
 class BulkUploadValidateRequest(BaseModel):
     job_id: str
@@ -52,7 +59,7 @@ class BulkUploadImportRequest(BaseModel):
     import_valid_only: bool = True
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/inventory/bulk-upload/template")
 async def download_bulk_upload_template(current_user: User = Depends(get_current_user)):
@@ -74,7 +81,6 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
         ("MRP per Unit *", True), ("Cost Price per Unit", False), ("GST %", False),
         ("HSN Code", False), ("Units per Pack", False),
     ]
-
     for col, (header, is_required) in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
@@ -148,7 +154,6 @@ async def parse_bulk_upload_file(file: UploadFile = File(...), current_user: Use
             raise HTTPException(status_code=400, detail="File is empty or has no data rows")
 
         file_columns = list(df.columns.astype(str))
-
         auto_mappings: dict = {}
         for sys_field, keywords in COLUMN_KEYWORDS.items():
             for col in file_columns:
@@ -167,6 +172,7 @@ async def parse_bulk_upload_file(file: UploadFile = File(...), current_user: Use
             "data": df.to_dict(orient="records"),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "created_by": current_user.id,
+            "pharmacy_id": str(current_user.pharmacy_id),
         }
 
         return {
@@ -186,7 +192,11 @@ async def parse_bulk_upload_file(file: UploadFile = File(...), current_user: Use
 
 
 @router.post("/inventory/bulk-upload/validate")
-async def validate_bulk_upload(request: BulkUploadValidateRequest, current_user: User = Depends(get_current_user)):
+async def validate_bulk_upload(
+    request: BulkUploadValidateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     job_id = request.job_id
     column_mapping = request.column_mapping
 
@@ -200,19 +210,29 @@ async def validate_bulk_upload(request: BulkUploadValidateRequest, current_user:
     if missing_required:
         raise HTTPException(status_code=400, detail=f"Missing required field mappings: {', '.join(missing_required)}")
 
-    existing_products: dict = {}
-    async for prod in db.products.find({}, {"_id": 0}):
-        if "sku" in prod:
-            existing_products[prod["sku"]] = prod
+    pid = current_user.pharmacy_id
 
-    existing_batches: dict = {}
-    async for batch in db.stock_batches.find({}, {"_id": 0}):
-        if "product_sku" in batch and "batch_no" in batch:
-            existing_batches[f"{batch['product_sku']}_{batch['batch_no']}"] = batch
+    # Load existing products and batches for duplicate detection
+    products = (await db.execute(
+        select(ProductORM.id, ProductORM.sku).where(ProductORM.pharmacy_id == pid, ProductORM.deleted_at.is_(None))
+    )).all()
+    existing_products = {p.sku: str(p.id) for p in products}
+
+    batches = (await db.execute(
+        select(BatchORM.id, BatchORM.product_id, BatchORM.batch_number)
+        .join(ProductORM, ProductORM.id == BatchORM.product_id)
+        .where(BatchORM.pharmacy_id == pid)
+    )).all()
+    product_id_to_sku = {str(p.id): p.sku for p in products}
+    existing_batches = set()
+    for b in batches:
+        sku = product_id_to_sku.get(str(b.product_id))
+        if sku:
+            existing_batches.add(f"{sku}_{b.batch_number}")
 
     validation_results = []
     valid_count = error_count = warning_count = 0
-    today = datetime.now(timezone.utc).date()
+    today = date.today()
 
     for row_idx, row in enumerate(data, start=2):
         row_errors: list = []
@@ -346,7 +366,11 @@ async def validate_bulk_upload(request: BulkUploadValidateRequest, current_user:
 
 
 @router.post("/inventory/bulk-upload/import")
-async def import_bulk_upload(request: BulkUploadImportRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
+async def import_bulk_upload(
+    request: BulkUploadImportRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+):
     job_id = request.job_id
     if job_id not in bulk_upload_jobs:
         raise HTTPException(status_code=404, detail="Upload job not found. Please re-upload the file.")
@@ -356,110 +380,105 @@ async def import_bulk_upload(request: BulkUploadImportRequest, background_tasks:
         raise HTTPException(status_code=400, detail="Data must be validated before import")
 
     validation_results = job.get("validation_results", [])
-    rows_to_import = [
-        r for r in validation_results
-        if r["status"] in (["valid", "warning"] if request.import_valid_only else ["valid", "warning"])
-    ]
+    rows_to_import = [r for r in validation_results if r["status"] in ["valid", "warning"]]
     if not rows_to_import:
         raise HTTPException(status_code=400, detail="No valid rows to import")
 
     bulk_upload_jobs[job_id]["status"] = "importing"
     bulk_upload_jobs[job_id]["import_progress"] = {"total": len(rows_to_import), "processed": 0, "success": 0, "failed": 0, "errors": []}
 
+    pharmacy_id = uuid.UUID(job["pharmacy_id"])
+    user_id = current_user.id if isinstance(current_user.id, uuid.UUID) else uuid.UUID(current_user.id)
+
     async def process_import() -> None:
         progress = bulk_upload_jobs[job_id]["import_progress"]
-        for idx, result in enumerate(rows_to_import):
-            row_data = result["data"]
-            row_number = result["row_number"]
-            try:
-                sku = row_data.get("sku")
-                name = row_data.get("name")
-                batch_no = row_data.get("batch_number")
+        async with AsyncSessionLocal() as db:
+            for idx, result in enumerate(rows_to_import):
+                row_data = result["data"]
+                row_number = result["row_number"]
+                try:
+                    sku = row_data.get("sku")
+                    name = row_data.get("name")
+                    batch_no = row_data.get("batch_number")
+                    qty = row_data.get("quantity", 0)
+                    mrp_paise = _rupees_to_paise(row_data.get("price", 0))
+                    cost_paise = _rupees_to_paise(row_data.get("cost_price", 0))
 
-                existing_product = await db.products.find_one({"sku": sku}, {"_id": 0})
-                if not existing_product:
-                    product_doc = {
-                        "id": str(uuid.uuid4()),
-                        "sku": sku,
-                        "name": name,
-                        "brand": row_data.get("brand"),
-                        "category": row_data.get("category"),
-                        "units_per_pack": row_data.get("units_per_pack", 1),
-                        "default_mrp_per_unit": row_data.get("price", 0),
-                        "gst_percent": row_data.get("gst_percent", 5),
-                        "hsn_code": row_data.get("hsn_code"),
-                        "low_stock_threshold_units": 10,
-                        "status": "active",
-                        "created_by": current_user.id,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                    await db.products.insert_one(product_doc)
-                    product_id = product_doc["id"]
-                else:
-                    product_id = existing_product.get("id")
-                    update_fields: dict = {}
-                    if row_data.get("brand") and not existing_product.get("brand"):
-                        update_fields["brand"] = row_data["brand"]
-                    if row_data.get("category") and not existing_product.get("category"):
-                        update_fields["category"] = row_data["category"]
-                    if update_fields:
-                        update_fields["updated_at"] = datetime.now(timezone.utc).isoformat()
-                        await db.products.update_one({"sku": sku}, {"$set": update_fields})
+                    # Find or create product
+                    existing = (await db.execute(
+                        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == sku)
+                    )).scalars().first()
 
-                existing_batch = await db.stock_batches.find_one({"product_sku": sku, "batch_no": batch_no}, {"_id": 0})
-                if existing_batch:
-                    new_qty = existing_batch.get("qty_on_hand", 0) + row_data.get("quantity", 0)
-                    await db.stock_batches.update_one(
-                        {"product_sku": sku, "batch_no": batch_no},
-                        {"$set": {
-                            "qty_on_hand": new_qty,
-                            "mrp_per_unit": row_data.get("price", existing_batch.get("mrp_per_unit")),
-                            "cost_price_per_unit": row_data.get("cost_price") or existing_batch.get("cost_price_per_unit", 0),
-                            "updated_at": datetime.now(timezone.utc).isoformat(),
-                            "updated_by": current_user.id,
-                        }},
-                    )
-                    batch_id = existing_batch.get("id")
-                else:
-                    batch_doc = {
-                        "id": str(uuid.uuid4()),
-                        "product_sku": sku,
-                        "batch_no": batch_no,
-                        "expiry_date": row_data.get("expiry_date"),
-                        "qty_on_hand": row_data.get("quantity", 0),
-                        "cost_price_per_unit": row_data.get("cost_price", 0),
-                        "mrp_per_unit": row_data.get("price", 0),
-                        "location": "default",
-                        "created_by": current_user.id,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                    await db.stock_batches.insert_one(batch_doc)
-                    batch_id = batch_doc["id"]
+                    if not existing:
+                        product = ProductORM(
+                            pharmacy_id=pharmacy_id, sku=sku, name=name,
+                            brand=row_data.get("brand"), category=row_data.get("category"),
+                            units_per_pack=row_data.get("units_per_pack", 1),
+                            gst_rate=row_data.get("gst_percent", 5),
+                            hsn_code=row_data.get("hsn_code") or "3004",
+                            reorder_level=10,
+                        )
+                        db.add(product)
+                        await db.flush()
+                        product_id = product.id
+                    else:
+                        product_id = existing.id
+                        if row_data.get("brand") and not existing.brand:
+                            existing.brand = row_data["brand"]
+                        if row_data.get("category") and not existing.category:
+                            existing.category = row_data["category"]
 
-                await db.stock_movements.insert_one({
-                    "id": str(uuid.uuid4()),
-                    "product_sku": sku,
-                    "batch_id": batch_id,
-                    "product_name": name,
-                    "batch_no": batch_no,
-                    "qty_delta_units": row_data.get("quantity", 0),
-                    "movement_type": "opening_stock",
-                    "ref_type": "bulk_upload",
-                    "ref_id": job_id,
-                    "location": "default",
-                    "reason": f"Bulk upload from {job.get('filename', 'Excel file')}",
-                    "performed_by": current_user.id,
-                    "performed_at": datetime.now(timezone.utc).isoformat(),
-                })
+                    # Find or create batch
+                    existing_batch = (await db.execute(
+                        select(BatchORM).where(
+                            BatchORM.pharmacy_id == pharmacy_id,
+                            BatchORM.product_id == product_id,
+                            BatchORM.batch_number == batch_no,
+                        )
+                    )).scalars().first()
 
-                progress["success"] += 1
-            except Exception as e:
-                progress["failed"] += 1
-                progress["errors"].append({"row_number": row_number, "error": str(e)})
+                    if existing_batch:
+                        qty_before = existing_batch.quantity_on_hand
+                        existing_batch.quantity_on_hand += qty
+                        existing_batch.quantity_received += qty
+                        existing_batch.mrp_paise = mrp_paise
+                        if cost_paise > 0:
+                            existing_batch.cost_price_paise = cost_paise
+                        batch_id = existing_batch.id
+                        qty_after = existing_batch.quantity_on_hand
+                    else:
+                        expiry = date.fromisoformat(row_data["expiry_date"]) if row_data.get("expiry_date") else date.today() + timedelta(days=365)
+                        batch = BatchORM(
+                            pharmacy_id=pharmacy_id, product_id=product_id,
+                            batch_number=batch_no, expiry_date=expiry,
+                            mrp_paise=mrp_paise, cost_price_paise=cost_paise or mrp_paise,
+                            quantity_received=qty, quantity_on_hand=qty,
+                        )
+                        db.add(batch)
+                        await db.flush()
+                        batch_id = batch.id
+                        qty_before = 0
+                        qty_after = qty
 
-            progress["processed"] = idx + 1
+                    # Record stock movement
+                    db.add(MovementORM(
+                        pharmacy_id=pharmacy_id, batch_id=batch_id, product_id=product_id,
+                        movement_type="opening_stock", quantity=qty,
+                        quantity_before=qty_before, quantity_after=qty_after,
+                        reference_type="bulk_upload", user_id=user_id,
+                        notes=f"Bulk upload from {job.get('filename', 'Excel file')}",
+                    ))
+
+                    await db.flush()
+                    progress["success"] += 1
+                except Exception as e:
+                    await db.rollback()
+                    progress["failed"] += 1
+                    progress["errors"].append({"row_number": row_number, "error": str(e)})
+
+                progress["processed"] = idx + 1
+
+            await db.commit()
 
         bulk_upload_jobs[job_id]["status"] = "completed"
         bulk_upload_jobs[job_id]["completed_at"] = datetime.now(timezone.utc).isoformat()

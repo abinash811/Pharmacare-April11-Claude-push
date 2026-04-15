@@ -42,7 +42,7 @@ export default function InventorySearch() {
   // Data States
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(true);
   const [summary, setSummary] = useState({ total: 0, low_stock: 0, expiring_soon: 0 });
 
   // Selection States
@@ -90,16 +90,9 @@ export default function InventorySearch() {
     };
   }, [searchQuery]);
 
-  // Fetch inventory when search/filters change
+  // Fetch inventory on mount and whenever search/filters/page change
   useEffect(() => {
-    const shouldSearch = debouncedSearch.length >= 2 || Object.keys(activeFilters).length > 0;
-    if (shouldSearch) {
-      fetchInventory();
-      setHasSearched(true);
-    } else {
-      setInventory([]);
-      setHasSearched(false);
-    }
+    fetchInventory();
   }, [debouncedSearch, activeFilters, currentPage]);
 
   const fetchFilterOptions = async () => {

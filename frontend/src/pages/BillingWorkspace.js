@@ -98,6 +98,34 @@ export default function BillingWorkspace() {
   // Billing For dropdown
   const [billingFor, setBillingFor] = useState('self');
 
+  // ── Unsaved-changes guard ─────────────────────────────────────────────────────
+  // Warn before tab close / browser refresh when bill has items and hasn't been saved
+  useEffect(() => {
+    const isDirty = viewMode !== 'view' && billItems.length > 0 && !isSaving;
+
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved bill items. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [viewMode, billItems, isSaving]);
+
+  // Guarded back navigation — used by the back button and the breadcrumb link
+  const handleNavBack = useCallback(() => {
+    const isDirty = viewMode !== 'view' && billItems.length > 0;
+    if (isDirty) {
+      const confirmed = window.confirm(
+        'You have unsaved bill items. Leave without saving?'
+      );
+      if (!confirmed) return;
+    }
+    navigate('/billing');
+  }, [viewMode, billItems, navigate]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -963,8 +991,8 @@ export default function BillingWorkspace() {
       <header className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/billing')} 
+            <button
+              onClick={handleNavBack}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               data-testid="back-btn"
             >
@@ -972,7 +1000,7 @@ export default function BillingWorkspace() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Bills</Link>
+                <button onClick={handleNavBack} className="hover:text-[#4682B4] transition-colors">Bills</button>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">

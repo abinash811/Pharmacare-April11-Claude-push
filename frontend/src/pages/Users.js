@@ -1,29 +1,17 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '@/App';
-import axios from 'axios';
-import { Plus, Edit, Trash2, CheckCircle, XCircle, Key, AlertCircle } from 'lucide-react';
+import { Plus, Edit, XCircle, CheckCircle, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader, ConfirmDialog, DataCard, TableSkeleton } from '../components/shared';
+import { InlineLoader, ConfirmDialog, DataCard } from '../components/shared';
 import { Button } from '@/components/ui/button';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const Dialog = ({ open, onClose, title, children }) => {
-  if (!open) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">{title}</h2>
-        </div>
-        <div className="p-6">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
 
 export default function Users() {
   const { user: currentUser } = useContext(AuthContext);
@@ -34,18 +22,18 @@ export default function Users() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [deactivateDialog, setDeactivateDialog] = useState({ open: false, userId: null, loading: false });
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    role: ''
+    role: '',
   });
 
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
-    confirm_password: ''
+    confirm_password: '',
   });
 
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -56,39 +44,29 @@ export default function Users() {
   }, []);
 
   const fetchRoles = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(apiUrl.roles());
       setAvailableRoles(response.data);
-    } catch (error) {
+    } catch {
       console.error('Failed to load roles');
     }
   };
 
   const fetchUsers = async () => {
-    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(apiUrl.users());
       setUsers(response.data);
-      setLoading(false);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load users');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    
     try {
-      await axios.post(`${API}/users`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(apiUrl.users(), formData);
       toast.success('User created successfully');
       setShowAddDialog(false);
       setFormData({ name: '', email: '', password: '', role: '' });
@@ -100,15 +78,11 @@ export default function Users() {
 
   const handleEditUser = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    
     try {
-      await axios.put(`${API}/users/${selectedUser.id}`, {
+      await api.put(apiUrl.user(selectedUser.id), {
         name: formData.name,
         email: formData.email,
-        role: formData.role
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+        role: formData.role,
       });
       toast.success('User updated successfully');
       setShowEditDialog(false);
@@ -119,35 +93,28 @@ export default function Users() {
     }
   };
 
-  const handleDeactivateUser = async (userId) => {
+  const handleDeactivateUser = (userId) => {
     setDeactivateDialog({ open: true, userId, loading: false });
   };
 
   const confirmDeactivateUser = async () => {
-    const userId = deactivateDialog.userId;
+    const { userId } = deactivateDialog;
     if (!userId) return;
-    
-    setDeactivateDialog(prev => ({ ...prev, loading: true }));
-    const token = localStorage.getItem('token');
+    setDeactivateDialog((prev) => ({ ...prev, loading: true }));
     try {
-      await axios.delete(`${API}/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(apiUrl.user(userId));
       toast.success('User deactivated successfully');
       setDeactivateDialog({ open: false, userId: null, loading: false });
       fetchUsers();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to deactivate user');
-      setDeactivateDialog(prev => ({ ...prev, loading: false }));
+      setDeactivateDialog((prev) => ({ ...prev, loading: false }));
     }
   };
 
   const handleActivateUser = async (userId) => {
-    const token = localStorage.getItem('token');
     try {
-      await axios.put(`${API}/users/${userId}`, { is_active: true }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(apiUrl.user(userId), { is_active: true });
       toast.success('User activated successfully');
       fetchUsers();
     } catch (error) {
@@ -157,24 +124,18 @@ export default function Users() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    
     if (passwordData.new_password !== passwordData.confirm_password) {
       toast.error('New passwords do not match');
       return;
     }
-    
     if (passwordData.new_password.length < 6) {
       toast.error('Password must be at least 6 characters');
       return;
     }
-    
-    const token = localStorage.getItem('token');
     try {
-      await axios.put(`${API}/users/me/change-password`, {
+      await api.put(apiUrl.changePassword(), {
         current_password: passwordData.current_password,
-        new_password: passwordData.new_password
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+        new_password: passwordData.new_password,
       });
       toast.success('Password changed successfully');
       setShowPasswordDialog(false);
@@ -189,16 +150,14 @@ export default function Users() {
       admin: 'bg-purple-100 text-purple-800',
       manager: 'bg-blue-100 text-blue-800',
       cashier: 'bg-green-100 text-green-800',
-      inventory_staff: 'bg-orange-100 text-orange-800'
+      inventory_staff: 'bg-orange-100 text-orange-800',
     };
-    
     const labels = {
       admin: 'Admin',
       manager: 'Manager',
       cashier: 'Cashier',
-      inventory_staff: 'Inventory Staff'
+      inventory_staff: 'Inventory Staff',
     };
-    
     return (
       <span className={`px-2 py-1 text-xs rounded-full font-medium ${styles[role] || 'bg-gray-100 text-gray-800'}`}>
         {labels[role] || role}
@@ -231,10 +190,12 @@ export default function Users() {
             <Key className="w-4 h-4 mr-2" />
             Change My Password
           </Button>
-          <Button onClick={() => {
-            setFormData({ name: '', email: '', password: '', role: '' });
-            setShowAddDialog(true);
-          }}>
+          <Button
+            onClick={() => {
+              setFormData({ name: '', email: '', password: '', role: '' });
+              setShowAddDialog(true);
+            }}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add User
           </Button>
@@ -295,19 +256,11 @@ export default function Users() {
                         </Button>
                         {user.id !== currentUser.id && (
                           user.is_active ? (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => handleDeactivateUser(user.id)}
-                            >
+                            <Button size="sm" variant="danger" onClick={() => handleDeactivateUser(user.id)}>
                               <XCircle className="w-4 h-4" />
                             </Button>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleActivateUser(user.id)}
-                            >
+                            <Button size="sm" variant="success" onClick={() => handleActivateUser(user.id)}>
                               <CheckCircle className="w-4 h-4" />
                             </Button>
                           )
@@ -323,146 +276,161 @@ export default function Users() {
       </DataCard>
 
       {/* Add User Dialog */}
-      <Dialog open={showAddDialog} onClose={() => setShowAddDialog(false)} title="Add New User">
-        <form onSubmit={handleAddUser} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-              minLength={6}
-            />
-            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            >
-              <option value="">Select a role...</option>
-              {availableRoles.map(role => (
-                <option key={role.id} value={role.name}>{role.display_name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-            <Button type="submit">Create User</Button>
-          </div>
-        </form>
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddUser} className="space-y-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+                minLength={6}
+              />
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              >
+                <option value="">Select a role...</option>
+                {availableRoles.map((role) => (
+                  <option key={role.id} value={role.name}>{role.display_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="secondary" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+              <Button type="submit">Create User</Button>
+            </div>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={showEditDialog} onClose={() => setShowEditDialog(false)} title="Edit User">
-        <form onSubmit={handleEditUser} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            >
-              <option value="">Select a role...</option>
-              {availableRoles.map(role => (
-                <option key={role.id} value={role.name}>{role.display_name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-            <Button type="submit">Update User</Button>
-          </div>
-        </form>
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditUser} className="space-y-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              >
+                <option value="">Select a role...</option>
+                {availableRoles.map((role) => (
+                  <option key={role.id} value={role.name}>{role.display_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+              <Button type="submit">Update User</Button>
+            </div>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* Change Password Dialog */}
-      <Dialog open={showPasswordDialog} onClose={() => setShowPasswordDialog(false)} title="Change Password">
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password *</label>
-            <input
-              type="password"
-              value={passwordData.current_password}
-              onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password *</label>
-            <input
-              type="password"
-              value={passwordData.new_password}
-              onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-              minLength={6}
-            />
-            <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password *</label>
-            <input
-              type="password"
-              value={passwordData.confirm_password}
-              onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded"
-              required
-              minLength={6}
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</Button>
-            <Button type="submit">Change Password</Button>
-          </div>
-        </form>
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current Password *</label>
+              <input
+                type="password"
+                value={passwordData.current_password}
+                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Password *</label>
+              <input
+                type="password"
+                value={passwordData.new_password}
+                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+                minLength={6}
+              />
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password *</label>
+              <input
+                type="password"
+                value={passwordData.confirm_password}
+                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded"
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</Button>
+              <Button type="submit">Change Password</Button>
+            </div>
+          </form>
+        </DialogContent>
       </Dialog>
 
       {/* Deactivate User Confirmation */}

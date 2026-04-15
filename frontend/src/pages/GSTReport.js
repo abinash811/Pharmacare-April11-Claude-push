@@ -1,31 +1,26 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Download, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { DataCard, InlineLoader } from '../components/shared';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { DataCard, InlineLoader, PageHeader } from '../components/shared';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { formatCurrency } from '@/utils/currency';
 
 export default function GSTReport() {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState({
     start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0]
+    end_date: new Date().toISOString().split('T')[0],
   });
 
   const fetchGSTReport = async () => {
     setLoading(true);
-    const token = localStorage.getItem('token');
-    
     try {
-      const response = await axios.get(`${API}/reports/gst`, {
-        params: dateRange,
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(apiUrl.reportGst(dateRange));
       setReportData(response.data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate GST report');
     } finally {
       setLoading(false);
@@ -34,25 +29,21 @@ export default function GSTReport() {
 
   const exportToCSV = () => {
     if (!reportData) return;
-    
-    // Create CSV content
+
     let csv = 'GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
-    
-    // Sales GST
+
     csv += '\nSales GST (Output Tax)\n';
-    reportData.sales_gst.breakup.forEach(row => {
+    reportData.sales_gst.breakup.forEach((row) => {
       csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
     });
     csv += `Total,${reportData.sales_gst.total_taxable},${reportData.sales_gst.total_cgst},${reportData.sales_gst.total_sgst},${reportData.sales_gst.total_igst},${reportData.sales_gst.total_gst}\n`;
-    
-    // Purchase GST
+
     csv += '\nPurchase GST (Input Tax Credit)\n';
-    reportData.purchase_gst.breakup.forEach(row => {
+    reportData.purchase_gst.breakup.forEach((row) => {
       csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
     });
     csv += `Total,${reportData.purchase_gst.total_taxable},${reportData.purchase_gst.total_cgst},${reportData.purchase_gst.total_sgst},${reportData.purchase_gst.total_igst},${reportData.purchase_gst.total_gst}\n`;
-    
-    // Download
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -62,24 +53,12 @@ export default function GSTReport() {
     window.URL.revokeObjectURL(url);
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2
-    }).format(amount || 0);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <FileText className="w-7 h-7 text-[#4682B4]" />
-          GST / Tax Report
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">View GST collected and paid for compliance</p>
-      </div>
+      <PageHeader
+        title="GST / Tax Report"
+        subtitle="View GST collected and paid for compliance"
+      />
 
       {/* Filters */}
       <DataCard className="mb-6" noPadding={false}>
@@ -94,7 +73,7 @@ export default function GSTReport() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">End Date</label>
               <input
@@ -104,7 +83,7 @@ export default function GSTReport() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <Button onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
               <Calendar className="w-4 h-4 mr-2" />
               {loading ? 'Generating...' : 'Generate Report'}
@@ -113,14 +92,12 @@ export default function GSTReport() {
         </div>
       </DataCard>
 
-      {/* Loading State */}
       {loading && (
         <div className="py-12">
           <InlineLoader text="Generating GST report..." />
         </div>
       )}
 
-      {/* Report Display */}
       {!loading && reportData && (
         <>
           {/* Sales GST Table */}
@@ -132,7 +109,7 @@ export default function GSTReport() {
                 Export CSV
               </Button>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
@@ -174,7 +151,7 @@ export default function GSTReport() {
             <div className="px-4 py-3 border-b border-gray-200">
               <h2 className="text-base font-semibold text-gray-900">Purchase GST (Input Tax Credit)</h2>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
@@ -218,15 +195,19 @@ export default function GSTReport() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <p className="text-xs font-semibold text-green-600 uppercase">Output Tax (Sales)</p>
-                  <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(reportData.sales_gst.total_gst)}</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">
+                    {formatCurrency(reportData.sales_gst.total_gst)}
+                  </p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <p className="text-xs font-semibold text-blue-600 uppercase">Input Tax Credit (Purchases)</p>
-                  <p className="text-2xl font-bold text-blue-700 mt-1">{formatCurrency(reportData.purchase_gst.total_gst)}</p>
+                  <p className="text-2xl font-bold text-blue-700 mt-1">
+                    {formatCurrency(reportData.purchase_gst.total_gst)}
+                  </p>
                 </div>
                 <div className={`rounded-lg p-4 border ${
-                  reportData.net_gst_liability >= 0 
-                    ? 'bg-red-50 border-red-200' 
+                  reportData.net_gst_liability >= 0
+                    ? 'bg-red-50 border-red-200'
                     : 'bg-emerald-50 border-emerald-200'
                 }`}>
                   <p className={`text-xs font-semibold uppercase ${
@@ -246,7 +227,6 @@ export default function GSTReport() {
         </>
       )}
 
-      {/* Empty State */}
       {!loading && !reportData && (
         <DataCard noPadding={false}>
           <div className="p-12 text-center">

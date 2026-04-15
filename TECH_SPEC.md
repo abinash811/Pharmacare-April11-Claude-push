@@ -35,7 +35,7 @@
 | Component | Details |
 |-----------|---------|
 | Frontend Port | 3000 (hot reload enabled) |
-| Backend Port | 8001 (uvicorn) |
+| Backend Port | 8000 (uvicorn, PostgreSQL) · 8001 reserved for legacy server.py |
 | API Prefix | `/api/*` routes to backend |
 | Process Manager | Supervisor |
 
@@ -384,7 +384,11 @@ JWT_SECRET=your-secret-key
 # Backend
 cd /app/backend
 pip install -r requirements.txt
-uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+# Active PostgreSQL backend (port 8000)
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Legacy MongoDB backup only — do not run in production
+# uvicorn server:app --host 0.0.0.0 --port 8001 --reload
 
 # Frontend
 cd /app/frontend

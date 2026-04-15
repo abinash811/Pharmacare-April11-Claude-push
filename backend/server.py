@@ -1,3 +1,16 @@
+# =============================================================================
+# ⚠️  LEGACY / BACKUP — DO NOT START IN PRODUCTION
+#
+# This is the original MongoDB backend (motor + AsyncIOMotorClient).
+# It has been superseded by the PostgreSQL backend in backend/routers/.
+#
+# Active backend : backend/routers/   (FastAPI + SQLAlchemy + PostgreSQL)
+#                  Start with: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+#
+# This file is kept as a reference and rollback option only.
+# Frontend connects to http://localhost:8000 (see frontend/.env.local).
+# =============================================================================
+
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request, Cookie, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv

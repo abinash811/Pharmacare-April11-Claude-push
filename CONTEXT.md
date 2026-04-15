@@ -14,19 +14,23 @@ Non-technical CEO/founder. Building with Claude Code + Claude.ai.
 Needs plain English explanations. No jargon without explanation.
 
 ## CURRENT BRANCH
-`main` ← all refactor work is committed here (Phase 6 complete)
+`main` ← all refactor work is committed here (Phases 1–7 complete)
 
 ## TECH STACK
 - Frontend: React + Tailwind CSS + Shadcn/UI (JavaScript, converting to TypeScript)
-- Backend: Python FastAPI
-- Database: PostgreSQL (migrating FROM MongoDB)
+- Backend: Python FastAPI + SQLAlchemy 2.0 async + PostgreSQL
 - ORM: SQLAlchemy 2.0 async
 - Auth: JWT
 
-## WHAT WORKS RIGHT NOW
-The original `server.py` (MongoDB) is the running backend — all features work.
-The NEW PostgreSQL routers (`backend/routers/*` + `backend/utils/excel.py`) are fully migrated (15/15).
-Next step: integration test the new routers, then switch `main.py` to use them instead of server.py.
+## ACTIVE BACKEND (PostgreSQL — port 8000)
+The PostgreSQL routers (`backend/routers/*` + `backend/main.py`) are the active backend.
+Start with: `uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
+Frontend `.env.local` → `REACT_APP_BACKEND_URL=http://localhost:8000`
+
+## LEGACY BACKUP (MongoDB — DO NOT START)
+`backend/server.py` is the original MongoDB backend — kept as rollback reference only.
+It has a prominent warning comment at the top. Do not run it. Do not delete it.
+If needed for rollback: `uvicorn server:app --host 0.0.0.0 --port 8001 --reload`
 
 ## WHAT WE ARE DOING
 Full refactor to international engineering standard:
@@ -36,13 +40,13 @@ Full refactor to international engineering standard:
 4. ✅ Frontend constants + utils + hooks — DONE
 5. ✅ TypeScript conversion — DONE
 6. ✅ Break down giant files — DONE (9 files → 73 focused files, all ≤300 lines)
-7. ⏳ Fix broken pages (Users, RolesPermissions, BillingOperations, etc.) ← CURRENT
-8. ⏳ Add missing features (pagination, barcode, print)
+7. ✅ Fix broken pages — DONE
+8. ⏳ Add missing features (pagination, barcode, print) ← CURRENT
 
 ## CRITICAL RULES
 - One task at a time. Review before next task.
 - No file over 300 lines
-- Never delete server.py until ALL routers are migrated and tested
+- Never delete server.py (kept as backup)
 - Always commit after each completed task
 - Money = INTEGER paise (₹1 = 100 paise). Never floats.
 - Steel Blue #4682B4 is the ONLY primary color. Never teal.
@@ -51,7 +55,7 @@ Full refactor to international engineering standard:
 - Snapshot product details in bills — never reference live product name
 
 ## NEXT TASK
-Phase 7 — Fix Broken Pages (see PROGRESS.md for full issue list)
+Phase 8 — Missing Features (see PROGRESS.md for full list)
 
 ## PHASE 6 COMMITS (ALL COMPLETE)
 1. `e0ea0a3` — BillingWorkspace (2,054 → 12 files)

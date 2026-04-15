@@ -25,7 +25,7 @@ export const PRESCRIPTION_REQUIRED_SCHEDULES = ['H', 'H1', 'X'];
 
 /** Returns true if the given schedule needs a doctor prescription */
 export const requiresPrescription = (schedule: string | null | undefined): boolean =>
-  PRESCRIPTION_REQUIRED_SCHEDULES.includes(schedule);
+  !!schedule && PRESCRIPTION_REQUIRED_SCHEDULES.includes(schedule);
 
 
 // ── GST Rates ─────────────────────────────────────────────────────────────────

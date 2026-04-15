@@ -30,7 +30,7 @@ export const GST_SLABS = [
  * getGSTSlab(99)  → null
  */
 export const getGSTSlab = (rate: number | string | null | undefined): typeof GST_SLABS[number] | null => {
-  const r = parseFloat(rate);
+  const r = parseFloat(String(rate ?? 0));
   return GST_SLABS.find((s) => s.rate === r) ?? null;
 };
 
@@ -44,7 +44,7 @@ export const getGSTSlab = (rate: number | string | null | undefined): typeof GST
 export const formatGSTRate = (rate: number | string | null | undefined): string => {
   const slab = getGSTSlab(rate);
   if (slab) return slab.label;
-  const r = parseFloat(rate);
+  const r = parseFloat(String(rate ?? 0));
   return isNaN(r) ? '–' : `${r}%`;
 };
 
@@ -64,8 +64,8 @@ export const formatGSTRate = (rate: number | string | null | undefined): string 
  * @returns {{ taxable, rate, gst, cgst, sgst, igst, total }}
  */
 export const calcLineGST = (taxableAmount: number | string, gstRate: number | string): { taxable: number; rate: number; gst: number; cgst: number; sgst: number; igst: number; total: number } => {
-  const taxable = parseFloat(taxableAmount) || 0;
-  const rate    = parseFloat(gstRate) || 0;
+  const taxable = parseFloat(String(taxableAmount)) || 0;
+  const rate    = parseFloat(String(gstRate)) || 0;
   const gst     = parseFloat((taxable * rate / 100).toFixed(2));
   const half    = parseFloat((gst / 2).toFixed(2));
   return {
@@ -103,10 +103,10 @@ export const calcLineTotals = ({
   gstRate = 0,
   includeGST = true,
 }: { qty?: number | string; price?: number | string; discPercent?: number | string; gstRate?: number | string; includeGST?: boolean } = {}): { mrpTotal: number; discAmount: number; taxable: number; gst: number; cgst: number; sgst: number; igst: number; lineTotal: number; unitAfterDisc: number } => {
-  const q   = parseFloat(qty)         || 0;
-  const p   = parseFloat(price)       || 0;
-  const dp  = parseFloat(discPercent) || 0;
-  const gr  = parseFloat(gstRate)     || 0;
+  const q   = parseFloat(String(qty))         || 0;
+  const p   = parseFloat(String(price))       || 0;
+  const dp  = parseFloat(String(discPercent)) || 0;
+  const gr  = parseFloat(String(gstRate))     || 0;
 
   const mrpTotal     = parseFloat((q * p).toFixed(2));
   const discAmount   = parseFloat((mrpTotal * dp / 100).toFixed(2));
@@ -150,7 +150,7 @@ export const calcBillTotals = (lines: ReturnType<typeof calcLineTotals>[] = [], 
   const sgst        = lines.reduce((s, l) => s + (l.sgst       || 0), 0);
   const igst        = lines.reduce((s, l) => s + (l.igst       || 0), 0);
 
-  const billDiscount  = parseFloat(billDiscountRupees) || 0;
+  const billDiscount  = parseFloat(String(billDiscountRupees)) || 0;
   const totalDiscount = parseFloat((itemDiscount + billDiscount).toFixed(2));
   const grandTotal    = parseFloat((taxable + totalGST - billDiscount).toFixed(2));
   const rounded       = Math.round(grandTotal);
@@ -183,8 +183,8 @@ export const calcBillTotals = (lines: ReturnType<typeof calcLineTotals>[] = [], 
  * calcNetGSTLiability(2000, 5000)  → { amount: 3000, type: 'itc' }
  */
 export const calcNetGSTLiability = (salesGST: number | string, purchaseGST: number | string): { amount: number; net: number; type: 'payable' | 'itc'; label: string } => {
-  const s = parseFloat(salesGST)    || 0;
-  const p = parseFloat(purchaseGST) || 0;
+  const s = parseFloat(String(salesGST))    || 0;
+  const p = parseFloat(String(purchaseGST)) || 0;
   const net = parseFloat((s - p).toFixed(2));
   return {
     amount: Math.abs(net),

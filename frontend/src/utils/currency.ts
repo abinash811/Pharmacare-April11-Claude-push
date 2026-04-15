@@ -27,7 +27,7 @@ interface FormatCurrencyOptions {
 
 export const formatCurrency = (amount: number | string | null | undefined, options: FormatCurrencyOptions = {}): string => {
   const { decimals = 2, showSymbol = true } = options;
-  const value = parseFloat(amount) || 0;
+  const value = parseFloat(String(amount ?? 0)) || 0;
   const abs = Math.abs(value);
   const sign = value < 0 ? '-' : '';
   const formatted = abs.toLocaleString('en-IN', {
@@ -52,7 +52,7 @@ export const formatINR = formatCurrency;
  * formatCompact(10000000)   → "₹1.0Cr"
  */
 export const formatCompact = (amount: number | string | null | undefined): string => {
-  const value = parseFloat(amount) || 0;
+  const value = parseFloat(String(amount ?? 0)) || 0;
   const abs = Math.abs(value);
   const sign = value < 0 ? '-' : '';
 
@@ -79,7 +79,7 @@ export const chartCurrencyFormatter = (value: number): string => formatCompact(v
  * formatPercent(null)   → "0.0%"
  */
 export const formatPercent = (value: number | string | null | undefined, decimals = 1): string => {
-  const v = parseFloat(value) || 0;
+  const v = parseFloat(String(value ?? 0)) || 0;
   return `${v.toFixed(decimals)}%`;
 };
 
@@ -121,7 +121,7 @@ export const roundToRupee = (amount: number | string | null | undefined): number
  * roundOffLabel(56.6)  → "+₹0.40"
  */
 export const roundOffLabel = (amount: number | string | null | undefined): string => {
-  const value = parseFloat(amount) || 0;
+  const value = parseFloat(String(amount ?? 0)) || 0;
   const rounded = roundToRupee(value);
   const diff = rounded - value;
   if (diff === 0) return '₹0.00';
@@ -158,8 +158,8 @@ export const parseCurrency = (str: string | number | null | undefined): number =
  * calcMargin(35, 0)   → { amount: 0,  percent: 0 }
  */
 export const calcMargin = (cost: number | string, price: number | string): { amount: number; percent: number } => {
-  const c = parseFloat(cost) || 0;
-  const p = parseFloat(price) || 0;
+  const c = parseFloat(String(cost)) || 0;
+  const p = parseFloat(String(price)) || 0;
   if (p <= 0) return { amount: 0, percent: 0 };
   const amount = p - c;
   const percent = (amount / p) * 100;
@@ -179,7 +179,7 @@ export const calcMargin = (cost: number | string, price: number | string): { amo
  * splitGst(120)  → { cgst: 60, sgst: 60 }
  */
 export const splitGst = (gstAmount: number | string | null | undefined): { cgst: number; sgst: number } => {
-  const total = parseFloat(gstAmount) || 0;
+  const total = parseFloat(String(gstAmount ?? 0)) || 0;
   const half = parseFloat((total / 2).toFixed(2));
   // Assign any rounding remainder to sgst
   return { cgst: half, sgst: parseFloat((total - half).toFixed(2)) };

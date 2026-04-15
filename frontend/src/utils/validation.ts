@@ -160,7 +160,7 @@ export const validatePasswordMatch = (password: string, confirm: string): Valida
  * validateAmount('')    → { valid: false }
  */
 export const validateAmount = (value: number | string | null | undefined, fieldName = 'Amount'): ValidationResult => {
-  const n = parseFloat(value);
+  const n = parseFloat(String(value ?? 0));
   if (isNaN(n) || n <= 0) return err(`${fieldName} must be greater than zero`);
   return ok();
 };
@@ -170,7 +170,7 @@ export const validateAmount = (value: number | string | null | undefined, fieldN
  * Used for discount, credit_limit, etc.
  */
 export const validateNonNegative = (value: number | string | null | undefined, fieldName = 'Value'): ValidationResult => {
-  const n = parseFloat(value);
+  const n = parseFloat(String(value ?? 0));
   if (isNaN(n) || n < 0) return err(`${fieldName} must be zero or greater`);
   return ok();
 };
@@ -183,7 +183,7 @@ export const validateNonNegative = (value: number | string | null | undefined, f
  * validateQuantity(1.5)  → { valid: false }
  */
 export const validateQuantity = (value: number | string | null | undefined, fieldName = 'Quantity'): ValidationResult => {
-  const n = parseInt(value, 10);
+  const n = parseInt(String(value ?? 0), 10);
   if (isNaN(n) || n < 1)          return err(`${fieldName} must be at least 1`);
   if (String(value).includes('.')) return err(`${fieldName} must be a whole number`);
   return ok();
@@ -228,7 +228,7 @@ export const validateExpiryMMYY = (mmyy: string | null | undefined): ValidationR
  * });
  */
 export const runValidators = (validators: Record<string, ValidationResult>): { valid: boolean; errors: Record<string, string> } => {
-  const errors = {};
+  const errors: Record<string, string> = {};
   for (const [field, result] of Object.entries(validators)) {
     if (!result.valid) errors[field] = result.message;
   }
@@ -240,15 +240,15 @@ export const runValidators = (validators: Record<string, ValidationResult>): { v
  * Returns { valid: boolean, message: string }.
  */
 export const validatePurchaseItem = (item: Record<string, unknown>): ValidationResult => {
-  const qty = parseInt(item.qty_units, 10);
+  const qty = parseInt(String(item.qty_units ?? 0), 10);
   if (!qty || qty <= 0)
     return err(`Please enter quantity for ${item.product_name || 'item'}`);
-  const ptr = parseFloat(item.ptr_per_unit);
+  const ptr = parseFloat(String(item.ptr_per_unit ?? 0));
   if (!ptr || ptr <= 0)
     return err(`Please enter PTR for ${item.product_name || 'item'}`);
   if (!item.batch_no || !String(item.batch_no).trim())
     return err(`Please enter batch number for ${item.product_name || 'item'}`);
-  const expiry = validateExpiryMMYY(item.expiry_mmyy);
+  const expiry = validateExpiryMMYY(item.expiry_mmyy as string | null | undefined);
   if (!expiry.valid)
     return err(`Please enter valid expiry (MM/YY) for ${item.product_name || 'item'}`);
   return ok();

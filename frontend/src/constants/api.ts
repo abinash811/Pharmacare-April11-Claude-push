@@ -197,7 +197,7 @@ const qs = (params?: Record<string, string | number | boolean | null | undefined
   if (!params) return '';
   const str = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string | number | boolean)}`)
     .join('&');
   return str ? `?${str}` : '';
 };

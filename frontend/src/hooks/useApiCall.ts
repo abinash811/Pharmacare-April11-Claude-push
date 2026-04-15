@@ -39,7 +39,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ const getErrorMessage = (error: unknown, fallback = 'Something went wrong'): str
   if (Array.isArray(detail)) {
     return detail.map((d) => d.msg ?? d).join('; ');
   }
-  if (detail) return detail;
+  if (detail) return String(detail);
   return e.message || fallback;
 };
 
@@ -92,7 +92,7 @@ const getErrorMessage = (error: unknown, fallback = 'Something went wrong'): str
  */
 export const useApiCall = () => {
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
+  const [error, setError]     = useState<Error | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export const useApiCall = () => {
 
       if (mountedRef.current) {
         setLoading(false);
-        setError(err);
+        setError(err as Error | null);
         if (showToast) toast.error(message);
       }
       return null;   // caller can check for null to detect failure
@@ -184,7 +184,7 @@ export const useFetch = <T>(apiFn: (() => Promise<{ data: T }>) | null, deps: un
 
   const [data,    setData]    = useState<T | null>(initialData ?? null);
   const [loading, setLoading] = useState(!skip);
-  const [error,   setError]   = useState(null);
+  const [error,   setError]   = useState<Error | null>(null);
 
   // Stable ref for the latest apiFn — avoids re-triggering effect
   const apiFnRef = useRef(apiFn);
@@ -206,15 +206,17 @@ export const useFetch = <T>(apiFn: (() => Promise<{ data: T }>) | null, deps: un
     setError(null);
 
     (async () => {
+      const fn = apiFnRef.current;
+      if (!fn) { setLoading(false); return; }
       try {
-        const response = await apiFnRef.current();
+        const response = await fn();
         if (!cancelled) {
           setData(transform(response));
           setLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err);
+          setError(err as Error | null);
           setLoading(false);
           toast.error(getErrorMessage(err, errorMsg));
         }
@@ -273,7 +275,7 @@ const useParallelFetch = (apiFns: Array<() => Promise<any>> = [], deps: unknown[
 
   const [results, setResults] = useState(() => apiFns.map(() => null));
   const [loading, setLoading] = useState(!skip);
-  const [error,   setError]   = useState(null);
+  const [error,   setError]   = useState<Error | null>(null);
 
   const apiFnsRef = useRef(apiFns);
   useEffect(() => { apiFnsRef.current = apiFns; });
@@ -305,7 +307,7 @@ const useParallelFetch = (apiFns: Array<() => Promise<any>> = [], deps: unknown[
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err);
+          setError(err as Error | null);
           setLoading(false);
           toast.error(getErrorMessage(err, errorMsg));
         }

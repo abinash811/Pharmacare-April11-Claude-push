@@ -100,7 +100,7 @@ export const useDebounce = <T>(value: T, delay = 300): T => {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useDebouncedCallback = <T extends (...args: any[]) => any>(callback: T, delay = 300): ((...args: Parameters<T>) => void) => {
-  const timerRef    = useRef(null);
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = useRef(callback);
 
   // Keep the ref current without re-creating the debounced fn

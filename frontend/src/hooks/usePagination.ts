@@ -106,7 +106,7 @@ const usePagination = ({ pageSize: defaultPageSize = 20, initialPage = 1 }: { pa
 
   /** Convenience: update total item count only (recomputes totalPages). */
   const setTotal = useCallback((count: number | string) => {
-    const n = parseInt(count, 10) || 0;
+    const n = parseInt(String(count), 10) || 0;
     setTotalItems(n);
     setTotalPages(Math.max(1, Math.ceil(n / pageSize)));
   }, [pageSize]);

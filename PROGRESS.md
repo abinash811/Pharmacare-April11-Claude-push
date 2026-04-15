@@ -6,8 +6,8 @@
 
 ## CURRENT STATUS
 **Branch:** main
-**Phase:** Phase 7 — Fix Broken Pages ⏳ NOT STARTED
-**Overall Progress:** ~85% of full refactor complete
+**Phase:** Phase 8 — Missing Features ⏳ NOT STARTED
+**Overall Progress:** ~92% of full refactor complete
 
 ---
 
@@ -21,7 +21,7 @@
 | Phase 4 | Frontend constants, utils, hooks | ✅ DONE |
 | Phase 5 | Add TypeScript to frontend | ✅ DONE |
 | Phase 6 | Break down giant page files | ✅ DONE |
-| Phase 7 | Fix broken/inconsistent pages | ⏳ NOT STARTED |
+| Phase 7 | Fix broken/inconsistent pages | ✅ DONE |
 | Phase 8 | Missing features | ⏳ NOT STARTED |
 
 ---
@@ -281,20 +281,29 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 
 ---
 
-## PHASE 7 — Fix Broken Pages ⏳ NOT STARTED
+## PHASE 7 — Fix Broken Pages ✅ COMPLETE — Commit `cd254f9`
 
 | Issue | File | Status |
 |-------|------|--------|
-| Wrong Button component | Settings.js | ❌ |
-| Custom Dialog instead of Shadcn | Users.js | ❌ |
-| Custom Dialog instead of Shadcn | RolesPermissions.js | ❌ |
-| Doesn't follow design system | Dashboard.js | ❌ |
-| Hand-rolled tabs, no PageHeader | Reports.js | ❌ |
-| Raw date inputs, no PageHeader | GSTReport.js | ❌ |
-| Inventory shows nothing on load | InventorySearch.js | ❌ |
-| No unsaved changes guard | BillingWorkspace.js | ❌ |
-| Filters don't re-fetch from server | BillingOperations.js | ❌ |
-| No pagination UI | All list pages | ❌ |
+| Wrong Button component | Settings.js | ✅ (replaced by Settings/index.jsx in Phase 6) |
+| Custom Dialog instead of Shadcn | Users.js | ✅ Shadcn Dialog + api+apiUrl |
+| Custom Dialog instead of Shadcn | RolesPermissions.js | ✅ Shadcn Dialog + api+apiUrl + PermissionsMatrix component |
+| Doesn't follow design system | Dashboard.js | ✅ (replaced by Dashboard/index.jsx in Phase 6) |
+| Hand-rolled tabs, no PageHeader | Reports.js | ✅ (replaced by Reports/index.jsx in Phase 6) |
+| Raw date inputs, no PageHeader | GSTReport.js | ✅ PageHeader + formatCurrency util + api+apiUrl |
+| Inventory shows nothing on load | InventorySearch.js | ✅ hasSearched=true on mount; always fetch on load |
+| No unsaved changes guard | BillingWorkspace.js | ✅ beforeunload listener + handleNavBack confirm dialog |
+| Filters crash (undefined startDate/endDate) | BillingOperations.js | ✅ Fixed; useDebounce hook; api+apiUrl; formatDateShort/formatTime utils |
+| No pagination UI | All list pages | → Phase 8 |
+
+### TypeScript errors fixed in same session — Commit `9727d54`
+- `useApiCall.ts` / `.js` — `react-toastify` → `sonner`; `parseFloat/parseInt(String(x))` pattern; typed state/refs
+- `useDebounce.ts` — typed `useRef<ReturnType<typeof setTimeout> | null>(null)`
+- `usePagination.ts` — `parseInt(String(count), 10)`
+- `currency.ts` — 7 fixes; `gst.ts` — 10 fixes; `validation.ts` — 6 fixes
+- `constants/api.ts` — cast `v as string | number | boolean` in `encodeURIComponent`
+- `constants/pharmacy.ts` — null-guard before `Array.includes(schedule)`
+- Result: `tsc --noEmit` exits code 0 (37 errors → 0)
 
 ---
 
@@ -340,11 +349,12 @@ All these features work right now via server.py:
 
 ## NEXT TASK
 
-**Phase 7 — Fix Broken Pages:**
-Work through each issue in the Phase 7 table above. Start with the highest-impact items:
-1. Remove inline `Button` from Settings — use Shadcn `Button`
-2. Replace custom dialogs in Users.js + RolesPermissions.js with Shadcn Dialog
-3. Fix BillingOperations.js filters to re-fetch from server on change
+**Phase 8 — Missing Features:**
+Pick any item from the Phase 8 table below. Suggested order:
+1. Pagination UI on all list pages (BillingOperations, PurchasesList, Customers, Suppliers, etc.)
+2. BillDetail page — view/print a saved bill
+3. Schedule H1 drug register page
+4. Audit log viewer page
 4. Add unsaved-changes guard to BillingWorkspace
 5. Standardise all list pages to use PageHeader + consistent toolbar
 6. Add pagination UI to all list pages (hook already built in Phase 4)

@@ -1,13 +1,13 @@
 # PHARMACARE — PROGRESS TRACKER
 # Update this file after every completed task
-# Last updated: April 15, 2026
+# Last updated: April 16, 2026
 
 ---
 
 ## CURRENT STATUS
 **Branch:** claude/compassionate-agnesi
-**Phase:** Phase 5 COMPLETE — TypeScript configured, all 11 Phase 4 files converted to .ts
-**Overall Progress:** ~70% of full refactor complete — ready to begin Phase 6
+**Phase:** Phase 6 IN PROGRESS — BillingWorkspace breakdown complete (1 of 9 files)
+**Overall Progress:** ~75% of full refactor complete
 
 ---
 
@@ -157,13 +157,33 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 
 ---
 
-## PHASE 6 — Break Down Giant Files 🔜 NEXT
+## PHASE 6 — Break Down Giant Files 🔄 IN PROGRESS
 
-### Files to Refactor
+### BillingWorkspace Breakdown ✅ COMPLETE (April 16, 2026)
+
+Original: `BillingWorkspace.js` — 2,054 lines → replaced by:
+
+| File | Lines | Replaces |
+|------|-------|---------|
+| `components/ScheduleHWarning.jsx` | 68 | Schedule H dialog |
+| `components/PrintReceipt.jsx` | 138 | 80mm thermal receipt |
+| `components/PatientSearchModal.jsx` | 149 | Patient typeahead modal |
+| `components/DoctorDropdown.jsx` | 146 | Doctor chip + search |
+| `components/BillingHeader.jsx` | 138 | Page header + view-mode actions |
+| `components/BillingSubbar.jsx` | 279 | Chip strip + save dropdown |
+| `components/BillingTable.jsx` | 235 | Items table + batch panel |
+| `components/BillingFooter.jsx` | 170 | Totals strip + finalise |
+| `components/FinaliseModal.jsx` | 154 | Invoice breakdown modal |
+| `hooks/useBillItems.js` | 111 | Items state + totals computation |
+| `hooks/useBillActions.js` | 212 | save/park/print/deliver/confirm |
+| `index.jsx` (orchestrator) | 232 | Top-level wiring |
+
+**Total: ~2,032 lines across 12 focused files (max 279/file)**
+
+### Remaining Files to Refactor
 
 | File | Current Lines | Target Lines | Status |
 |------|--------------|--------------|--------|
-| BillingWorkspace.js | 2,054 | ~150 | ❌ |
 | InventorySearch.js | 1,591 | ~150 | ❌ |
 | PurchaseNew.js | 1,231 | ~150 | ❌ |
 | MedicineDetail.js | 1,108 | ~150 | ❌ |

@@ -1,139 +1,218 @@
 {
-  "timestamp": "2025-10-26T06:20:01.936950",
-  "total_tests": 22,
-  "passed_tests": 19,
-  "success_rate": 86.36363636363636,
+  "timestamp": "2026-04-15T16:54:51.598744+00:00",
+  "base_url": "http://localhost:8000",
+  "total_tests": 35,
+  "passed_tests": 35,
+  "success_rate": 100.0,
   "test_results": [
+    {
+      "test": "Health Check",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
     {
       "test": "User Registration",
       "success": true,
-      "details": "User created with ID: 15b504dc-21da-46ef-8fe3-f6d72e21d6c9",
+      "details": "User ID: 2de246c6-9528-46b6-aa7b-e434587ac453",
       "response_data": null
     },
     {
       "test": "Auth Me",
       "success": true,
-      "details": "User info retrieved: Test Admin",
+      "details": "user=Test Admin",
       "response_data": null
     },
     {
-      "test": "Dashboard Stats",
+      "test": "Create Product",
       "success": true,
-      "details": "Stats retrieved - Today's sales: \u20b90",
+      "details": "ID: 1b2bcc4b-9248-418e-8a7f-d1b6211baa84",
       "response_data": null
     },
     {
-      "test": "Add Medicine",
-      "success": false,
-      "details": "Failed to add medicine: {'status_code': 500, 'text': 'Internal Server Error'}",
-      "response_data": null
-    },
-    {
-      "test": "Get Medicines",
+      "test": "Get Products",
       "success": true,
-      "details": "Retrieved 0 medicines",
+      "details": "5 products",
       "response_data": null
     },
     {
-      "test": "Search Medicines",
+      "test": "Search Products",
       "success": true,
-      "details": "Search returned 0 results",
+      "details": "5 results",
       "response_data": null
     },
     {
-      "test": "Low Stock Alerts",
+      "test": "Get Product by ID",
       "success": true,
-      "details": "Found 0 low stock items",
+      "details": "sku=TST2224511977",
       "response_data": null
     },
     {
-      "test": "Expiring Medicines",
+      "test": "Create Stock Batch",
       "success": true,
-      "details": "Found 0 expiring medicines",
+      "details": "ID: 2230c4ab-8a2f-4640-84d9-951f8edd6c3c",
       "response_data": null
     },
     {
-      "test": "Add Supplier",
+      "test": "Get Stock Batches",
       "success": true,
-      "details": "Supplier added with ID: 9a1fef67-a6ba-4f1e-8c18-acd435560e9f",
+      "details": "4 batches",
+      "response_data": null
+    },
+    {
+      "test": "Create Supplier",
+      "success": true,
+      "details": "ID: a07ee575-e12b-430e-a99e-89a155f1f4bf",
       "response_data": null
     },
     {
       "test": "Get Suppliers",
       "success": true,
-      "details": "Retrieved 1 suppliers",
+      "details": "5 suppliers",
       "response_data": null
     },
     {
-      "test": "Add Customer",
+      "test": "Create Customer",
       "success": true,
-      "details": "Customer added with ID: e432827b-0ace-4b48-b25b-ebc30797b7dd",
+      "details": "ID: ae4e50a4-2fec-4bc2-a61a-4b40ab992864",
       "response_data": null
     },
     {
       "test": "Get Customers",
       "success": true,
-      "details": "Retrieved 1 customers",
+      "details": "5 customers",
       "response_data": null
     },
     {
-      "test": "Add Doctor",
+      "test": "Create Doctor",
       "success": true,
-      "details": "Doctor added with ID: dbb9ac48-b754-439f-9d89-ca1efddf8afa",
+      "details": "ID: 1cd95bfb-367a-4872-a2d2-0d362795f278",
       "response_data": null
     },
     {
       "test": "Get Doctors",
       "success": true,
-      "details": "Retrieved 1 doctors",
+      "details": "5 doctors",
       "response_data": null
     },
     {
       "test": "Create Bill",
-      "success": false,
-      "details": "No medicine available for billing",
+      "success": true,
+      "details": "ID: da957dbd-e2f2-4e24-b267-b0ffda00ff89, Amount: \u20b9112.0",
+      "response_data": null
+    },
+    {
+      "test": "Create Draft Bill",
+      "success": true,
+      "details": "bill_number=DRAFT-1BF4D793",
       "response_data": null
     },
     {
       "test": "Get Bills",
       "success": true,
-      "details": "Retrieved 0 bills",
+      "details": "6 bills",
       "response_data": null
     },
     {
-      "test": "Add Purchase",
-      "success": false,
-      "details": "Missing supplier or medicine for purchase",
+      "test": "Get Bill by ID",
+      "success": true,
+      "details": "bill_number=INV-000004",
+      "response_data": null
+    },
+    {
+      "test": "Create Purchase",
+      "success": true,
+      "details": "ID: 2748de1b-ad02-4422-8104-7eac30e41318",
       "response_data": null
     },
     {
       "test": "Get Purchases",
       "success": true,
-      "details": "Retrieved 0 purchases",
+      "details": "5 purchases",
+      "response_data": null
+    },
+    {
+      "test": "Dashboard Stats",
+      "success": true,
+      "details": "today=\u20b90",
       "response_data": null
     },
     {
       "test": "Sales Report",
       "success": true,
-      "details": "Report generated - Total bills: 0",
+      "details": "bills=6",
+      "response_data": null
+    },
+    {
+      "test": "Low Stock Report",
+      "success": true,
+      "details": "items=1",
+      "response_data": null
+    },
+    {
+      "test": "Expiry Report",
+      "success": true,
+      "details": "items=0",
+      "response_data": null
+    },
+    {
+      "test": "Analytics Summary",
+      "success": true,
+      "details": "gross=\u20b90, net=\u20b90",
+      "response_data": null
+    },
+    {
+      "test": "Analytics Dashboard",
+      "success": true,
+      "details": "today=\u20b9224.0",
+      "response_data": null
+    },
+    {
+      "test": "Daily Analytics",
+      "success": true,
+      "details": "2 days",
       "response_data": null
     },
     {
       "test": "Export Data",
       "success": true,
-      "details": "Data exported successfully",
+      "details": "",
       "response_data": null
     },
     {
       "test": "Get Users",
       "success": true,
-      "details": "Retrieved 1 users",
+      "details": "10 users",
+      "response_data": null
+    },
+    {
+      "test": "Get Settings",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Get Roles",
+      "success": true,
+      "details": "1 roles",
+      "response_data": null
+    },
+    {
+      "test": "Inventory With Health",
+      "success": true,
+      "details": "items=0",
+      "response_data": null
+    },
+    {
+      "test": "Search Products With Batches",
+      "success": true,
+      "details": "4 results",
       "response_data": null
     },
     {
       "test": "User Logout",
       "success": true,
-      "details": "Logout successful",
+      "details": "",
       "response_data": null
     }
   ]

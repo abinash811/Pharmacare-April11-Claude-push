@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
+"""
+Full test suite for PharmaCare PostgreSQL backend.
+Tests all major API endpoints against a running server.
+"""
+
+import json
+import sys
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 
 import requests
-import sys
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+
 
 class PharmacyAPITester:
-    def __init__(self, base_url: str = "https://pharmacy-draft-save.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "http://localhost:8000"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.token = None
@@ -15,495 +22,621 @@ class PharmacyAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.test_results = []
-        
+
         # Test data storage
-        self.created_medicine_id = None
+        self.created_product_id = None
+        self.created_product_sku = None
+        self.created_batch_id = None
         self.created_supplier_id = None
         self.created_customer_id = None
         self.created_doctor_id = None
         self.created_bill_id = None
+        self.created_purchase_id = None
 
     def log_test(self, name: str, success: bool, details: str = "", response_data: Any = None):
-        """Log test result"""
         self.tests_run += 1
         if success:
             self.tests_passed += 1
-            print(f"✅ {name}: PASSED")
+            print(f"  ✅ {name}: PASSED")
         else:
-            print(f"❌ {name}: FAILED - {details}")
-        
+            print(f"  ❌ {name}: FAILED - {details}")
         self.test_results.append({
-            "test": name,
-            "success": success,
-            "details": details,
-            "response_data": response_data
+            "test": name, "success": success, "details": details,
+            "response_data": response_data,
         })
 
-    def make_request(self, method: str, endpoint: str, data: Optional[Dict] = None, expected_status: int = 200) -> tuple[bool, Dict]:
-        """Make HTTP request with error handling"""
+    def make_request(self, method: str, endpoint: str, data: Optional[Dict] = None,
+                     expected_status: int = 200) -> tuple:
         url = f"{self.api_url}/{endpoint}"
-        headers = {'Content-Type': 'application/json'}
-        
+        headers = {"Content-Type": "application/json"}
         if self.token:
-            headers['Authorization'] = f'Bearer {self.token}'
-        
+            headers["Authorization"] = f"Bearer {self.token}"
         try:
-            if method == 'GET':
-                response = requests.get(url, headers=headers)
-            elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
-            elif method == 'PUT':
-                response = requests.put(url, json=data, headers=headers)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=headers)
-            else:
-                return False, {"error": f"Unsupported method: {method}"}
-            
-            success = response.status_code == expected_status
+            resp = getattr(requests, method.lower())(url, json=data, headers=headers)
             try:
-                response_data = response.json()
-            except:
-                response_data = {"status_code": response.status_code, "text": response.text}
-            
-            return success, response_data
-            
+                resp_data = resp.json()
+            except Exception:
+                resp_data = {"status_code": resp.status_code, "text": resp.text[:500]}
+            return resp.status_code == expected_status, resp_data
         except Exception as e:
             return False, {"error": str(e)}
 
-    def test_user_registration(self):
-        """Test user registration"""
-        test_user_data = {
-            "name": "Test Admin",
-            "email": f"admin_{datetime.now().strftime('%H%M%S')}@pharmacy.com",
-            "password": "TestPass123!",
-            "role": "admin"
-        }
-        
-        success, response = self.make_request('POST', 'auth/register', test_user_data, 200)
-        
-        if success and 'token' in response:
-            self.token = response['token']
-            self.user_id = response['user']['id']
-            self.log_test("User Registration", True, f"User created with ID: {self.user_id}")
-            return True
-        else:
-            self.log_test("User Registration", False, f"Registration failed: {response}")
+    # ── Auth ──────────────────────────────────────────────────────────────────
+
+    def test_health(self):
+        try:
+            r = requests.get(f"{self.base_url}/health")
+            ok = r.status_code == 200 and r.json().get("status") == "ok"
+            self.log_test("Health Check", ok, "" if ok else f"status={r.status_code}")
+            return ok
+        except Exception as e:
+            self.log_test("Health Check", False, str(e))
             return False
+
+    def test_user_registration(self):
+        ts = datetime.now().strftime("%H%M%S%f")[:10]
+        data = {
+            "name": "Test Admin",
+            "email": f"admin_{ts}@pharmacy.com",
+            "password": "TestPass123!",
+            "role": "admin",
+        }
+        ok, resp = self.make_request("POST", "auth/register", data, 200)
+        if ok and "token" in resp:
+            self.token = resp["token"]
+            self.user_id = resp["user"]["id"]
+            self.log_test("User Registration", True, f"User ID: {self.user_id}")
+            return True
+        self.log_test("User Registration", False, f"{resp}")
+        return False
 
     def test_user_login(self):
-        """Test user login with existing credentials"""
-        # Try to login with a test user
-        login_data = {
-            "email": "admin@pharmacy.com",
-            "password": "admin123"
-        }
-        
-        success, response = self.make_request('POST', 'auth/login', login_data, 200)
-        
-        if success and 'token' in response:
-            self.token = response['token']
-            self.user_id = response['user']['id']
-            self.log_test("User Login", True, f"Login successful for user: {response['user']['name']}")
+        data = {"email": "admin@pharmacy.com", "password": "admin123"}
+        ok, resp = self.make_request("POST", "auth/login", data, 200)
+        if ok and "token" in resp:
+            self.token = resp["token"]
+            self.user_id = resp["user"]["id"]
+            self.log_test("User Login", True, f"user={resp['user']['name']}")
             return True
-        else:
-            self.log_test("User Login", False, f"Login failed: {response}")
-            return False
+        self.log_test("User Login", False, f"{resp}")
+        return False
 
     def test_auth_me(self):
-        """Test getting current user info"""
-        success, response = self.make_request('GET', 'auth/me', expected_status=200)
-        
-        if success and 'id' in response:
-            self.log_test("Auth Me", True, f"User info retrieved: {response['name']}")
+        ok, resp = self.make_request("GET", "auth/me")
+        if ok and "id" in resp:
+            self.log_test("Auth Me", True, f"user={resp['name']}")
             return True
-        else:
-            self.log_test("Auth Me", False, f"Failed to get user info: {response}")
-            return False
-
-    def test_dashboard_stats(self):
-        """Test dashboard statistics"""
-        success, response = self.make_request('GET', 'reports/dashboard', expected_status=200)
-        
-        if success and 'today_sales' in response:
-            self.log_test("Dashboard Stats", True, f"Stats retrieved - Today's sales: ₹{response['today_sales']}")
-            return True
-        else:
-            self.log_test("Dashboard Stats", False, f"Failed to get dashboard stats: {response}")
-            return False
-
-    def test_add_medicine(self):
-        """Test adding a new medicine"""
-        medicine_data = {
-            "name": "Test Paracetamol",
-            "batch_number": f"BATCH{datetime.now().strftime('%H%M%S')}",
-            "expiry_date": (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d'),
-            "mrp": 50.0,
-            "quantity": 100,
-            "supplier_name": "Test Supplier",
-            "purchase_rate": 40.0,
-            "selling_price": 45.0,
-            "hsn_code": "30049099"
-        }
-        
-        success, response = self.make_request('POST', 'medicines', medicine_data, 200)
-        
-        if success and 'id' in response:
-            self.created_medicine_id = response['id']
-            self.log_test("Add Medicine", True, f"Medicine added with ID: {self.created_medicine_id}")
-            return True
-        else:
-            self.log_test("Add Medicine", False, f"Failed to add medicine: {response}")
-            return False
-
-    def test_get_medicines(self):
-        """Test getting medicines list"""
-        success, response = self.make_request('GET', 'medicines', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Medicines", True, f"Retrieved {len(response)} medicines")
-            return True
-        else:
-            self.log_test("Get Medicines", False, f"Failed to get medicines: {response}")
-            return False
-
-    def test_search_medicines(self):
-        """Test medicine search"""
-        success, response = self.make_request('GET', 'medicines/search?q=Test', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Search Medicines", True, f"Search returned {len(response)} results")
-            return True
-        else:
-            self.log_test("Search Medicines", False, f"Failed to search medicines: {response}")
-            return False
-
-    def test_low_stock_alerts(self):
-        """Test low stock alerts"""
-        success, response = self.make_request('GET', 'medicines/alerts/low-stock', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Low Stock Alerts", True, f"Found {len(response)} low stock items")
-            return True
-        else:
-            self.log_test("Low Stock Alerts", False, f"Failed to get low stock alerts: {response}")
-            return False
-
-    def test_expiring_medicines(self):
-        """Test expiring medicines alerts"""
-        success, response = self.make_request('GET', 'medicines/alerts/expiring-soon', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Expiring Medicines", True, f"Found {len(response)} expiring medicines")
-            return True
-        else:
-            self.log_test("Expiring Medicines", False, f"Failed to get expiring medicines: {response}")
-            return False
-
-    def test_add_supplier(self):
-        """Test adding a supplier"""
-        supplier_data = {
-            "name": f"Test Supplier {datetime.now().strftime('%H%M%S')}",
-            "contact": "9876543210",
-            "gstin": "29ABCDE1234F1Z5",
-            "address": "Test Address, Test City"
-        }
-        
-        success, response = self.make_request('POST', 'suppliers', supplier_data, 200)
-        
-        if success and 'id' in response:
-            self.created_supplier_id = response['id']
-            self.log_test("Add Supplier", True, f"Supplier added with ID: {self.created_supplier_id}")
-            return True
-        else:
-            self.log_test("Add Supplier", False, f"Failed to add supplier: {response}")
-            return False
-
-    def test_get_suppliers(self):
-        """Test getting suppliers list"""
-        success, response = self.make_request('GET', 'suppliers', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Suppliers", True, f"Retrieved {len(response)} suppliers")
-            return True
-        else:
-            self.log_test("Get Suppliers", False, f"Failed to get suppliers: {response}")
-            return False
-
-    def test_add_customer(self):
-        """Test adding a customer"""
-        customer_data = {
-            "name": f"Test Customer {datetime.now().strftime('%H%M%S')}",
-            "phone": "9876543210",
-            "address": "Test Customer Address"
-        }
-        
-        success, response = self.make_request('POST', 'customers', customer_data, 200)
-        
-        if success and 'id' in response:
-            self.created_customer_id = response['id']
-            self.log_test("Add Customer", True, f"Customer added with ID: {self.created_customer_id}")
-            return True
-        else:
-            self.log_test("Add Customer", False, f"Failed to add customer: {response}")
-            return False
-
-    def test_get_customers(self):
-        """Test getting customers list"""
-        success, response = self.make_request('GET', 'customers', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Customers", True, f"Retrieved {len(response)} customers")
-            return True
-        else:
-            self.log_test("Get Customers", False, f"Failed to get customers: {response}")
-            return False
-
-    def test_add_doctor(self):
-        """Test adding a doctor"""
-        doctor_data = {
-            "name": f"Dr. Test {datetime.now().strftime('%H%M%S')}",
-            "contact": "9876543210",
-            "specialization": "General Medicine"
-        }
-        
-        success, response = self.make_request('POST', 'doctors', doctor_data, 200)
-        
-        if success and 'id' in response:
-            self.created_doctor_id = response['id']
-            self.log_test("Add Doctor", True, f"Doctor added with ID: {self.created_doctor_id}")
-            return True
-        else:
-            self.log_test("Add Doctor", False, f"Failed to add doctor: {response}")
-            return False
-
-    def test_get_doctors(self):
-        """Test getting doctors list"""
-        success, response = self.make_request('GET', 'doctors', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Doctors", True, f"Retrieved {len(response)} doctors")
-            return True
-        else:
-            self.log_test("Get Doctors", False, f"Failed to get doctors: {response}")
-            return False
-
-    def test_create_bill(self):
-        """Test creating a bill"""
-        if not self.created_medicine_id:
-            self.log_test("Create Bill", False, "No medicine available for billing")
-            return False
-        
-        bill_data = {
-            "customer_name": "Test Customer",
-            "doctor_name": "Dr. Test",
-            "items": [{
-                "medicine_id": self.created_medicine_id,
-                "medicine_name": "Test Paracetamol",
-                "batch_number": f"BATCH{datetime.now().strftime('%H%M%S')}",
-                "quantity": 2,
-                "rate": 45.0,
-                "discount": 0,
-                "total": 90.0
-            }],
-            "discount": 5.0,
-            "tax_rate": 5.0,
-            "payment_method": "cash"
-        }
-        
-        success, response = self.make_request('POST', 'bills', bill_data, 200)
-        
-        if success and 'id' in response:
-            self.created_bill_id = response['id']
-            self.log_test("Create Bill", True, f"Bill created with ID: {self.created_bill_id}, Amount: ₹{response['total_amount']}")
-            return True
-        else:
-            self.log_test("Create Bill", False, f"Failed to create bill: {response}")
-            return False
-
-    def test_get_bills(self):
-        """Test getting bills list"""
-        success, response = self.make_request('GET', 'bills', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Bills", True, f"Retrieved {len(response)} bills")
-            return True
-        else:
-            self.log_test("Get Bills", False, f"Failed to get bills: {response}")
-            return False
-
-    def test_add_purchase(self):
-        """Test adding a purchase"""
-        if not self.created_supplier_id or not self.created_medicine_id:
-            self.log_test("Add Purchase", False, "Missing supplier or medicine for purchase")
-            return False
-        
-        purchase_data = {
-            "invoice_number": f"INV{datetime.now().strftime('%H%M%S')}",
-            "supplier_id": self.created_supplier_id,
-            "supplier_name": "Test Supplier",
-            "items": [{
-                "medicine_id": self.created_medicine_id,
-                "medicine_name": "Test Paracetamol",
-                "quantity": 50,
-                "rate": 40.0,
-                "total": 2000.0
-            }],
-            "total_amount": 2000.0
-        }
-        
-        success, response = self.make_request('POST', 'purchases', purchase_data, 200)
-        
-        if success and 'id' in response:
-            self.log_test("Add Purchase", True, f"Purchase added with ID: {response['id']}")
-            return True
-        else:
-            self.log_test("Add Purchase", False, f"Failed to add purchase: {response}")
-            return False
-
-    def test_get_purchases(self):
-        """Test getting purchases list"""
-        success, response = self.make_request('GET', 'purchases', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Purchases", True, f"Retrieved {len(response)} purchases")
-            return True
-        else:
-            self.log_test("Get Purchases", False, f"Failed to get purchases: {response}")
-            return False
-
-    def test_sales_report(self):
-        """Test sales report"""
-        success, response = self.make_request('GET', 'reports/sales', expected_status=200)
-        
-        if success and 'bills' in response and 'summary' in response:
-            self.log_test("Sales Report", True, f"Report generated - Total bills: {response['summary']['total_bills']}")
-            return True
-        else:
-            self.log_test("Sales Report", False, f"Failed to get sales report: {response}")
-            return False
-
-    def test_export_data(self):
-        """Test data export"""
-        success, response = self.make_request('GET', 'backup/export', expected_status=200)
-        
-        if success and 'export_date' in response:
-            self.log_test("Export Data", True, f"Data exported successfully")
-            return True
-        else:
-            self.log_test("Export Data", False, f"Failed to export data: {response}")
-            return False
-
-    def test_get_users(self):
-        """Test getting users list (admin only)"""
-        success, response = self.make_request('GET', 'users', expected_status=200)
-        
-        if success and isinstance(response, list):
-            self.log_test("Get Users", True, f"Retrieved {len(response)} users")
-            return True
-        else:
-            self.log_test("Get Users", False, f"Failed to get users: {response}")
-            return False
+        self.log_test("Auth Me", False, f"{resp}")
+        return False
 
     def test_logout(self):
-        """Test user logout"""
-        success, response = self.make_request('POST', 'auth/logout', expected_status=200)
-        
-        if success and 'message' in response:
-            self.log_test("User Logout", True, "Logout successful")
+        ok, resp = self.make_request("POST", "auth/logout")
+        if ok and "message" in resp:
+            self.log_test("User Logout", True)
             return True
-        else:
-            self.log_test("User Logout", False, f"Logout failed: {response}")
+        self.log_test("User Logout", False, f"{resp}")
+        return False
+
+    # ── Products (was Medicines) ──────────────────────────────────────────────
+
+    def test_create_product(self):
+        ts = datetime.now().strftime("%H%M%S%f")[:10]
+        self.created_product_sku = f"TST{ts}"
+        data = {
+            "sku": self.created_product_sku,
+            "name": "Test Paracetamol 500mg",
+            "brand": "TestPharma",
+            "category": "Tablets",
+            "gst_percent": 12.0,
+            "hsn_code": "30049099",
+            "units_per_pack": 10,
+            "schedule": "OTC",
+            "low_stock_threshold_units": 10,
+        }
+        ok, resp = self.make_request("POST", "products", data)
+        if ok and "id" in resp:
+            self.created_product_id = resp["id"]
+            self.log_test("Create Product", True, f"ID: {self.created_product_id}")
+            return True
+        self.log_test("Create Product", False, f"{resp}")
+        return False
+
+    def test_get_products(self):
+        ok, resp = self.make_request("GET", "products")
+        if ok and isinstance(resp, list):
+            self.log_test("Get Products", True, f"{len(resp)} products")
+            return True
+        self.log_test("Get Products", False, f"{resp}")
+        return False
+
+    def test_search_products(self):
+        ok, resp = self.make_request("GET", "products?search=Test")
+        if ok and isinstance(resp, list):
+            self.log_test("Search Products", True, f"{len(resp)} results")
+            return True
+        self.log_test("Search Products", False, f"{resp}")
+        return False
+
+    def test_get_product(self):
+        if not self.created_product_id:
+            self.log_test("Get Product by ID", False, "No product created")
             return False
+        ok, resp = self.make_request("GET", f"products/{self.created_product_id}")
+        if ok and resp.get("id") == self.created_product_id:
+            self.log_test("Get Product by ID", True, f"sku={resp['sku']}")
+            return True
+        self.log_test("Get Product by ID", False, f"{resp}")
+        return False
+
+    # ── Stock Batches ─────────────────────────────────────────────────────────
+
+    def test_create_batch(self):
+        if not self.created_product_id or not self.created_product_sku:
+            self.log_test("Create Stock Batch", False, "No product created")
+            return False
+        ts = datetime.now().strftime("%H%M%S")
+        data = {
+            "product_sku": self.created_product_sku,
+            "batch_no": f"BTN{ts}",
+            "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            "mrp_per_unit": 50.0,
+            "cost_price_per_unit": 35.0,
+            "qty_on_hand": 100,
+        }
+        ok, resp = self.make_request("POST", "stock/batches", data)
+        if ok and "id" in resp:
+            self.created_batch_id = resp["id"]
+            self.log_test("Create Stock Batch", True, f"ID: {self.created_batch_id}")
+            return True
+        self.log_test("Create Stock Batch", False, f"{resp}")
+        return False
+
+    def test_get_batches(self):
+        ok, resp = self.make_request("GET", "stock/batches")
+        if ok and isinstance(resp, list):
+            self.log_test("Get Stock Batches", True, f"{len(resp)} batches")
+            return True
+        self.log_test("Get Stock Batches", False, f"{resp}")
+        return False
+
+    # ── Suppliers ─────────────────────────────────────────────────────────────
+
+    def test_create_supplier(self):
+        ts = datetime.now().strftime("%H%M%S")
+        data = {
+            "name": f"Test Supplier {ts}",
+            "phone": "9876543210",
+            "gstin": "29ABCDE1234F1Z5",
+            "address": "Test Address, Test City",
+        }
+        ok, resp = self.make_request("POST", "suppliers", data)
+        if ok and "id" in resp:
+            self.created_supplier_id = resp["id"]
+            self.log_test("Create Supplier", True, f"ID: {self.created_supplier_id}")
+            return True
+        self.log_test("Create Supplier", False, f"{resp}")
+        return False
+
+    def test_get_suppliers(self):
+        ok, resp = self.make_request("GET", "suppliers")
+        # Returns paginated {data: [...], pagination: {...}}
+        if ok and isinstance(resp, dict) and "data" in resp:
+            self.log_test("Get Suppliers", True, f"{len(resp['data'])} suppliers")
+            return True
+        if ok and isinstance(resp, list):
+            self.log_test("Get Suppliers", True, f"{len(resp)} suppliers")
+            return True
+        self.log_test("Get Suppliers", False, f"{resp}")
+        return False
+
+    # ── Customers ─────────────────────────────────────────────────────────────
+
+    def test_create_customer(self):
+        ts = datetime.now().strftime("%H%M%S")
+        data = {
+            "name": f"Test Customer {ts}",
+            "phone": "9876543210",
+            "address": "Test Customer Address",
+        }
+        ok, resp = self.make_request("POST", "customers", data)
+        if ok and "id" in resp:
+            self.created_customer_id = resp["id"]
+            self.log_test("Create Customer", True, f"ID: {self.created_customer_id}")
+            return True
+        self.log_test("Create Customer", False, f"{resp}")
+        return False
+
+    def test_get_customers(self):
+        ok, resp = self.make_request("GET", "customers")
+        if ok and isinstance(resp, list):
+            self.log_test("Get Customers", True, f"{len(resp)} customers")
+            return True
+        self.log_test("Get Customers", False, f"{resp}")
+        return False
+
+    # ── Doctors ───────────────────────────────────────────────────────────────
+
+    def test_create_doctor(self):
+        ts = datetime.now().strftime("%H%M%S")
+        data = {
+            "name": f"Dr. Test {ts}",
+            "contact": "9876543210",
+            "specialization": "General Medicine",
+        }
+        ok, resp = self.make_request("POST", "doctors", data)
+        if ok and "id" in resp:
+            self.created_doctor_id = resp["id"]
+            self.log_test("Create Doctor", True, f"ID: {self.created_doctor_id}")
+            return True
+        self.log_test("Create Doctor", False, f"{resp}")
+        return False
+
+    def test_get_doctors(self):
+        ok, resp = self.make_request("GET", "doctors")
+        if ok and isinstance(resp, dict) and "data" in resp:
+            self.log_test("Get Doctors", True, f"{len(resp['data'])} doctors")
+            return True
+        if ok and isinstance(resp, list):
+            self.log_test("Get Doctors", True, f"{len(resp)} doctors")
+            return True
+        self.log_test("Get Doctors", False, f"{resp}")
+        return False
+
+    # ── Billing ───────────────────────────────────────────────────────────────
+
+    def test_create_bill(self):
+        if not self.created_product_id or not self.created_batch_id:
+            self.log_test("Create Bill", False, "No product/batch available for billing")
+            return False
+        data = {
+            "customer_name": "Test Walk-in",
+            "doctor_name": "Dr. Test",
+            "items": [{
+                "product_id": self.created_product_id,
+                "batch_id": self.created_batch_id,
+                "product_name": "Test Paracetamol 500mg",
+                "quantity": 2,
+                "unit_price": 50.0,
+                "disc_percent": 0,
+                "gst_percent": 12.0,
+            }],
+            "discount": 0,
+            "tax_rate": 12.0,
+            "payment_method": "cash",
+            "status": "paid",
+            "invoice_type": "SALE",
+        }
+        ok, resp = self.make_request("POST", "bills", data)
+        if ok and "id" in resp:
+            self.created_bill_id = resp["id"]
+            self.log_test("Create Bill", True,
+                          f"ID: {self.created_bill_id}, Amount: ₹{resp.get('total_amount', 0)}")
+            return True
+        self.log_test("Create Bill", False, f"{resp}")
+        return False
+
+    def test_create_draft_bill(self):
+        if not self.created_product_id or not self.created_batch_id:
+            self.log_test("Create Draft Bill", False, "No product/batch available")
+            return False
+        data = {
+            "customer_name": "Draft Customer",
+            "items": [{
+                "product_id": self.created_product_id,
+                "batch_id": self.created_batch_id,
+                "product_name": "Test Paracetamol 500mg",
+                "quantity": 1,
+                "unit_price": 50.0,
+                "gst_percent": 12.0,
+            }],
+            "discount": 0,
+            "tax_rate": 12.0,
+            "status": "draft",
+            "invoice_type": "SALE",
+        }
+        ok, resp = self.make_request("POST", "bills", data)
+        if ok and "id" in resp and resp.get("status") == "draft":
+            self.log_test("Create Draft Bill", True, f"bill_number={resp.get('bill_number')}")
+            return True
+        self.log_test("Create Draft Bill", False, f"{resp}")
+        return False
+
+    def test_get_bills(self):
+        ok, resp = self.make_request("GET", "bills")
+        if ok and isinstance(resp, dict) and "data" in resp:
+            self.log_test("Get Bills", True, f"{len(resp['data'])} bills")
+            return True
+        if ok and isinstance(resp, list):
+            self.log_test("Get Bills", True, f"{len(resp)} bills")
+            return True
+        self.log_test("Get Bills", False, f"{resp}")
+        return False
+
+    def test_get_bill(self):
+        if not self.created_bill_id:
+            self.log_test("Get Bill by ID", False, "No bill created")
+            return False
+        ok, resp = self.make_request("GET", f"bills/{self.created_bill_id}")
+        if ok and resp.get("id") == self.created_bill_id:
+            self.log_test("Get Bill by ID", True, f"bill_number={resp.get('bill_number')}")
+            return True
+        self.log_test("Get Bill by ID", False, f"{resp}")
+        return False
+
+    # ── Purchases ─────────────────────────────────────────────────────────────
+
+    def test_create_purchase(self):
+        if not self.created_supplier_id or not self.created_product_sku:
+            self.log_test("Create Purchase", False, "Missing supplier or product")
+            return False
+        data = {
+            "supplier_id": self.created_supplier_id,
+            "purchase_date": datetime.now().strftime("%Y-%m-%d"),
+            "items": [{
+                "product_sku": self.created_product_sku,
+                "product_name": "Test Paracetamol 500mg",
+                "batch_no": f"PUR{datetime.now().strftime('%H%M%S')}",
+                "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+                "qty_units": 50,
+                "cost_price_per_unit": 35.0,
+                "mrp_per_unit": 50.0,
+                "gst_percent": 12.0,
+            }],
+            "status": "draft",
+        }
+        ok, resp = self.make_request("POST", "purchases", data)
+        if ok and "id" in resp:
+            self.created_purchase_id = resp["id"]
+            self.log_test("Create Purchase", True, f"ID: {self.created_purchase_id}")
+            return True
+        self.log_test("Create Purchase", False, f"{resp}")
+        return False
+
+    def test_get_purchases(self):
+        ok, resp = self.make_request("GET", "purchases")
+        if ok and isinstance(resp, dict) and "data" in resp:
+            self.log_test("Get Purchases", True, f"{len(resp['data'])} purchases")
+            return True
+        if ok and isinstance(resp, list):
+            self.log_test("Get Purchases", True, f"{len(resp)} purchases")
+            return True
+        self.log_test("Get Purchases", False, f"{resp}")
+        return False
+
+    # ── Reports ───────────────────────────────────────────────────────────────
+
+    def test_dashboard_stats(self):
+        ok, resp = self.make_request("GET", "reports/dashboard")
+        if ok and "today_sales" in resp:
+            self.log_test("Dashboard Stats", True, f"today=₹{resp['today_sales']}")
+            return True
+        self.log_test("Dashboard Stats", False, f"{resp}")
+        return False
+
+    def test_sales_report(self):
+        ok, resp = self.make_request("GET", "reports/sales")
+        if ok and "bills" in resp and "summary" in resp:
+            self.log_test("Sales Report", True, f"bills={resp['summary']['total_bills']}")
+            return True
+        self.log_test("Sales Report", False, f"{resp}")
+        return False
+
+    def test_low_stock_report(self):
+        ok, resp = self.make_request("GET", "reports/low-stock")
+        if ok and "summary" in resp and "data" in resp:
+            self.log_test("Low Stock Report", True, f"items={resp['summary']['total_items']}")
+            return True
+        self.log_test("Low Stock Report", False, f"{resp}")
+        return False
+
+    def test_expiry_report(self):
+        ok, resp = self.make_request("GET", "reports/expiry")
+        if ok and "summary" in resp and "data" in resp:
+            self.log_test("Expiry Report", True, f"items={resp['summary']['total_items']}")
+            return True
+        self.log_test("Expiry Report", False, f"{resp}")
+        return False
+
+    def test_analytics_summary(self):
+        ok, resp = self.make_request("GET", "analytics/summary")
+        if ok and "gross_sales" in resp:
+            self.log_test("Analytics Summary", True,
+                          f"gross=₹{resp['gross_sales']}, net=₹{resp['net_sales']}")
+            return True
+        self.log_test("Analytics Summary", False, f"{resp}")
+        return False
+
+    def test_analytics_dashboard(self):
+        ok, resp = self.make_request("GET", "analytics/dashboard")
+        if ok and "metrics" in resp and "quick_stats" in resp:
+            self.log_test("Analytics Dashboard", True,
+                          f"today=₹{resp['metrics']['today_sales']}")
+            return True
+        self.log_test("Analytics Dashboard", False, f"{resp}")
+        return False
+
+    def test_daily_analytics(self):
+        ok, resp = self.make_request("GET", "analytics/daily?days=7")
+        if ok and isinstance(resp, list):
+            self.log_test("Daily Analytics", True, f"{len(resp)} days")
+            return True
+        self.log_test("Daily Analytics", False, f"{resp}")
+        return False
+
+    def test_export_data(self):
+        ok, resp = self.make_request("GET", "backup/export")
+        if ok and "export_date" in resp:
+            self.log_test("Export Data", True)
+            return True
+        self.log_test("Export Data", False, f"{resp}")
+        return False
+
+    # ── Users ─────────────────────────────────────────────────────────────────
+
+    def test_get_users(self):
+        ok, resp = self.make_request("GET", "users")
+        if ok and isinstance(resp, list):
+            self.log_test("Get Users", True, f"{len(resp)} users")
+            return True
+        self.log_test("Get Users", False, f"{resp}")
+        return False
+
+    # ── Settings ──────────────────────────────────────────────────────────────
+
+    def test_get_settings(self):
+        ok, resp = self.make_request("GET", "settings")
+        if ok:
+            self.log_test("Get Settings", True)
+            return True
+        self.log_test("Get Settings", False, f"{resp}")
+        return False
+
+    def test_get_roles(self):
+        ok, resp = self.make_request("GET", "roles")
+        if ok and isinstance(resp, list):
+            self.log_test("Get Roles", True, f"{len(resp)} roles")
+            return True
+        self.log_test("Get Roles", False, f"{resp}")
+        return False
+
+    # ── Inventory / Search ────────────────────────────────────────────────────
+
+    def test_inventory_with_health(self):
+        ok, resp = self.make_request("GET", "inventory")
+        if ok and isinstance(resp, (list, dict)):
+            count = len(resp) if isinstance(resp, list) else resp.get("total", 0)
+            self.log_test("Inventory With Health", True, f"items={count}")
+            return True
+        self.log_test("Inventory With Health", False, f"{resp}")
+        return False
+
+    def test_search_products_with_batches(self):
+        ok, resp = self.make_request("GET", "products/search-with-batches?q=Test")
+        if ok and isinstance(resp, list):
+            self.log_test("Search Products With Batches", True, f"{len(resp)} results")
+            return True
+        self.log_test("Search Products With Batches", False, f"{resp}")
+        return False
+
+    # ── Run all ───────────────────────────────────────────────────────────────
 
     def run_all_tests(self):
-        """Run all API tests"""
-        print("🧪 Starting Pharmacy Management System API Tests")
         print("=" * 60)
-        
-        # Authentication Tests
-        print("\n📋 Authentication Tests")
+        print("  PharmaCare PostgreSQL Backend — Full Test Suite")
+        print("=" * 60)
+
+        # Health
+        print("\n🏥 Health Check")
+        if not self.test_health():
+            print("  ❌ Server not reachable. Aborting.")
+            return False
+
+        # Auth
+        print("\n🔐 Authentication")
         if not self.test_user_registration():
-            # If registration fails, try login
             if not self.test_user_login():
-                print("❌ Cannot proceed without authentication")
+                print("  ❌ Cannot authenticate. Aborting.")
                 return False
-        
         self.test_auth_me()
-        
-        # Dashboard Tests
-        print("\n📊 Dashboard Tests")
-        self.test_dashboard_stats()
-        
-        # Medicine Management Tests
-        print("\n💊 Medicine Management Tests")
-        self.test_add_medicine()
-        self.test_get_medicines()
-        self.test_search_medicines()
-        self.test_low_stock_alerts()
-        self.test_expiring_medicines()
-        
-        # Supplier Management Tests
-        print("\n🏢 Supplier Management Tests")
-        self.test_add_supplier()
+
+        # Products
+        print("\n💊 Products")
+        self.test_create_product()
+        self.test_get_products()
+        self.test_search_products()
+        self.test_get_product()
+
+        # Stock Batches
+        print("\n📦 Stock Batches")
+        self.test_create_batch()
+        self.test_get_batches()
+
+        # Suppliers
+        print("\n🏢 Suppliers")
+        self.test_create_supplier()
         self.test_get_suppliers()
-        
-        # Customer Management Tests
-        print("\n👥 Customer Management Tests")
-        self.test_add_customer()
+
+        # Customers
+        print("\n👥 Customers")
+        self.test_create_customer()
         self.test_get_customers()
-        
-        # Doctor Management Tests
-        print("\n👨‍⚕️ Doctor Management Tests")
-        self.test_add_doctor()
+
+        # Doctors
+        print("\n👨‍⚕️ Doctors")
+        self.test_create_doctor()
         self.test_get_doctors()
-        
-        # Billing Tests
-        print("\n🧾 Billing Tests")
+
+        # Billing
+        print("\n🧾 Billing")
         self.test_create_bill()
+        self.test_create_draft_bill()
         self.test_get_bills()
-        
-        # Purchase Management Tests
-        print("\n📦 Purchase Management Tests")
-        self.test_add_purchase()
+        self.test_get_bill()
+
+        # Purchases
+        print("\n📋 Purchases")
+        self.test_create_purchase()
         self.test_get_purchases()
-        
-        # Reports Tests
-        print("\n📈 Reports Tests")
+
+        # Reports & Analytics
+        print("\n📊 Reports & Analytics")
+        self.test_dashboard_stats()
         self.test_sales_report()
+        self.test_low_stock_report()
+        self.test_expiry_report()
+        self.test_analytics_summary()
+        self.test_analytics_dashboard()
+        self.test_daily_analytics()
         self.test_export_data()
-        
-        # User Management Tests
-        print("\n👤 User Management Tests")
+
+        # Users & Settings
+        print("\n👤 Users & Settings")
         self.test_get_users()
-        
-        # Logout Test
-        print("\n🚪 Logout Test")
+        self.test_get_settings()
+        self.test_get_roles()
+
+        # Inventory search
+        print("\n🔍 Inventory Search")
+        self.test_inventory_with_health()
+        self.test_search_products_with_batches()
+
+        # Logout
+        print("\n🚪 Logout")
         self.test_logout()
-        
-        # Print Summary
+
+        # Summary
         print("\n" + "=" * 60)
-        print(f"📊 Test Summary: {self.tests_passed}/{self.tests_run} tests passed")
-        success_rate = (self.tests_passed / self.tests_run) * 100 if self.tests_run > 0 else 0
-        print(f"✅ Success Rate: {success_rate:.1f}%")
-        
+        rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
+        print(f"  📊 Results: {self.tests_passed}/{self.tests_run} passed ({rate:.0f}%)")
+        if self.tests_passed == self.tests_run:
+            print("  🎉 All tests passed!")
+        else:
+            failed = [t["test"] for t in self.test_results if not t["success"]]
+            print(f"  ❌ Failed: {', '.join(failed)}")
+        print("=" * 60)
         return self.tests_passed == self.tests_run
 
+
 def main():
-    """Main function to run tests"""
-    tester = PharmacyAPITester()
+    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+    tester = PharmacyAPITester(base_url)
     success = tester.run_all_tests()
-    
-    # Save detailed results
-    with open('/app/backend_test_results.json', 'w') as f:
+
+    results_path = "backend_test_results.json"
+    with open(results_path, "w") as f:
         json.dump({
-            'timestamp': datetime.now().isoformat(),
-            'total_tests': tester.tests_run,
-            'passed_tests': tester.tests_passed,
-            'success_rate': (tester.tests_passed / tester.tests_run) * 100 if tester.tests_run > 0 else 0,
-            'test_results': tester.test_results
-        }, f, indent=2)
-    
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "base_url": base_url,
+            "total_tests": tester.tests_run,
+            "passed_tests": tester.tests_passed,
+            "success_rate": (tester.tests_passed / tester.tests_run * 100)
+                           if tester.tests_run > 0 else 0,
+            "test_results": tester.test_results,
+        }, f, indent=2, default=str)
+    print(f"\nResults saved to {results_path}")
+
     return 0 if success else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

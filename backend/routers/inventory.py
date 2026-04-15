@@ -119,6 +119,90 @@ async def get_products(
     return products
 
 
+# Static /products/* routes MUST be registered before /products/{product_id}
+
+@router.post("/products/bulk-update")
+async def bulk_update_products(data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if current_user.role not in ["admin", "manager"]:
+        raise HTTPException(status_code=403, detail="Only admins and managers can bulk update products")
+    skus, field, value = data.get("skus", []), data.get("field", ""), data.get("value", "")
+    if not skus or not field:
+        raise HTTPException(status_code=400, detail="SKUs and field are required")
+    field_map = {"gst_percent": "gst_rate", "schedule": "drug_schedule", "location": "storage_location"}
+    col = field_map.get(field, field)
+    if col not in {"storage_location", "gst_rate", "category", "drug_schedule", "brand"}:
+        raise HTTPException(status_code=400, detail=f"Field '{field}' not allowed for bulk update")
+    result = await db.execute(select(ProductORM).where(ProductORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), ProductORM.sku.in_(skus)))
+    count = 0
+    for product in result.scalars().all():
+        setattr(product, col, float(value) if col == "gst_rate" else value)
+        count += 1
+    await db.flush()
+    return {"message": f"Updated {count} products", "modified_count": count}
+
+
+@router.get("/products/barcode/{barcode}")
+async def lookup_by_barcode(barcode: str, location_id: Optional[str] = "default", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    result = await db.execute(
+        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None),
+                                 or_(ProductORM.barcode == barcode, ProductORM.sku == barcode))
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        return {"found": False, "message": f"No product found with barcode: {barcode}"}
+    batches = await _get_active_batches(product, db)
+    if not batches:
+        return {"found": True, "product": _product_response(product), "has_stock": False, "message": "Product found but no stock available"}
+    total_qty = sum(b["qty_on_hand"] for b in batches)
+    return {
+        "found": True, "has_stock": True,
+        "product": {"product_id": str(product.id), "sku": product.sku, "name": product.name,
+                    "brand": product.brand, "pack_size": product.pack_size, "units_per_pack": product.units_per_pack,
+                    "gst_percent": float(product.gst_rate), "barcode": product.barcode,
+                    "total_stock": total_qty, "total_units": total_qty * product.units_per_pack},
+        "batches": batches, "suggested_batch": batches[0],
+    }
+
+
+@router.get("/products/search-with-batches")
+async def search_products_with_batches(q: str, location_id: Optional[str] = "default", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if len(q) < 2:
+        return []
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    p = f"%{q}%"
+    stmt = (
+        select(ProductORM)
+        .where(
+            ProductORM.pharmacy_id == pharmacy_id,
+            ProductORM.deleted_at.is_(None),
+            or_(ProductORM.name.ilike(p), ProductORM.sku.ilike(p),
+                ProductORM.brand.ilike(p), ProductORM.barcode == q),
+        )
+        .limit(50)
+    )
+    prod_result = await db.execute(stmt)
+    results = []
+    for product in prod_result.scalars().all():
+        batches = await _get_active_batches(product, db)
+        if not batches:
+            continue
+        total_qty = sum(b["qty_on_hand"] for b in batches)
+        results.append({
+            "product_id": str(product.id), "sku": product.sku, "name": product.name,
+            "brand": product.brand or "", "manufacturer": product.manufacturer or "",
+            "composition": product.generic_name or "", "pack_size": product.pack_size or "",
+            "units_per_pack": product.units_per_pack, "default_mrp": 0,
+            "gst_percent": float(product.gst_rate), "schedule": product.drug_schedule,
+            "scheduleH": product.drug_schedule in ["H", "H1"],
+            "total_qty": total_qty, "total_units": total_qty * product.units_per_pack,
+            "batches": batches, "suggested_batch": batches[0],
+        })
+    return results
+
+
+# Parameterized routes AFTER all static /products/* routes
+
 @router.get("/products/{product_id}")
 async def get_product(product_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
@@ -159,81 +243,6 @@ async def delete_product(product_id: str, current_user: User = Depends(get_curre
     product.deleted_at = datetime.now(timezone.utc)
     await db.flush()
     return {"message": "Product deleted successfully"}
-
-
-@router.post("/products/bulk-update")
-async def bulk_update_products(data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(status_code=403, detail="Only admins and managers can bulk update products")
-    skus, field, value = data.get("skus", []), data.get("field", ""), data.get("value", "")
-    if not skus or not field:
-        raise HTTPException(status_code=400, detail="SKUs and field are required")
-    field_map = {"gst_percent": "gst_rate", "schedule": "drug_schedule", "location": "storage_location"}
-    col = field_map.get(field, field)
-    if col not in {"storage_location", "gst_rate", "category", "drug_schedule", "brand"}:
-        raise HTTPException(status_code=400, detail=f"Field '{field}' not allowed for bulk update")
-    result = await db.execute(select(ProductORM).where(ProductORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), ProductORM.sku.in_(skus)))
-    count = 0
-    for product in result.scalars().all():
-        setattr(product, col, float(value) if col == "gst_rate" else value)
-        count += 1
-    await db.flush()
-    return {"message": f"Updated {count} products", "modified_count": count}
-
-
-# ── /products billing helpers ─────────────────────────────────────────────────
-
-@router.get("/products/barcode/{barcode}")
-async def lookup_by_barcode(barcode: str, location_id: Optional[str] = "default", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    result = await db.execute(
-        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None),
-                                 or_(ProductORM.barcode == barcode, ProductORM.sku == barcode))
-    )
-    product = result.scalar_one_or_none()
-    if not product:
-        return {"found": False, "message": f"No product found with barcode: {barcode}"}
-    batches = await _get_active_batches(product, db)
-    if not batches:
-        return {"found": True, "product": _product_response(product), "has_stock": False, "message": "Product found but no stock available"}
-    total_qty = sum(b["qty_on_hand"] for b in batches)
-    return {
-        "found": True, "has_stock": True,
-        "product": {"product_id": str(product.id), "sku": product.sku, "name": product.name,
-                    "brand": product.brand, "pack_size": product.pack_size, "units_per_pack": product.units_per_pack,
-                    "gst_percent": float(product.gst_rate), "barcode": product.barcode,
-                    "total_stock": total_qty, "total_units": total_qty * product.units_per_pack},
-        "batches": batches, "suggested_batch": batches[0],
-    }
-
-
-@router.get("/products/search-with-batches")
-async def search_products_with_batches(q: str, location_id: Optional[str] = "default", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if len(q) < 2:
-        return []
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    p = f"%{q}%"
-    prod_result = await db.execute(
-        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None),
-                                 or_(ProductORM.name.ilike(p), ProductORM.sku.ilike(p), ProductORM.brand.ilike(p), ProductORM.barcode == q)).limit(50)
-    )
-    results = []
-    for product in prod_result.scalars().all():
-        batches = await _get_active_batches(product, db)
-        if not batches:
-            continue
-        total_qty = sum(b["qty_on_hand"] for b in batches)
-        results.append({
-            "product_id": str(product.id), "sku": product.sku, "name": product.name,
-            "brand": product.brand or "", "manufacturer": product.manufacturer or "",
-            "composition": product.generic_name or "", "pack_size": product.pack_size or "",
-            "units_per_pack": product.units_per_pack, "default_mrp": 0,
-            "gst_percent": float(product.gst_rate), "schedule": product.drug_schedule,
-            "scheduleH": product.drug_schedule in ["H", "H1"],
-            "total_qty": total_qty, "total_units": total_qty * product.units_per_pack,
-            "batches": batches, "suggested_batch": batches[0],
-        })
-    return results
 
 
 async def _get_active_batches(product: ProductORM, db: AsyncSession) -> list[dict]:

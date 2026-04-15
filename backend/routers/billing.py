@@ -314,7 +314,10 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     is_draft = bill_data.status == "draft"
     is_sale = bill_data.invoice_type == "SALE"
 
-    bill_number = "Draft" if is_draft else await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+    # Drafts use a per-bill unique placeholder so concurrent/repeated drafts don't
+    # collide on the UNIQUE(pharmacy_id, bill_number) constraint. Finalized bills
+    # get a real sequential number via _generate_bill_number.
+    bill_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}" if is_draft else await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
 
     # Pre-check H1 drugs require doctor
     if not is_draft and is_sale:
@@ -555,7 +558,7 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     is_finalizing = new_status == "paid" and bill.status == "draft"
 
     # Generate bill number on finalize
-    if is_finalizing and bill.bill_number == "Draft":
+    if is_finalizing and (bill.bill_number == "Draft" or bill.bill_number.startswith("DRAFT-")):
         bill.bill_number = await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
 
     paid_paise = 0

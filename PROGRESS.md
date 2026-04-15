@@ -5,9 +5,9 @@
 ---
 
 ## CURRENT STATUS
-**Branch:** claude/compassionate-agnesi
-**Phase:** Phase 6 IN PROGRESS — BillingWorkspace breakdown complete (1 of 9 files)
-**Overall Progress:** ~75% of full refactor complete
+**Branch:** main
+**Phase:** Phase 7 — Fix Broken Pages ⏳ NOT STARTED
+**Overall Progress:** ~85% of full refactor complete
 
 ---
 
@@ -20,7 +20,7 @@
 | Phase 3 | Migrate queries: MongoDB → PostgreSQL | ✅ DONE + VERIFIED |
 | Phase 4 | Frontend constants, utils, hooks | ✅ DONE |
 | Phase 5 | Add TypeScript to frontend | ✅ DONE |
-| Phase 6 | Break down giant page files | 🔜 NEXT |
+| Phase 6 | Break down giant page files | ✅ DONE |
 | Phase 7 | Fix broken/inconsistent pages | ⏳ NOT STARTED |
 | Phase 8 | Missing features | ⏳ NOT STARTED |
 
@@ -157,41 +157,127 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 
 ---
 
-## PHASE 6 — Break Down Giant Files 🔄 IN PROGRESS
+## PHASE 6 — Break Down Giant Files ✅ COMPLETE (April 16, 2026)
 
-### BillingWorkspace Breakdown ✅ COMPLETE (April 16, 2026)
+**Rule enforced:** No file over 300 lines. Every page broken into `index.jsx` orchestrator + `hooks/` + `components/`.
+**Pattern:** `api` + `apiUrl` throughout; Phase 4 date/currency/debounce utilities used everywhere.
 
-Original: `BillingWorkspace.js` — 2,054 lines → replaced by:
+### File-by-File Summary
 
-| File | Lines | Replaces |
-|------|-------|---------|
-| `components/ScheduleHWarning.jsx` | 68 | Schedule H dialog |
-| `components/PrintReceipt.jsx` | 138 | 80mm thermal receipt |
-| `components/PatientSearchModal.jsx` | 149 | Patient typeahead modal |
-| `components/DoctorDropdown.jsx` | 146 | Doctor chip + search |
-| `components/BillingHeader.jsx` | 138 | Page header + view-mode actions |
-| `components/BillingSubbar.jsx` | 279 | Chip strip + save dropdown |
-| `components/BillingTable.jsx` | 235 | Items table + batch panel |
-| `components/BillingFooter.jsx` | 170 | Totals strip + finalise |
-| `components/FinaliseModal.jsx` | 154 | Invoice breakdown modal |
-| `hooks/useBillItems.js` | 111 | Items state + totals computation |
-| `hooks/useBillActions.js` | 212 | save/park/print/deliver/confirm |
-| `index.jsx` (orchestrator) | 232 | Top-level wiring |
+#### BillingWorkspace (2,054 → 12 files) — Commit `e0ea0a3`
+| File | Lines |
+|------|-------|
+| `hooks/useBillItems.js` | 111 |
+| `hooks/useBillActions.js` | 212 |
+| `components/ScheduleHWarning.jsx` | 68 |
+| `components/PrintReceipt.jsx` | 138 |
+| `components/PatientSearchModal.jsx` | 149 |
+| `components/DoctorDropdown.jsx` | 146 |
+| `components/BillingHeader.jsx` | 138 |
+| `components/BillingSubbar.jsx` | 279 |
+| `components/BillingTable.jsx` | 235 |
+| `components/BillingFooter.jsx` | 170 |
+| `components/FinaliseModal.jsx` | 154 |
+| `index.jsx` | 232 |
 
-**Total: ~2,032 lines across 12 focused files (max 279/file)**
+#### InventorySearch (1,591 → 11 files) — Commit `5ae85cf`
+| File | Lines |
+|------|-------|
+| `hooks/useInventory.js` | 108 |
+| `hooks/useInventoryFilters.js` | 62 |
+| `components/InventoryHeader.jsx` | 78 |
+| `components/InventoryFilters.jsx` | 118 |
+| `components/InventoryTable.jsx` | 145 |
+| `components/BatchPanel.jsx` | 148 |
+| `components/ExpiryWriteoffModal.jsx` | 112 |
+| `components/BulkUploadModal.jsx` | 138 |
+| `components/ProductFormModal.jsx` | 222 |
+| `components/EditBatchModal.jsx` | 149 |
+| `index.jsx` | 151 |
 
-### Remaining Files to Refactor
+#### PurchaseNew (1,231 → 9 files) — Commit `a387a9e`
+| File | Lines |
+|------|-------|
+| `hooks/usePurchaseItems.js` | 80 |
+| `components/PurchaseHeader.jsx` | 65 |
+| `components/SupplierDropdown.jsx` | 91 |
+| `components/PurchaseSubbar.jsx` | 126 |
+| `components/PurchaseItemsTable.jsx` | 186 |
+| `components/PurchaseFooter.jsx` | 71 |
+| `components/PurchaseSettingsModal.jsx` | 106 |
+| `components/InvoiceBreakdownModal.jsx` | 154 |
+| `index.jsx` | 266 |
 
-| File | Current Lines | Target Lines | Status |
-|------|--------------|--------------|--------|
-| InventorySearch.js | 1,591 | ~150 | ❌ |
-| PurchaseNew.js | 1,231 | ~150 | ❌ |
-| MedicineDetail.js | 1,108 | ~150 | ❌ |
-| Settings.js | 666 | ~150 | ❌ |
-| Customers.js | 771 | ~150 | ❌ |
-| Suppliers.js | 747 | ~150 | ❌ |
-| Dashboard.js | 519 | ~150 | ❌ |
-| Reports.js | 509 | ~150 | ❌ |
+#### MedicineDetail (1,108 → 8 files) — Commit `bc36c17`
+| File | Lines |
+|------|-------|
+| `hooks/useMedicineDetail.js` | 109 |
+| `components/MedicineDetailHeader.jsx` | 96 |
+| `components/MedicineDetailTabs.jsx` | 40 |
+| `components/BatchesTab.jsx` | 140 |
+| `components/TransactionTab.jsx` | 142 |
+| `components/LedgerTab.jsx` | 61 |
+| `components/MedicineEditModal.jsx` | 152 |
+| `index.jsx` | ~120 |
+
+#### Customers (771 → 7 files) — Commit `aeefb9b`
+| File | Lines |
+|------|-------|
+| `hooks/useCustomers.js` | 101 |
+| `components/CustomersTable.jsx` | 122 |
+| `components/DoctorsTable.jsx` | 94 |
+| `components/CustomerFormDialog.jsx` | 102 |
+| `components/DoctorFormDialog.jsx` | 77 |
+| `components/CustomerDetailDialog.jsx` | 122 |
+| `index.jsx` | 165 |
+
+#### Suppliers (747 → 6 files) — Commit `9646f24`
+| File | Lines |
+|------|-------|
+| `hooks/useSuppliers.js` | 81 |
+| `components/SuppliersList.jsx` | 90 |
+| `components/SupplierDetailPanel.jsx` | 170 |
+| `components/SupplierFormModal.jsx` | 106 |
+| `components/SupplierPaymentModal.jsx` | 69 |
+| `index.jsx` | 154 |
+
+#### Dashboard (519 → 7 files) — Commit `4e6d2a6`
+| File | Lines |
+|------|-------|
+| `hooks/useDashboard.js` | 29 |
+| `components/MetricCard.jsx` | 47 |
+| `components/QuickStatCard.jsx` | 35 |
+| `components/SalesCharts.jsx` | 98 |
+| `components/InsightsList.jsx` | 96 |
+| `components/AlertsPanel.jsx` | 128 |
+| `index.jsx` | 96 |
+
+#### Settings (666 → 8 files) — Commit `4302e18`
+| File | Lines |
+|------|-------|
+| `hooks/useSettings.js` | 80 |
+| `components/SettingsTabs.jsx` | 40 |
+| `components/InventoryTab.jsx` | 51 |
+| `components/BillingTab.jsx` | 33 |
+| `components/ReturnsTab.jsx` | 48 |
+| `components/GeneralTab.jsx` | 56 |
+| `components/BillSequenceTab.jsx` | 176 |
+| `index.jsx` | 101 |
+
+#### Reports (509 → 5 files) — Commit `286e982`
+| File | Lines |
+|------|-------|
+| `hooks/useReports.js` | 96 |
+| `components/ReportTypeCards.jsx` | 41 |
+| `components/ReportFilters.jsx` | 88 |
+| `components/ReportTables.jsx` | 146 |
+| `index.jsx` | 102 |
+
+### Phase 6 Totals
+- **9 monolithic files** (8,204 total lines) → **73 focused files** (max 279 lines each)
+- Every file passes the 300-line rule
+- All raw `axios`+`${API}/...` replaced with `api` + `apiUrl.*`
+- All inline `formatCurrency`/`formatDate` replaced with Phase 4 utilities
 
 ---
 
@@ -254,10 +340,11 @@ All these features work right now via server.py:
 
 ## NEXT TASK
 
-**Phase 5 — TypeScript Migration:**
-- Install TypeScript + @types/* packages
-- Add `tsconfig.json` (strict mode, path aliases)
-- Rename all .js/.jsx → .ts/.tsx
-- Add type definitions for all API response shapes
-- Add `src/types/` directory with entity interfaces (Bill, Product, Customer, etc.)
-- Wire up path alias `@/` → `src/` in tsconfig + webpack/craco config
+**Phase 7 — Fix Broken Pages:**
+Work through each issue in the Phase 7 table above. Start with the highest-impact items:
+1. Remove inline `Button` from Settings — use Shadcn `Button`
+2. Replace custom dialogs in Users.js + RolesPermissions.js with Shadcn Dialog
+3. Fix BillingOperations.js filters to re-fetch from server on change
+4. Add unsaved-changes guard to BillingWorkspace
+5. Standardise all list pages to use PageHeader + consistent toolbar
+6. Add pagination UI to all list pages (hook already built in Phase 4)

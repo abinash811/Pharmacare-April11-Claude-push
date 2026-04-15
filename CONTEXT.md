@@ -1,6 +1,6 @@
 # PHARMACARE — QUICK CONTEXT
 # Read this first in any new session
-# Last updated: April 13, 2026
+# Last updated: April 16, 2026
 
 ---
 
@@ -14,8 +14,7 @@ Non-technical CEO/founder. Building with Claude Code + Claude.ai.
 Needs plain English explanations. No jargon without explanation.
 
 ## CURRENT BRANCH
-`claude/compassionate-agnesi` ← all refactor work happening here
-`main` ← original working code, UNTOUCHED, safe to return to
+`main` ← all refactor work is committed here (Phase 6 complete)
 
 ## TECH STACK
 - Frontend: React + Tailwind CSS + Shadcn/UI (JavaScript, converting to TypeScript)
@@ -32,12 +31,12 @@ Next step: integration test the new routers, then switch `main.py` to use them i
 ## WHAT WE ARE DOING
 Full refactor to international engineering standard:
 1. ✅ PostgreSQL schema (21 tables) — DONE
-2. ✅ Split server.py into 14 router files — DONE (structure only)
+2. ✅ Split server.py into 14 router files — DONE
 3. ✅ Migrate MongoDB queries → PostgreSQL in each router — 15/15 COMPLETE
-4. ⏳ Frontend constants + utils + hooks
-5. ⏳ TypeScript conversion
-6. ⏳ Break down giant files (BillingWorkspace 2054 lines, etc.)
-7. ⏳ Fix broken pages (Dashboard, Reports, GSTReport)
+4. ✅ Frontend constants + utils + hooks — DONE
+5. ✅ TypeScript conversion — DONE
+6. ✅ Break down giant files — DONE (9 files → 73 focused files, all ≤300 lines)
+7. ⏳ Fix broken pages (Users, RolesPermissions, BillingOperations, etc.) ← CURRENT
 8. ⏳ Add missing features (pagination, barcode, print)
 
 ## CRITICAL RULES
@@ -52,18 +51,18 @@ Full refactor to international engineering standard:
 - Snapshot product details in bills — never reference live product name
 
 ## NEXT TASK
-Phase 4 — Frontend constants, utils, hooks
+Phase 7 — Fix Broken Pages (see PROGRESS.md for full issue list)
 
-## PHASE 3 COMMITS (ALL COMPLETE)
-1. `62b9200` — auth layer migrated (deps, auth_helpers, auth)
-2. `9ab2fc6` — users and settings migrated
-3. `1d983a5` — customers and suppliers migrated
-4. `eeef0f6` — inventory and batches migrated
-5. `6e0eb99` — purchases and purchase_returns migrated
-6. `eb3d680` — sales_returns migrated
-7. `d2131b3` — billing migrated
-8. `e20f1dd` — reports migrated
-9. `224915d` — excel bulk upload migrated
+## PHASE 6 COMMITS (ALL COMPLETE)
+1. `e0ea0a3` — BillingWorkspace (2,054 → 12 files)
+2. `5ae85cf` — InventorySearch (1,591 → 11 files)
+3. `a387a9e` — PurchaseNew (1,231 → 9 files)
+4. `bc36c17` — MedicineDetail (1,108 → 8 files)
+5. `aeefb9b` — Customers (771 → 7 files)
+6. `9646f24` — Suppliers (747 → 6 files)
+7. `4e6d2a6` — Dashboard (519 → 7 files)
+8. `4302e18` — Settings (666 → 8 files)
+9. `286e982` — Reports (509 → 5 files)
 
 ## FILES TO READ FOR FULL CONTEXT
 1. CLAUDE.md — complete engineering reference
@@ -75,4 +74,7 @@ Phase 4 — Frontend constants, utils, hooks
 ## SAFE CHECKPOINTS (git commits)
 1. "PostgreSQL models complete, server.py untouched"
 2. "Phase 2 complete: backend split into router files"
-3. Phase 3 commits (see above) — all 15 routers migrated
+3. Phase 3 commits — all 15 routers migrated (final: `224915d`)
+4. Phase 4 complete — constants, utils, hooks (final: `4c07824`)
+5. Phase 5 complete — TypeScript added (final: `f90d271`)
+6. Phase 6 complete — all giant files broken down (final: `286e982`)

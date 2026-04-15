@@ -1,13 +1,13 @@
 # PHARMACARE — PROGRESS TRACKER
 # Update this file after every completed task
-# Last updated: April 13, 2026
+# Last updated: April 15, 2026
 
 ---
 
 ## CURRENT STATUS
 **Branch:** claude/compassionate-agnesi
-**Phase:** Phase 3 COMPLETE — all 15 routers migrated to PostgreSQL
-**Overall Progress:** ~45% of full refactor complete
+**Phase:** Phase 3 VERIFIED — all 15 routers migrated + full test suite passing (35/35)
+**Overall Progress:** ~45% of full refactor complete — ready to begin Phase 4
 
 ---
 
@@ -17,8 +17,8 @@
 |-------|------|--------|
 | Phase 1 | PostgreSQL setup + SQLAlchemy models | ✅ DONE |
 | Phase 2 | Split server.py into router files | ✅ DONE |
-| Phase 3 | Migrate queries: MongoDB → PostgreSQL | ✅ DONE |
-| Phase 4 | Frontend constants, utils, hooks | ⏳ NOT STARTED |
+| Phase 3 | Migrate queries: MongoDB → PostgreSQL | ✅ DONE + VERIFIED |
+| Phase 4 | Frontend constants, utils, hooks | 🔜 NEXT |
 | Phase 5 | Add TypeScript to frontend | ⏳ NOT STARTED |
 | Phase 6 | Break down giant page files | ⏳ NOT STARTED |
 | Phase 7 | Fix broken/inconsistent pages | ⏳ NOT STARTED |
@@ -79,7 +79,14 @@ The new routers are ready to replace server.py once integration tested.
 
 ---
 
-## PHASE 3 — MongoDB → PostgreSQL Migration ✅ COMPLETE
+## PHASE 3 — MongoDB → PostgreSQL Migration ✅ COMPLETE + VERIFIED
+
+### Verification (April 15, 2026)
+- Full `backend_test.py` suite run against `http://localhost:8000`: **35/35 passed (100%)**
+- `bcrypt` pinned to `4.0.1` in `backend/requirements.txt`
+- Fixed: Draft bill 500 error — replaced hardcoded `"Draft"` bill_number with unique
+  `DRAFT-<hex8>` placeholder to avoid UNIQUE(pharmacy_id, bill_number) collision
+- Commit: `e5f07dc`
 
 ### Router Migration Status (15 of 15 complete)
 
@@ -205,8 +212,15 @@ All these features work right now via server.py:
 
 ## NEXT TASK
 
-Phase 4 — Frontend constants, utils, hooks:
-- Create frontend/src/constants/ (pharmacy, routes, api)
-- Create frontend/src/utils/ (currency, dates, gst, validation)
-- Create frontend/src/lib/axios.js
-- Create frontend/src/hooks/ (useDebounce, useApiCall, usePagination)
+**Phase 4 — Frontend constants, utils, hooks:**
+- Create `frontend/src/constants/pharmacy.js` — drug schedules, GST rates, HSN codes
+- Create `frontend/src/constants/routes.js` — all route strings
+- Create `frontend/src/constants/api.js` — all API endpoint strings
+- Create `frontend/src/utils/currency.js` — formatCurrency, formatINR
+- Create `frontend/src/utils/dates.js` — formatDate, getFinancialYear
+- Create `frontend/src/utils/gst.js` — calculateGST, getGSTSlab
+- Create `frontend/src/utils/validation.js` — validateGSTIN, validatePhone
+- Create `frontend/src/lib/axios.js` — configured Axios instance
+- Create `frontend/src/hooks/useDebounce.js`
+- Create `frontend/src/hooks/useApiCall.js`
+- Create `frontend/src/hooks/usePagination.js`

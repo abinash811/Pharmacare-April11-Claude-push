@@ -6,8 +6,8 @@
 
 ## CURRENT STATUS
 **Branch:** claude/compassionate-agnesi
-**Phase:** Phase 3 VERIFIED — all 15 routers migrated + full test suite passing (35/35)
-**Overall Progress:** ~45% of full refactor complete — ready to begin Phase 4
+**Phase:** Phase 4 COMPLETE — all 11 frontend constants/utils/hooks built and committed
+**Overall Progress:** ~60% of full refactor complete — ready to begin Phase 5
 
 ---
 
@@ -18,8 +18,8 @@
 | Phase 1 | PostgreSQL setup + SQLAlchemy models | ✅ DONE |
 | Phase 2 | Split server.py into router files | ✅ DONE |
 | Phase 3 | Migrate queries: MongoDB → PostgreSQL | ✅ DONE + VERIFIED |
-| Phase 4 | Frontend constants, utils, hooks | 🔜 NEXT |
-| Phase 5 | Add TypeScript to frontend | ⏳ NOT STARTED |
+| Phase 4 | Frontend constants, utils, hooks | ✅ DONE |
+| Phase 5 | Add TypeScript to frontend | 🔜 NEXT |
 | Phase 6 | Break down giant page files | ⏳ NOT STARTED |
 | Phase 7 | Fix broken/inconsistent pages | ⏳ NOT STARTED |
 | Phase 8 | Missing features | ⏳ NOT STARTED |
@@ -110,20 +110,24 @@ The new routers are ready to replace server.py once integration tested.
 
 ---
 
-## PHASE 4 — Frontend Constants & Utils ⏳ NOT STARTED
+## PHASE 4 — Frontend Constants & Utils ✅ COMPLETE
 
-### Files to Create
-- `frontend/src/constants/pharmacy.js` — drug schedules, GST rates, HSN codes
-- `frontend/src/constants/routes.js` — all route strings
-- `frontend/src/constants/api.js` — all API endpoint strings
-- `frontend/src/utils/currency.js` — formatCurrency, formatINR
-- `frontend/src/utils/dates.js` — formatDate, getFinancialYear
-- `frontend/src/utils/gst.js` — calculateGST, getGSTSlab
-- `frontend/src/utils/validation.js` — validateGSTIN, validatePhone
-- `frontend/src/lib/axios.js` — configured Axios instance
-- `frontend/src/hooks/useDebounce.js`
-- `frontend/src/hooks/useApiCall.js`
-- `frontend/src/hooks/usePagination.js`
+### Verification (April 15, 2026)
+All 11 files built, tested (structural node checks), and committed to both branches.
+
+| File | Tests | Commit | Purpose |
+|------|-------|--------|---------|
+| `constants/pharmacy.js` | ✅ | 9db7100 | Drug schedules, GST rates, HSN codes, statuses |
+| `constants/routes.js` | ✅ | 9db7100 | All 26 route paths + dynamic builders |
+| `constants/api.js` | ✅ | 39a5562 | 50+ API endpoints + qs() builder |
+| `utils/currency.js` | 30/30 | e8f22ed | formatCurrency, paise↔rupee, compact, margin |
+| `utils/dates.js` | 30/30 | 5ed5155 | formatDate, expiry, FY range, presets |
+| `utils/gst.js` | 38/38 | 0db1112 | calcLineGST, calcBillTotals, liability |
+| `utils/validation.js` | 48/48 | 5bb5ff6 | GSTIN, PAN, phone, amount, runValidators |
+| `lib/axios.js` | 14/14 | eff19b8 | Configured instance + auth interceptors |
+| `hooks/useDebounce.js` | 18/18 | de76746 | useDebounce + useDebouncedCallback |
+| `hooks/useApiCall.js` | 35/35 | 0d95feb | useApiCall, useFetch, useParallelFetch |
+| `hooks/usePagination.js` | 31/31 | 4c07824 | Server + client-side pagination state |
 
 ---
 
@@ -212,15 +216,10 @@ All these features work right now via server.py:
 
 ## NEXT TASK
 
-**Phase 4 — Frontend constants, utils, hooks:**
-- Create `frontend/src/constants/pharmacy.js` — drug schedules, GST rates, HSN codes
-- Create `frontend/src/constants/routes.js` — all route strings
-- Create `frontend/src/constants/api.js` — all API endpoint strings
-- Create `frontend/src/utils/currency.js` — formatCurrency, formatINR
-- Create `frontend/src/utils/dates.js` — formatDate, getFinancialYear
-- Create `frontend/src/utils/gst.js` — calculateGST, getGSTSlab
-- Create `frontend/src/utils/validation.js` — validateGSTIN, validatePhone
-- Create `frontend/src/lib/axios.js` — configured Axios instance
-- Create `frontend/src/hooks/useDebounce.js`
-- Create `frontend/src/hooks/useApiCall.js`
-- Create `frontend/src/hooks/usePagination.js`
+**Phase 5 — TypeScript Migration:**
+- Install TypeScript + @types/* packages
+- Add `tsconfig.json` (strict mode, path aliases)
+- Rename all .js/.jsx → .ts/.tsx
+- Add type definitions for all API response shapes
+- Add `src/types/` directory with entity interfaces (Bill, Product, Customer, etc.)
+- Wire up path alias `@/` → `src/` in tsconfig + webpack/craco config

@@ -88,6 +88,13 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
         },
         "general": {
             "pharmacy_name": pharmacy.name if pharmacy else "PharmaCare",
+            "address":       pharmacy.address  if pharmacy else "",
+            "city":          pharmacy.city     if pharmacy else "",
+            "state":         pharmacy.state    if pharmacy else "",
+            "pincode":       pharmacy.pincode  if pharmacy else "",
+            "phone":         pharmacy.phone    if pharmacy else "",
+            "gstin":         pharmacy.gstin    if pharmacy else "",
+            "drug_license":  pharmacy.drug_license_number if pharmacy else "",
             "currency": "INR",
             "timezone": "Asia/Kolkata",
         },

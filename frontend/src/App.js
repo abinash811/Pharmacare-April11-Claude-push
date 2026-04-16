@@ -29,6 +29,8 @@ import Users from '@/pages/Users';
 import RolesPermissions from '@/pages/RolesPermissions';
 import Suppliers from '@/pages/Suppliers';
 import GSTReport from '@/pages/GSTReport';
+import ScheduleH1Register from '@/pages/ScheduleH1Register';
+import AuditLog from '@/pages/AuditLog';
 import Layout from '@/components/Layout';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -170,6 +172,8 @@ function AppRoutes({ user }) {
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="reports" element={<Reports />} />
         <Route path="reports/gst" element={<GSTReport />} />
+        <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
+        <Route path="audit-log" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />
         <Route path="users" element={<Users />} />
         <Route path="roles" element={<RolesPermissions />} />

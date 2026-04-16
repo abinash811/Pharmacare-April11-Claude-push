@@ -865,7 +865,8 @@ async def get_refunds(return_invoice_id: Optional[str] = None, original_invoice_
 @router.get("/audit-logs")
 async def get_audit_logs(
     entity_type: Optional[str] = None, entity_id: Optional[str] = None,
-    action: Optional[str] = None, limit: int = 100,
+    action: Optional[str] = None,
+    page: int = 1, page_size: int = 50,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -877,19 +878,32 @@ async def get_audit_logs(
     if action:
         query = query.where(AuditLog.action == action)
 
-    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(limit))
-    logs = result.scalars().all()
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar()
 
-    return [{
-        "id": str(l.id),
-        "entity_type": l.entity_type,
-        "entity_id": str(l.entity_id) if l.entity_id else None,
-        "action": l.action,
-        "old_value": l.old_values,
-        "new_value": l.new_values,
-        "performed_by": str(l.user_id) if l.user_id else None,
-        "created_at": l.created_at.isoformat() if l.created_at else None,
-    } for l in logs]
+    page_size = min(max(page_size, 1), 100)
+    page      = max(page, 1)
+    offset    = (page - 1) * page_size
+    result    = await db.execute(query.order_by(AuditLog.created_at.desc()).offset(offset).limit(page_size))
+    logs      = result.scalars().all()
+
+    return {
+        "data": [{
+            "id": str(l.id),
+            "entity_type": l.entity_type,
+            "entity_id": str(l.entity_id) if l.entity_id else None,
+            "action": l.action,
+            "old_value": l.old_values,
+            "new_value": l.new_values,
+            "performed_by": str(l.user_id) if l.user_id else None,
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        } for l in logs],
+        "pagination": {
+            "page": page, "page_size": page_size, "total": total,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+            "has_next": page * page_size < total, "has_prev": page > 1,
+        },
+    }
 
 
 @router.get("/audit-logs/entity/{entity_type}/{entity_id}")

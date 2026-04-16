@@ -25,9 +25,11 @@ export default function Layout() {
     { name: 'Suppliers', path: '/suppliers', icon: ShoppingBag, roles: ['admin', 'manager', 'inventory_staff'] },
     { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
     { name: 'GST Report', path: '/reports/gst', icon: FileText, roles: ['admin', 'manager'] },
+    { name: 'Sch H1 Register', path: '/compliance/schedule-h1', icon: FileText, roles: ['admin', 'manager'] },
     { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     { name: 'Users', path: '/users', icon: Users, roles: ['admin'] },
     { name: 'Roles', path: '/roles', icon: Settings, roles: ['admin'] },
+    { name: 'Audit Log', path: '/audit-log', icon: FileText, roles: ['admin'] },
   ];
 
   // Filter navigation based on user role

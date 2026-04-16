@@ -31,6 +31,7 @@ import Suppliers from '@/pages/Suppliers';
 import GSTReport from '@/pages/GSTReport';
 import ScheduleH1Register from '@/pages/ScheduleH1Register';
 import AuditLog from '@/pages/AuditLog';
+import StockMovementLog from '@/pages/StockMovementLog';
 import Layout from '@/components/Layout';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -161,6 +162,7 @@ function AppRoutes({ user }) {
         <Route path="inventory" element={<InventorySearch />} />
         <Route path="inventory/product/:sku" element={<MedicineDetail />} />
         <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
+        <Route path="inventory/stock-movements" element={<StockMovementLog />} />
         <Route path="purchases" element={<PurchasesList />} />
         <Route path="purchases/create" element={<PurchaseNew />} />
         <Route path="purchases/edit/:id" element={<PurchaseNew />} />

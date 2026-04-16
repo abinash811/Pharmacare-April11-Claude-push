@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
@@ -365,7 +365,8 @@ async def create_stock_movement(movement_data: StockMovementCreate, current_user
 @router.get("/stock-movements")
 async def get_stock_movements(
     product_sku: Optional[str] = None, batch_id: Optional[str] = None,
-    movement_type: Optional[str] = None, limit: int = 100,
+    movement_type: Optional[str] = None,
+    page: int = 1, page_size: int = 50,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -377,12 +378,26 @@ async def get_stock_movements(
         )
         product = prod_result.scalar_one_or_none()
         if not product:
-            return []
+            return {"data": [], "pagination": {"page": 1, "page_size": page_size, "total": 0, "total_pages": 1, "has_next": False, "has_prev": False}}
         query = query.where(MovementORM.product_id == product.id)
     if batch_id:
         query = query.where(MovementORM.batch_id == uuid.UUID(batch_id))
     if movement_type:
         query = query.where(MovementORM.movement_type == movement_type)
 
-    result = await db.execute(query.order_by(MovementORM.created_at.desc()).limit(limit))
-    return [_movement_response(m) for m in result.scalars().all()]
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar()
+
+    page_size = min(max(page_size, 1), 100)
+    page      = max(page, 1)
+    offset    = (page - 1) * page_size
+    result    = await db.execute(query.order_by(MovementORM.created_at.desc()).offset(offset).limit(page_size))
+
+    return {
+        "data": [_movement_response(m) for m in result.scalars().all()],
+        "pagination": {
+            "page": page, "page_size": page_size, "total": total,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+            "has_next": page * page_size < total, "has_prev": page > 1,
+        },
+    }

@@ -108,7 +108,7 @@ export default function PurchaseDetail() {
   };
 
   const handlePrint = () => {
-    toast.info('Print functionality coming soon');
+    window.print();
   };
 
   // Calculate totals

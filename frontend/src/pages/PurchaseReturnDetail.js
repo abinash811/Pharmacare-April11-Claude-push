@@ -70,7 +70,7 @@ export default function PurchaseReturnDetail() {
   };
 
   const handlePrint = () => {
-    toast.info('Print functionality coming soon');
+    window.print();
   };
 
   const openEditModal = (type) => {

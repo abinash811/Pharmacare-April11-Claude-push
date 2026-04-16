@@ -183,7 +183,7 @@ export default function SalesReturnDetail() {
                     Edit
                   </button>
                   <button
-                    onClick={() => { toast.info('Print functionality coming soon'); setShowMoreMenu(false); }}
+                    onClick={() => { setShowMoreMenu(false); window.print(); }}
                     className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
                   >
                     <Printer className="w-4 h-4" />

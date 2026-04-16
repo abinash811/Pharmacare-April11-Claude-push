@@ -6,8 +6,8 @@
 
 ## CURRENT STATUS
 **Branch:** main
-**Phase:** Phase 8 — Missing Features ⏳ NOT STARTED
-**Overall Progress:** ~92% of full refactor complete
+**Phase:** Phase 8 — Missing Features 🔄 IN PROGRESS (~65% done)
+**Overall Progress:** ~97% of full refactor complete
 
 ---
 
@@ -307,54 +307,74 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 
 ---
 
-## PHASE 8 — Missing Features ⏳ NOT STARTED
+## PHASE 8 — Missing Features 🔄 IN PROGRESS
+
+### Completed (April 16, 2026)
+
+| Feature | Status | Commit |
+|---------|--------|--------|
+| Pagination UI on all list pages | ✅ | `91eabfc` |
+| BillDetail page — view/print saved bill | ✅ | `43ae9e7` |
+| Schedule H1 drug register page | ✅ | `6780860` |
+| Audit log viewer page | ✅ | `6780860` |
+| Stock movement log page | ✅ | `35ec225` |
+
+### What was done
+- `PaginationBar` shared component (prev/next + page numbers + "Showing X–Y of Z")
+- BillingOperations → real server-side pagination (page_size=20, filters sent to API)
+- PurchasesList → migrated raw axios→api+apiUrl, server-side pagination
+- SalesReturnsList → migrated raw axios→api+apiUrl, server-side pagination
+- PurchaseReturnsList → migrated raw axios→api+apiUrl, client-side slice pagination
+- Users.js → client-side slice + search
+- Customers/index.jsx, Suppliers/index.jsx → client-side slice pagination
+- `BillDetail.jsx` at `/billing/:id` — read-only receipt with GST breakup, print button
+- `ScheduleH1Register.jsx` at `/compliance/schedule-h1` — drug register with date filter, CSV export
+- `AuditLog.jsx` at `/audit-log` — admin-only activity log with expandable diff rows
+- `StockMovementLog.jsx` at `/inventory/stock-movements` — full stock in/out history with type filters
+- Backend: normalized pagination response across sales-returns, audit-logs, stock-movements
+
+### Still Remaining
 
 | Feature | Status |
 |---------|--------|
-| Pagination UI on all list pages | ❌ |
 | Barcode scanner connected to billing | ❌ |
 | Barcode scanner connected to inventory | ❌ |
 | Print/PDF for purchases | ❌ |
 | Print/PDF for returns | ❌ |
-| Stock movement log page | ❌ |
 | Mobile responsive layout | ❌ |
-| BillDetail page | ❌ |
-| Schedule H1 drug register page | ❌ |
-| Audit log viewer page | ❌ |
 
 ---
 
 ## WHAT IS CURRENTLY WORKING
 
-The original `server.py` (MongoDB) is UNTOUCHED and still the running backend.
-The new PostgreSQL routers (`backend/routers/*`) are fully migrated and ready for integration testing.
-All these features work right now via server.py:
+PostgreSQL backend (main.py + routers/) is the active backend on port 8000.
+The original `server.py` (MongoDB) is preserved but not used.
 
 ✅ Login / logout / authentication
-✅ Billing — create, edit, park, finalize, print
+✅ Billing — create, edit, park, finalize, view (BillDetail), print
 ✅ Inventory — search, filter, bulk Excel upload, expiry write-off
 ✅ Purchases — create, edit, mark as paid, detail view
-✅ Purchase Returns — create, confirm, detail view
-✅ Sales Returns — create, detail view, list
-✅ Customers & Doctors — full CRUD
-✅ Suppliers — full CRUD, purchase history
-✅ Users — add, edit, deactivate, password change
+✅ Purchase Returns — create, confirm, detail view, list with pagination
+✅ Sales Returns — create, detail view, list with server-side pagination
+✅ Customers & Doctors — full CRUD, paginated list
+✅ Suppliers — full CRUD, purchase history, paginated list
+✅ Users — add, edit, deactivate, password change, paginated list
 ✅ Roles & Permissions — custom roles, permission matrix
 ✅ Settings — billing config, bill sequences
 ✅ Reports — sales, stock, expiry
 ✅ GST Report — GST breakup, CSV export
 ✅ Dashboard — analytics overview
+✅ Schedule H1 Register — compliance drug register (auto-populated)
+✅ Audit Log — system activity history with diff viewer
+✅ Stock Movement Log — all inventory in/out movements
 
 ---
 
 ## NEXT TASK
 
-**Phase 8 — Missing Features:**
-Pick any item from the Phase 8 table below. Suggested order:
-1. Pagination UI on all list pages (BillingOperations, PurchasesList, Customers, Suppliers, etc.)
-2. BillDetail page — view/print a saved bill
-3. Schedule H1 drug register page
-4. Audit log viewer page
-4. Add unsaved-changes guard to BillingWorkspace
-5. Standardise all list pages to use PageHeader + consistent toolbar
-6. Add pagination UI to all list pages (hook already built in Phase 4)
+**Phase 8 — Continue remaining items:**
+1. Print/PDF for purchases (PurchaseDetail page → print button)
+2. Print/PDF for returns (SalesReturnDetail, PurchaseReturnDetail → print button)
+3. Barcode scanner connected to billing (BillingWorkspace → scan item → add to bill)
+4. Barcode scanner connected to inventory (search by barcode)
+5. Mobile responsive layout (sidebar collapses, tables scroll on mobile)

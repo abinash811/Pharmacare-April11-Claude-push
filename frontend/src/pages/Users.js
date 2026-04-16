@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '@/App';
 import { Plus, Edit, XCircle, CheckCircle, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader, ConfirmDialog, DataCard } from '../components/shared';
+import { InlineLoader, ConfirmDialog, DataCard, SearchInput, PaginationBar } from '../components/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { useDebounce } from '@/hooks/useDebounce';
+import usePagination from '@/hooks/usePagination';
 
 export default function Users() {
   const { user: currentUser } = useContext(AuthContext);
@@ -37,6 +39,11 @@ export default function Users() {
   });
 
   const [availableRoles, setAvailableRoles] = useState([]);
+
+  // Search + client-side pagination
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch               = useDebounce(searchQuery, 300);
+  const pg                            = usePagination({ pageSize: 15 });
 
   useEffect(() => {
     fetchUsers();
@@ -165,6 +172,22 @@ export default function Users() {
     );
   };
 
+  // Client-side filtered + paginated list
+  const filteredUsers = users.filter((u) => {
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
+    return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+  });
+
+  // Keep pagination in sync with filtered count
+  useEffect(() => {
+    pg.resetPage();
+    pg.setTotal(filteredUsers.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, users.length]);
+
+  const pageUsers = pg.slice(filteredUsers);
+
   if (currentUser?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -186,6 +209,12 @@ export default function Users() {
           <p className="text-sm text-gray-500 mt-1">Manage users and their access permissions</p>
         </div>
         <div className="flex gap-3">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search users..."
+            className="w-56"
+          />
           <Button variant="outline" onClick={() => setShowPasswordDialog(true)}>
             <Key className="w-4 h-4 mr-2" />
             Change My Password
@@ -221,7 +250,7 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {users.map((user) => (
+                {pageUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="font-medium">{user.name}</div>
@@ -273,6 +302,9 @@ export default function Users() {
             </table>
           </div>
         )}
+
+        {/* Pagination footer */}
+        <PaginationBar {...pg} />
       </DataCard>
 
       {/* Add User Dialog */}

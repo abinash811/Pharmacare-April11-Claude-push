@@ -1,144 +1,111 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, PageSkeleton, SalesReturnsEmptyState } from '../components/shared';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import {
+  PageHeader, DataCard, SearchInput, StatusBadge,
+  DateRangePicker, TableSkeleton, SalesReturnsEmptyState, PaginationBar,
+} from '../components/shared';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { useDebounce } from '@/hooks/useDebounce';
+import { formatDateShort, formatTime } from '@/utils/dates';
+import usePagination from '@/hooks/usePagination';
 
 export default function SalesReturnsList() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const searchTimeoutRef = useRef(null);
-
-  // Filters
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
-
-  // Stats
-  const [stats, setStats] = useState({
-    returnsToday: 0,
-    totalRefundedToday: 0
-  });
-
-  // Role permissions
+  const [stats, setStats]     = useState({ returnsToday: 0, totalRefundedToday: 0 });
   const [allowManualReturns, setAllowManualReturns] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-    fetchRolePermissions();
-  }, [debouncedSearch]);
+  // Search & filters
+  const [searchQuery, setSearchQuery]   = useState('');
+  const debouncedSearch                 = useDebounce(searchQuery, 300);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [dateRange, setDateRange]       = useState({ start: null, end: null });
 
-  // Debounce search
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearch(value);
-    }, 300);
-  };
+  // Pagination
+  const pg = usePagination({ pageSize: 20 });
 
-  const fetchData = async () => {
-    const token = localStorage.getItem('token');
+  // ── Fetch ────────────────────────────────────────────────────────────────────
+  const fetchData = async (pageOverride) => {
+    setLoading(true);
     try {
-      let url = `${API}/sales-returns?page_size=500`;
-      if (debouncedSearch) {
-        url += `&search=${encodeURIComponent(debouncedSearch)}`;
-      }
-      if (activeFilter !== 'all') {
-        url += `&payment_type=${activeFilter}`;
-      }
-      
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      const data = response.data;
-      setReturns(data.data || []);
-      setStats({
-        returnsToday: data.stats?.returns_today || 0,
-        totalRefundedToday: data.stats?.total_refunded_today || 0
-      });
-    } catch (error) {
+      const params = {
+        page:      pageOverride ?? pg.page,
+        page_size: pg.pageSize,
+      };
+      if (debouncedSearch)          params.search       = debouncedSearch;
+      if (activeFilter !== 'all')   params.payment_type = activeFilter;
+      if (dateRange.start)          params.from_date    = dateRange.start.toISOString().split('T')[0];
+      if (dateRange.end)            params.to_date      = dateRange.end.toISOString().split('T')[0];
+
+      const res = await api.get(apiUrl.salesReturns(params));
+      setReturns(res.data.data || []);
+      pg.setFromResponse(res.data.pagination);
+      if (res.data.stats) setStats(res.data.stats);
+    } catch {
       toast.error('Failed to load sales returns');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchRolePermissions = async () => {
     if (!user?.role) return;
-    const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/roles/${user.role}/permissions/returns`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAllowManualReturns(response.data.allow_manual_returns || user.role === 'admin');
-    } catch (error) {
-      // Default to admin having permission
+      const res = await api.get(`roles/${user.role}/permissions/returns`);
+      setAllowManualReturns(res.data.allow_manual_returns || user.role === 'admin');
+    } catch {
       setAllowManualReturns(user?.role === 'admin');
     }
   };
+
+  // Re-fetch when filters change — reset to page 1
+  useEffect(() => {
+    pg.resetPage();
+    fetchData(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeFilter, dateRange]);
+
+  // Re-fetch when page changes
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pg.page]);
+
+  useEffect(() => {
+    fetchRolePermissions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role]);
 
   const handleNewReturn = () => {
     if (allowManualReturns) {
       navigate('/billing/returns/new');
     } else {
-      toast.warning('Sales returns can only be created from an existing bill. Open the bill and use the Return option.', {
-        duration: 5000
-      });
+      toast.warning(
+        'Sales returns can only be created from an existing bill. Open the bill and use the Return option.',
+        { duration: 5000 }
+      );
     }
   };
 
-  const getFilteredData = () => {
-    let data = [...returns];
-    
-    // Date filter
-    if (dateRange.start && dateRange.end) {
-      data = data.filter(item => {
-        const itemDate = new Date(item.return_date || item.entry_date);
-        return itemDate >= dateRange.start && itemDate <= dateRange.end;
-      });
-    }
-    
-    return data;
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
-  const filteredData = getFilteredData();
-
-  if (loading) {
-    return <PageSkeleton />;
-  }
+  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
     <div className="min-h-screen bg-gray-50 p-6" data-testid="sales-returns-page">
-      {/* Page Header */}
       <PageHeader
         title="Sales Returns"
-        subtitle={`Today -₹${stats.totalRefundedToday.toFixed(2)} · ${stats.returnsToday} returns`}
+        subtitle={
+          stats.returnsToday > 0
+            ? `Today -₹${(stats.totalRefundedToday || 0).toFixed(2)} · ${stats.returnsToday} returns`
+            : pg.totalItems > 0 ? `${pg.totalItems} returns total` : undefined
+        }
         actions={
           <Button onClick={handleNewReturn} data-testid="new-return-btn">
             <Plus className="w-4 h-4 mr-2" />
@@ -152,29 +119,27 @@ export default function SalesReturnsList() {
         <div className="flex items-center gap-4">
           <SearchInput
             value={searchQuery}
-            onChange={handleSearchChange}
+            onChange={setSearchQuery}
             placeholder="Return no., bill no., patient..."
             className="w-64"
           />
 
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
+          <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-          {/* Filter pills */}
           <div className="flex items-center gap-1">
-            {['all', 'cash', 'upi', 'credit_to_account'].map((filter) => (
+            {['all', 'cash', 'upi', 'credit_to_account'].map((f) => (
               <button
-                key={filter}
-                onClick={() => { setActiveFilter(filter); fetchData(); }}
+                key={f}
+                onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  activeFilter === filter
+                  activeFilter === f
                     ? 'bg-gray-900 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {filter === 'all' ? 'All' : filter === 'credit_to_account' ? 'Credit' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {f === 'all' ? 'All'
+                  : f === 'credit_to_account' ? 'Credit'
+                  : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
           </div>
@@ -199,11 +164,17 @@ export default function SalesReturnsList() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredData.length === 0 ? (
+              {loading ? (
                 <tr>
                   <td colSpan="9" className="p-0">
-                    <SalesReturnsEmptyState 
-                      filtered={searchQuery || startDate || endDate}
+                    <TableSkeleton rows={6} columns={8} />
+                  </td>
+                </tr>
+              ) : returns.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="p-0">
+                    <SalesReturnsEmptyState
+                      filtered={isFiltered}
                       action={
                         <Button onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
                           <Plus className="w-4 h-4 mr-2" />
@@ -214,7 +185,7 @@ export default function SalesReturnsList() {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item) => (
+                returns.map((item) => (
                   <tr
                     key={item.id}
                     className="hover:bg-gray-50 cursor-pointer"
@@ -240,11 +211,11 @@ export default function SalesReturnsList() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-700">{formatDate(item.entry_date)}</div>
+                      <div className="text-sm text-gray-700">{formatDateShort(item.entry_date)}</div>
                       <div className="text-xs text-gray-500">{formatTime(item.entry_date)}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-700">{formatDate(item.return_date)}</div>
+                      <div className="text-sm text-gray-700">{formatDateShort(item.return_date)}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-gray-700">{item.created_by?.name || '-'}</span>
@@ -259,16 +230,16 @@ export default function SalesReturnsList() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="p-1.5 h-auto hover:bg-blue-50"
                           onClick={(e) => { e.stopPropagation(); navigate(`/billing/returns/${item.id}`); }}
                         >
                           <Eye className="w-4 h-4 text-blue-600" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="p-1.5 h-auto hover:bg-gray-100"
                           onClick={(e) => { e.stopPropagation(); toast.info('Print functionality coming soon'); }}
@@ -283,6 +254,9 @@ export default function SalesReturnsList() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer */}
+        <PaginationBar {...pg} />
       </DataCard>
     </div>
   );

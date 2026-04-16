@@ -419,9 +419,11 @@ async def get_sales_returns(
 
     return {
         "data": data,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
+        "pagination": {
+            "page": page, "page_size": page_size, "total": total,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+            "has_next": page * page_size < total, "has_prev": page > 1,
+        },
         "stats": {"returns_today": returns_today, "total_refunded_today": total_refunded_today},
     }
 

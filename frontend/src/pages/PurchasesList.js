@@ -1,243 +1,87 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'sonner';
-import { X, Plus, Eye, Edit, Printer, CreditCard } from 'lucide-react';
+import { Plus, Eye, Edit, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, PurchasesEmptyState } from '../components/shared';
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import {
+  PageHeader, DataCard, SearchInput, StatusBadge,
+  DateRangePicker, TableSkeleton, PurchasesEmptyState, PaginationBar,
+} from '../components/shared';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { useDebounce } from '@/hooks/useDebounce';
+import { formatDateShort, formatTime } from '@/utils/dates';
+import { formatCurrency } from '@/utils/currency';
+import usePagination from '@/hooks/usePagination';
 
 export default function PurchasesList() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('purchases');
   const [purchases, setPurchases] = useState([]);
-  const [returns, setReturns] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [supplierSearch, setSupplierSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const searchTimeoutRef = useRef(null);
+  const [loading, setLoading]     = useState(true);
 
-  // Filters - live apply (no buttons)
-  const [activeFilter, setActiveFilter] = useState('all'); // all, cash, credit, due
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  // Search & filters
+  const [searchQuery, setSearchQuery]       = useState('');
+  const debouncedSearch                     = useDebounce(searchQuery, 300);
+  const [activeFilter, setActiveFilter]     = useState('all'); // all | cash | credit | due
+  const [dateRange, setDateRange]           = useState({ start: null, end: null });
 
-  // Mark as Paid Modal
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payingPurchase, setPayingPurchase] = useState(null);
-  const [paymentData, setPaymentData] = useState({
-    amount: 0,
-    payment_method: 'cash',
-    reference_no: '',
-    notes: ''
+  // Pagination
+  const pg = usePagination({ pageSize: 20 });
+
+  // Mark-as-Paid modal
+  const [showPayModal, setShowPayModal]       = useState(false);
+  const [payingPurchase, setPayingPurchase]   = useState(null);
+  const [paymentData, setPaymentData]         = useState({
+    amount: 0, payment_method: 'cash', reference_no: '', notes: '',
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  // Stats
-  const [stats, setStats] = useState({
-    purchasesToday: 0,
-    parkedCount: 0,
-    pendingDueCount: 0,
-    totalAmountToday: 0,
-    totalDueAmount: 0,
-    totalReturns: 0
-  });
-
-  useEffect(() => {
-    fetchData();
-    fetchSuppliers();
-  }, []);
-
-  useEffect(() => {
-    calculateStats();
-  }, [purchases, returns]);
-
-  // Debounce search
-  const handleSearchChange = (value) => {
-    setSearchQuery(value);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearch(value);
-    }, 300);
-  };
-
-  const fetchSuppliers = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    try {
-      const response = await axios.get(`${API}/suppliers?page_size=100`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSuppliers(response.data.data || response.data);
-    } catch (error) {
-      console.error('Failed to load suppliers:', error);
-    }
-  };
-
-  const fetchData = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+  // ── Fetch ────────────────────────────────────────────────────────────────────
+  const fetchData = async (pageOverride) => {
     setLoading(true);
     try {
-      const [purchasesRes, returnsRes] = await Promise.all([
-        axios.get(`${API}/purchases?page_size=500`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${API}/purchase-returns`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ]);
-      
-      setPurchases(purchasesRes.data.data || purchasesRes.data || []);
-      setReturns(returnsRes.data || []);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+      const params = {
+        page:      pageOverride ?? pg.page,
+        page_size: pg.pageSize,
+      };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (activeFilter === 'cash')   params.purchase_on    = 'cash';
+      if (activeFilter === 'credit') params.purchase_on    = 'credit';
+      if (activeFilter === 'due')    params.payment_status = 'unpaid';
+      if (dateRange.start) params.from_date = dateRange.start.toISOString().split('T')[0];
+      if (dateRange.end)   params.to_date   = dateRange.end.toISOString().split('T')[0];
+
+      const res = await api.get(apiUrl.purchases(params));
+      setPurchases(res.data.data || []);
+      pg.setFromResponse(res.data.pagination);
+    } catch {
       toast.error('Failed to load purchases');
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Re-fetch when filters change — reset to page 1
+  useEffect(() => {
+    pg.resetPage();
+    fetchData(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeFilter, dateRange]);
 
-    let purchasesToday = 0;
-    let parkedCount = 0;
-    let pendingDueCount = 0;
-    let totalAmountToday = 0;
-    let totalDueAmount = 0;
+  // Re-fetch when page changes
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pg.page]);
 
-    purchases.forEach(purchase => {
-      const purchaseDate = new Date(purchase.purchase_date || purchase.created_at);
-      purchaseDate.setHours(0, 0, 0, 0);
-      const isToday = purchaseDate.getTime() === today.getTime();
-
-      if (purchase.status === 'draft') {
-        parkedCount++;
-      }
-
-      if (purchase.payment_status !== 'paid' && (purchase.status === 'confirmed' || purchase.status === 'received')) {
-        pendingDueCount++;
-        totalDueAmount += (purchase.total_value || 0) - (purchase.amount_paid || 0);
-      }
-
-      if (isToday) {
-        purchasesToday++;
-        if (purchase.status !== 'draft') {
-          totalAmountToday += purchase.total_value || 0;
-        }
-      }
-    });
-
-    setStats({
-      purchasesToday,
-      parkedCount,
-      pendingDueCount,
-      totalAmountToday,
-      totalDueAmount,
-      totalReturns: returns.length
-    });
-  };
-
-  // Filter data based on search and filter pills (live apply)
-  const filterData = (data) => {
-    return data.filter(item => {
-      // Search filter
-      if (debouncedSearch) {
-        const search = debouncedSearch.toLowerCase();
-        const matchesSearch = 
-          item.purchase_number?.toLowerCase().includes(search) ||
-          item.return_number?.toLowerCase().includes(search) ||
-          item.supplier_name?.toLowerCase().includes(search) ||
-          item.supplier_invoice_no?.toLowerCase().includes(search);
-        if (!matchesSearch) return false;
-      }
-
-      // Date range filter
-      if (dateRange.start && dateRange.end) {
-        const itemDate = new Date(item.purchase_date || item.return_date || item.created_at);
-        if (itemDate < dateRange.start || itemDate > dateRange.end) return false;
-      }
-
-      // Supplier search filter
-      if (supplierSearch) {
-        const search = supplierSearch.toLowerCase();
-        if (!item.supplier_name?.toLowerCase().includes(search)) return false;
-      }
-
-      // Payment filter pills
-      if (activeFilter !== 'all') {
-        if (activeFilter === 'cash' && item.purchase_on !== 'cash') return false;
-        if (activeFilter === 'credit' && item.purchase_on !== 'credit') return false;
-        if (activeFilter === 'due' && item.payment_status === 'paid') return false;
-      }
-
-      return true;
-    });
-  };
-
-  const filteredPurchases = filterData(purchases);
-  const filteredReturns = filterData(returns);
-  const displayData = activeTab === 'purchases' ? filteredPurchases : filteredReturns;
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}-${month}-${year}`;
-  };
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-  };
-
-  const formatCurrency = (amount) => {
-    return `₹${(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-  };
-
-  const getPaymentBadge = (paymentStatus, purchaseOn, purchase) => {
-    if (purchase?.status === 'draft') {
-      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Parked', clickable: false, status: 'parked' };
-    }
-    if (paymentStatus === 'paid') {
-      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Paid', clickable: false, status: 'paid' };
-    }
-    if (paymentStatus === 'partial') {
-      return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Partial', clickable: true, status: 'partial' };
-    }
-    // unpaid
-    if (purchaseOn === 'cash') {
-      return { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash', clickable: false, status: 'cash' };
-    }
-    // Due badge - amber/orange to match warning convention
-    return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Due', clickable: true, status: 'due' };
-  };
-
+  // ── Payment helpers ───────────────────────────────────────────────────────────
   const openPayModal = (purchase) => {
     setPayingPurchase(purchase);
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
-    setPaymentData({
-      amount: outstanding,
-      payment_method: 'cash',
-      reference_no: '',
-      notes: ''
-    });
+    setPaymentData({ amount: outstanding, payment_method: 'cash', reference_no: '', notes: '' });
     setShowPayModal(true);
   };
 
@@ -247,14 +91,9 @@ export default function PurchasesList() {
       toast.error('Please enter a valid amount');
       return;
     }
-
     setPaymentLoading(true);
-    const token = localStorage.getItem('token');
-
     try {
-      await axios.post(`${API}/purchases/${payingPurchase.id}/pay`, paymentData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(apiUrl.purchasePay(payingPurchase.id), paymentData);
       toast.success('Payment recorded successfully');
       setShowPayModal(false);
       setPayingPurchase(null);
@@ -266,25 +105,28 @@ export default function PurchasesList() {
     }
   };
 
+  // ── Badge helper ─────────────────────────────────────────────────────────────
+  const getPaymentBadge = (purchase) => {
+    if (purchase.status === 'draft') return { status: 'parked', label: 'Parked', clickable: false };
+    if (purchase.payment_status === 'paid') return { status: 'paid', label: 'Paid', clickable: false };
+    if (purchase.payment_status === 'partial') return { status: 'partial', label: 'Partial', clickable: true };
+    if (purchase.purchase_on === 'cash') return { status: 'cash', label: 'Cash', clickable: false };
+    return { status: 'due', label: 'Due', clickable: true };
+  };
+
+  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
+
   return (
     <div className="min-h-screen bg-gray-50 p-6" data-testid="purchases-page">
-      {/* Page Header */}
       <PageHeader
         title="Purchase Operations"
-        subtitle={`Today ₹${stats.totalAmountToday.toFixed(2)} · ${stats.purchasesToday} purchases`}
+        subtitle={pg.totalItems > 0 ? `${pg.totalItems} purchases total` : undefined}
         actions={
           <>
-            <Button 
-              variant="outline"
-              onClick={() => navigate('/purchases/returns')}
-              data-testid="new-return-btn"
-            >
+            <Button variant="outline" onClick={() => navigate('/purchases/returns')} data-testid="new-return-btn">
               Purchase Returns
             </Button>
-            <Button 
-              onClick={() => navigate('/purchases/create?type=purchase')}
-              data-testid="new-purchase-btn"
-            >
+            <Button onClick={() => navigate('/purchases/create?type=purchase')} data-testid="new-purchase-btn">
               <Plus className="w-4 h-4 mr-2" />
               New Purchase
             </Button>
@@ -297,47 +139,29 @@ export default function PurchasesList() {
         <div className="flex items-center gap-4">
           <SearchInput
             value={searchQuery}
-            onChange={handleSearchChange}
-            placeholder="Bill no., invoice..."
+            onChange={setSearchQuery}
+            placeholder="Bill no., invoice, supplier..."
             className="w-64"
           />
 
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
+          <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-          <SearchInput
-            value={supplierSearch}
-            onChange={setSupplierSearch}
-            placeholder="Distributor..."
-            className="w-48"
-          />
-
-          {/* Filter pills */}
           <div className="flex items-center gap-1">
-            {['all', 'cash', 'credit', 'due'].map((filter) => (
+            {['all', 'cash', 'credit', 'due'].map((f) => (
               <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
+                key={f}
+                onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                  activeFilter === filter
+                  activeFilter === f
                     ? 'bg-gray-900 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
-                data-testid={`filter-${filter}`}
+                data-testid={`filter-${f}`}
               >
-                {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Stats Summary */}
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <span>Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span></span>
-          <span className="text-gray-300">·</span>
-          <span>Due <span className="font-bold text-red-600">{stats.pendingDueCount}</span></span>
         </div>
       </div>
 
@@ -348,7 +172,7 @@ export default function PurchasesList() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Sr.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill No.</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Purchase No.</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill Date</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry By</th>
@@ -365,11 +189,11 @@ export default function PurchasesList() {
                     <TableSkeleton rows={6} columns={8} />
                   </td>
                 </tr>
-              ) : displayData.length === 0 ? (
+              ) : purchases.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="p-0">
-                    <PurchasesEmptyState 
-                      filtered={searchQuery || startDate || endDate}
+                    <PurchasesEmptyState
+                      filtered={isFiltered}
                       action={
                         <Button onClick={() => navigate('/purchases/create')} data-testid="empty-new-purchase-btn">
                           <Plus className="w-4 h-4 mr-2" />
@@ -380,90 +204,101 @@ export default function PurchasesList() {
                   </td>
                 </tr>
               ) : (
-                displayData.map((item, index) => {
-                  const payment = getPaymentBadge(item.payment_status, item.purchase_on, item);
+                purchases.map((item, index) => {
+                  const badge   = getPaymentBadge(item);
                   const isParked = item.status === 'draft';
-                  const isDue = item.payment_status !== 'paid' && item.status !== 'draft';
-                  
+                  const isDue    = item.payment_status !== 'paid' && item.status !== 'draft';
+                  const rowNum   = (pg.page - 1) * pg.pageSize + index + 1;
+
                   return (
-                    <tr 
+                    <tr
                       key={item.id}
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => navigate(`/purchases/${item.id}`)}
                       data-testid={`purchase-row-${item.id}`}
                     >
-                      <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
-                      
+                      <td className="px-4 py-3 text-sm text-gray-500">{rowNum}</td>
+
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {isParked ? (
                             <StatusBadge status="parked" />
                           ) : (
                             <span className="font-mono text-sm font-semibold text-[#4682B4]">
-                              #{item.purchase_number?.replace(/^#/, '') || item.return_number?.replace(/^#/, '')}
+                              #{item.purchase_number?.replace(/^#/, '') || item.id?.slice(-6)}
                             </span>
                           )}
                         </div>
                       </td>
-                      
+
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{formatDate(item.created_at)}</div>
+                        <div className="text-sm text-gray-700">{formatDateShort(item.created_at)}</div>
                         <div className="text-xs text-gray-500">{formatTime(item.created_at)}</div>
                       </td>
-                      
+
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{formatDate(item.purchase_date || item.created_at)}</div>
+                        <div className="text-sm text-gray-700">{formatDateShort(item.purchase_date || item.created_at)}</div>
                       </td>
-                      
+
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-700">{item.created_by_name || 'Owner'}</div>
                       </td>
-                      
+
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-800">{item.supplier_name || 'Unknown'}</div>
                         {item.supplier_invoice_no && (
                           <div className="text-xs text-gray-500">Inv: {item.supplier_invoice_no}</div>
                         )}
                       </td>
-                      
+
                       <td className="px-4 py-3 text-right">
                         <span className={`font-medium ${isDue ? 'text-red-600' : 'text-gray-800'}`}>
-                          ₹{(item.total_value || 0).toFixed(2)}
+                          {formatCurrency(item.total_value || 0)}
                         </span>
                       </td>
-                      
+
                       <td className="px-4 py-3 text-center">
-                        {payment.clickable ? (
+                        {badge.clickable ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); openPayModal(item); }}
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${payment.bg} ${payment.text} hover:opacity-80`}
+                            className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 hover:opacity-80"
                             data-testid={`pay-${item.id}`}
                           >
-                            {payment.label}
+                            {badge.label}
                           </button>
                         ) : (
-                          <StatusBadge status={payment.status || item.payment_status || 'cash'} label={payment.label} />
+                          <StatusBadge status={badge.status} label={badge.label} />
                         )}
                       </td>
-                      
+
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="p-1.5 h-auto hover:bg-blue-50"
                             onClick={(e) => { e.stopPropagation(); navigate(`/purchases/${item.id}`); }}
                           >
                             <Eye className="w-4 h-4 text-blue-600" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="p-1.5 h-auto hover:bg-gray-100"
                             onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }}
                           >
                             <Edit className="w-4 h-4 text-gray-600" />
                           </Button>
+                          {badge.clickable && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="p-1.5 h-auto hover:bg-green-50"
+                              onClick={(e) => { e.stopPropagation(); openPayModal(item); }}
+                            >
+                              <CreditCard className="w-4 h-4 text-green-600" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -473,6 +308,9 @@ export default function PurchasesList() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer */}
+        <PaginationBar {...pg} />
       </DataCard>
 
       {/* Mark as Paid Modal */}
@@ -481,10 +319,9 @@ export default function PurchasesList() {
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
           </DialogHeader>
-          
+
           {payingPurchase && (
             <div className="space-y-4">
-              {/* Purchase Info */}
               <div className="p-3 bg-gray-50 rounded-lg text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Purchase #</span>
@@ -525,7 +362,7 @@ export default function PurchasesList() {
               <div>
                 <Label>Payment Method</Label>
                 <div className="flex gap-2 flex-wrap mt-2">
-                  {['cash', 'bank_transfer', 'cheque', 'upi'].map(method => (
+                  {['cash', 'bank_transfer', 'cheque', 'upi'].map((method) => (
                     <button
                       key={method}
                       onClick={() => setPaymentData({ ...paymentData, payment_method: method })}

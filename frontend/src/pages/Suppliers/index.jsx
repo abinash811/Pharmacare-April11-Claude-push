@@ -5,7 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SearchInput, DateRangePicker } from '@/components/shared';
+import { SearchInput, DateRangePicker, PaginationBar } from '@/components/shared';
+import usePagination from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 
 import { useSuppliers }          from './hooks/useSuppliers';
@@ -36,6 +37,9 @@ export default function Suppliers() {
   const [editingSupplier,  setEditingSupplier]  = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const pg = usePagination({ pageSize: 20 });
+
   useEffect(() => { fetchSuppliers(); }, []); // eslint-disable-line
 
   // Fetch purchase history when switching to history tab
@@ -58,6 +62,15 @@ export default function Suppliers() {
     if (activeFilter === 'outstanding' && (s.outstanding || 0) <= 0)     return false;
     return true;
   });
+
+  // Sync pagination when filter changes
+  useEffect(() => {
+    pg.resetPage();
+    pg.setTotal(filtered.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeFilter, suppliers.length]);
+
+  const pageSuppliers = pg.slice(filtered);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleRowClick = (supplier) => { setSelectedSupplier(supplier); setDetailTab('overview'); };
@@ -109,13 +122,14 @@ export default function Suppliers() {
       <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
         <div className={`overflow-auto ${selectedSupplier ? 'w-1/2 border-r border-gray-200' : 'w-full'} p-6`}>
           <SuppliersList
-            suppliers={filtered}
+            suppliers={pageSuppliers}
             selectedId={selectedSupplier?.id}
             loading={loading}
             searchQuery={searchQuery}
             onRowClick={handleRowClick}
             onAdd={handleAdd}
           />
+          <PaginationBar {...pg} />
         </div>
 
         {selectedSupplier && (

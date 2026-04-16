@@ -5,7 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Stethoscope } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SearchInput, PageSkeleton, DeleteConfirmDialog } from '@/components/shared';
+import { SearchInput, PageSkeleton, DeleteConfirmDialog, PaginationBar } from '@/components/shared';
+import usePagination from '@/hooks/usePagination';
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -39,6 +40,10 @@ export default function Customers() {
   const [delCustomer, setDelCustomer] = useState({ open: false, item: null, loading: false });
   const [delDoctor,   setDelDoctor]   = useState({ open: false, item: null, loading: false });
 
+  // ── Pagination ────────────────────────────────────────────────────────────
+  const custPg = usePagination({ pageSize: 20 });
+  const docPg  = usePagination({ pageSize: 20 });
+
   useEffect(() => { fetchData(); }, []); // eslint-disable-line
 
   // ── Filtered lists ────────────────────────────────────────────────────────
@@ -49,6 +54,22 @@ export default function Customers() {
   const filteredDoctors = doctors.filter(d =>
     d.name?.toLowerCase().includes(q) || d.contact?.includes(q) || d.specialization?.toLowerCase().includes(q)
   );
+
+  // Sync pagination totals when filtered data changes
+  useEffect(() => {
+    custPg.resetPage();
+    custPg.setTotal(filteredCustomers.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, customers.length]);
+
+  useEffect(() => {
+    docPg.resetPage();
+    docPg.setTotal(filteredDoctors.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, doctors.length]);
+
+  const pageCustomers = custPg.slice(filteredCustomers);
+  const pageDoctors   = docPg.slice(filteredDoctors);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleEditCustomer = (c) => { setEditingCustomer(c); setShowCustomerDialog(true); };
@@ -103,7 +124,7 @@ export default function Customers() {
 
         <TabsContent value="customers">
           <CustomersTable
-            customers={filteredCustomers}
+            customers={pageCustomers}
             searchQuery={searchQuery}
             onAdd={handleAddCustomer}
             onEdit={handleEditCustomer}
@@ -111,16 +132,18 @@ export default function Customers() {
             onView={(c) => setDetailCustomer(c)}
             onExport={handleExport}
           />
+          <PaginationBar {...custPg} />
         </TabsContent>
 
         <TabsContent value="doctors">
           <DoctorsTable
-            doctors={filteredDoctors}
+            doctors={pageDoctors}
             searchQuery={searchQuery}
             onAdd={handleAddDoctor}
             onEdit={handleEditDoctor}
             onDelete={(d) => setDelDoctor({ open: true, item: d, loading: false })}
           />
+          <PaginationBar {...docPg} />
         </TabsContent>
       </Tabs>
 

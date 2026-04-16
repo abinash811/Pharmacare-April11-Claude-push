@@ -21,3 +21,4 @@ export {
   ErrorEmptyState
 } from './EmptyState';
 export { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from './ConfirmDialog';
+export { PaginationBar } from './PaginationBar';

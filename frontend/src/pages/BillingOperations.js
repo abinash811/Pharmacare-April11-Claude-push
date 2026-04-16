@@ -3,11 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus, Printer, Eye } from 'lucide-react';
-import { PageHeader, DataCard, SearchInput, StatusBadge, DateRangePicker, TableSkeleton, BillingEmptyState } from '../components/shared';
+import {
+  PageHeader, DataCard, SearchInput, StatusBadge,
+  DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
+} from '../components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
+import usePagination from '@/hooks/usePagination';
 
 // WhatsApp icon component
 const WhatsAppIcon = ({ className }) => (
@@ -18,104 +22,59 @@ const WhatsAppIcon = ({ className }) => (
 
 export default function BillingOperations() {
   const navigate = useNavigate();
-  const [bills, setBills] = useState([]);
+  const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // Filters
+  // Search & filters
+  const [searchQuery, setSearchQuery]   = useState('');
+  const debouncedSearch                 = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  const [dateRange, setDateRange]       = useState({ start: null, end: null });
 
-  // Stats
-  const [stats, setStats] = useState({
-    billsToday: 0,
-    parkedCount: 0,
-    pendingDueCount: 0,
-    totalAmountToday: 0,
-  });
+  // Pagination
+  const pg = usePagination({ pageSize: 20 });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    calculateStats();
-  }, [bills]);
-
-  const fetchData = async () => {
+  // ── Fetch ────────────────────────────────────────────────────────────────────
+  const fetchData = async (pageOverride) => {
+    setLoading(true);
     try {
-      const response = await api.get(apiUrl.bills({ invoice_type: 'SALE', page_size: 500 }));
-      setBills(response.data.data || response.data || []);
+      const params = {
+        invoice_type: 'SALE',
+        page:         pageOverride ?? pg.page,
+        page_size:    pg.pageSize,
+      };
+      if (debouncedSearch)          params.search    = debouncedSearch;
+      if (activeFilter === 'due')   params.status    = 'due';
+      if (activeFilter === 'parked') params.status   = 'parked';
+      if (activeFilter === 'cash')  params.payment_method = 'cash';
+      if (activeFilter === 'upi')   params.payment_method = 'upi';
+      if (dateRange.start)          params.from_date = dateRange.start.toISOString().split('T')[0];
+      if (dateRange.end)            params.to_date   = dateRange.end.toISOString().split('T')[0];
+
+      const res = await api.get(apiUrl.bills(params));
+      setBills(res.data.data || []);
+      pg.setFromResponse(res.data.pagination);
     } catch {
-      toast.error('Failed to load data');
+      toast.error('Failed to load bills');
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  // Re-fetch when filters change — also reset to page 1
+  useEffect(() => {
+    pg.resetPage();
+    fetchData(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeFilter, dateRange]);
 
-    let billsToday = 0;
-    let parkedCount = 0;
-    let pendingDueCount = 0;
-    let totalAmountToday = 0;
+  // Re-fetch when page changes (but not on the initial reset)
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pg.page]);
 
-    bills.forEach((bill) => {
-      const billDate = new Date(bill.created_at);
-      billDate.setHours(0, 0, 0, 0);
-      const isToday = billDate.getTime() === today.getTime();
-
-      const isParkedOrDraft =
-        bill.status === 'parked' ||
-        bill.status === 'draft' ||
-        bill.bill_number?.toLowerCase().includes('draft');
-
-      if (isParkedOrDraft) parkedCount++;
-      if (bill.status === 'due') pendingDueCount++;
-
-      if (isToday) {
-        billsToday++;
-        if (bill.status === 'paid' && !isParkedOrDraft) {
-          totalAmountToday += bill.total_amount || bill.grand_total || 0;
-        }
-      }
-    });
-
-    setStats({ billsToday, parkedCount, pendingDueCount, totalAmountToday });
-  };
-
-  const filterData = (data) =>
-    data.filter((item) => {
-      if (debouncedSearch) {
-        const search = debouncedSearch.toLowerCase();
-        const matchesSearch =
-          item.bill_number?.toLowerCase().includes(search) ||
-          item.customer_name?.toLowerCase().includes(search) ||
-          item.customer_mobile?.includes(search);
-        if (!matchesSearch) return false;
-      }
-
-      if (dateRange.start && dateRange.end) {
-        const itemDate = new Date(item.created_at);
-        if (itemDate < dateRange.start || itemDate > dateRange.end) return false;
-      }
-
-      if (activeFilter !== 'all') {
-        if (activeFilter === 'cash' && item.payment_method?.toLowerCase() !== 'cash') return false;
-        if (activeFilter === 'upi' && item.payment_method?.toLowerCase() !== 'upi') return false;
-        if (activeFilter === 'due' && item.status !== 'due') return false;
-        if (activeFilter === 'parked' && item.status !== 'parked') return false;
-      }
-
-      return true;
-    });
-
-  const filteredBills = filterData(bills);
-  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
-
+  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handlePrint = (e, bill) => {
     e.stopPropagation();
     toast.info(`Printing bill #${bill.bill_number}...`);
@@ -124,18 +83,20 @@ export default function BillingOperations() {
   const handleWhatsApp = (e, bill) => {
     e.stopPropagation();
     if (bill.customer_mobile) {
-      const message = `Your bill #${bill.bill_number} from PharmaCare. Total: ₹${(bill.total_amount || 0).toFixed(2)}`;
-      window.open(`https://wa.me/91${bill.customer_mobile}?text=${encodeURIComponent(message)}`, '_blank');
+      const msg = `Your bill #${bill.bill_number} from PharmaCare. Total: ₹${(bill.total_amount || 0).toFixed(2)}`;
+      window.open(`https://wa.me/91${bill.customer_mobile}?text=${encodeURIComponent(msg)}`, '_blank');
     } else {
       toast.error('No mobile number available for this customer');
     }
   };
 
+  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
+
   return (
     <div className="min-h-screen bg-gray-50 p-6" data-testid="billing-operations-page">
       <PageHeader
         title="Sales & Billing"
-        subtitle={`Today ₹${stats.totalAmountToday.toFixed(2)} · ${stats.billsToday} bills`}
+        subtitle={pg.totalItems > 0 ? `${pg.totalItems} bills total` : undefined}
         actions={
           <>
             <Button variant="outline" onClick={() => navigate('/billing/returns')} data-testid="sales-return-btn">
@@ -162,27 +123,21 @@ export default function BillingOperations() {
           <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
           <div className="flex items-center gap-1">
-            {['all', 'cash', 'upi', 'due', 'parked'].map((filter) => (
+            {['all', 'cash', 'upi', 'due', 'parked'].map((f) => (
               <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
+                key={f}
+                onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                  activeFilter === filter
+                  activeFilter === f
                     ? 'bg-gray-900 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
-                data-testid={`filter-${filter}`}
+                data-testid={`filter-${f}`}
               >
-                {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="flex items-center gap-4 text-sm text-gray-600">
-          <span>Parked <span className="font-bold text-amber-600">{stats.parkedCount}</span></span>
-          <span className="text-gray-300">·</span>
-          <span>Due <span className="font-bold text-red-600">{stats.pendingDueCount}</span></span>
         </div>
       </div>
 
@@ -209,7 +164,7 @@ export default function BillingOperations() {
                     <TableSkeleton rows={6} columns={7} />
                   </td>
                 </tr>
-              ) : filteredBills.length === 0 ? (
+              ) : bills.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="p-0">
                     <BillingEmptyState
@@ -224,7 +179,7 @@ export default function BillingOperations() {
                   </td>
                 </tr>
               ) : (
-                filteredBills.map((bill) => {
+                bills.map((bill) => {
                   const isParked =
                     bill.status === 'parked' ||
                     bill.status === 'draft' ||
@@ -327,6 +282,9 @@ export default function BillingOperations() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer */}
+        <PaginationBar {...pg} />
       </DataCard>
     </div>
   );

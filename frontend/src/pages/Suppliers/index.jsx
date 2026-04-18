@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SearchInput, DateRangePicker, PaginationBar } from '@/components/shared';
+import { PageHeader, SearchInput, DateRangePicker, PaginationBar } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -85,29 +85,23 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" data-testid="suppliers-page">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-800">Suppliers</h1>
-            <span className="text-gray-300">·</span>
-            <span className="text-sm text-gray-500">
-              {suppliers.length} suppliers · {suppliers.filter(s => (s.outstanding || 0) > 0).length} with outstanding
-            </span>
-          </div>
+    <div className="px-8 py-6" data-testid="suppliers-page">
+      <PageHeader
+        title="Suppliers"
+        subtitle={`${suppliers.length} suppliers · ${suppliers.filter(s => (s.outstanding || 0) > 0).length} with outstanding`}
+        actions={
           <Button onClick={handleAdd} data-testid="add-supplier-btn">
             <Plus className="w-4 h-4 mr-2" />
             Add Supplier
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
+      {/* Filter bar */}
+      <div className="flex items-center gap-4 mb-4">
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Name, phone, GSTIN..." className="w-64" />
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-        <div className="flex items-center gap-1 ml-4">
+        <div className="flex items-center gap-1">
           {FILTERS.map(f => (
             <button key={f} onClick={() => setActiveFilter(f)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${activeFilter === f ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -119,8 +113,8 @@ export default function Suppliers() {
       </div>
 
       {/* Split view */}
-      <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 140px)' }}>
-        <div className={`overflow-auto ${selectedSupplier ? 'w-1/2 border-r border-gray-200' : 'w-full'} p-6`}>
+      <div className="flex overflow-hidden rounded-xl border border-gray-200 bg-white" style={{ height: 'calc(100vh - 220px)' }}>
+        <div className={`overflow-auto ${selectedSupplier ? 'w-1/2 border-r border-gray-200' : 'w-full'} p-0`}>
           <SuppliersList
             suppliers={pageSuppliers}
             selectedId={selectedSupplier?.id}
@@ -133,7 +127,7 @@ export default function Suppliers() {
         </div>
 
         {selectedSupplier && (
-          <div className="w-1/2 overflow-auto p-4">
+          <div className="w-1/2 overflow-auto p-6 border-l border-gray-200">
             <SupplierDetailPanel
               supplier={selectedSupplier}
               onEdit={() => handleEdit(selectedSupplier)}

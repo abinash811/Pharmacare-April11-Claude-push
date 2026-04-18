@@ -9,6 +9,7 @@ import {
   CreditCard, Clock, RefreshCw, Package,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
+import { PageHeader } from '@/components/shared';
 
 import { useDashboard }    from './hooks/useDashboard';
 import MetricCard          from './components/MetricCard';
@@ -25,7 +26,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="px-8 py-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -43,23 +44,22 @@ export default function Dashboard() {
   const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats } = data || {};
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen" data-testid="dashboard">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-sm text-gray-500">Welcome back! Here's your pharmacy overview</p>
-        </div>
-        <button
-          onClick={() => fetchDashboardData(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-600"
-          data-testid="refresh-btn"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+    <div className="px-8 py-6" data-testid="dashboard">
+      <PageHeader
+        title="Dashboard"
+        subtitle="Welcome back! Here's your pharmacy overview"
+        actions={
+          <button
+            onClick={() => fetchDashboardData(true)}
+            disabled={refreshing}
+            className="h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            data-testid="refresh-btn"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        }
+      />
 
       {/* Row 1: Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

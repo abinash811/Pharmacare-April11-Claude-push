@@ -5,7 +5,7 @@
 import React, { useEffect } from 'react';
 import { TrendingUp, AlertCircle, Clock, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { InlineLoader } from '@/components/shared';
+import { InlineLoader, PageHeader } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 
 import { useReports }     from './hooks/useReports';
@@ -49,12 +49,11 @@ export default function Reports() {
     handleRefresh(activeReport, { from: dateRange.from, to: dateRange.to, days: expiryDays });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Reports</h1>
-        <p className="text-sm text-gray-500">Generate and export business reports</p>
-      </div>
+    <div className="px-8 py-6">
+      <PageHeader
+        title="Reports"
+        subtitle="Generate and export business reports"
+      />
 
       <ReportTypeCards activeReport={activeReport} onSelect={handleReportSelect} />
 

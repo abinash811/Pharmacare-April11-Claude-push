@@ -10,6 +10,7 @@
  *   searchInputRef{React.Ref}
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
@@ -85,6 +86,67 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
           </thead>
 
           <tbody className="divide-y divide-slate-100">
+            {/* ── Add-medicine search row (top, new/edit only) ─────────── */}
+            {!isView && (
+              <tr className="bg-[#f0f7ff] border-b border-[#4682B4]/10">
+                <td className="px-4 py-2.5 text-xs font-medium text-gray-300">
+                  {String(billItems.length + 1).padStart(2, '0')}
+                </td>
+                <td className="px-4 py-2.5 relative" colSpan="8">
+                  <div className="flex items-center gap-2">
+                    <Search className="w-4 h-4 text-[#4682B4] shrink-0" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-400"
+                      placeholder="Search medicine by name, brand or batch…"
+                      value={newItemSearch}
+                      onChange={(e) => { setNewItemSearch(e.target.value); searchMedicines(e.target.value); }}
+                      onFocus={() => newItemSearch.length >= 2 && setShowSearchResults(true)}
+                      onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                      data-testid="new-item-search"
+                    />
+                    {newItemSearch && (
+                      <button
+                        onMouseDown={(e) => { e.preventDefault(); setNewItemSearch(''); setSearchResults([]); setShowSearchResults(false); }}
+                        className="text-gray-300 hover:text-gray-500 text-lg leading-none"
+                      >×</button>
+                    )}
+                  </div>
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-72 overflow-y-auto">
+                      {searchResults.map((product) => (
+                        <div key={product.sku} className="border-b border-gray-100 last:border-0">
+                          <div className="px-3 py-1.5 bg-gray-50 flex items-center justify-between">
+                            <span className="font-semibold text-sm text-gray-900">{product.name}</span>
+                            <span className="text-[10px] text-gray-400 font-mono">SKU: {product.sku}</span>
+                          </div>
+                          {product.batches?.map((batch) => (
+                            <div
+                              key={batch.batch_no}
+                              className="px-3 py-2 hover:bg-[#f0f7ff] cursor-pointer flex items-center justify-between"
+                              onClick={() => handleAddItem(product, batch)}
+                            >
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-mono text-gray-600 w-20 truncate">{batch.batch_no}</span>
+                                <span className={`text-xs ${isExpired(batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
+                                  Exp {formatExpiry(batch.expiry_date)}
+                                </span>
+                                <span className="text-xs text-gray-400">Stock: <span className={`font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-red-500'}`}>{batch.qty_on_hand}</span></span>
+                              </div>
+                              <span className="font-semibold text-sm text-gray-900">₹{batch.mrp_per_unit?.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td className="px-2 py-2.5" />
+              </tr>
+            )}
+
+            {/* ── Bill items ─────────────────────────────────────────────── */}
             {billItems.map((item, index) => {
               const itemDiscAmt = (item.qty * item.unit_price) * (item.discount_percent / 100);
               const expExpired  = isExpired(item.expiry_date);
@@ -187,45 +249,6 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
               );
             })}
 
-            {/* New-item search row */}
-            {!isView && (
-              <tr className="bg-gray-50/30">
-                <td className="px-4 py-2 text-xs font-medium text-gray-300">{String(billItems.length + 1).padStart(2, '0')}</td>
-                <td className="px-4 py-2 relative" colSpan="2">
-                  <input ref={searchInputRef} type="text"
-                    className="w-full bg-transparent border-dashed border-b border-gray-200 focus:border-primary p-0 text-sm"
-                    placeholder="Type medicine or batch…"
-                    value={newItemSearch}
-                    onChange={(e) => { setNewItemSearch(e.target.value); searchMedicines(e.target.value); }}
-                    onFocus={() => newItemSearch.length >= 2 && setShowSearchResults(true)}
-                    onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
-                    data-testid="new-item-search" />
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto">
-                      {searchResults.map((product) => (
-                        <div key={product.sku} className="border-b border-gray-100 last:border-0">
-                          <div className="px-3 py-1.5 bg-gray-50">
-                            <span className="font-semibold text-sm">{product.name}</span>
-                            <span className="text-xs text-gray-500 ml-2">SKU: {product.sku}</span>
-                          </div>
-                          {product.batches?.map((batch) => (
-                            <div key={batch.batch_no} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between" onClick={() => handleAddItem(product, batch)}>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs font-mono text-gray-600">{batch.batch_no}</span>
-                                <span className={`text-xs ${isExpired(batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>Exp: {formatExpiry(batch.expiry_date)}</span>
-                                <span className="text-xs text-gray-500">Stock: {batch.qty_on_hand}</span>
-                              </div>
-                              <span className="font-semibold text-sm">₹{batch.mrp_per_unit?.toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td colSpan="6" className="px-4 py-2" /><td className="px-2 py-2" />
-              </tr>
-            )}
           </tbody>
         </table>
       </div>

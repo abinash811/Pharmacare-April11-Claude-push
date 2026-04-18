@@ -17,6 +17,7 @@ import FinaliseModal          from './components/FinaliseModal';
 import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
+import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
@@ -46,9 +47,10 @@ export default function BillingWorkspace() {
   const [currentUser, setCurrentUser] = useState(null);
 
   // ── Modal flags ──────────────────────────────────────────────────────────
-  const [showFinalise,    setShowFinalise]    = useState(false);
-  const [showScheduleH,   setShowScheduleH]   = useState(false);
-  const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showFinalise,      setShowFinalise]      = useState(false);
+  const [showScheduleH,     setShowScheduleH]     = useState(false);
+  const [showPatientModal,  setShowPatientModal]  = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData, setSavedBillData] = useState(null);
@@ -171,12 +173,55 @@ export default function BillingWorkspace() {
     saveDraft();
   };
 
+  // ── Barcode scanner ───────────────────────────────────────────────────────
+  const handleBarcodeScan = useCallback(async (barcode) => {
+    if (viewMode === 'view' || !barcode?.trim()) return;
+    const code = barcode.trim();
+    try {
+      const res = await api.get(apiUrl.productBarcode(code));
+      if (!res.data.found) {
+        toast.error(`No product found for barcode: ${code}`);
+        return;
+      }
+      if (!res.data.has_stock) {
+        toast.warning(`${res.data.product?.name || code} — out of stock`);
+        return;
+      }
+      const product = res.data.product;
+      const batch   = res.data.suggested_batch;
+      addItem(product, batch);
+      saveDraft();
+      toast.success(`Added: ${product.name}`);
+    } catch {
+      toast.error('Barcode lookup failed');
+    }
+  }, [viewMode, addItem, saveDraft]);
+
+  // Passive USB barcode scanner — active in new/edit mode
+  useUSBBarcodeScanner(handleBarcodeScan, viewMode !== 'view');
+
+  // ── Keyboard shortcut: Ctrl+B → open scanner modal ───────────────────────
+  useEffect(() => {
+    const h = (e) => {
+      if (e.ctrlKey && e.key === 'b' && viewMode !== 'view') {
+        e.preventDefault();
+        setShowBarcodeScanner(true);
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [viewMode]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'Manrope, sans-serif' }}>
       <BillingHeader
-        viewMode={viewMode} loadedBill={loadedBill}
+        viewMode={viewMode} loadedBill={loadedBill} draftNumber={draftNumber}
+        isSaving={isSaving}
         onBack={() => navigate('/billing')}
+        onParkBill={parkBill}
+        onSavePrint={saveBillAndPrint}
+        onFinalise={openFinaliseModal}
         onPrint={() => window.print()}
         onCollectPayment={() => toast.info('Collect payment coming soon')}
         onReturn={() => navigate(`/billing/returns/new?billId=${loadedBill?.id}`)}
@@ -192,7 +237,7 @@ export default function BillingWorkspace() {
           billedBy={billedBy} onBilledByChange={setBilledBy}
           users={users} currentUser={currentUser}
           paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); saveDraft(); }}
-          onSave={saveBill} onSavePrint={saveBillAndPrint} onParkBill={parkBill} onSaveDeliver={saveBillAndDeliver}
+          onBarcodeScan={() => setShowBarcodeScanner(true)}
         />
 
         <BillingTable
@@ -226,6 +271,11 @@ export default function BillingWorkspace() {
         onConfirm={(notes) => confirmAndSaveBill(notes).then(() => setShowFinalise(false))}
       />
       <PrintReceipt billData={savedBillData} />
+      <BarcodeScannerModal
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={(barcode) => { setShowBarcodeScanner(false); handleBarcodeScan(barcode); }}
+      />
     </div>
   );
 }

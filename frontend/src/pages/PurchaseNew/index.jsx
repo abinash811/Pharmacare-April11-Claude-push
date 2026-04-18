@@ -208,13 +208,22 @@ export default function PurchaseNew() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <PurchaseHeader isEditMode={isEditMode} onBack={() => navigate('/purchases')} onSettings={() => setShowSettings(true)} />
+      <PurchaseHeader
+        isEditMode={isEditMode}
+        loading={loading}
+        hasItems={items.length > 0}
+        onBack={() => navigate('/purchases')}
+        onSaveDraft={handleSaveDraft}
+        onConfirm={handleConfirmAndSave}
+        onSettings={() => setShowSettings(true)}
+      />
 
       <PurchaseSubbar
         billDate={billDate} onBillDateChange={setBillDate}
         selectedSupplier={selectedSupplier} suppliers={suppliers} onSupplierSelect={setSelectedSupplier}
         supplierInvoiceNo={supplierInvoiceNo} onInvoiceNoChange={setSupplierInvoiceNo}
-        purchaseOn={purchaseOn} dueDate={dueDate} onDueDateChange={setDueDate}
+        purchaseOn={purchaseOn} onPurchaseOnChange={setPurchaseOn}
+        dueDate={dueDate} onDueDateChange={setDueDate}
         orderType={orderType} withGST={withGST}
       />
 
@@ -230,10 +239,6 @@ export default function PurchaseNew() {
       <PurchaseFooter
         totals={totals}
         purchaseOn={purchaseOn}
-        loading={loading}
-        onCancel={() => navigate('/purchases')}
-        onSaveDraft={handleSaveDraft}
-        onConfirm={handleConfirmAndSave}
       />
 
       {showSettings && (

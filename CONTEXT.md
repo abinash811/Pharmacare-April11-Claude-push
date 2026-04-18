@@ -43,7 +43,7 @@ Full refactor to international engineering standard:
 6. ✅ Break down giant files — DONE (9 files → 73 focused files, all ≤300 lines)
 7. ✅ Fix broken pages — DONE
 8. ✅ Add missing features (pagination, barcode, print) — DONE
-9. 🔄 Design consistency fixes — IN PROGRESS ← CURRENT
+9. ✅ Design consistency fixes — COMPLETE
 
 ## CRITICAL RULES
 - One task at a time. Review before next task.
@@ -58,20 +58,25 @@ Full refactor to international engineering standard:
 - Shadcn/UI exclusively — no other component libraries
 
 ## WHAT IS WORKING NOW
-All features are complete and functional. The app works end to end.
-Currently polishing: design consistency across all pages.
+All features are complete and fully polished. Design consistency phase is done.
 
 - ✅ All billing, purchases, inventory, returns, suppliers, customers features
 - ✅ Dashboard, reports, GST report, compliance, audit log, stock movement log
-- ✅ Consistent PageHeader on Dashboard, Reports, Suppliers pages
+- ✅ Consistent PageHeader on all listing pages
 - ✅ BillingWorkspace — labeled-column subbar, action buttons in header
 - ✅ PurchaseNew — labeled-column subbar, action buttons in header
-- 🔄 Rounds 1–4 design violation fixes (banned colors, badges, modals, row hover) — PENDING
+- ✅ Design tokens (brand, brand-dark, brand-tint, brand-subtle) in tailwind.config.js
+- ✅ Rounds 1–4 design violations fixed (colors, badges, modals, row hover)
+- ✅ All custom modals → Shadcn Dialog (13 files)
+- ✅ ESLint + pre-commit hook enforcing design rules
 
 ## NEXT TASK
-Design Consistency — Round 1: banned colors + raw axios (see PROGRESS.md)
+App is complete. Consider: code splitting (bundle 570KB), e2e tests, or mobile polish.
 
 ## DESIGN COMMITS (April 18, 2026)
+- `6b0be71` — Round 3: all custom modals → Shadcn Dialog
+- `7738a9b` — Design enforcement: tokens, mass fix, lint, pre-commit hook
+- `9af376b` — Page header white bar + billing search row at top
 - `f2052b8` — Billing & Purchase workspace redesign (labeled subbars, header CTAs)
 - prev session — PageHeader consistency (Dashboard, Reports, Suppliers)
 

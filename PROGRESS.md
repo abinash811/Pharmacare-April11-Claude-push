@@ -382,47 +382,42 @@ The original `server.py` (MongoDB) is preserved but not used.
 
 ---
 
-## DESIGN CONSISTENCY FIXES — 🔄 IN PROGRESS (Started April 18, 2026)
+## DESIGN CONSISTENCY FIXES — ✅ COMPLETE (April 18, 2026)
 
-### What this phase is
+### What this phase was
 A full audit and repair pass to make every page match PHARMACARE_DESIGN_SKILL.md.
-No features are added or removed. Pure visual consistency.
+No features added or removed. Pure visual consistency.
 
-### Audit Status
-Full audit completed April 18, 2026. Violations grouped into 4 rounds.
-
-### Completed (April 18, 2026)
+### All Completed
 
 | Task | Files | Commit |
 |------|-------|--------|
 | Consistent PageHeader on all listing pages | Dashboard, Reports, Suppliers | prev session |
 | Billing workspace redesign — labeled-column subbar, action buttons in header | BillingHeader, BillingSubbar, BillingWorkspace/index | `f2052b8` |
 | Purchase workspace redesign — labeled-column subbar, action buttons in header | PurchaseHeader, PurchaseSubbar, PurchaseFooter, PurchaseNew/index | `f2052b8` |
+| Page header white bar + billing search row at top | PageHeader, BillingTable | `9af376b` |
+| PHARMACARE_RULES.md updated — no more stale contradictions | PHARMACARE_RULES.md | `0005515` |
+| Design system enforcement — tokens, mass fix, lint, pre-commit hook | 70 files, tailwind.config.js, eslint.config.js, .git/hooks/pre-commit | `7738a9b` |
+| Round 3: All custom div modals → Shadcn Dialog | 15 files | `6b0be71` |
 
-### Still Remaining — 4 Rounds of Fixes
+### Rounds Summary
 
-**Round 1 — Banned colors + raw axios**
-- [ ] Replace banned teal hex (#0ea5e9, #38bdf8, #0284c7) with Steel Blue `#4682B4`
-- [ ] Remove raw `axios.get/post` — replace with `api` from `@/lib/axios`
-- [ ] Remove `style={{ ... }}` inline styles
-- [ ] Replace slate/rose/emerald/indigo palettes with design-system equivalents
+**Round 1 ✅** — Banned teal hex → brand tokens; raw axios → api; bg-X-100 → bg-X-50; font-black → font-semibold tabular-nums; hex #4682B4 → brand token (all in commit `7738a9b`)
 
-**Round 2 — Badges + typography**
-- [ ] `bg-X-100` badges → `bg-X-50` (semantic badge rule)
-- [ ] `font-black` → `font-semibold tabular-nums` on number cells
-- [ ] `font-semibold` table headers → `font-medium text-gray-500`
+**Round 2 ✅** — Same commit: badge colors corrected, typography fixed (commit `7738a9b`)
 
-**Round 3 — Modals**
-- [ ] All `fixed inset-0` custom divs → Shadcn `<Dialog>`
-- [ ] `window.confirm()` → `<ConfirmDialog>` pattern
+**Round 3 ✅** — All 13 custom `fixed inset-0` modals migrated to Shadcn Dialog; window.confirm already absent (commit `6b0be71`)
 
-**Round 4 — Row hover + layout**
-- [ ] `hover:bg-gray-50` on table rows → `hover:bg-[#f0f7ff]`
-- [ ] Dashboard MetricCard: indigo color → blue
+**Round 4 ✅** — Table row hover:bg-gray-50 → hover:bg-brand-tint fixed (52 instances in `7738a9b`); Dashboard MetricCard already uses blue CSS classes (no actual indigo classes)
 
 ---
 
 ## NEXT TASK
 
-Start Round 1 of design violation fixes (see Design Consistency section above).
-Reference: PHARMACARE_DESIGN_SKILL.md is the single source of truth for all decisions.
+All design consistency rounds complete. App is fully featured and visually consistent.
+
+Possible next areas:
+- Performance: code splitting to reduce 570KB bundle
+- UX polish: loading skeleton improvements, empty states
+- Mobile: further responsive improvements for specific pages
+- Tests: add Playwright/Cypress e2e tests for critical flows

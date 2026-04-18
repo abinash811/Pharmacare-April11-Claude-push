@@ -62,7 +62,7 @@ export default function InventoryTable({
           <span className="text-sm font-medium text-green-700">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </span>
-          <button onClick={onBulkUpdate} className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-[#3a6fa0]" data-testid="bulk-update-btn">
+          <button onClick={onBulkUpdate} className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-dark" data-testid="bulk-update-btn">
             Bulk Update
           </button>
         </div>

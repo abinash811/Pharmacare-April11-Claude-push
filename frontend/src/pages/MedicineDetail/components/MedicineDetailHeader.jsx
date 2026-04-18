@@ -12,6 +12,7 @@ import {
   Edit2, Bell, Clock, Package, Percent, Hash,
   CreditCard, Calendar, FileText, ChevronRight,
 } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 function StatCard({ icon: Icon, label, value, className = '' }) {
   return (
@@ -63,14 +64,13 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <AppButton
               onClick={onEdit}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
+              icon={<Edit2 className="w-4 h-4" />}
               data-testid="edit-product-btn"
             >
-              <Edit2 className="w-4 h-4" />
               Edit
-            </button>
+            </AppButton>
             <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
               <Bell className="w-5 h-5" />
             </button>

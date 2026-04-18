@@ -8,6 +8,7 @@
  */
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
@@ -79,10 +80,10 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
         </div>
 
         <DialogFooter>
-          <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">Cancel</button>
-          <button onClick={handleConfirm} disabled={!field || value === ''} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50" data-testid="confirm-bulk-update">
+          <AppButton variant="secondary" onClick={onClose}>Cancel</AppButton>
+          <AppButton onClick={handleConfirm} disabled={!field || value === ''} data-testid="confirm-bulk-update">
             Confirm &amp; Apply
-          </button>
+          </AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

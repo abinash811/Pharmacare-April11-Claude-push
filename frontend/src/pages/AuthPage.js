@@ -8,9 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
 export default function AuthPage() {
   const { login } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
@@ -26,7 +23,7 @@ export default function AuthPage() {
     };
 
     try {
-      const response = await axios.post(`${API}/auth/login`, credentials);
+      const response = await api.post('/auth/login', credentials);
       login(response.data.user, response.data.token);
       toast.success('Logged in successfully');
     } catch (error) {
@@ -48,7 +45,7 @@ export default function AuthPage() {
     };
 
     try {
-      const response = await axios.post(`${API}/auth/register`, userData);
+      const response = await api.post('/auth/register', userData);
       login(response.data.user, response.data.token);
       toast.success('Account created successfully');
     } catch (error) {

@@ -16,7 +16,6 @@ import {
   CheckSquare, Square, Trash2, AlertCircle, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,7 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { InlineLoader, ConfirmDialog, DeleteConfirmDialog, SearchInput, PaginationBar } from '../components/shared';
+import { InlineLoader, ConfirmDialog, DeleteConfirmDialog, SearchInput, PaginationBar, PageHeader, PageTabs } from '../components/shared';
+
+const TEAM_TABS = [
+  { key: 'members', label: 'Members' },
+  { key: 'roles',   label: 'Roles'   },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -70,31 +74,22 @@ export default function Team() {
 
   return (
     <div className="px-8 py-6">
+      <PageHeader
+        title="Team"
+        subtitle="Manage team members and their roles"
+      />
+      <PageTabs
+        tabs={TEAM_TABS}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Team</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage team members and their roles</p>
-        </div>
-        {/* Primary CTA is rendered inside each tab panel to stay contextual */}
+      <div className={activeTab !== 'members' ? 'hidden' : ''}>
+        <MembersTab currentUser={currentUser} />
       </div>
-
-      {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="members" forceMount className={activeTab !== 'members' ? 'hidden' : ''}>
-          <MembersTab currentUser={currentUser} />
-        </TabsContent>
-
-        <TabsContent value="roles" forceMount className={activeTab !== 'roles' ? 'hidden' : ''}>
-          <RolesTab />
-        </TabsContent>
-      </Tabs>
+      <div className={activeTab !== 'roles' ? 'hidden' : ''}>
+        <RolesTab />
+      </div>
     </div>
   );
 }
@@ -241,7 +236,7 @@ function MembersTab({ currentUser }) {
           </button>
           <button
             onClick={() => { setFormData({ name: '', email: '', password: '', role: '' }); setShowAddDialog(true); }}
-            className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Invite Member
@@ -382,7 +377,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors">
                 Create Member
               </button>
             </div>
@@ -426,7 +421,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors">
                 Update Member
               </button>
             </div>
@@ -466,7 +461,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors">
                 Change Password
               </button>
             </div>
@@ -655,7 +650,7 @@ function RolesTab() {
       <div className="flex items-center justify-end mb-4">
         <button
           onClick={() => { setFormData({ name: '', display_name: '', selectedPermissions: [] }); setShowCreateDialog(true); }}
-          className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+          className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Create Role
@@ -772,7 +767,7 @@ function RolesTab() {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors">
                 Create Role
               </button>
             </div>
@@ -805,7 +800,7 @@ function RolesTab() {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors">
                 Update Role
               </button>
             </div>

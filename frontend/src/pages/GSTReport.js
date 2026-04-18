@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { DataCard, InlineLoader, PageHeader } from '../components/shared';
+import { DataCard, InlineLoader, PageHeader, PageTabs } from '../components/shared';
+
+const REPORTS_TABS = [
+  { key: 'reports', label: 'Reports'    },
+  { key: 'gst',     label: 'GST Report' },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatCurrency } from '@/utils/currency';
 
 export default function GSTReport() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState({
@@ -56,8 +63,13 @@ export default function GSTReport() {
   return (
     <div className="px-8 py-6">
       <PageHeader
-        title="GST / Tax Report"
+        title="Reports"
         subtitle="View GST collected and paid for compliance"
+      />
+      <PageTabs
+        tabs={REPORTS_TABS}
+        activeTab="gst"
+        onChange={() => navigate('/reports')}
       />
 
       {/* Filters */}

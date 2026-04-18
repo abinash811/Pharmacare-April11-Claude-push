@@ -5,11 +5,16 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { InlineLoader } from '@/components/shared';
+import { Plus, Upload } from 'lucide-react';
+import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
+
+const INVENTORY_TABS = [
+  { key: 'products',        label: 'Products'        },
+  { key: 'stock-movements', label: 'Stock Movements' },
+];
 import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
 
 import { useInventorySearch }  from './hooks/useInventorySearch';
-import InventoryHeader         from './components/InventoryHeader';
 import InventorySearchBar      from './components/InventorySearchBar';
 import InventoryEmptyState     from './components/InventoryEmptyState';
 import InventoryTable          from './components/InventoryTable';
@@ -73,13 +78,36 @@ export default function InventorySearch() {
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFB]">
-      <InventoryHeader
-        onAddStock={() => setShowAddModal(true)}
-        onBulkUpload={() => setShowExcelWizard(true)}
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+      <PageHeader
+        title="Inventory"
+        actions={
+          <>
+            <AppButton
+              variant="secondary"
+              icon={<Upload className="w-4 h-4" />}
+              onClick={() => setShowExcelWizard(true)}
+              data-testid="bulk-upload-btn"
+            >
+              Bulk Upload
+            </AppButton>
+            <AppButton
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => setShowAddModal(true)}
+              data-testid="add-stock-btn"
+            >
+              Add Stock
+            </AppButton>
+          </>
+        }
+      />
+      <PageTabs
+        tabs={INVENTORY_TABS}
+        activeTab="products"
+        onChange={() => navigate('/inventory/stock-movements')}
       />
 
-      <div className="p-6">
+      <div>
         <InventorySearchBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}

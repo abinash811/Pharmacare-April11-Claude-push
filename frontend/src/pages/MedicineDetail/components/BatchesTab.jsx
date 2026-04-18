@@ -13,6 +13,7 @@
 import React from 'react';
 import { Trash2, QrCode, Check } from 'lucide-react';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
+import { AppButton } from '@/components/shared';
 
 function calculateMargin(mrp, costPrice) {
   if (!mrp || !costPrice || costPrice === 0) return '0.00';
@@ -38,17 +39,19 @@ export default function BatchesTab({
         </label>
 
         <div className="flex items-center gap-3">
-          <button onClick={onDeleteBatches} disabled={selectedBatches.size === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 text-red-600 font-medium rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            data-testid="delete-batches-btn">
-            <Trash2 className="w-4 h-4" />
+          <AppButton
+            variant="outline"
+            onClick={onDeleteBatches}
+            disabled={selectedBatches.size === 0}
+            icon={<Trash2 className="w-4 h-4 text-red-500" />}
+            className="border-red-300 text-red-600 hover:bg-red-50"
+            data-testid="delete-batches-btn"
+          >
             Delete Batches
-          </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
-            data-testid="print-qr-btn">
-            <QrCode className="w-4 h-4" />
+          </AppButton>
+          <AppButton icon={<QrCode className="w-4 h-4" />} data-testid="print-qr-btn">
             Print QR
-          </button>
+          </AppButton>
         </div>
       </div>
 

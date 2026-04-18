@@ -23,3 +23,4 @@ export {
 export { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from './ConfirmDialog';
 export { PaginationBar } from './PaginationBar';
 export { default as AppButton } from './AppButton';
+export { PageTabs } from './PageTabs';

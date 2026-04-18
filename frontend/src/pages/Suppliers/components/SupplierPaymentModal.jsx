@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
   const [amount, setAmount] = useState('');
@@ -51,12 +52,8 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
         </div>
 
         <DialogFooter>
-          <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-            Cancel
-          </button>
-          <button onClick={handleSubmit} className="px-6 py-2 font-semibold text-sm text-white rounded-lg bg-brand" data-testid="confirm-payment-btn">
-            Record Payment
-          </button>
+          <AppButton variant="secondary" onClick={onClose}>Cancel</AppButton>
+          <AppButton onClick={handleSubmit} data-testid="confirm-payment-btn">Record Payment</AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

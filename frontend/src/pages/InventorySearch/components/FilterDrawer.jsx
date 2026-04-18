@@ -8,6 +8,7 @@
  */
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 const SELECT_CLS = 'w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
@@ -93,12 +94,12 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
 
       {/* Footer */}
       <div className="p-6 border-t border-gray-100 space-y-3 shrink-0">
-        <button onClick={() => onApply(local)} className="w-full py-3 bg-brand text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors" data-testid="apply-filters">
+        <AppButton className="w-full" onClick={() => onApply(local)} data-testid="apply-filters">
           Apply Filters
-        </button>
-        <button onClick={() => setLocal({})} className="w-full py-3 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" data-testid="reset-filters">
+        </AppButton>
+        <AppButton variant="outline" className="w-full" onClick={() => setLocal({})} data-testid="reset-filters">
           Reset All
-        </button>
+        </AppButton>
       </div>
     </div>
   );

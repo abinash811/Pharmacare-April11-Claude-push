@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 const field = (label, el) => (
@@ -104,10 +105,8 @@ export default function AddStockModal({ onClose, onSuccess }) {
           </div>
 
           <DialogFooter className="mt-6 pt-4 border-t border-gray-100">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">Cancel</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50" data-testid="submit-add-stock">
-              {loading ? 'Adding…' : 'Add Stock'}
-            </button>
+            <AppButton type="button" variant="secondary" onClick={onClose}>Cancel</AppButton>
+            <AppButton type="submit" loading={loading} data-testid="submit-add-stock">Add Stock</AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

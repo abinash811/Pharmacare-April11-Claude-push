@@ -44,9 +44,7 @@ const NAV_GROUPS = [
   {
     label: 'REPORTS',
     items: [
-      { name: 'Reports',    path: '/reports',                   icon: FileText, roles: ['admin', 'manager'] },
-      { name: 'GST Report', path: '/reports/gst',               icon: FileText, roles: ['admin', 'manager'] },
-      { name: 'Stock Log',  path: '/inventory/stock-movements', icon: FileText, roles: ['admin', 'manager', 'inventory_staff'] },
+      { name: 'Reports', path: '/reports', icon: FileText, roles: ['admin', 'manager'] },
     ],
   },
   {

@@ -481,7 +481,7 @@ export default function PurchaseReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || !hasReturnItems()}
-              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
+              className="px-6 py-2 font-semibold text-sm text-white rounded-lg flex items-center gap-2 bg-brand hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="save-return-btn"
             >
               Save Return

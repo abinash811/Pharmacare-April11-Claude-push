@@ -4,9 +4,14 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Plus, Printer, Eye } from 'lucide-react';
 import {
-  PageHeader, DataCard, SearchInput, StatusBadge,
+  PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
 } from '../components/shared';
+
+const BILLING_TABS = [
+  { key: 'bills',   label: 'Bills'         },
+  { key: 'returns', label: 'Sales Returns' },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -95,19 +100,19 @@ export default function BillingOperations() {
   return (
     <div className="px-8 py-6" data-testid="billing-operations-page">
       <PageHeader
-        title="Sales & Billing"
+        title="Billing"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} bills total` : undefined}
         actions={
-          <>
-            <Button variant="outline" onClick={() => navigate('/billing/returns')} data-testid="sales-return-btn">
-              Sales Returns
-            </Button>
-            <Button onClick={() => navigate('/billing/new')} data-testid="new-bill-btn">
-              <Plus className="w-4 h-4 mr-2" />
-              New Bill
-            </Button>
-          </>
+          <Button onClick={() => navigate('/billing/new')} data-testid="new-bill-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            New Bill
+          </Button>
         }
+      />
+      <PageTabs
+        tabs={BILLING_TABS}
+        activeTab="bills"
+        onChange={() => navigate('/billing/returns')}
       />
 
       {/* Filters Row */}

@@ -6,17 +6,23 @@
  * Can be filtered by movement type. Paginated server-side.
  */
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  PageHeader, DataCard, SearchInput,
+  PageHeader, PageTabs, DataCard, SearchInput,
   TableSkeleton, PaginationBar,
 } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
+
+const INVENTORY_TABS = [
+  { key: 'products',        label: 'Products'        },
+  { key: 'stock-movements', label: 'Stock Movements' },
+];
 import usePagination from '@/hooks/usePagination';
 
 // Movement type display config
@@ -51,6 +57,7 @@ function MovementTypeBadge({ type }) {
 }
 
 export default function StockMovementLog() {
+  const navigate = useNavigate();
   const [movements, setMovements] = useState([]);
   const [loading, setLoading]     = useState(true);
 
@@ -96,7 +103,7 @@ export default function StockMovementLog() {
   return (
     <div className="px-8 py-6" data-testid="stock-movements-page">
       <PageHeader
-        title="Stock Movement Log"
+        title="Inventory"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} movements total` : 'All inventory in/out activity'}
         actions={
           <Button variant="outline" onClick={() => fetchData(1)} disabled={loading}>
@@ -104,6 +111,11 @@ export default function StockMovementLog() {
             Refresh
           </Button>
         }
+      />
+      <PageTabs
+        tabs={INVENTORY_TABS}
+        activeTab="stock-movements"
+        onChange={() => navigate('/inventory')}
       />
 
       {/* Filters */}

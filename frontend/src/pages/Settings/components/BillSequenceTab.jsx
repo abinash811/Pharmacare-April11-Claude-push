@@ -8,7 +8,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Save, Hash, AlertCircle, CheckCircle } from 'lucide-react';
-import { InlineLoader } from '@/components/shared';
+import { InlineLoader, AppButton } from '@/components/shared';
 
 const SEQ_INIT = { prefix: 'INV', starting_number: 1, sequence_length: 6, allow_prefix_change: true };
 
@@ -145,14 +145,11 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
           </div>
 
           <div className="flex items-center gap-3 mt-6 pt-4 border-t border-blue-200">
-            <button onClick={handleSave}
-              className="px-6 py-2 bg-brand text-white font-medium rounded hover:bg-[#3a6fa0] flex items-center gap-2"
-              data-testid="save-sequence-btn">
-              <Save className="w-4 h-4" />
+            <AppButton onClick={handleSave} icon={<Save className="w-4 h-4" />} data-testid="save-sequence-btn">
               Save Sequence Settings
-            </button>
+            </AppButton>
             {editingSequence && (
-              <button onClick={handleCancel} className="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+              <AppButton variant="ghost" onClick={handleCancel}>Cancel</AppButton>
             )}
           </div>
         </div>

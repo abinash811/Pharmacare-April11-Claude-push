@@ -18,6 +18,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 const NumberInput = ({ value, onChange }) => (
   <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
@@ -137,14 +138,10 @@ export default function InvoiceBreakdownModal({
         </div>
 
         <DialogFooter>
-          <button onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
-            Cancel
-          </button>
-          <button onClick={onConfirm} disabled={loading}
-            className="px-6 py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50 bg-brand" data-testid="confirm-save-btn">
-            {loading ? 'Saving...' : 'Confirm & Save'}
-          </button>
+          <AppButton variant="secondary" onClick={onClose}>Cancel</AppButton>
+          <AppButton loading={loading} onClick={onConfirm} data-testid="confirm-save-btn">
+            Confirm &amp; Save
+          </AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

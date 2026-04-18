@@ -350,7 +350,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-4 py-1.5 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-1.5 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
+              className="px-4 py-1.5 font-semibold text-sm text-white rounded-lg flex items-center gap-1.5 bg-brand hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="save-btn"
             >
               <span className="material-symbols-outlined text-base">check_circle</span>
@@ -500,7 +500,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
+              className="px-6 py-2 font-semibold text-sm text-white rounded-lg flex items-center gap-2 bg-brand hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="save-return-btn"
             >
               Save Return
@@ -584,7 +584,7 @@ export default function SalesReturnCreate() {
               <button
                 onClick={() => handleSave(false)}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-brand"
+                className="px-6 py-2 font-semibold text-sm text-white rounded-lg bg-brand hover:bg-brand-dark transition-colors disabled:opacity-50"
                 data-testid="submit-btn"
               >
                 {isSaving ? 'Saving...' : 'Submit'}

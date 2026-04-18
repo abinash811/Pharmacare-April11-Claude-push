@@ -7,9 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  PageHeader, DataCard, SearchInput, StatusBadge,
+  PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, PurchasesEmptyState, PaginationBar,
 } from '../components/shared';
+
+const PURCHASES_TABS = [
+  { key: 'purchases', label: 'Purchases'        },
+  { key: 'returns',   label: 'Purchase Returns' },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -119,19 +124,19 @@ export default function PurchasesList() {
   return (
     <div className="px-8 py-6" data-testid="purchases-page">
       <PageHeader
-        title="Purchase Operations"
+        title="Purchases"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} purchases total` : undefined}
         actions={
-          <>
-            <Button variant="outline" onClick={() => navigate('/purchases/returns')} data-testid="new-return-btn">
-              Purchase Returns
-            </Button>
-            <Button onClick={() => navigate('/purchases/create?type=purchase')} data-testid="new-purchase-btn">
-              <Plus className="w-4 h-4 mr-2" />
-              New Purchase
-            </Button>
-          </>
+          <Button onClick={() => navigate('/purchases/create?type=purchase')} data-testid="new-purchase-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            New Purchase
+          </Button>
         }
+      />
+      <PageTabs
+        tabs={PURCHASES_TABS}
+        activeTab="purchases"
+        onChange={() => navigate('/purchases/returns')}
       />
 
       {/* Filters Row */}

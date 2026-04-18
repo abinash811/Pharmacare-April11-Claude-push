@@ -12,7 +12,12 @@
  */
 import React, { useState, useEffect } from 'react';
 import { User, Stethoscope, Plus, FileSpreadsheet } from 'lucide-react';
-import { SearchInput, PageSkeleton, DeleteConfirmDialog, PaginationBar } from '@/components/shared';
+
+const CUSTOMER_TABS = (customers, doctors) => [
+  { key: 'customers', label: 'Customers', icon: User,        count: customers.length },
+  { key: 'doctors',   label: 'Doctors',   icon: Stethoscope, count: doctors.length   },
+];
+import { SearchInput, PageSkeleton, DeleteConfirmDialog, PaginationBar, PageTabs } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
@@ -113,40 +118,18 @@ export default function Customers() {
     <div className="flex flex-col h-full" data-testid="customers-page">
 
       {/* ── Sticky page header rectangle ──────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-8 py-4 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-gray-900">Customers &amp; Doctors</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Manage customer and referring doctor information</p>
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm px-8 py-4 flex-shrink-0">
+        <h1 className="text-xl font-bold text-gray-900">Customers &amp; Doctors</h1>
+        <p className="text-xs text-gray-500 mt-0.5">Manage customer and referring doctor information</p>
       </div>
 
       {/* ── Horizontal tab row ────────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-1 px-8 pt-4 pb-0 bg-white border-b border-gray-200">
-        {[
-          { key: 'customers', label: 'Customers', icon: User,        count: customers.length },
-          { key: 'doctors',   label: 'Doctors',   icon: Stethoscope, count: doctors.length   },
-        ].map(({ key, label, icon: Icon, count }) => {
-          const active = activeSection === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveSection(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                active
-                  ? 'border-brand text-brand'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-              }`}
-              data-testid={`tab-${key}`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                active ? 'bg-brand-subtle text-brand' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <PageTabs
+        tabs={CUSTOMER_TABS(customers, doctors)}
+        activeTab={activeSection}
+        onChange={setActiveSection}
+        noBleed
+      />
 
       {/* ── Filter bar: search left · CTAs right ──────────────────────── */}
       <div className="flex-shrink-0 flex items-center justify-between gap-4 px-8 py-3 bg-white border-b border-gray-200">
@@ -169,7 +152,7 @@ export default function Customers() {
           )}
           <button
             onClick={isCustomers ? handleAddCustomer : handleAddDoctor}
-            className="h-9 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+            className="h-9 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-brand-dark transition-colors flex items-center gap-2"
             data-testid={isCustomers ? 'add-customer-btn' : 'add-doctor-btn'}
           >
             <Plus className="w-4 h-4" />

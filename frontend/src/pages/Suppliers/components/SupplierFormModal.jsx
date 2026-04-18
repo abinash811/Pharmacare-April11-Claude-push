@@ -8,6 +8,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 const INIT = { name: '', contact_person: '', phone: '', email: '', address: '', gstin: '', credit_days: 0, notes: '' };
 
@@ -84,12 +85,10 @@ export default function SupplierFormModal({ open, editingSupplier, onClose, onSa
           </div>
 
           <DialogFooter className="mt-6">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-              Cancel
-            </button>
-            <button type="submit" className="px-6 py-2 font-semibold text-sm text-white rounded-lg bg-brand" data-testid="submit-supplier-btn">
+            <AppButton type="button" variant="secondary" onClick={onClose}>Cancel</AppButton>
+            <AppButton type="submit" data-testid="submit-supplier-btn">
               {editingSupplier ? 'Update' : 'Create'}
-            </button>
+            </AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

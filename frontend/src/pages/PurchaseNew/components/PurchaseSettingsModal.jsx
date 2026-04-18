@@ -13,6 +13,7 @@
  */
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AppButton } from '@/components/shared';
 
 const activeBlue  = 'bg-brand-subtle text-brand border-2 border-brand';
 const inactiveBtn = 'bg-gray-100 text-gray-600 border-2 border-transparent';
@@ -90,9 +91,7 @@ export default function PurchaseSettingsModal({
         </div>
 
         <DialogFooter>
-          <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-white rounded-lg bg-brand" data-testid="settings-done-btn">
-            Done
-          </button>
+          <AppButton onClick={onClose} data-testid="settings-done-btn">Done</AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

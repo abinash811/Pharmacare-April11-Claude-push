@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Printer, Eye, ArrowLeft } from 'lucide-react';
+import { Plus, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  PageHeader, DataCard, SearchInput, StatusBadge,
+  PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, PurchaseReturnsEmptyState, PaginationBar,
 } from '../components/shared';
+
+const PURCHASES_TABS = [
+  { key: 'purchases', label: 'Purchases'        },
+  { key: 'returns',   label: 'Purchase Returns' },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -76,27 +81,26 @@ export default function PurchaseReturnsList() {
   return (
     <div className="px-8 py-6" data-testid="purchase-returns-page">
       <PageHeader
-        title="Purchase Returns"
+        title="Purchases"
         subtitle={filtered.length > 0 ? `${filtered.length} returns` : undefined}
         actions={
-          <>
-            <Button variant="outline" onClick={() => navigate('/purchases')} data-testid="back-to-purchases-btn">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Purchases
-            </Button>
-            <Button
-              onClick={() =>
-                toast.info(
-                  'Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return'
-                )
-              }
-              data-testid="new-return-btn"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Purchase Return
-            </Button>
-          </>
+          <Button
+            onClick={() =>
+              toast.info(
+                'Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return'
+              )
+            }
+            data-testid="new-return-btn"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Purchase Return
+          </Button>
         }
+      />
+      <PageTabs
+        tabs={PURCHASES_TABS}
+        activeTab="returns"
+        onChange={() => navigate('/purchases')}
       />
 
       {/* Filters Row */}

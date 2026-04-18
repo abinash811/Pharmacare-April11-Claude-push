@@ -5,9 +5,14 @@ import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  PageHeader, DataCard, SearchInput, StatusBadge,
+  PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, SalesReturnsEmptyState, PaginationBar,
 } from '../components/shared';
+
+const BILLING_TABS = [
+  { key: 'bills',   label: 'Bills'         },
+  { key: 'returns', label: 'Sales Returns' },
+];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -100,7 +105,7 @@ export default function SalesReturnsList() {
   return (
     <div className="px-8 py-6" data-testid="sales-returns-page">
       <PageHeader
-        title="Sales Returns"
+        title="Billing"
         subtitle={
           stats.returnsToday > 0
             ? `Today -₹${(stats.totalRefundedToday || 0).toFixed(2)} · ${stats.returnsToday} returns`
@@ -112,6 +117,11 @@ export default function SalesReturnsList() {
             New Return
           </Button>
         }
+      />
+      <PageTabs
+        tabs={BILLING_TABS}
+        activeTab="returns"
+        onChange={() => navigate('/billing')}
       />
 
       {/* Filters Row */}

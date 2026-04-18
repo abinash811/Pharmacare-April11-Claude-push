@@ -3,17 +3,24 @@
  * Route: /settings
  */
 import React, { useContext, useEffect } from 'react';
-import { Save, Settings as SettingsIcon } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { AuthContext } from '@/App';
-import { InlineLoader } from '@/components/shared';
+import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
 
 import { useSettings }     from './hooks/useSettings';
-import SettingsTabs        from './components/SettingsTabs';
 import InventoryTab        from './components/InventoryTab';
 import BillingTab          from './components/BillingTab';
 import ReturnsTab          from './components/ReturnsTab';
 import GeneralTab          from './components/GeneralTab';
 import BillSequenceTab     from './components/BillSequenceTab';
+
+const SETTINGS_TABS = [
+  { key: 'inventory',     label: 'Inventory'     },
+  { key: 'billing',       label: 'Billing'       },
+  { key: 'bill_sequence', label: 'Bill Sequence' },
+  { key: 'returns',       label: 'Returns'       },
+  { key: 'general',       label: 'General'       },
+];
 
 export default function Settings() {
   const { user } = useContext(AuthContext);
@@ -37,8 +44,8 @@ export default function Settings() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
-          <p className="text-gray-600">Only administrators can access settings.</p>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h1>
+          <p className="text-gray-500 text-sm">Only administrators can access settings.</p>
         </div>
       </div>
     );
@@ -47,22 +54,22 @@ export default function Settings() {
   const makeUpdater = (section) => (key, value) => updateSetting(section, key, value);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8" />
-          Application Settings
-        </h1>
-        <p className="text-gray-600 mt-1">Configure pharmacy management system preferences</p>
-      </div>
+    <div className="min-h-screen bg-gray-50 px-8 py-6">
+      <PageHeader
+        title="Settings"
+        subtitle="Configure pharmacy management system preferences"
+      />
+      <PageTabs
+        tabs={SETTINGS_TABS}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
-      <div className="bg-white rounded-lg shadow mb-6">
-        <SettingsTabs activeTab={activeTab} onTabChange={setActiveTab} />
-
+      {/* Content area */}
+      <div className="bg-white rounded-xl border border-gray-200">
         <div className="p-6">
           {loading ? (
-            <div className="text-center py-12"><InlineLoader text="Loading settings..." /></div>
+            <div className="text-center py-12"><InlineLoader text="Loading settings…" /></div>
           ) : (
             <>
               {activeTab === 'inventory'     && <InventoryTab     inventory={settings.inventory}  onUpdate={makeUpdater('inventory')} />}
@@ -81,18 +88,17 @@ export default function Settings() {
           )}
         </div>
 
-        {/* Save Button (not shown on bill_sequence tab — it has its own save) */}
+        {/* Save button — not shown on bill_sequence tab (it has its own per-row save) */}
         {activeTab !== 'bill_sequence' && (
-          <div className="border-t px-6 py-4 flex justify-end">
-            <button
+          <div className="border-t border-gray-100 px-6 py-4 flex justify-end">
+            <AppButton
               onClick={() => saveSettings(settings)}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded font-medium hover:bg-[#3a6fa0] disabled:opacity-50"
+              loading={saving}
+              icon={<Save className="w-4 h-4" />}
               data-testid="save-settings-btn"
             >
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Settings'}
-            </button>
+              {saving ? 'Saving…' : 'Save Settings'}
+            </AppButton>
           </div>
         )}
       </div>

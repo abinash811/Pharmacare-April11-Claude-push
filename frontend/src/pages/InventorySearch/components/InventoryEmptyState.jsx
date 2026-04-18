@@ -44,7 +44,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
           </button>
           <button
             onClick={onViewLowStock}
-            className="px-5 py-2.5 bg-brand text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
+            className="px-5 py-2.5 bg-brand text-white font-semibold rounded-lg hover:bg-brand-dark transition-colors"
             data-testid="view-low-stock-btn"
           >
             View Low Stock

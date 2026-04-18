@@ -3,7 +3,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown, X, Stethoscope } from 'lucide-react';
+import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown, Stethoscope } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { InlineLoader } from '../components/shared';
 
@@ -315,15 +316,11 @@ export default function SalesReturnDetail() {
       </main>
 
       {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Edit Sales Return</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+      <Dialog open={showEditModal} onOpenChange={(v) => !v && setShowEditModal(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Sales Return</DialogTitle>
+          </DialogHeader>
             
             <div className="p-6">
               <p className="text-sm text-gray-600 mb-6">What do you want to change?</p>
@@ -391,9 +388,8 @@ export default function SalesReturnDetail() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

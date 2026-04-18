@@ -12,7 +12,7 @@
  *   onClose          {() => void}
  */
 import React from 'react';
-import { X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const activeBlue  = 'bg-brand-subtle text-brand border-2 border-brand';
 const inactiveBtn = 'bg-gray-100 text-gray-600 border-2 border-transparent';
@@ -22,17 +22,13 @@ export default function PurchaseSettingsModal({
   onOrderType, onWithGST, onPurchaseOn, onBatchPriority, onClose,
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">Purchase Settings</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Purchase Settings</DialogTitle>
+        </DialogHeader>
 
-        <div className="p-6 space-y-4">
+        <div className="space-y-4">
           {/* Order Type */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Order Type</label>
@@ -93,12 +89,12 @@ export default function PurchaseSettingsModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-gray-900 rounded-lg bg-brand" data-testid="settings-done-btn">
+        <DialogFooter>
+          <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-white rounded-lg bg-brand" data-testid="settings-done-btn">
             Done
           </button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

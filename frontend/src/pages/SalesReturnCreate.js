@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom'
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, X, Printer, Stethoscope } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Stethoscope } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Calendar } from '../components/ui/calendar';
 import { format } from 'date-fns';
@@ -509,15 +510,11 @@ export default function SalesReturnCreate() {
       </main>
 
       {/* Finalise Modal */}
-      {showFinaliseModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Invoice Breakdown</h2>
-              <button onClick={() => setShowFinaliseModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+      <Dialog open={showFinaliseModal} onOpenChange={(v) => !v && setShowFinaliseModal(false)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Invoice Breakdown</DialogTitle>
+          </DialogHeader>
             
             <div className="p-6 grid grid-cols-2 gap-8">
               {/* Left Column - Amounts */}
@@ -569,7 +566,7 @@ export default function SalesReturnCreate() {
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <DialogFooter>
               <button
                 onClick={() => setShowFinaliseModal(false)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
@@ -592,10 +589,9 @@ export default function SalesReturnCreate() {
               >
                 {isSaving ? 'Saving...' : 'Submit'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

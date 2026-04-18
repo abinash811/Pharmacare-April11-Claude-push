@@ -17,6 +17,7 @@
  */
 import React from 'react';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const NumberInput = ({ value, onChange }) => (
   <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
@@ -40,14 +41,13 @@ export default function InvoiceBreakdownModal({
   const fmt = (d) => d ? format(d, 'dd MMM yyyy') : 'Not set';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
-          <h3 className="text-lg font-bold text-gray-900">Invoice Breakdown</h3>
-        </div>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Invoice Breakdown</DialogTitle>
+        </DialogHeader>
 
-        <div className="p-6">
+        <div>
           {/* Header summary */}
           <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-100">
             <div>
@@ -136,17 +136,17 @@ export default function InvoiceBreakdownModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white">
+        <DialogFooter>
           <button onClick={onClose}
             className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
             Cancel
           </button>
           <button onClick={onConfirm} disabled={loading}
-            className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-brand" data-testid="confirm-save-btn">
+            className="px-6 py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50 bg-brand" data-testid="confirm-save-btn">
             {loading ? 'Saving...' : 'Confirm & Save'}
           </button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

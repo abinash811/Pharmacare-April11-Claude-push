@@ -6,10 +6,10 @@
  *   onSuccess {() => void}
  */
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function MedicineEditModal({ product, onClose, onSuccess }) {
   const [form, setForm] = useState({
@@ -58,20 +58,16 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Edit Product</h3>
-            <p className="text-sm text-gray-500">SKU: {product.sku}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            Edit Product
+            <span className="block text-sm font-normal text-gray-500 mt-0.5">SKU: {product.sku}</span>
+          </DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
@@ -133,19 +129,19 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+          <DialogFooter className="mt-6 pt-4 border-t border-gray-100">
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+              className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">
               Cancel
             </button>
             <button type="submit" disabled={loading}
-              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50"
+              className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50"
               data-testid="submit-edit-product">
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

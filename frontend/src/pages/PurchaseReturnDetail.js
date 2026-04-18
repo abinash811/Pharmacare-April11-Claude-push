@@ -3,7 +3,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, ChevronDown, Printer, MoreVertical, Edit, FileText, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Printer, MoreVertical, Edit, FileText } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { InlineLoader } from '../components/shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -378,17 +379,13 @@ export default function PurchaseReturnDetail() {
       </main>
 
       {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                {editType === 'non_financial' ? 'Edit Return (Non-Financial)' : 'Edit Return (Financial)'}
-              </h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
+      <Dialog open={showEditModal} onOpenChange={(v) => !v && setShowEditModal(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editType === 'non_financial' ? 'Edit Return (Non-Financial)' : 'Edit Return (Financial)'}
+            </DialogTitle>
+          </DialogHeader>
             
             <div className="p-6 space-y-4">
               {editType === 'financial' && (
@@ -429,7 +426,7 @@ export default function PurchaseReturnDetail() {
               )}
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <DialogFooter>
               <button
                 onClick={() => setShowEditModal(false)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
@@ -439,14 +436,13 @@ export default function PurchaseReturnDetail() {
               <button
                 onClick={handleEditSave}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-brand"
+                className="px-6 py-2 font-semibold text-sm text-white rounded-lg disabled:opacity-50 bg-brand"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

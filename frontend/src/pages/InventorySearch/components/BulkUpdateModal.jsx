@@ -7,6 +7,7 @@
  *   onClose        {() => void}
  */
 import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
@@ -22,15 +23,17 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Bulk Update</h3>
-        <p className="text-gray-600 mb-4">
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirm Bulk Update</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-gray-600 text-sm">
           You are updating <strong>{selectedCount}</strong> medicine{selectedCount !== 1 ? 's' : ''}. This will modify the selected field.
         </p>
 
-        <div className="space-y-4 mb-6">
+        <div className="space-y-4">
           {/* Field selector */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Field</label>
@@ -75,13 +78,13 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button onClick={handleConfirm} disabled={!field || value === ''} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50" data-testid="confirm-bulk-update">
+        <DialogFooter>
+          <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">Cancel</button>
+          <button onClick={handleConfirm} disabled={!field || value === ''} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50" data-testid="confirm-bulk-update">
             Confirm &amp; Apply
           </button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

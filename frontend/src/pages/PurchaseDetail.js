@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { ArrowLeft, MoreVertical, Printer, X, Edit2, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Printer, Edit2, RotateCcw, FileText } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { InlineLoader } from '../components/shared';
 
@@ -485,16 +486,11 @@ export default function PurchaseDetail() {
       </div>
 
       {/* Mark as Paid Modal */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPayModal(false)}></div>
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900">Record Payment</h3>
-              <button onClick={() => setShowPayModal(false)} className="p-1 hover:bg-gray-100 rounded">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
+      <Dialog open={showPayModal} onOpenChange={(v) => !v && setShowPayModal(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+          </DialogHeader>
             <div className="p-6 space-y-4">
               {/* Payment Method */}
               <div>
@@ -550,7 +546,7 @@ export default function PurchaseDetail() {
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+            <DialogFooter>
               <button
                 onClick={() => setShowPayModal(false)}
                 className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -560,15 +556,14 @@ export default function PurchaseDetail() {
               <button
                 onClick={handlePayment}
                 disabled={paymentLoading || !paymentData.amount}
-                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-brand"
+                className="px-6 py-2 text-xs font-bold text-white rounded-lg disabled:opacity-50 bg-brand"
                 data-testid="confirm-payment-btn"
               >
                 {paymentLoading ? 'Processing...' : 'Confirm'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,10 +6,10 @@
  *   onSuccess  {() => void}
  */
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
@@ -47,20 +47,18 @@ export default function AdjustStockModal({ product, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Adjust Stock</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Adjust Stock</DialogTitle>
+        </DialogHeader>
+
+        <div className="px-0 py-2 bg-brand-tint rounded-lg mb-2">
+          <p className="font-medium text-gray-900 px-3">{product.product.name}</p>
+          <p className="text-sm text-gray-500 px-3">SKU: {product.product.sku}</p>
         </div>
 
-        <div className="px-6 py-4 bg-[#F0F9FF] border-b border-gray-100">
-          <p className="font-medium text-gray-900">{product.product.name}</p>
-          <p className="text-sm text-gray-500">SKU: {product.product.sku}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Select Batch *</label>
             <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className={INPUT_CLS} required data-testid="adjust-batch-select">
@@ -94,14 +92,14 @@ export default function AdjustStockModal({ product, onClose, onSuccess }) {
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50" data-testid="submit-adjust">
+          <DialogFooter className="pt-4 border-t border-gray-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-100">Cancel</button>
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark disabled:opacity-50" data-testid="submit-adjust">
               {loading ? 'Adjusting…' : 'Adjust Stock'}
             </button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

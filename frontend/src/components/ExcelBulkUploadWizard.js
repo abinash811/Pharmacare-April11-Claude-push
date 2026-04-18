@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { 
-  Upload, FileSpreadsheet, CheckCircle, AlertCircle, AlertTriangle, 
-  Download, ArrowRight, ArrowLeft, X, Loader2, MapPin, Eye, 
+import {
+  Upload, FileSpreadsheet, CheckCircle, AlertCircle, AlertTriangle,
+  Download, ArrowRight, ArrowLeft, Loader2, MapPin, Eye,
   FileCheck, RefreshCw
 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -617,23 +618,21 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="p-0 gap-0 sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col [&>button]:hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark rounded-t-lg">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-6 h-6 text-white" />
             <h2 className="text-xl font-semibold text-white">Excel Bulk Upload</h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="text-white/80 hover:text-white transition-colors"
             data-testid="close-wizard-btn"
           >
-            <X className="w-6 h-6" />
+            ✕
           </button>
         </div>
 
@@ -757,7 +756,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

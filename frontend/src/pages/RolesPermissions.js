@@ -2,8 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '@/App';
 import { Plus, Edit, Trash2, Shield, CheckSquare, Square, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader, DeleteConfirmDialog, DataCard } from '../components/shared';
-import { Button } from '@/components/ui/button';
+import { InlineLoader, DeleteConfirmDialog, DataCard, PageHeader, AppButton } from '../components/shared';
 import {
   Dialog,
   DialogContent,
@@ -216,23 +215,16 @@ export default function RolesPermissions() {
   }
 
   return (
-    <div className="px-8 py-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1>
-          <p className="text-sm text-gray-500 mt-1">Create custom roles and assign granular permissions</p>
-        </div>
-        <Button
-          onClick={() => {
-            setFormData({ name: '', display_name: '', selectedPermissions: [] });
-            setShowCreateDialog(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Custom Role
-        </Button>
-      </div>
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+      <PageHeader
+        title="Roles & Permissions"
+        subtitle="Create custom roles and assign granular permissions"
+        actions={
+          <AppButton icon={<Plus className="h-4 w-4" />} onClick={() => { setFormData({ name: '', display_name: '', selectedPermissions: [] }); setShowCreateDialog(true); }}>
+            Create Custom Role
+          </AppButton>
+        }
+      />
 
       {/* Roles Table */}
       <DataCard>
@@ -270,7 +262,7 @@ export default function RolesPermissions() {
                       <div className="flex gap-2 justify-end">
                         {!role.is_default ? (
                           <>
-                            <Button
+                            <AppButton
                               size="sm"
                               variant="secondary"
                               onClick={() => {
@@ -284,14 +276,14 @@ export default function RolesPermissions() {
                               }}
                             >
                               <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
+                            </AppButton>
+                            <AppButton
                               size="sm"
                               variant="danger"
                               onClick={() => handleDeleteRole(role.id, role.display_name)}
                             >
                               <Trash2 className="w-4 h-4" />
-                            </Button>
+                            </AppButton>
                           </>
                         ) : (
                           <span className="text-xs text-gray-500 italic">Protected</span>
@@ -348,8 +340,8 @@ export default function RolesPermissions() {
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button type="button" variant="secondary" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-              <Button type="submit">Create Role</Button>
+              <AppButton type="button" variant="secondary" onClick={() => setShowCreateDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Create Role</AppButton>
             </div>
           </form>
         </DialogContent>
@@ -382,8 +374,8 @@ export default function RolesPermissions() {
             </div>
 
             <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button type="submit">Update Role</Button>
+              <AppButton type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Update Role</AppButton>
             </div>
           </form>
         </DialogContent>

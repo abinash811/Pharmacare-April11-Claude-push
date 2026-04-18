@@ -2,8 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '@/App';
 import { Plus, Edit, XCircle, CheckCircle, Key, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { InlineLoader, ConfirmDialog, DataCard, SearchInput, PaginationBar } from '../components/shared';
-import { Button } from '@/components/ui/button';
+import { InlineLoader, ConfirmDialog, DataCard, SearchInput, PaginationBar, PageHeader, AppButton } from '../components/shared';
 import {
   Dialog,
   DialogContent,
@@ -201,35 +200,22 @@ export default function Users() {
   }
 
   return (
-    <div className="px-8 py-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage users and their access permissions</p>
-        </div>
-        <div className="flex gap-3">
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search users..."
-            className="w-56"
-          />
-          <Button variant="outline" onClick={() => setShowPasswordDialog(true)}>
-            <Key className="w-4 h-4 mr-2" />
-            Change My Password
-          </Button>
-          <Button
-            onClick={() => {
-              setFormData({ name: '', email: '', password: '', role: '' });
-              setShowAddDialog(true);
-            }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add User
-          </Button>
-        </div>
-      </div>
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+      <PageHeader
+        title="User Management"
+        subtitle="Manage users and their access permissions"
+        actions={
+          <div className="flex gap-2">
+            <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Search users..." className="w-56" />
+            <AppButton variant="outline" icon={<Key className="h-4 w-4" />} onClick={() => setShowPasswordDialog(true)}>
+              Change My Password
+            </AppButton>
+            <AppButton icon={<Plus className="h-4 w-4" />} onClick={() => { setFormData({ name: '', email: '', password: '', role: '' }); setShowAddDialog(true); }}>
+              Add User
+            </AppButton>
+          </div>
+        }
+      />
 
       {/* Users Table */}
       <DataCard>
@@ -282,16 +268,16 @@ export default function Users() {
                           }}
                         >
                           <Edit className="w-4 h-4" />
-                        </Button>
+                        </AppButton>
                         {user.id !== currentUser.id && (
                           user.is_active ? (
-                            <Button size="sm" variant="danger" onClick={() => handleDeactivateUser(user.id)}>
+                            <AppButton size="sm" variant="danger" onClick={() => handleDeactivateUser(user.id)}>
                               <XCircle className="w-4 h-4" />
-                            </Button>
+                            </AppButton>
                           ) : (
-                            <Button size="sm" variant="success" onClick={() => handleActivateUser(user.id)}>
+                            <AppButton size="sm" variant="secondary" onClick={() => handleActivateUser(user.id)}>
                               <CheckCircle className="w-4 h-4" />
-                            </Button>
+                            </AppButton>
                           )
                         )}
                       </div>
@@ -361,8 +347,8 @@ export default function Users() {
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="secondary" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button type="submit">Create User</Button>
+              <AppButton type="button" variant="secondary" onClick={() => setShowAddDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Create User</AppButton>
             </div>
           </form>
         </DialogContent>
@@ -410,8 +396,8 @@ export default function Users() {
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button type="submit">Update User</Button>
+              <AppButton type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Update User</AppButton>
             </div>
           </form>
         </DialogContent>
@@ -458,8 +444,8 @@ export default function Users() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</Button>
-              <Button type="submit">Change Password</Button>
+              <AppButton type="button" variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Change Password</AppButton>
             </div>
           </form>
         </DialogContent>

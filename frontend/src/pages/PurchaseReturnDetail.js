@@ -165,13 +165,13 @@ export default function PurchaseReturnDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-brand transition-colors">Purchases</Link>
                 <span>/</span>
                 <span>Returns</span>
                 <span>/</span>
               </div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold font-mono text-[#4682B4]">
+                <h1 className="text-xl font-bold font-mono text-brand">
                   {purchaseReturn.return_number}
                 </h1>
                 <span 
@@ -197,21 +197,21 @@ export default function PurchaseReturnDetail() {
               <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-20">
                 <button
                   onClick={() => openEditModal('non_financial')}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit (Non-Financial)
                 </button>
                 <button
                   onClick={() => openEditModal('financial')}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit (Financial)
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                 >
                   <Printer className="w-4 h-4" />
                   Print
@@ -221,7 +221,7 @@ export default function PurchaseReturnDetail() {
                     setShowMoreMenu(false);
                     toast.info('Logs coming soon');
                   }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
                   Logs
@@ -257,7 +257,7 @@ export default function PurchaseReturnDetail() {
             {purchaseReturn.purchase_number && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
                 <span className="text-[10px] text-gray-400 uppercase font-medium">Orig#</span>
-                <span className="text-sm font-medium font-mono text-[#4682B4]">{purchaseReturn.purchase_number}</span>
+                <span className="text-sm font-medium font-mono text-brand">{purchaseReturn.purchase_number}</span>
               </div>
             )}
 
@@ -298,7 +298,7 @@ export default function PurchaseReturnDetail() {
                 {items.map((item, index) => {
                   const lineAmount = item.line_total || (item.qty_units * (item.ptr || item.cost_price_per_unit || 0));
                   return (
-                    <tr key={item.id || index} className="hover:bg-[#f0f7ff] transition-colors">
+                    <tr key={item.id || index} className="hover:bg-brand-tint transition-colors">
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{item.product_name}</div>
@@ -307,7 +307,7 @@ export default function PurchaseReturnDetail() {
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>
                       <td className="px-4 py-3 text-gray-700">{formatExpiry(item.expiry_date)}</td>
                       <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.mrp || 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center font-semibold text-[#4682B4]">{item.qty_units}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-brand">{item.qty_units}</td>
                       <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.ptr || item.cost_price_per_unit || 0).toFixed(2)}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{item.gst_percent || 5}%</td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
@@ -352,7 +352,7 @@ export default function PurchaseReturnDetail() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
-              <span className="text-2xl font-black text-red-600">₹{netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{netAmount.toFixed(2)}</span>
             </div>
           </div>
           
@@ -439,7 +439,7 @@ export default function PurchaseReturnDetail() {
               <button
                 onClick={handleEditSave}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-[#4682B4]"
+                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-brand"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>

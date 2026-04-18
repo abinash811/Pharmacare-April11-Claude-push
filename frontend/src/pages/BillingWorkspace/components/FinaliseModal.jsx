@@ -85,9 +85,9 @@ export default function FinaliseModal({
               ))}
 
               {/* Net Payable highlight */}
-              <div className="flex justify-between py-4 mt-4 bg-[#4682B4]/10 rounded-lg px-4 -mx-4">
+              <div className="flex justify-between py-4 mt-4 bg-brand-subtle rounded-lg px-4 -mx-4">
                 <span className="text-base font-bold text-gray-900">Net Payable</span>
-                <span className="text-2xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
+                <span className="text-2xl font-semibold tabular-nums text-gray-900">₹{grandTotal.toFixed(2)}</span>
               </div>
 
               <div className="flex justify-between py-2 mt-2">
@@ -107,7 +107,7 @@ export default function FinaliseModal({
                 <textarea
                   value={internalNote}
                   onChange={(e) => setInternalNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
                   rows="4"
                   placeholder="Internal notes (not visible to customer)"
                   data-testid="internal-note"
@@ -119,7 +119,7 @@ export default function FinaliseModal({
                 <textarea
                   value={deliveryNote}
                   onChange={(e) => setDeliveryNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
                   rows="4"
                   placeholder="Delivery instructions (if applicable)"
                   data-testid="delivery-note"
@@ -134,7 +134,7 @@ export default function FinaliseModal({
               <Button
                 onClick={handleConfirm}
                 disabled={isSaving}
-                className="w-full py-3 text-sm font-bold text-gray-900 flex items-center justify-center gap-2 hover:brightness-95 mt-4 bg-[#4682B4]"
+                className="w-full py-3 text-sm font-bold text-gray-900 flex items-center justify-center gap-2 hover:brightness-95 mt-4 bg-brand"
                 data-testid="confirm-save-btn"
               >
                 {isSaving ? (

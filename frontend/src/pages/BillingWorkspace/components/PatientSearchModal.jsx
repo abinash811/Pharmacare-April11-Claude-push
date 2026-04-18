@@ -79,7 +79,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
               value={query}
               onChange={handleQueryChange}
               autoFocus
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4]"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
               data-testid="patient-search-input"
             />
           </div>
@@ -91,11 +91,11 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
           {/* Counter Sale — always first */}
           <button
             onClick={() => handleSelect('counter')}
-            className="w-full px-4 py-3 text-left hover:bg-[#4682B4]/10 flex items-center gap-3 border-b border-gray-100"
+            className="w-full px-4 py-3 text-left hover:bg-brand-subtle flex items-center gap-3 border-b border-gray-100"
             data-testid="counter-sale-option"
           >
-            <div className="w-10 h-10 rounded-full bg-[#4682B4]/20 flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[#4682B4] text-lg">storefront</span>
+            <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-brand text-lg">storefront</span>
             </div>
             <div>
               <div className="font-semibold text-gray-900 text-sm">Counter Sale</div>

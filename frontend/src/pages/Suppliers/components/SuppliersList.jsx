@@ -49,7 +49,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
               return (
                 <tr
                   key={supplier.id}
-                  className={`hover:bg-[#f0f7ff] cursor-pointer transition-colors ${selectedId === supplier.id ? 'bg-[#4682B4]/10' : ''} ${!isActive ? 'opacity-60' : ''}`}
+                  className={`hover:bg-brand-tint cursor-pointer transition-colors ${selectedId === supplier.id ? 'bg-brand-subtle' : ''} ${!isActive ? 'opacity-60' : ''}`}
                   onClick={() => onRowClick(supplier)}
                   data-testid={`supplier-row-${supplier.id}`}
                 >
@@ -74,7 +74,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
                     }
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                       {isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>

@@ -35,21 +35,21 @@ export default function InventorySearchBar({
             placeholder="Search medicine by name, generic, strength…"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4682B4] focus:border-transparent"
+            className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
             data-testid="inventory-search-input"
           />
         </div>
         <button
           onClick={onOpenFilters}
           className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
-            filterCount > 0 ? 'bg-[#4682B4] text-white border-[#4682B4]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+            filterCount > 0 ? 'bg-brand text-white border-brand' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
           }`}
           data-testid="more-filters-btn"
         >
           <Filter className="w-4 h-4" />
           More Filters
           {filterCount > 0 && (
-            <span className="ml-1 bg-white text-[#4682B4] text-xs font-bold px-1.5 py-0.5 rounded-full">
+            <span className="ml-1 bg-white text-brand text-xs font-bold px-1.5 py-0.5 rounded-full">
               {filterCount}
             </span>
           )}
@@ -67,7 +67,7 @@ export default function InventorySearchBar({
               </button>
             </span>
           ))}
-          <button onClick={onClearAll} className="text-sm text-[#4682B4] hover:text-green-700 font-medium" data-testid="clear-all-filters">
+          <button onClick={onClearAll} className="text-sm text-brand hover:text-green-700 font-medium" data-testid="clear-all-filters">
             Reset All
           </button>
         </div>

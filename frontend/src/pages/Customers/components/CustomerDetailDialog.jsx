@@ -16,7 +16,7 @@ import { apiUrl } from '@/constants/api';
 
 function CustomerTypeBadge({ type }) {
   const safeType = type && typeof type === 'string' && type.trim() ? type.toLowerCase() : 'regular';
-  const styles = { regular: 'bg-blue-100 text-blue-700', wholesale: 'bg-purple-100 text-purple-700', institution: 'bg-green-100 text-green-700' };
+  const styles = { regular: 'bg-blue-50 text-blue-700', wholesale: 'bg-purple-50 text-purple-700', institution: 'bg-green-50 text-green-700' };
   return <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[safeType] || styles.regular}`}>{safeType.charAt(0).toUpperCase() + safeType.slice(1)}</span>;
 }
 

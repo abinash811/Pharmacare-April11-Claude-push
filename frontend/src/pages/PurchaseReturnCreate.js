@@ -258,7 +258,7 @@ export default function PurchaseReturnCreate() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-brand transition-colors">Purchases</Link>
                 <span>/</span>
                 <span>Returns</span>
                 <span>/</span>
@@ -281,11 +281,11 @@ export default function PurchaseReturnCreate() {
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors bg-green-50 border border-green-200"
                   data-testid="date-picker-btn"
                 >
-                  <CalendarIcon className="w-4 h-4 text-[#4682B4]" />
-                  <span className="text-sm font-medium text-[#4682B4]">
+                  <CalendarIcon className="w-4 h-4 text-brand" />
+                  <span className="text-sm font-medium text-brand">
                     {format(returnDate, 'dd MMM yyyy')}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-[#4682B4]" />
+                  <ChevronDown className="w-3 h-3 text-brand" />
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -374,7 +374,7 @@ export default function PurchaseReturnCreate() {
                 {items.map((item, index) => {
                   const lineAmount = item.return_qty * item.ptr;
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={item.id} className="hover:bg-brand-tint transition-colors">
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{item.medicine_name}</div>
@@ -458,7 +458,7 @@ export default function PurchaseReturnCreate() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
-              <span className="text-2xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
             </div>
           </div>
           
@@ -480,7 +480,7 @@ export default function PurchaseReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || !hasReturnItems()}
-              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]"
+              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
               data-testid="save-return-btn"
             >
               Save Return
@@ -540,7 +540,7 @@ export default function PurchaseReturnCreate() {
                 <div className="pt-4 mt-4 border-t border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-base font-bold text-gray-900">Net Return</span>
-                    <span className="text-xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+                    <span className="text-xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -564,7 +564,7 @@ export default function PurchaseReturnCreate() {
               <button
                 onClick={() => handleSave(false)}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-[#4682B4]"
+                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-brand"
                 data-testid="confirm-btn"
               >
                 {isSaving ? 'Saving...' : 'Confirm & Save'}

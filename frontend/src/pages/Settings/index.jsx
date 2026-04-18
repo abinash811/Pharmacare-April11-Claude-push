@@ -87,7 +87,7 @@ export default function Settings() {
             <button
               onClick={() => saveSettings(settings)}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-[#4682B4] text-white rounded font-medium hover:bg-[#3a6fa0] disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded font-medium hover:bg-[#3a6fa0] disabled:opacity-50"
               data-testid="save-settings-btn"
             >
               <Save className="w-4 h-4" />

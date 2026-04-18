@@ -14,7 +14,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
-const activeBlue  = 'bg-[#4682B4]/10 text-[#4682B4] border-2 border-[#4682B4]';
+const activeBlue  = 'bg-brand-subtle text-brand border-2 border-brand';
 const inactiveBtn = 'bg-gray-100 text-gray-600 border-2 border-transparent';
 
 export default function PurchaseSettingsModal({
@@ -94,7 +94,7 @@ export default function PurchaseSettingsModal({
         </div>
 
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-gray-900 rounded-lg bg-[#4682B4]" data-testid="settings-done-btn">
+          <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-gray-900 rounded-lg bg-brand" data-testid="settings-done-btn">
             Done
           </button>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { 
   Upload, FileSpreadsheet, CheckCircle, AlertCircle, AlertTriangle, 
@@ -20,7 +20,7 @@ const StepIndicator = ({ currentStep, steps }) => (
               index < currentStep 
                 ? 'bg-green-500 text-white' 
                 : index === currentStep 
-                  ? 'bg-[#4682B4] text-white ring-4 ring-blue-200' 
+                  ? 'bg-brand text-white ring-4 ring-blue-200' 
                   : 'bg-gray-200 text-gray-500'
             }`}
           >
@@ -365,7 +365,7 @@ const ImportProgress = ({ progress, status, onComplete }) => {
 
       {status === 'completed' && (
         <div className="text-center py-8">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
           <p className="mt-4 text-lg font-medium text-green-700">Import Complete!</p>
@@ -375,7 +375,7 @@ const ImportProgress = ({ progress, status, onComplete }) => {
       {/* Progress Bar */}
       <div className="bg-gray-100 rounded-full h-4 overflow-hidden">
         <div 
-          className="bg-[#4682B4] h-full transition-all duration-300"
+          className="bg-brand h-full transition-all duration-300"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -412,7 +412,7 @@ const ImportProgress = ({ progress, status, onComplete }) => {
         <div className="text-center">
           <button
             onClick={onComplete}
-            className="px-6 py-2 bg-[#4682B4] text-white rounded-lg hover:bg-[#3a6fa0] transition-colors"
+            className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] transition-colors"
             data-testid="finish-import-btn"
           >
             Finish & Close
@@ -714,7 +714,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
               <button
                 onClick={validateMapping}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-2 bg-[#4682B4] text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="validate-btn"
               >
                 {isLoading ? (

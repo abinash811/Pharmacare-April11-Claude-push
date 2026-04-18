@@ -92,7 +92,7 @@ export default function BillingFooter({
         </div>
         <div className="text-right">
           <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Payable</span>
-          <span className="text-2xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
+          <span className="text-2xl font-semibold tabular-nums text-gray-900">₹{grandTotal.toFixed(2)}</span>
         </div>
       </div>
 
@@ -117,7 +117,7 @@ export default function BillingFooter({
               type="number"
               value={billDiscount}
               onChange={(e) => onBillDiscountChange(parseFloat(e.target.value) || 0)}
-              className="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-[#4682B4]"
+              className="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="0"
               data-testid="bill-discount-input"
             />
@@ -154,7 +154,7 @@ export default function BillingFooter({
           {!isView && (
             <button
               onClick={onFinalise}
-              className="px-6 py-2 rounded-lg text-sm font-bold text-gray-900 flex items-center gap-2 hover:brightness-95 bg-[#4682B4]"
+              className="px-6 py-2 rounded-lg text-sm font-bold text-gray-900 flex items-center gap-2 hover:brightness-95 bg-brand"
               data-testid="footer-finalise-btn"
             >
               <span className="material-symbols-outlined text-lg">check_circle</span>

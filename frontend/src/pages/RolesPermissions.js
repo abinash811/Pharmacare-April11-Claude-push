@@ -143,7 +143,7 @@ export default function RolesPermissions() {
   const getRoleBadge = (role) => {
     if (role.is_super_admin) {
       return (
-        <span className="px-2 py-1 text-xs rounded-full font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
+        <span className="px-2 py-1 text-xs rounded-full font-medium bg-purple-50 text-purple-800 flex items-center gap-1">
           <Shield className="w-3 h-3" />
           Super Admin
         </span>
@@ -151,13 +151,13 @@ export default function RolesPermissions() {
     }
     if (role.is_default) {
       return (
-        <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-100 text-blue-800">
+        <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-50 text-blue-800">
           Default Role
         </span>
       );
     }
     return (
-      <span className="px-2 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
+      <span className="px-2 py-1 text-xs rounded-full font-medium bg-green-50 text-green-800">
         Custom Role
       </span>
     );
@@ -186,7 +186,7 @@ export default function RolesPermissions() {
             </div>
             <div className="ml-7 space-y-1">
               {module.permissions.map((perm) => (
-                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-[#f0f7ff] p-1 rounded">
+                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-brand-tint p-1 rounded">
                   <input
                     type="checkbox"
                     checked={formData.selectedPermissions.includes(perm.id)}
@@ -253,9 +253,9 @@ export default function RolesPermissions() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {roles.map((role) => (
-                  <tr key={role.id} className="hover:bg-[#f0f7ff]">
+                  <tr key={role.id} className="hover:bg-brand-tint">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-[#4682B4]">{role.display_name}</div>
+                      <div className="font-medium text-brand">{role.display_name}</div>
                       <div className="text-xs text-gray-500">{role.name}</div>
                     </td>
                     <td className="px-4 py-3">{getRoleBadge(role)}</td>

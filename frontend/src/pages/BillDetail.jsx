@@ -25,17 +25,17 @@ import { formatCurrency } from '@/utils/currency';
 function BillStatusChip({ status, billNumber }) {
   const isParked = status === 'parked' || status === 'draft' || billNumber?.toLowerCase().includes('draft');
   if (isParked) return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-50 text-amber-700">
       <Clock className="w-4 h-4" /> Parked
     </span>
   );
   if (status === 'due') return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-red-50 text-red-700">
       <AlertCircle className="w-4 h-4" /> Due
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-50 text-green-700">
       <CheckCircle className="w-4 h-4" /> Paid
     </span>
   );
@@ -150,7 +150,7 @@ export default function BillDetail() {
                 {bill.invoice_type === 'PURCHASE' ? 'Purchase Invoice' : 'Tax Invoice'}
               </div>
               {!isParked && (
-                <div className="text-2xl font-bold text-[#4682B4] font-mono">
+                <div className="text-2xl font-bold text-brand font-mono">
                   #{bill.bill_number?.replace(/^#/, '')}
                 </div>
               )}
@@ -200,7 +200,7 @@ export default function BillDetail() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {(bill.items || []).map((item, idx) => (
-                <tr key={item.id || idx} className="hover:bg-[#f0f7ff]">
+                <tr key={item.id || idx} className="hover:bg-brand-tint">
                   <td className="py-2.5 text-gray-400">{idx + 1}</td>
                   <td className="py-2.5">
                     <div className="font-medium text-gray-800">{item.product_name || item.medicine_name}</div>

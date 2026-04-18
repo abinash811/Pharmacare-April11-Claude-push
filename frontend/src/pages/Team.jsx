@@ -6,7 +6,7 @@
  *   Roles    — roles list with permissions matrix
  *
  * Replaces the separate /users and /roles pages.
- * Design system: px-8 py-6 · h-10 rows · hover:bg-[#f0f7ff] · font-medium headers
+ * Design system: px-8 py-6 · h-10 rows · hover:bg-brand-tint · font-medium headers
  */
 
 import React, { useState, useEffect, useContext } from 'react';
@@ -59,7 +59,7 @@ function AccessDenied() {
 
 // ── Form input classes ────────────────────────────────────────────────────────
 const inputCls =
-  'w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-[#4682B4] focus:ring-1 focus:ring-[#4682B4] focus:outline-none placeholder:text-gray-400';
+  'w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none placeholder:text-gray-400';
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Team() {
@@ -241,7 +241,7 @@ function MembersTab({ currentUser }) {
           </button>
           <button
             onClick={() => { setFormData({ name: '', email: '', password: '', role: '' }); setShowAddDialog(true); }}
-            className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+            className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Invite Member
@@ -280,7 +280,7 @@ function MembersTab({ currentUser }) {
                       </td>
                     </tr>
                   ) : pageUsers.map((u) => (
-                    <tr key={u.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-[#f0f7ff]">
+                    <tr key={u.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                       <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{u.name}</td>
                       <td className="px-4 py-2.5 text-sm text-gray-500">{u.email}</td>
                       <td className="px-4 py-2.5"><RoleBadge role={u.role} /></td>
@@ -382,7 +382,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
                 Create Member
               </button>
             </div>
@@ -426,7 +426,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
                 Update Member
               </button>
             </div>
@@ -466,7 +466,7 @@ function MembersTab({ currentUser }) {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
                 Change Password
               </button>
             </div>
@@ -622,9 +622,9 @@ function RolesTab() {
               className="flex items-center gap-2 w-full mb-2"
             >
               {allOn ? (
-                <CheckSquare className="w-4 h-4 text-[#4682B4] flex-shrink-0" />
+                <CheckSquare className="w-4 h-4 text-brand flex-shrink-0" />
               ) : someOn ? (
-                <Square className="w-4 h-4 text-[#4682B4]/50 flex-shrink-0" />
+                <Square className="w-4 h-4 text-brand/50 flex-shrink-0" />
               ) : (
                 <Square className="w-4 h-4 text-gray-300 flex-shrink-0" />
               )}
@@ -637,7 +637,7 @@ function RolesTab() {
                     type="checkbox"
                     checked={formData.selectedPermissions.includes(perm.id)}
                     onChange={() => togglePermission(perm.id)}
-                    className="accent-[#4682B4]"
+                    className="accent-brand"
                   />
                   <span className="text-sm text-gray-700">{perm.name}</span>
                 </label>
@@ -655,7 +655,7 @@ function RolesTab() {
       <div className="flex items-center justify-end mb-4">
         <button
           onClick={() => { setFormData({ name: '', display_name: '', selectedPermissions: [] }); setShowCreateDialog(true); }}
-          className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+          className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Create Role
@@ -689,7 +689,7 @@ function RolesTab() {
                     </td>
                   </tr>
                 ) : roles.map((role) => (
-                  <tr key={role.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-[#f0f7ff]">
+                  <tr key={role.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                     <td className="px-4 py-2.5">
                       <div className="text-sm font-medium text-gray-900">{role.display_name}</div>
                       <div className="text-xs text-gray-500 font-mono">{role.name}</div>
@@ -772,7 +772,7 @@ function RolesTab() {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
                 Create Role
               </button>
             </div>
@@ -805,7 +805,7 @@ function RolesTab() {
                 Cancel
               </button>
               <button type="submit"
-                className="h-10 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
+                className="h-10 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors">
                 Update Role
               </button>
             </div>

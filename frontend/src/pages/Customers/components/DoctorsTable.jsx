@@ -43,7 +43,7 @@ export default function DoctorsTable({ doctors, searchQuery, onAdd, onEdit, onDe
                 </td>
               </tr>
             ) : doctors.map(doctor => (
-              <tr key={doctor.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-[#f0f7ff]">
+              <tr key={doctor.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                 <td className="px-4 py-2.5">
                   <div className="text-sm font-medium text-gray-900">Dr. {doctor.name}</div>
                   {doctor.clinic_address && (

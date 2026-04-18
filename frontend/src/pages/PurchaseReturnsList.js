@@ -171,12 +171,12 @@ export default function PurchaseReturnsList() {
                 pageRows.map((ret) => (
                   <tr
                     key={ret.id}
-                    className="hover:bg-[#f0f7ff] cursor-pointer"
+                    className="hover:bg-brand-tint cursor-pointer"
                     onClick={() => navigate(`/purchases/returns/${ret.id}`)}
                     data-testid={`return-row-${ret.id}`}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-semibold text-[#4682B4]">
+                      <span className="font-mono text-sm font-semibold text-brand">
                         {ret.return_number}
                       </span>
                     </td>

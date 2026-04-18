@@ -55,7 +55,7 @@ export default function CustomersTable({ customers, searchQuery, onAdd, onEdit, 
                 </td>
               </tr>
             ) : customers.map(customer => (
-              <tr key={customer.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-[#f0f7ff]">
+              <tr key={customer.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                 <td className="px-4 py-2.5">
                   <div className="text-sm font-medium text-gray-900">{customer.name}</div>
                   {customer.gstin && <div className="text-xs text-gray-500 font-mono">GSTIN: {customer.gstin}</div>}
@@ -85,7 +85,7 @@ export default function CustomersTable({ customers, searchQuery, onAdd, onEdit, 
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => onView(customer)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-[#4682B4] hover:bg-blue-50 transition-colors"
+                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-brand hover:bg-blue-50 transition-colors"
                       title="View details"
                       data-testid={`view-customer-${customer.id}`}
                     >

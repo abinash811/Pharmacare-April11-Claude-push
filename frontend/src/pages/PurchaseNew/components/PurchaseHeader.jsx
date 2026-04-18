@@ -32,7 +32,7 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
           </button>
           <div>
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-0.5">
-              <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">
+              <Link to="/purchases" className="hover:text-brand transition-colors">
                 Purchases
               </Link>
               <span>/</span>
@@ -71,7 +71,7 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
           <button
             onClick={onConfirm}
             disabled={loading || !hasItems}
-            className="px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] flex items-center gap-1.5 transition-colors disabled:opacity-60"
+            className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-1.5 transition-colors disabled:opacity-60"
             data-testid="confirm-btn"
           >
             <CheckCircle className="w-4 h-4" />

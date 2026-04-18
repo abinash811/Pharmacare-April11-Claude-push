@@ -193,22 +193,22 @@ export default function PurchaseDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-[#4682B4] transition-colors">Purchases</Link>
+                <Link to="/purchases" className="hover:text-brand transition-colors">Purchases</Link>
                 <span>/</span>
               </div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-gray-900">{purchase.purchase_number}</h1>
                 {/* Status badges */}
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">
                   {purchase.status?.toUpperCase() || 'CONFIRMED'}
                 </span>
                 {isDue && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isOverdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
                     {isOverdue ? 'OVERDUE' : 'DUE'}
                   </span>
                 )}
                 {purchase.payment_status === 'paid' && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">
                     PAID
                   </span>
                 )}
@@ -235,7 +235,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       navigate(`/purchases/edit/${id}?type=purchase`);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit
@@ -245,7 +245,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       handlePrint();
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                   >
                     <Printer className="w-4 h-4" />
                     Print
@@ -255,7 +255,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       navigate(`/purchases/returns/create?purchase_id=${id}`);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
                     Purchase Return
@@ -265,7 +265,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       toast.info('Logs coming soon');
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-brand-tint flex items-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
                     Logs
@@ -361,7 +361,7 @@ export default function PurchaseDetail() {
                 const total = lineTotal + taxAmount;
 
                 return (
-                  <tr key={index} className="hover:bg-[#f0f7ff]/50">
+                  <tr key={index} className="hover:bg-brand-tint/50">
                     {/* # */}
                     <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                     
@@ -441,7 +441,7 @@ export default function PurchaseDetail() {
             </span>
           </div>
           <div className="text-gray-600">
-            Net Amount <span className="font-bold text-gray-900 text-base text-[#4682B4]">{formatCurrency(totals.netAmount)}</span>
+            Net Amount <span className="font-bold text-gray-900 text-base text-brand">{formatCurrency(totals.netAmount)}</span>
           </div>
         </div>
 
@@ -466,7 +466,7 @@ export default function PurchaseDetail() {
             {isDue && (
               <button
                 onClick={openPayModal}
-                className="px-4 py-2 text-xs font-semibold text-amber-800 bg-amber-100 rounded-lg hover:bg-amber-200 transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-amber-800 bg-amber-50 rounded-lg hover:bg-amber-200 transition-colors"
                 data-testid="mark-paid-btn"
               >
                 Mark as Paid
@@ -474,7 +474,7 @@ export default function PurchaseDetail() {
             )}
             <button
               onClick={handlePrint}
-              className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-[#f0f7ff] transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-brand-tint transition-colors flex items-center gap-2"
               data-testid="print-btn"
             >
               <Printer className="w-4 h-4" />
@@ -560,7 +560,7 @@ export default function PurchaseDetail() {
               <button
                 onClick={handlePayment}
                 disabled={paymentLoading || !paymentData.amount}
-                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-[#4682B4]"
+                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-brand"
                 data-testid="confirm-payment-btn"
               >
                 {paymentLoading ? 'Processing...' : 'Confirm'}

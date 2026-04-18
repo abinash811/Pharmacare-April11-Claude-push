@@ -6,10 +6,10 @@
 import React from 'react';
 
 const TYPE_COLORS = {
-  purchase:      'bg-green-100 text-green-700',
-  sale:          'bg-blue-100 text-blue-700',
-  adjustment:    'bg-orange-100 text-orange-700',
-  opening_stock: 'bg-purple-100 text-purple-700',
+  purchase:      'bg-green-50 text-green-700',
+  sale:          'bg-blue-50 text-blue-700',
+  adjustment:    'bg-orange-50 text-orange-700',
+  opening_stock: 'bg-purple-50 text-purple-700',
 };
 const typeClass = (t) => TYPE_COLORS[t] || 'bg-gray-100 text-gray-700';
 
@@ -33,7 +33,7 @@ export default function LedgerTab({ movements }) {
               <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">No stock movements found</td></tr>
             ) : (
               movements.map((m, idx) => (
-                <tr key={idx} className="hover:bg-[#f0f7ff]">
+                <tr key={idx} className="hover:bg-brand-tint">
                   <td className="px-4 py-3 text-sm text-gray-700">
                     {new Date(m.performed_at).toLocaleString('en-GB')}
                   </td>

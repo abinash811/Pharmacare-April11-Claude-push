@@ -5,39 +5,39 @@ import React from 'react';
  */
 const STATUS_STYLES = {
   // Payment statuses
-  paid: 'bg-green-100 text-green-700',
-  cash: 'bg-green-100 text-green-700',
-  completed: 'bg-green-100 text-green-700',
-  active: 'bg-green-100 text-green-700',
-  confirmed: 'bg-green-100 text-green-700',
+  paid: 'bg-green-50 text-green-700',
+  cash: 'bg-green-50 text-green-700',
+  completed: 'bg-green-50 text-green-700',
+  active: 'bg-green-50 text-green-700',
+  confirmed: 'bg-green-50 text-green-700',
   
   // Warning/pending statuses - Amber for warnings
-  due: 'bg-amber-100 text-amber-700',
-  unpaid: 'bg-amber-100 text-amber-700',
-  overdue: 'bg-red-100 text-red-700',
-  cancelled: 'bg-red-100 text-red-700',
-  inactive: 'bg-red-100 text-red-700',
+  due: 'bg-amber-50 text-amber-700',
+  unpaid: 'bg-amber-50 text-amber-700',
+  overdue: 'bg-red-50 text-red-700',
+  cancelled: 'bg-red-50 text-red-700',
+  inactive: 'bg-red-50 text-red-700',
   
   // Partial/pending statuses
-  partial: 'bg-amber-100 text-amber-700',
-  parked: 'bg-amber-100 text-amber-700',
-  pending: 'bg-amber-100 text-amber-700',
-  draft: 'bg-amber-100 text-amber-700',
+  partial: 'bg-amber-50 text-amber-700',
+  parked: 'bg-amber-50 text-amber-700',
+  pending: 'bg-amber-50 text-amber-700',
+  draft: 'bg-amber-50 text-amber-700',
   
   // Info statuses
-  upi: 'bg-blue-100 text-blue-700',
-  credit: 'bg-purple-100 text-purple-700',
-  card: 'bg-purple-100 text-purple-700',
-  adjusted: 'bg-purple-100 text-purple-700',
+  upi: 'bg-blue-50 text-blue-700',
+  credit: 'bg-purple-50 text-purple-700',
+  card: 'bg-purple-50 text-purple-700',
+  adjusted: 'bg-purple-50 text-purple-700',
   
   // Sales returns specific - human readable labels
   same_as_original: 'bg-gray-100 text-gray-700',
-  credit_to_account: 'bg-purple-100 text-purple-700',
+  credit_to_account: 'bg-purple-50 text-purple-700',
   
   // Customer types
-  regular: 'bg-blue-100 text-blue-700',
-  wholesale: 'bg-purple-100 text-purple-700',
-  institution: 'bg-green-100 text-green-700',
+  regular: 'bg-blue-50 text-blue-700',
+  wholesale: 'bg-purple-50 text-purple-700',
+  institution: 'bg-green-50 text-green-700',
   
   // Default
   default: 'bg-gray-100 text-gray-700'

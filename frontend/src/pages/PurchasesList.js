@@ -213,7 +213,7 @@ export default function PurchasesList() {
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-[#f0f7ff] cursor-pointer"
+                      className="hover:bg-brand-tint cursor-pointer"
                       onClick={() => navigate(`/purchases/${item.id}`)}
                       data-testid={`purchase-row-${item.id}`}
                     >
@@ -224,7 +224,7 @@ export default function PurchasesList() {
                           {isParked ? (
                             <StatusBadge status="parked" />
                           ) : (
-                            <span className="font-mono text-sm font-semibold text-[#4682B4]">
+                            <span className="font-mono text-sm font-semibold text-brand">
                               #{item.purchase_number?.replace(/^#/, '') || item.id?.slice(-6)}
                             </span>
                           )}
@@ -261,7 +261,7 @@ export default function PurchasesList() {
                         {badge.clickable ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); openPayModal(item); }}
-                            className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 hover:opacity-80"
+                            className="px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 hover:opacity-80"
                             data-testid={`pay-${item.id}`}
                           >
                             {badge.label}

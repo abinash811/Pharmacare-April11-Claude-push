@@ -167,7 +167,7 @@ export default function StockMovementLog() {
                 movements.map((m) => {
                   const isPositive = (m.qty_delta_units || 0) > 0;
                   return (
-                    <tr key={m.id} className="hover:bg-[#f0f7ff]" data-testid={`movement-row-${m.id}`}>
+                    <tr key={m.id} className="hover:bg-brand-tint" data-testid={`movement-row-${m.id}`}>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm text-gray-700">{formatDateShort(m.performed_at)}</div>
                         <div className="text-xs text-gray-400">{formatTime(m.performed_at)}</div>

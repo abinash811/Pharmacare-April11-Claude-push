@@ -23,16 +23,16 @@ import usePagination from '@/hooks/usePagination';
 // ── Action badge styles ──────────────────────────────────────────────────────
 function ActionBadge({ action }) {
   const styles = {
-    create: 'bg-green-100 text-green-700',
-    update: 'bg-blue-100 text-blue-700',
-    delete: 'bg-red-100 text-red-700',
-    login:  'bg-purple-100 text-purple-700',
+    create: 'bg-green-50 text-green-700',
+    update: 'bg-blue-50 text-blue-700',
+    delete: 'bg-red-50 text-red-700',
+    login:  'bg-purple-50 text-purple-700',
     logout: 'bg-gray-100 text-gray-600',
-    bill_finalized:    'bg-green-100 text-green-700',
-    bill_parked:       'bg-amber-100 text-amber-700',
-    stock_adjusted:    'bg-orange-100 text-orange-700',
-    payment_recorded:  'bg-green-100 text-green-700',
-    return_processed:  'bg-pink-100 text-pink-700',
+    bill_finalized:    'bg-green-50 text-green-700',
+    bill_parked:       'bg-amber-50 text-amber-700',
+    stock_adjusted:    'bg-orange-50 text-orange-700',
+    payment_recorded:  'bg-green-50 text-green-700',
+    return_processed:  'bg-pink-50 text-pink-700',
   };
   const label = action?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
   const cls   = styles[action?.toLowerCase()] || 'bg-gray-100 text-gray-600';
@@ -204,7 +204,7 @@ export default function AuditLog() {
                 displayLogs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr
-                      className="hover:bg-[#f0f7ff] cursor-pointer"
+                      className="hover:bg-brand-tint cursor-pointer"
                       onClick={() => toggleExpand(log.id)}
                       data-testid={`audit-row-${log.id}`}
                     >

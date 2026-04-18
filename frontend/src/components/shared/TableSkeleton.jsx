@@ -84,7 +84,7 @@ export function PageSkeleton() {
 export function InlineLoader({ text = 'Loading...' }) {
   return (
     <div className="flex items-center justify-center gap-2 py-4 text-gray-400">
-      <div className="w-4 h-4 border-2 border-[#4682B4] border-t-transparent rounded-full animate-spin" />
+      <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       <span className="text-sm">{text}</span>
     </div>
   );

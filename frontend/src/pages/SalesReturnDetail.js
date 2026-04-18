@@ -79,9 +79,9 @@ export default function SalesReturnDetail() {
 
   const getPaymentBadge = (method) => {
     const badges = {
-      'cash': { bg: 'bg-green-100', text: 'text-green-700', label: 'Cash' },
-      'upi': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'UPI' },
-      'credit_to_account': { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Credit' },
+      'cash': { bg: 'bg-green-50', text: 'text-green-700', label: 'Cash' },
+      'upi': { bg: 'bg-blue-50', text: 'text-blue-700', label: 'UPI' },
+      'credit_to_account': { bg: 'bg-purple-50', text: 'text-purple-700', label: 'Credit' },
       'same_as_original': { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Same as Original' }
     };
     return badges[method] || { bg: 'bg-gray-100', text: 'text-gray-700', label: method || 'N/A' };
@@ -145,9 +145,9 @@ export default function SalesReturnDetail() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Sales</Link>
+                <Link to="/billing" className="hover:text-brand transition-colors">Sales</Link>
                 <span>/</span>
-                <Link to="/billing/returns" className="hover:text-[#4682B4] transition-colors">Returns</Link>
+                <Link to="/billing/returns" className="hover:text-brand transition-colors">Returns</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">#{returnData.return_no}</h1>
@@ -219,7 +219,7 @@ export default function SalesReturnDetail() {
           <div className="flex items-center gap-6">
             <div>
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Return No.</span>
-              <span className="font-mono text-sm font-bold text-[#4682B4]">#{returnData.return_no}</span>
+              <span className="font-mono text-sm font-bold text-brand">#{returnData.return_no}</span>
             </div>
             {returnData.original_bill_no && (
               <div>
@@ -266,7 +266,7 @@ export default function SalesReturnDetail() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {returnData.items?.map((item, index) => (
-                  <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={item.id || index} className="hover:bg-brand-tint/50 transition-colors">
                     <td className="px-4 py-2">
                       <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                       {item.is_damaged && (
@@ -308,7 +308,7 @@ export default function SalesReturnDetail() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Amount</span>
-              <span className="text-2xl font-black text-red-600">₹{(returnData.net_amount || 0).toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{(returnData.net_amount || 0).toFixed(2)}</span>
             </div>
           </div>
         </section>
@@ -368,7 +368,7 @@ export default function SalesReturnDetail() {
                 <button
                   onClick={handleNonFinancialEdit}
                   disabled={isSaving}
-                  className="w-full px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] disabled:opacity-50"
+                  className="w-full px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark disabled:opacity-50"
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>

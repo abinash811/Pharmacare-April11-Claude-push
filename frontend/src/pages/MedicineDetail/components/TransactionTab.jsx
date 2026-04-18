@@ -11,16 +11,16 @@ import { InlineLoader } from '@/components/shared';
 import { formatDate } from '@/utils/dates';
 
 const STATUS_COLORS = {
-  paid:               'bg-green-100 text-green-700',
-  received:           'bg-green-100 text-green-700',
-  confirmed:          'bg-green-100 text-green-700',
-  refunded:           'bg-green-100 text-green-700',
-  partially_received: 'bg-yellow-100 text-yellow-700',
-  pending:            'bg-yellow-100 text-yellow-700',
-  due:                'bg-red-100 text-red-700',
+  paid:               'bg-green-50 text-green-700',
+  received:           'bg-green-50 text-green-700',
+  confirmed:          'bg-green-50 text-green-700',
+  refunded:           'bg-green-50 text-green-700',
+  partially_received: 'bg-yellow-50 text-yellow-700',
+  pending:            'bg-yellow-50 text-yellow-700',
+  due:                'bg-red-50 text-red-700',
   draft:              'bg-gray-100 text-gray-700',
 };
-const statusClass = (s) => STATUS_COLORS[s] || 'bg-blue-100 text-blue-700';
+const statusClass = (s) => STATUS_COLORS[s] || 'bg-blue-50 text-blue-700';
 
 const CONFIG = {
   purchases: {
@@ -28,7 +28,7 @@ const CONFIG = {
     key: 'purchases',
     cols: ['Purchase #','Date','Supplier','Invoice #','Batch','Qty','Cost','MRP','Total','Status'],
     row: (t) => [
-      <span className="font-medium text-[#4682B4]">{t.purchase_number}</span>,
+      <span className="font-medium text-brand">{t.purchase_number}</span>,
       formatDate(t.date), t.supplier_name, t.supplier_invoice, t.batch_no,
       <span className="font-medium">{t.quantity}</span>,
       `₹${t.cost_price?.toFixed(2)}`, `₹${t.mrp?.toFixed(2)}`,
@@ -59,7 +59,7 @@ const CONFIG = {
     key: 'sales',
     cols: ['Bill #','Date','Customer','Batch','Qty','Unit Price','Discount','Total','Status'],
     row: (t) => [
-      <span className="font-medium text-[#4682B4]">{t.bill_number}</span>,
+      <span className="font-medium text-brand">{t.bill_number}</span>,
       formatDate(t.date), t.customer_name, t.batch_no,
       <span className="font-medium">{t.quantity}</span>,
       `₹${t.unit_price?.toFixed(2)}`,
@@ -122,7 +122,7 @@ export default function TransactionTab({ type, transactions, loading }) {
                 <tr><td colSpan={cfg.colSpan} className="px-4 py-12 text-center text-gray-500">{cfg.emptyMsg}</td></tr>
               ) : (
                 rows.map((txn, idx) => (
-                  <tr key={idx} className="hover:bg-[#f0f7ff]">
+                  <tr key={idx} className="hover:bg-brand-tint">
                     {cfg.row(txn).map((cell, i) => (
                       <td key={i} className={`px-4 py-3 text-sm text-gray-700 ${
                         ['Cost','MRP','Total','Amount','Unit Price','Discount','Refund Amount'].includes(cfg.cols[i]) ? 'text-right' :

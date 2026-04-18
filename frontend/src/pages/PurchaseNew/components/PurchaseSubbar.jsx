@@ -54,7 +54,7 @@ export default function PurchaseSubbar({
           <Popover open={showBillDatePicker} onOpenChange={setShowBillDatePicker}>
             <PopoverTrigger asChild>
               <button
-                className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-[#4682B4] transition-colors"
+                className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
                 data-testid="bill-date-btn"
               >
                 {fmt(billDate)}
@@ -95,7 +95,7 @@ export default function PurchaseSubbar({
             value={supplierInvoiceNo}
             onChange={(e) => onInvoiceNoChange(e.target.value)}
             placeholder="—"
-            className="w-24 text-sm font-medium text-gray-900 bg-transparent border-none focus:outline-none focus:border-b focus:border-[#4682B4] placeholder-gray-300"
+            className="w-24 text-sm font-medium text-gray-900 bg-transparent border-none focus:outline-none focus:border-b focus:border-brand placeholder-gray-300"
             data-testid="invoice-no-input"
           />
         </div>

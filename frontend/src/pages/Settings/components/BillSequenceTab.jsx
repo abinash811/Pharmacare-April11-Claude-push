@@ -67,10 +67,10 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
                   </tr>
                 ) : (
                   billSequences.map((seq, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
+                    <tr key={idx} className="hover:bg-brand-tint">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{seq.document_type}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-800 text-sm font-mono rounded">{seq.prefix}</span>
+                        <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-800 text-sm font-mono rounded">{seq.prefix}</span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {seq.current_sequence > 0 ? seq.current_sequence : 'Not used yet'}
@@ -146,7 +146,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
 
           <div className="flex items-center gap-3 mt-6 pt-4 border-t border-blue-200">
             <button onClick={handleSave}
-              className="px-6 py-2 bg-[#4682B4] text-white font-medium rounded hover:bg-[#3a6fa0] flex items-center gap-2"
+              className="px-6 py-2 bg-brand text-white font-medium rounded hover:bg-[#3a6fa0] flex items-center gap-2"
               data-testid="save-sequence-btn">
               <Save className="w-4 h-4" />
               Save Sequence Settings

@@ -77,7 +77,7 @@ export default function BillingHeader({
 
           <div>
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-0.5">
-              <Link to="/billing" className="hover:text-[#4682B4] transition-colors">
+              <Link to="/billing" className="hover:text-brand transition-colors">
                 Bills
               </Link>
               <span>/</span>
@@ -155,7 +155,7 @@ export default function BillingHeader({
             <button
               onClick={onFinalise}
               disabled={isSaving}
-              className="px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] flex items-center gap-1.5 transition-colors disabled:opacity-60"
+              className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-1.5 transition-colors disabled:opacity-60"
               data-testid="finalise-btn"
             >
               <CheckCircle className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function BillingHeader({
             {loadedBill.status === 'due' && (
               <button
                 onClick={onCollectPayment}
-                className="px-4 py-2 bg-[#4682B4] text-white rounded-lg text-sm font-semibold hover:bg-[#3a6d96] flex items-center gap-2 transition-colors"
+                className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-2 transition-colors"
                 data-testid="collect-payment-btn"
               >
                 <CreditCard className="w-4 h-4" />

@@ -49,7 +49,7 @@ export default function InsightsList({ topProducts, topCustomers }) {
                   name={product.name}
                   sub={`${product.qty} units sold`}
                   value={product.revenue}
-                  rankColor="bg-blue-100 text-blue-600"
+                  rankColor="bg-blue-50 text-blue-600"
                   valueColor="text-green-600"
                 />
               ))}
@@ -81,7 +81,7 @@ export default function InsightsList({ topProducts, topCustomers }) {
                   name={customer.name}
                   sub={`${customer.bills} orders`}
                   value={customer.revenue}
-                  rankColor="bg-purple-100 text-purple-600"
+                  rankColor="bg-purple-50 text-purple-600"
                   valueColor="text-purple-600"
                 />
               ))}

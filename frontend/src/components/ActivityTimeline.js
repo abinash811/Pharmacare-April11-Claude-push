@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, User, FileText, DollarSign, Package, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,13 +50,13 @@ export default function ActivityTimeline({ entityType, entityId }) {
   const getActionColor = (action) => {
     switch (action) {
       case 'create':
-        return 'bg-green-100 border-green-200';
+        return 'bg-green-50 border-green-200';
       case 'update':
-        return 'bg-blue-100 border-blue-200';
+        return 'bg-blue-50 border-blue-200';
       case 'delete':
-        return 'bg-red-100 border-red-200';
+        return 'bg-red-50 border-red-200';
       case 'status_change':
-        return 'bg-orange-100 border-orange-200';
+        return 'bg-orange-50 border-orange-200';
       default:
         return 'bg-gray-100 border-gray-200';
     }

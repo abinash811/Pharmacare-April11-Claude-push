@@ -85,7 +85,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
     <div className="relative" ref={containerRef}>
       <button
         onClick={handleOpen}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:border-[#4682B4] transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:border-brand transition-colors"
         data-testid="doctor-chip"
       >
         <Stethoscope className="w-4 h-4 text-gray-400" />
@@ -105,7 +105,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
               value={query}
               onChange={handleQueryChange}
               autoFocus
-              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4682B4]"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
               data-testid="doctor-search-input"
             />
           </div>

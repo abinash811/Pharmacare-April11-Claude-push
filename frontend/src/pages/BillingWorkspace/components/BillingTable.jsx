@@ -88,13 +88,13 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
           <tbody className="divide-y divide-slate-100">
             {/* ── Add-medicine search row (top, new/edit only) ─────────── */}
             {!isView && (
-              <tr className="bg-[#f0f7ff] border-b border-[#4682B4]/10">
+              <tr className="bg-brand-tint border-b border-brand/10">
                 <td className="px-4 py-2.5 text-xs font-medium text-gray-300">
                   {String(billItems.length + 1).padStart(2, '0')}
                 </td>
                 <td className="px-4 py-2.5 relative" colSpan="8">
                   <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-[#4682B4] shrink-0" />
+                    <Search className="w-4 h-4 text-brand shrink-0" />
                     <input
                       ref={searchInputRef}
                       type="text"
@@ -124,7 +124,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                           {product.batches?.map((batch) => (
                             <div
                               key={batch.batch_no}
-                              className="px-3 py-2 hover:bg-[#f0f7ff] cursor-pointer flex items-center justify-between"
+                              className="px-3 py-2 hover:bg-brand-tint cursor-pointer flex items-center justify-between"
                               onClick={() => handleAddItem(product, batch)}
                             >
                               <div className="flex items-center gap-4">
@@ -154,14 +154,14 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
               const isRx        = item.schedule === 'H' || item.schedule === 'H1' || item.scheduleH;
 
               return (
-                <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
+                <tr key={item.id} className="group hover:bg-brand-tint/50 transition-colors">
                   <td className="px-4 py-2 text-xs font-medium text-gray-400">{String(index + 1).padStart(2, '0')}</td>
 
                   <td className="px-4 py-2">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-900">{item.product_name}</span>
-                        {isRx && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded">Rx</span>}
+                        {isRx && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">Rx</span>}
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400">
                         <span className="font-mono">{item.batch_no}</span>
@@ -176,7 +176,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
 
                   {/* Batch cell + panel */}
                   <td className="px-4 py-2 relative">
-                    <button onClick={() => openBatchPanel(index)} className="text-xs font-mono hover:text-[#4682B4] hover:underline" data-testid={`batch-select-${index}`}>
+                    <button onClick={() => openBatchPanel(index)} className="text-xs font-mono hover:text-brand hover:underline" data-testid={`batch-select-${index}`}>
                       {item.batch_no}
                     </button>
                     {showBatchPanel === index && batchPanelData.length > 0 && (
@@ -184,7 +184,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-600">Select Batch</span>
                           <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                            <input type="checkbox" checked={hidZeroStock} onChange={(e) => setHidZeroStock(e.target.checked)} className="rounded border-gray-300 text-[#4682B4] focus:ring-[#4682B4]" />
+                            <input type="checkbox" checked={hidZeroStock} onChange={(e) => setHidZeroStock(e.target.checked)} className="rounded border-gray-300 text-brand focus:ring-brand" />
                             Hide zero stock
                           </label>
                         </div>
@@ -194,7 +194,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <div className="max-h-40 overflow-y-auto">
                           {batchPanelData.filter(b => !hidZeroStock || b.qty_on_hand > 0).map((batch) => (
                             <div key={batch.id || batch.batch_no} onClick={() => handleSelectBatch(index, batch)}
-                              className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 ${batch.batch_no === item.batch_no ? 'bg-[#4682B4]/10 text-[#4682B4]' : 'hover:bg-gray-50'}`}>
+                              className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
                               <span className={isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_date)}</span>
                               <span className="text-right font-semibold">₹{(batch.mrp_per_unit||0).toFixed(2)}</span>

@@ -47,6 +47,36 @@ module.exports = [
       // General — turn off noisy rules that CRA normally ignores
       'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
       'no-console':     'off',
+
+      // ── PharmaCare design system enforcement ──────────────────────────
+      // These rules prevent design regressions from being committed.
+      'no-restricted-syntax': [
+        'error',
+        // Ban raw axios import outside lib/axios
+        {
+          selector: "ImportDeclaration[source.value='axios'] ImportDefaultSpecifier",
+          message:  "Use `import api from '@/lib/axios'` — never import axios directly. See PHARMACARE_DESIGN_SKILL.md.",
+        },
+        // Ban window.confirm — use Shadcn ConfirmDialog instead
+        {
+          selector: "CallExpression[callee.object.name='window'][callee.property.name='confirm']",
+          message:  "Use <ConfirmDialog> from '@/components/shared' — never window.confirm(). See PHARMACARE_DESIGN_SKILL.md.",
+        },
+        // Ban teal color classes
+        {
+          selector: "Literal[value=/\\bteal-[3-9]\\b/]",
+          message:  "Teal colors are banned. Use Steel Blue classes (bg-brand, text-brand). See PHARMACARE_DESIGN_SKILL.md.",
+        },
+      ],
+      // Ban hardcoded hex Steel Blue strings — use brand tokens from tailwind.config.js
+      'no-restricted-properties': [
+        'warn',
+        {
+          object:   'undefined',
+          property: '4682B4',
+          message:  "Use `bg-brand` / `text-brand` Tailwind tokens instead of hardcoded #4682B4.",
+        },
+      ],
     },
   },
 

@@ -27,8 +27,8 @@ function SalesTable({ data }) {
             <p>No sales data for selected period</p>
           </td></tr>
         ) : data.map((row, idx) => (
-          <tr key={idx} className="hover:bg-[#f0f7ff]">
-            <td className="px-4 py-3 font-medium text-[#4682B4]">{row.bill_number}</td>
+          <tr key={idx} className="hover:bg-brand-tint">
+            <td className="px-4 py-3 font-medium text-brand">{row.bill_number}</td>
             <td className="px-4 py-3 text-sm">{row.date}</td>
             <td className="px-4 py-3">{row.customer_name || 'Walk-in'}</td>
             <td className="px-4 py-3 text-center">{row.items_count}</td>
@@ -61,7 +61,7 @@ function LowStockTable({ data }) {
             <p>All items have adequate stock levels</p>
           </td></tr>
         ) : data.map((row, idx) => (
-          <tr key={idx} className="hover:bg-[#f0f7ff]">
+          <tr key={idx} className="hover:bg-brand-tint">
             <td className="px-4 py-3">
               <div className="font-medium">{row.product_name}</div>
               <div className="text-xs text-gray-500">SKU: {row.sku}</div>
@@ -69,12 +69,12 @@ function LowStockTable({ data }) {
             <td className="px-4 py-3 text-center font-semibold text-red-600">{row.current_stock}</td>
             <td className="px-4 py-3 text-center">{row.reorder_level}</td>
             <td className="px-4 py-3 text-center">
-              <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-sm font-medium">-{row.shortage}</span>
+              <span className="px-2 py-1 bg-red-50 text-red-700 rounded text-sm font-medium">-{row.shortage}</span>
             </td>
             <td className="px-4 py-3 text-center">
               {row.current_stock === 0
                 ? <span className="px-2 py-1 bg-red-500 text-white rounded-full text-xs">Out of Stock</span>
-                : <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs">Low Stock</span>}
+                : <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-xs">Low Stock</span>}
             </td>
           </tr>
         ))}
@@ -86,9 +86,9 @@ function LowStockTable({ data }) {
 // ── Expiry ────────────────────────────────────────────────────────────────────
 function ExpiryDaysBadge({ days }) {
   if (days < 0)  return <span className="px-2 py-1 bg-red-500 text-white rounded-full text-xs font-medium">Expired</span>;
-  if (days <= 7) return <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">{days} days</span>;
-  if (days <= 30) return <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">{days} days</span>;
-  return <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">{days} days</span>;
+  if (days <= 7) return <span className="px-2 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium">{days} days</span>;
+  if (days <= 30) return <span className="px-2 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">{days} days</span>;
+  return <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium">{days} days</span>;
 }
 
 function ExpiryTable({ data, expiryDays }) {
@@ -108,7 +108,7 @@ function ExpiryTable({ data, expiryDays }) {
             <p>No items expiring within {expiryDays} days</p>
           </td></tr>
         ) : data.map((row, idx) => (
-          <tr key={idx} className={`hover:bg-[#f0f7ff] ${row.days_to_expiry < 0 ? 'bg-red-50' : ''}`}>
+          <tr key={idx} className={`hover:bg-brand-tint ${row.days_to_expiry < 0 ? 'bg-red-50' : ''}`}>
             <td className="px-4 py-3 font-medium">{row.product_name}</td>
             <td className="px-4 py-3"><span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{row.batch_no}</span></td>
             <td className="px-4 py-3 text-center">{row.qty}</td>
@@ -129,7 +129,7 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       <div className="p-6 text-center text-gray-500">
         <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
         <p>Full inventory report available in Inventory section</p>
-        <a href="/inventory-v2" className="inline-block mt-4 px-4 py-2 border rounded-md text-sm hover:bg-[#f0f7ff]">
+        <a href="/inventory-v2" className="inline-block mt-4 px-4 py-2 border rounded-md text-sm hover:bg-brand-tint">
           Go to Inventory
         </a>
       </div>

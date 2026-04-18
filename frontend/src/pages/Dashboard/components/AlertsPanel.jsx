@@ -22,7 +22,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
               <AlertCircle className="w-4 h-4 text-orange-500" />
               <CardTitle className="text-base font-semibold">Low Stock</CardTitle>
             </div>
-            <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-medium">
+            <span className="text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded-full font-medium">
               {quickStats?.low_stock_count || 0} items
             </span>
           </div>
@@ -58,7 +58,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
               <AlertTriangle className="w-4 h-4 text-red-500" />
               <CardTitle className="text-base font-semibold">Expiring Soon</CardTitle>
             </div>
-            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-medium">
+            <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full font-medium">
               {quickStats?.expiring_count || 0} items
             </span>
           </div>
@@ -99,7 +99,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
             <div className="space-y-2">
               {recentBills.map((bill, idx) => (
                 <div key={idx}
-                  className="flex justify-between items-center p-2 bg-blue-50 rounded-lg text-sm cursor-pointer hover:bg-blue-100"
+                  className="flex justify-between items-center p-2 bg-blue-50 rounded-lg text-sm cursor-pointer hover:bg-blue-50"
                   onClick={() => onNavigate(`/billing/${bill.id}`)}>
                   <div>
                     <p className="font-medium text-gray-800">{bill.bill_number}</p>

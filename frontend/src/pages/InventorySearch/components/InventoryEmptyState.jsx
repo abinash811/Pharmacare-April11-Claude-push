@@ -20,7 +20,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
         <div className="relative mb-6">
           <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center">
             <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center">
-              <Package className="w-12 h-12 text-[#4682B4]" />
+              <Package className="w-12 h-12 text-brand" />
             </div>
           </div>
           <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-lg shadow-md flex items-center justify-center">
@@ -44,7 +44,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
           </button>
           <button
             onClick={onViewLowStock}
-            className="px-5 py-2.5 bg-[#4682B4] text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
+            className="px-5 py-2.5 bg-brand text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
             data-testid="view-low-stock-btn"
           >
             View Low Stock
@@ -56,7 +56,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
       <div className="grid grid-cols-3 gap-4 p-6 border-t border-gray-100">
         <div className="bg-[#F0F9FF] rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
               <Package className="w-5 h-5 text-blue-600" />
             </div>
             <div>
@@ -67,7 +67,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
         </div>
         <div className="bg-[#FEF3F2] rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
@@ -78,7 +78,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
         </div>
         <div className="bg-amber-50 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>

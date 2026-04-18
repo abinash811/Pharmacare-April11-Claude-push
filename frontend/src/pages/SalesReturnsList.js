@@ -188,12 +188,12 @@ export default function SalesReturnsList() {
                 returns.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-[#f0f7ff] cursor-pointer"
+                    className="hover:bg-brand-tint cursor-pointer"
                     onClick={() => navigate(`/billing/returns/${item.id}`)}
                     data-testid={`return-row-${item.return_no}`}
                   >
                     <td className="px-4 py-3">
-                      <span className="font-mono text-sm font-semibold text-[#4682B4]">
+                      <span className="font-mono text-sm font-semibold text-brand">
                         #{item.return_no}
                       </span>
                     </td>

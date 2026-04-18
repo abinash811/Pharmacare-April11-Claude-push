@@ -27,7 +27,7 @@ export default function ScheduleHWarning({ open, onCancel, onConfirm }) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-amber-600 text-xl">medication</span>
             </div>
             <div>

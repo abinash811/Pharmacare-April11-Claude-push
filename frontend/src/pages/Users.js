@@ -154,10 +154,10 @@ export default function Users() {
 
   const getRoleBadge = (role) => {
     const styles = {
-      admin: 'bg-purple-100 text-purple-800',
-      manager: 'bg-blue-100 text-blue-800',
-      cashier: 'bg-green-100 text-green-800',
-      inventory_staff: 'bg-orange-100 text-orange-800',
+      admin: 'bg-purple-50 text-purple-800',
+      manager: 'bg-blue-50 text-blue-800',
+      cashier: 'bg-green-50 text-green-800',
+      inventory_staff: 'bg-orange-50 text-orange-800',
     };
     const labels = {
       admin: 'Admin',
@@ -251,7 +251,7 @@ export default function Users() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {pageUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-[#f0f7ff]">
+                  <tr key={user.id} className="hover:bg-brand-tint">
                     <td className="px-6 py-4">
                       <div className="font-medium">{user.name}</div>
                     </td>
@@ -259,12 +259,12 @@ export default function Users() {
                     <td className="px-6 py-4">{getRoleBadge(user.role)}</td>
                     <td className="px-6 py-4 text-center">
                       {user.is_active ? (
-                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-green-50 text-green-800">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Active
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2 py-1 text-xs rounded-full bg-red-50 text-red-800">
                           <XCircle className="w-3 h-3 mr-1" />
                           Inactive
                         </span>

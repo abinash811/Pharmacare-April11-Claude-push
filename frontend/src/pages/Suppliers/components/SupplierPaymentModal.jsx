@@ -13,7 +13,7 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
   const [amount, setAmount] = useState('');
   const [note,   setNote]   = useState('');
 
-  const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4682B4]';
+  const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
   const handleSubmit = () => {
     if (!amount || parseFloat(amount) <= 0) { toast.error('Please enter a valid amount'); return; }
@@ -57,7 +57,7 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
           <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
             Cancel
           </button>
-          <button onClick={handleSubmit} className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg bg-[#4682B4]" data-testid="confirm-payment-btn">
+          <button onClick={handleSubmit} className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg bg-brand" data-testid="confirm-payment-btn">
             Record Payment
           </button>
         </div>

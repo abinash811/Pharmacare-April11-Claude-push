@@ -13,6 +13,18 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+		// ── PharmaCare brand tokens ──────────────────────────────────────────
+		// Use these instead of raw hex. Change here → updates everywhere.
+		//   text-brand / bg-brand         → #4682B4  (Steel Blue, primary)
+		//   hover:bg-brand-dark           → #3a6d96  (hover on primary)
+		//   bg-brand-tint                 → #f0f7ff  (table row hover)
+		//   bg-brand-subtle               → #4682B4/10% (selected rows)
+		'brand': {
+			DEFAULT:  '#4682B4',
+			dark:     '#3a6d96',
+			tint:     '#f0f7ff',
+			subtle:   'rgba(70,130,180,0.10)',
+		},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

@@ -8,7 +8,7 @@
  */
 import React, { useState } from 'react';
 
-const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4682B4]';
+const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
 export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onConfirm, onClose }) {
   const [field, setField] = useState('');
@@ -77,7 +77,7 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
 
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button onClick={handleConfirm} disabled={!field || value === ''} className="px-4 py-2 bg-[#4682B4] text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50" data-testid="confirm-bulk-update">
+          <button onClick={handleConfirm} disabled={!field || value === ''} className="px-4 py-2 bg-brand text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50" data-testid="confirm-bulk-update">
             Confirm &amp; Apply
           </button>
         </div>

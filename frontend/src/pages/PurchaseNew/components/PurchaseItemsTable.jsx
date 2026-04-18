@@ -59,7 +59,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
             placeholder="Search medicine by name or SKU..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4682B4] focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
             data-testid="product-search"
           />
           {showSearchResults && searchResults.length > 0 && (
@@ -75,7 +75,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                     <div className="text-right">
                       <div className="text-xs font-bold text-gray-700">MRP ₹{product.default_mrp_per_unit}</div>
                       {product.landing_price_per_unit && (
-                        <div className="text-[10px] text-[#4682B4]">LP ₹{product.landing_price_per_unit}</div>
+                        <div className="text-[10px] text-brand">LP ₹{product.landing_price_per_unit}</div>
                       )}
                     </div>
                   </div>
@@ -115,7 +115,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                   const total = lineTotal + (withGST ? lineTotal * (gst / 100) : 0);
                   const inp = 'w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400';
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50/50">
+                    <tr key={item.id} className="hover:bg-brand-tint/50">
                       <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                       <td className="px-3 py-2">
                         <div className="text-sm font-medium text-gray-800 truncate">{item.product_name}</div>

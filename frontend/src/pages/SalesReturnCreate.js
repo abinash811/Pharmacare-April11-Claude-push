@@ -252,9 +252,9 @@ export default function SalesReturnCreate() {
             </button>
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-[#4682B4] transition-colors">Sales</Link>
+                <Link to="/billing" className="hover:text-brand transition-colors">Sales</Link>
                 <span>/</span>
-                <Link to="/billing/returns" className="hover:text-[#4682B4] transition-colors">Sales Return Order</Link>
+                <Link to="/billing/returns" className="hover:text-brand transition-colors">Sales Return Order</Link>
                 <span>/</span>
               </div>
               <h1 className="text-xl font-bold text-gray-900">Sales Return</h1>
@@ -349,7 +349,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-4 py-1.5 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-1.5 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]"
+              className="px-4 py-1.5 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-1.5 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
               data-testid="save-btn"
             >
               <span className="material-symbols-outlined text-base">check_circle</span>
@@ -387,7 +387,7 @@ export default function SalesReturnCreate() {
                   const lineTotal = afterDisc + gst;
                   
                   return (
-                    <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
+                    <tr key={item.id} className="group hover:bg-brand-tint/50 transition-colors">
                       <td className="px-4 py-2">
                         <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -484,7 +484,7 @@ export default function SalesReturnCreate() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Refund Amount</span>
-              <span className="text-2xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
             </div>
           </div>
           
@@ -499,7 +499,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]"
+              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-brand"
               data-testid="save-return-btn"
             >
               Save Return
@@ -550,7 +550,7 @@ export default function SalesReturnCreate() {
                 <div className="pt-4 mt-4 border-t border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-base font-bold text-gray-900">Net Refund</span>
-                    <span className="text-xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+                    <span className="text-xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -587,7 +587,7 @@ export default function SalesReturnCreate() {
               <button
                 onClick={() => handleSave(false)}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-[#4682B4]"
+                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-brand"
                 data-testid="submit-btn"
               >
                 {isSaving ? 'Saving...' : 'Submit'}

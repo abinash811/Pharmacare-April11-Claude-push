@@ -82,7 +82,7 @@ export default function BillingSubbar({
             <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
               <PopoverTrigger asChild>
                 <button
-                  className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-[#4682B4] transition-colors"
+                  className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
                   data-testid="date-picker-btn"
                 >
                   {format(billDate, 'dd MMM yyyy')}
@@ -114,7 +114,7 @@ export default function BillingSubbar({
           ) : (
             <button
               onClick={onPatientChipClick}
-              className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-[#4682B4] transition-colors truncate max-w-full"
+              className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors truncate max-w-full"
               data-testid="patient-chip"
             >
               <span className={`truncate ${!customerName ? 'text-gray-400' : ''}`}>
@@ -192,7 +192,7 @@ export default function BillingSubbar({
           <>
             <button
               onClick={onBarcodeScan}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-[#4682B4] hover:text-[#4682B4] hover:bg-blue-50 transition-colors mr-3"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-brand hover:text-brand hover:bg-blue-50 transition-colors mr-3"
               title="Scan barcode (Ctrl+B)"
               data-testid="barcode-scan-btn"
             >

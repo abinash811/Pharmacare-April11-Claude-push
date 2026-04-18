@@ -20,7 +20,7 @@ import { format } from 'date-fns';
 
 const NumberInput = ({ value, onChange }) => (
   <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
-    className="w-24 px-2 py-1 text-sm text-right bg-gray-50 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#4682B4]" />
+    className="w-24 px-2 py-1 text-sm text-right bg-gray-50 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-brand" />
 );
 
 const Row = ({ label, children }) => (
@@ -109,7 +109,7 @@ export default function InvoiceBreakdownModal({
             <hr className="border-gray-100" />
 
             <Row label={<span className="text-base font-bold text-gray-800">Net Amount</span>}>
-              <span className="text-lg font-black text-[#4682B4]">
+              <span className="text-lg font-semibold tabular-nums text-brand">
                 ₹{breakdown.netAmount.toLocaleString()}
               </span>
             </Row>
@@ -130,7 +130,7 @@ export default function InvoiceBreakdownModal({
               onChange={(e) => onInternalNote(e.target.value)}
               placeholder="Add a note (optional)"
               rows={2}
-              className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4682B4]"
+              className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"
               data-testid="internal-note"
             />
           </div>
@@ -142,7 +142,7 @@ export default function InvoiceBreakdownModal({
             Cancel
           </button>
           <button onClick={onConfirm} disabled={loading}
-            className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-[#4682B4]" data-testid="confirm-save-btn">
+            className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-brand" data-testid="confirm-save-btn">
             {loading ? 'Saving...' : 'Confirm & Save'}
           </button>
         </div>

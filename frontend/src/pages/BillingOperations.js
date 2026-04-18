@@ -189,7 +189,7 @@ export default function BillingOperations() {
                   return (
                     <tr
                       key={bill.id}
-                      className="hover:bg-[#f0f7ff] cursor-pointer"
+                      className="hover:bg-brand-tint cursor-pointer"
                       onClick={() => navigate(`/billing/${bill.id}`)}
                       data-testid={`bill-row-${bill.id}`}
                     >
@@ -198,7 +198,7 @@ export default function BillingOperations() {
                           {isParked ? (
                             <StatusBadge status="parked" />
                           ) : (
-                            <span className="font-mono text-sm font-semibold text-[#4682B4]">
+                            <span className="font-mono text-sm font-semibold text-brand">
                               #{bill.bill_number?.replace(/^#/, '') || bill.id?.slice(-4)}
                             </span>
                           )}

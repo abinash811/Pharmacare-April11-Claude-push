@@ -9,10 +9,10 @@ import { TrendingUp, AlertCircle, Clock, Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 const REPORT_TYPES = [
-  { id: 'sales',     label: 'Sales Report',   sub: 'Daily & monthly sales',   Icon: TrendingUp, iconBg: 'bg-blue-100',   iconColor: 'text-blue-600',   ring: 'ring-blue-500' },
-  { id: 'low-stock', label: 'Low Stock',      sub: 'Items to reorder',         Icon: AlertCircle, iconBg: 'bg-orange-100', iconColor: 'text-orange-600', ring: 'ring-orange-500' },
-  { id: 'expiry',    label: 'Expiry Report',  sub: 'Expiring soon items',      Icon: Clock,      iconBg: 'bg-red-100',    iconColor: 'text-red-600',    ring: 'ring-red-500' },
-  { id: 'inventory', label: 'Stock Report',   sub: 'Current inventory',        Icon: Package,    iconBg: 'bg-green-100',  iconColor: 'text-green-600',  ring: 'ring-green-500' },
+  { id: 'sales',     label: 'Sales Report',   sub: 'Daily & monthly sales',   Icon: TrendingUp, iconBg: 'bg-blue-50',   iconColor: 'text-blue-600',   ring: 'ring-blue-500' },
+  { id: 'low-stock', label: 'Low Stock',      sub: 'Items to reorder',         Icon: AlertCircle, iconBg: 'bg-orange-50', iconColor: 'text-orange-600', ring: 'ring-orange-500' },
+  { id: 'expiry',    label: 'Expiry Report',  sub: 'Expiring soon items',      Icon: Clock,      iconBg: 'bg-red-50',    iconColor: 'text-red-600',    ring: 'ring-red-500' },
+  { id: 'inventory', label: 'Stock Report',   sub: 'Current inventory',        Icon: Package,    iconBg: 'bg-green-50',  iconColor: 'text-green-600',  ring: 'ring-green-500' },
 ];
 
 export default function ReportTypeCards({ activeReport, onSelect }) {

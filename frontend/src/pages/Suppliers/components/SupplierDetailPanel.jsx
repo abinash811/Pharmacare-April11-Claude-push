@@ -57,7 +57,7 @@ export default function SupplierDetailPanel({
         <div className="flex gap-6">
           {[['overview','Overview'],['history','Purchase History'],['outstanding','Outstanding']].map(([id, label]) => (
             <button key={id} onClick={() => onTabChange(id)}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === id ? 'border-[#4682B4] text-[#4682B4]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === id ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               data-testid={`detail-tab-${id}`}>
               {label}
             </button>
@@ -98,12 +98,12 @@ export default function SupplierDetailPanel({
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {purchaseHistory.map(p => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono text-[#4682B4]">{p.purchase_number}</td>
+                  <tr key={p.id} className="hover:bg-brand-tint">
+                    <td className="px-3 py-2 font-mono text-brand">{p.purchase_number}</td>
                     <td className="px-3 py-2 text-gray-700">{formatDate(p.purchase_date || p.created_at)}</td>
                     <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">₹{(p.net_amount || p.total_amount || 0).toFixed(2)}</td>
                     <td className="px-3 py-2 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.payment_status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.payment_status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {p.payment_status === 'paid' ? 'Paid' : 'Due'}
                       </span>
                     </td>
@@ -124,7 +124,7 @@ export default function SupplierDetailPanel({
                 </div>
               </div>
               <button onClick={onRecordPayment} disabled={outstanding <= 0}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]" data-testid="record-payment-btn">
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-brand" data-testid="record-payment-btn">
                 <Banknote className="w-4 h-4" />
                 Record Payment
               </button>
@@ -145,10 +145,10 @@ export default function SupplierDetailPanel({
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {supplier.payment_history.slice().reverse().map((pay, idx) => (
-                      <tr key={pay.id || idx} className="hover:bg-gray-50">
+                      <tr key={pay.id || idx} className="hover:bg-brand-tint">
                         <td className="px-3 py-2 text-gray-700">{formatDate(pay.date)}</td>
                         <td className="px-3 py-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pay.type === 'purchase_return' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${pay.type === 'purchase_return' ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
                             {pay.type === 'purchase_return' ? 'Return' : 'Payment'}
                           </span>
                         </td>

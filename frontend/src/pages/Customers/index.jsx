@@ -131,7 +131,7 @@ export default function Customers() {
               onClick={() => setActiveSection(key)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
                 active
-                  ? 'border-[#4682B4] text-[#4682B4]'
+                  ? 'border-brand text-brand'
                   : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
               }`}
               data-testid={`tab-${key}`}
@@ -139,7 +139,7 @@ export default function Customers() {
               <Icon className="w-4 h-4" />
               {label}
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                active ? 'bg-[#4682B4]/10 text-[#4682B4]' : 'bg-gray-100 text-gray-500'
+                active ? 'bg-brand-subtle text-brand' : 'bg-gray-100 text-gray-500'
               }`}>
                 {count}
               </span>
@@ -169,7 +169,7 @@ export default function Customers() {
           )}
           <button
             onClick={isCustomers ? handleAddCustomer : handleAddDoctor}
-            className="h-9 px-4 rounded-lg bg-[#4682B4] text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
+            className="h-9 px-4 rounded-lg bg-brand text-white text-sm font-semibold hover:bg-[#3a6fa0] transition-colors flex items-center gap-2"
             data-testid={isCustomers ? 'add-customer-btn' : 'add-doctor-btn'}
           >
             <Plus className="w-4 h-4" />

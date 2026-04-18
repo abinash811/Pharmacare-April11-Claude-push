@@ -20,6 +20,7 @@
 import React from 'react';
 import { Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import { AppButton } from '@/components/shared';
 
 export default function BillingFooter({
   viewMode,
@@ -104,14 +105,8 @@ export default function BillingFooter({
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 font-medium">Bill discount</span>
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => onBillDiscountTypeChange('%')}
-                className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '%' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
-              >%</button>
-              <button
-                onClick={() => onBillDiscountTypeChange('₹')}
-                className={`px-2 py-1.5 text-xs font-bold ${billDiscountType === '₹' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}
-              >₹</button>
+              <AppButton size="sm" variant={billDiscountType === '%' ? 'primary' : 'secondary'} onClick={() => onBillDiscountTypeChange('%')} className="rounded-none">%</AppButton>
+              <AppButton size="sm" variant={billDiscountType === '₹' ? 'primary' : 'secondary'} onClick={() => onBillDiscountTypeChange('₹')} className="rounded-none">₹</AppButton>
             </div>
             <input
               type="number"
@@ -133,33 +128,20 @@ export default function BillingFooter({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={onPrint}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center gap-2"
-            data-testid="footer-print-btn"
-          >
-            <Printer className="w-4 h-4" />
+          <AppButton variant="outline" icon={<Printer className="w-4 h-4" />} onClick={onPrint} data-testid="footer-print-btn">
             Print
-          </button>
+          </AppButton>
 
-          <button
-            onClick={handleWhatsApp}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 flex items-center gap-2"
-            data-testid="footer-whatsapp-btn"
-          >
+          <AppButton variant="secondary" onClick={handleWhatsApp} data-testid="footer-whatsapp-btn">
             <span className="material-symbols-outlined text-lg">share</span>
             WhatsApp
-          </button>
+          </AppButton>
 
           {!isView && (
-            <button
-              onClick={onFinalise}
-              className="px-6 py-2 rounded-lg text-sm font-bold text-white flex items-center gap-2 hover:bg-brand-dark transition-colors bg-brand"
-              data-testid="footer-finalise-btn"
-            >
+            <AppButton onClick={onFinalise} data-testid="footer-finalise-btn">
               <span className="material-symbols-outlined text-lg">check_circle</span>
               Finalise Bill
-            </button>
+            </AppButton>
           )}
         </div>
       </div>

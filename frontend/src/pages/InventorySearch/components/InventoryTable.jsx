@@ -17,6 +17,7 @@
 import React from 'react';
 import { Edit2, Scale, Package } from 'lucide-react';
 import { formatDate } from '@/utils/dates';
+import { AppButton } from '@/components/shared';
 
 const STATUS_CONFIG = {
   expired:      { label: 'Expired',      color: 'bg-red-50 text-red-700 border-red-200',       dot: 'bg-red-500' },
@@ -62,9 +63,9 @@ export default function InventoryTable({
           <span className="text-sm font-medium text-green-700">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </span>
-          <button onClick={onBulkUpdate} className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand-dark" data-testid="bulk-update-btn">
+          <AppButton onClick={onBulkUpdate} size="sm" data-testid="bulk-update-btn">
             Bulk Update
-          </button>
+          </AppButton>
         </div>
       )}
 

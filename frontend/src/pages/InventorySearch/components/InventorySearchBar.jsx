@@ -11,6 +11,7 @@
  */
 import React from 'react';
 import { Search, Filter, X } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 export default function InventorySearchBar({
   searchQuery,
@@ -62,14 +63,12 @@ export default function InventorySearchBar({
           {Object.entries(activeFilters).map(([key, value]) => (
             <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 text-sm font-medium rounded-lg">
               {key.replace('_', ' ')}: {value}
-              <button onClick={() => onRemoveFilter(key)} className="ml-1 hover:text-[#008080]" data-testid={`remove-filter-${key}`}>
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <AppButton variant="ghost" iconOnly icon={<X className="w-3.5 h-3.5" />} onClick={() => onRemoveFilter(key)} aria-label="Remove filter" data-testid={`remove-filter-${key}`} />
             </span>
           ))}
-          <button onClick={onClearAll} className="text-sm text-brand hover:text-green-700 font-medium" data-testid="clear-all-filters">
+          <AppButton variant="ghost" size="sm" onClick={onClearAll} data-testid="clear-all-filters">
             Reset All
-          </button>
+          </AppButton>
         </div>
       )}
     </div>

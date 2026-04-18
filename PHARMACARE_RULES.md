@@ -1,5 +1,11 @@
 # PHARMACARE RULES — MASTER REFERENCE FILE
-# Last updated: April 2026
+# Last updated: April 18, 2026
+#
+# ⚠️  DESIGN TOKENS & PATTERNS — READ PHARMACARE_DESIGN_SKILL.md FIRST
+# This file documents SHARED COMPONENTS and WORKFLOW RULES.
+# For design tokens, spacing, color, typography, filter chips, modals,
+# skeletons, and all visual patterns → PHARMACARE_DESIGN_SKILL.md is authoritative.
+# When this file contradicts PHARMACARE_DESIGN_SKILL.md, the SKILL file wins.
 
 ---
 
@@ -30,14 +36,15 @@
 ---
 
 ## HOW TO USE THIS FILE
-Read this file before writing ANY new code. The Customers page is the official design reference.
+Read PHARMACARE_DESIGN_SKILL.md FIRST, then this file. This file documents shared components and workflow rules. PHARMACARE_DESIGN_SKILL.md documents all visual design decisions.
 
 ---
 
 # 1. DESIGN REFERENCE
 
-## The Customers Page is the Official Standard
-All modules must match the Customers page design exactly. When building new features or updating existing pages, open `/app/frontend/src/pages/Customers.js` and match it pixel-for-pixel.
+## PHARMACARE_DESIGN_SKILL.md is the Official Standard
+All modules must follow PHARMACARE_DESIGN_SKILL.md. It is the single source of truth for every color, spacing, component pattern, and layout decision.
+`Customers.js` is NO LONGER the design reference — it was superseded on April 18, 2026.
 
 ---
 
@@ -337,20 +344,20 @@ import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/comp
 - Muted text: `text-gray-500` (#6b7280)
 - Light muted: `text-gray-400` (#9ca3af)
 
-## Status Badge Colors (Current)
+## Status Badge Colors (Current) — bg-X-50 rule (never bg-X-100)
 | Status | Background | Text | Notes |
 |--------|------------|------|-------|
-| paid, cash, active, completed, confirmed | `bg-green-100` | `text-green-700` | Success states |
-| due, unpaid | `bg-amber-100` | `text-amber-700` | Warning (changed from red) |
-| overdue, cancelled, inactive | `bg-red-100` | `text-red-700` | Error states |
-| partial, parked, pending, draft | `bg-amber-100` | `text-amber-700` | Pending states |
-| upi | `bg-blue-100` | `text-blue-700` | Payment method |
-| credit, card, adjusted, credit_to_account | `bg-purple-100` | `text-purple-700` | Credit-related |
-| same_as_original | `bg-gray-100` | `text-gray-700` | Neutral |
-| regular (customer type) | `bg-blue-100` | `text-blue-700` | Customer type |
-| wholesale (customer type) | `bg-purple-100` | `text-purple-700` | Customer type |
-| institution (customer type) | `bg-green-100` | `text-green-700` | Customer type |
-| default/unknown | `bg-gray-100` | `text-gray-700` | Fallback |
+| paid, cash, active, completed, confirmed | `bg-green-50` | `text-green-700` | Success states |
+| due, unpaid | `bg-amber-50` | `text-amber-700` | Warning |
+| overdue, cancelled, inactive | `bg-red-50` | `text-red-700` | Error states |
+| partial, parked, pending, draft | `bg-amber-50` | `text-amber-700` | Pending states |
+| upi | `bg-blue-50` | `text-blue-700` | Payment method |
+| credit, card, adjusted, credit_to_account | `bg-purple-50` | `text-purple-700` | Credit-related |
+| same_as_original | `bg-gray-50` | `text-gray-700` | Neutral |
+| regular (customer type) | `bg-blue-50` | `text-blue-700` | Customer type |
+| wholesale (customer type) | `bg-purple-50` | `text-purple-700` | Customer type |
+| institution (customer type) | `bg-green-50` | `text-green-700` | Customer type |
+| default/unknown | `bg-gray-50` | `text-gray-700` | Fallback |
 
 ## Action Icon Colors
 - View icon: `text-blue-600` with `hover:bg-blue-50`
@@ -418,7 +425,7 @@ import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/comp
     </tr>
   </thead>
   <tbody className="divide-y">
-    <tr className="hover:bg-gray-50">
+    <tr className="hover:bg-[#f0f7ff]">
       <td className="px-4 py-3">Content</td>
     </tr>
   </tbody>
@@ -433,7 +440,7 @@ import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/comp
 
 ## Table Row Style
 - Dividers: `divide-y` on tbody (bottom borders only)
-- Hover: `hover:bg-gray-50`
+- Hover: `hover:bg-[#f0f7ff]` (Steel Blue tint — never `hover:bg-gray-50`)
 - Cell padding: `px-4 py-3`
 
 ## Empty State
@@ -479,7 +486,7 @@ import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/comp
       
       <DialogFooter>
         <Button type="button" variant="outline">Cancel</Button>
-        <Button type="submit" className="bg-teal-500 hover:bg-teal-600 text-white">Save</Button>
+        <Button type="submit" className="bg-[#4682B4] hover:bg-[#3a6d96] text-white">Save</Button>
       </DialogFooter>
     </form>
   </DialogContent>
@@ -629,9 +636,9 @@ toast.info('Print functionality coming soon');
 # 12. WORKFLOW RULES
 
 ## Before Making Changes
-1. Read this file and PHARMACARE_DESIGN_SYSTEM.md
-2. Check if a shared component already exists
-3. Match Customers page design exactly
+1. Read PHARMACARE_DESIGN_SKILL.md (mandatory — single design source of truth)
+2. Read this file for shared component API
+3. Check if a shared component already exists before building new UI
 
 ## After Making Changes
 1. List every file changed
@@ -640,27 +647,32 @@ toast.info('Print functionality coming soon');
 4. Take screenshots for visual changes
 
 ## Non-Negotiable
-1. **Do NOT rewrite files** — use search_replace for edits
+1. **Do NOT rewrite files** — make targeted edits only
 2. **Do NOT add new libraries** without explicit approval
-3. **Do NOT refactor server.py** into routers
+3. **Do NOT refactor server.py** — it's kept as backup only
 4. **Do NOT delete working pages** without explicit request
+5. **Do NOT use teal colors** — Steel Blue `#4682B4` only
+6. **Do NOT use bg-X-100 for badges** — use `bg-X-50` only
 
 ---
 
 # 13. NON-NEGOTIABLE RULES
 
-1. **Customers page is the reference** — all pages must match it exactly
+1. **PHARMACARE_DESIGN_SKILL.md is the reference** — read it before any frontend work
 2. **Use shared components** — never duplicate component code
 3. **Never show NaN** — handle null/undefined values gracefully
 4. **Use Shadcn UI** — Button, Input, Card, Dialog, Tabs from `@/components/ui`
 5. **Use lucide-react** — for all icons (except WhatsApp)
 6. **Use sonner** — for all toasts
-7. **Gray-50 background** — page background is always `bg-gray-50`
-8. **White cards** — tables/content go in white DataCard
-9. **Uppercase table headers** — `text-xs font-semibold text-gray-600 uppercase`
+7. **`px-8 py-6` page padding** — not `p-6 bg-gray-50 min-h-screen`
+8. **White cards** — tables/content go in white DataCard or `bg-white rounded-xl border`
+9. **Table headers** — `text-xs font-medium text-gray-500` (NOT uppercase, NOT font-semibold)
 10. **Indian Financial Year** — default date ranges
 11. **en-IN locale** — for number formatting
-12. **Steel Blue primary color** — NEVER use teal variants (bg-teal-500, text-teal-600, etc.)
+12. **Steel Blue #4682B4 only** — NEVER use teal variants (bg-teal-500, text-teal-600, etc.)
+13. **Row hover: `hover:bg-[#f0f7ff]`** — NEVER `hover:bg-gray-50` on table rows
+14. **Badges: `bg-X-50 text-X-700`** — NEVER `bg-X-100`
+15. **Filter chips active: `bg-gray-900 text-white`** — NEVER `bg-[#4682B4]` for chips
 
 ---
 
@@ -679,7 +691,7 @@ toast.info('Print functionality coming soon');
 │       ├── SearchInput.jsx
 │       └── StatusBadge.jsx    # StatusBadge, CustomerTypeBadge, PaymentStatusBadge
 ├── pages/
-│   ├── Customers.js     # DESIGN REFERENCE
+│   ├── Customers/       # Customers feature (refactored Phase 6)
 │   └── ...
 └── utils/
     └── cache.js

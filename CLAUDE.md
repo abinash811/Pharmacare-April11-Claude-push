@@ -50,6 +50,11 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 | 13 | `docs/13_DEPLOYMENT.md` | Env vars, migration commands, pre-deploy checklist |
 | 14 | `docs/14_SECURITY.md` | Auth patterns, multi-tenancy rules, sensitive data |
 | 15 | `docs/15_ROADMAP.md` | Built / in-progress / planned / Phase 2+ / tech debt |
+| 16 | `docs/16_NAMING_CONVENTIONS.md` | File, component, variable, DB, API naming rules |
+| 17 | `docs/17_ACCESSIBILITY.md` | WCAG AA, ARIA, focus, contrast, keyboard nav |
+| 18 | `docs/18_ICONOGRAPHY_MOTION.md` | Lucide icons, sizes, stroke, animation durations |
+| 19 | `docs/19_PERFORMANCE.md` | Lighthouse targets, lazy loading, pagination, N+1 rules |
+| 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 
 ---
 

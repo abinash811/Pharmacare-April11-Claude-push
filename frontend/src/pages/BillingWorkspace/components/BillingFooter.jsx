@@ -154,7 +154,7 @@ export default function BillingFooter({
           {!isView && (
             <button
               onClick={onFinalise}
-              className="px-6 py-2 rounded-lg text-sm font-bold text-gray-900 flex items-center gap-2 hover:brightness-95 bg-brand"
+              className="px-6 py-2 rounded-lg text-sm font-bold text-white flex items-center gap-2 hover:bg-brand-dark transition-colors bg-brand"
               data-testid="footer-finalise-btn"
             >
               <span className="material-symbols-outlined text-lg">check_circle</span>

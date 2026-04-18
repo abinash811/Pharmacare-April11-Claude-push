@@ -134,7 +134,7 @@ export default function FinaliseModal({
               <Button
                 onClick={handleConfirm}
                 disabled={isSaving}
-                className="w-full py-3 text-sm font-bold text-gray-900 flex items-center justify-center gap-2 hover:brightness-95 mt-4 bg-brand"
+                className="w-full py-3 text-sm font-bold text-white flex items-center justify-center gap-2 hover:bg-brand-dark transition-colors mt-4 bg-brand"
                 data-testid="confirm-save-btn"
               >
                 {isSaving ? (

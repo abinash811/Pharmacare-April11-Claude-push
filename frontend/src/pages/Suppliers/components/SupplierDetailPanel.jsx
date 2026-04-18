@@ -124,7 +124,7 @@ export default function SupplierDetailPanel({
                 </div>
               </div>
               <button onClick={onRecordPayment} disabled={outstanding <= 0}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-brand" data-testid="record-payment-btn">
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-brand hover:bg-brand-dark transition-colors" data-testid="record-payment-btn">
                 <Banknote className="w-4 h-4" />
                 Record Payment
               </button>

@@ -67,6 +67,18 @@ module.exports = [
           selector: "Literal[value=/\\bteal-[3-9]\\b/]",
           message:  "Teal colors are banned. Use Steel Blue classes (bg-brand, text-brand). See PHARMACARE_DESIGN_SKILL.md.",
         },
+        // Ban dark text on blue button — the most common color accident
+        // Catches: className="... bg-brand ... text-gray-900 ..."
+        {
+          selector: "Literal[value=/\\bbg-brand\\b.*\\btext-gray-900\\b/]",
+          message:  "Dark text on brand background. Use `text-white` on `bg-brand` buttons. See PHARMACARE_DESIGN_SKILL.md.",
+        },
+        {
+          selector: "Literal[value=/\\btext-gray-900\\b.*\\bbg-brand\\b/]",
+          message:  "Dark text on brand background. Use `text-white` on `bg-brand` buttons. See PHARMACARE_DESIGN_SKILL.md.",
+        },
+        // Ban raw <button> for primary actions — prefer AppButton from @/components/shared
+        // (warn only — catches new code without breaking existing patterns immediately)
       ],
       // Ban hardcoded hex Steel Blue strings — use brand tokens from tailwind.config.js
       'no-restricted-properties': [

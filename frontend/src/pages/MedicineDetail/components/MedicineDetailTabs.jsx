@@ -25,7 +25,7 @@ export default function MedicineDetailTabs({ activeTab, onChange }) {
             onClick={() => onChange(tab.id)}
             className={`py-4 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
-                ? 'border-[#00CED1] text-[#00CED1]'
+                ? 'border-[#4682B4] text-[#4682B4]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
             data-testid={`tab-${tab.id}`}

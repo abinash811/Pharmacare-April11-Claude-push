@@ -94,7 +94,7 @@ export default function StockMovementLog() {
   }, [pg.page]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="stock-movements-page">
+    <div className="px-8 py-6" data-testid="stock-movements-page">
       <PageHeader
         title="Stock Movement Log"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} movements total` : 'All inventory in/out activity'}
@@ -139,14 +139,14 @@ export default function StockMovementLog() {
           <table className="w-full text-sm" data-testid="stock-movements-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date & Time</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Batch ID</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Qty Change</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Before</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">After</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Reference</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Reason / Notes</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Change</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Before</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">After</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason / Notes</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -167,7 +167,7 @@ export default function StockMovementLog() {
                 movements.map((m) => {
                   const isPositive = (m.qty_delta_units || 0) > 0;
                   return (
-                    <tr key={m.id} className="hover:bg-gray-50" data-testid={`movement-row-${m.id}`}>
+                    <tr key={m.id} className="hover:bg-[#f0f7ff]" data-testid={`movement-row-${m.id}`}>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm text-gray-700">{formatDateShort(m.performed_at)}</div>
                         <div className="text-xs text-gray-400">{formatTime(m.performed_at)}</div>

@@ -33,7 +33,7 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
         <div className="p-6 space-y-4">
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-xs text-gray-500">Current Outstanding</div>
-            <div className="text-xl font-bold font-mono" style={{ color: '#CC2F2F' }}>
+            <div className="text-xl font-bold font-mono text-red-600">
               ₹{(supplier?.outstanding || 0).toFixed(2)}
             </div>
           </div>
@@ -57,8 +57,7 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
           <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
             Cancel
           </button>
-          <button onClick={handleSubmit} className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg"
-            style={{ backgroundColor: '#13ecda' }} data-testid="confirm-payment-btn">
+          <button onClick={handleSubmit} className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg bg-[#4682B4]" data-testid="confirm-payment-btn">
             Record Payment
           </button>
         </div>

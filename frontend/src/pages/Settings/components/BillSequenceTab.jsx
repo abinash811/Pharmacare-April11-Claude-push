@@ -54,7 +54,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
               <thead className="bg-gray-100">
                 <tr>
                   {['Document Type','Prefix','Last Used','Next Number','Format','Actions'].map(h => (
-                    <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase ${h==='Actions'?'text-center':'text-left'}`}>{h}</th>
+                    <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${h==='Actions'?'text-center':'text-left'}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -146,7 +146,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
 
           <div className="flex items-center gap-3 mt-6 pt-4 border-t border-blue-200">
             <button onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 flex items-center gap-2"
+              className="px-6 py-2 bg-[#4682B4] text-white font-medium rounded hover:bg-[#3a6fa0] flex items-center gap-2"
               data-testid="save-sequence-btn">
               <Save className="w-4 h-4" />
               Save Sequence Settings

@@ -33,11 +33,11 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
       <div className="px-6 py-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm mb-4">
-          <Link to="/inventory" className="text-[#00CED1] hover:underline font-medium">
+          <Link to="/inventory" className="text-[#4682B4] hover:underline font-medium">
             INVENTORY
           </Link>
           <ChevronRight className="w-4 h-4 text-gray-400" />
-          <span className="text-[#00CED1] font-medium uppercase">
+          <span className="text-[#4682B4] font-medium uppercase">
             {product.category || 'GENERAL'}
           </span>
         </div>
@@ -65,7 +65,7 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
           <div className="flex items-center gap-2">
             <button
               onClick={onEdit}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#00CED1] text-white font-medium rounded-lg hover:bg-[#00B5B8] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#4682B4] text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
               data-testid="edit-product-btn"
             >
               <Edit2 className="w-4 h-4" />

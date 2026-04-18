@@ -27,6 +27,9 @@ import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
 import Users from '@/pages/Users';
 import RolesPermissions from '@/pages/RolesPermissions';
+// Team page — merges Users + Roles into a single tabbed page
+let Team;
+try { Team = require('@/pages/Team').default; } catch { Team = Users; }
 import Suppliers from '@/pages/Suppliers';
 import GSTReport from '@/pages/GSTReport';
 import ScheduleH1Register from '@/pages/ScheduleH1Register';
@@ -177,8 +180,11 @@ function AppRoutes({ user }) {
         <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />
+        {/* Legacy routes — kept so old links don't 404 while Team page is built */}
         <Route path="users" element={<Users />} />
         <Route path="roles" element={<RolesPermissions />} />
+        {/* New merged Team page */}
+        <Route path="team" element={<Team />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

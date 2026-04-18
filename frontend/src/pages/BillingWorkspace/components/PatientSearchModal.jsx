@@ -63,14 +63,14 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden max-h-[80vh] flex flex-col">
-        <DialogHeader className="px-4 py-3 border-b border-slate-200 shrink-0">
+        <DialogHeader className="px-4 py-3 border-b border-gray-200 shrink-0">
           <DialogTitle className="text-base">Select Patient</DialogTitle>
         </DialogHeader>
 
         {/* Search input */}
-        <div className="px-4 py-3 border-b border-slate-200 shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 shrink-0">
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
               search
             </span>
             <input
@@ -79,7 +79,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
               value={query}
               onChange={handleQueryChange}
               autoFocus
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4]"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4]"
               data-testid="patient-search-input"
             />
           </div>
@@ -91,21 +91,21 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
           {/* Counter Sale — always first */}
           <button
             onClick={() => handleSelect('counter')}
-            className="w-full px-4 py-3 text-left hover:bg-[#4682B4]/10 flex items-center gap-3 border-b border-slate-100"
+            className="w-full px-4 py-3 text-left hover:bg-[#4682B4]/10 flex items-center gap-3 border-b border-gray-100"
             data-testid="counter-sale-option"
           >
             <div className="w-10 h-10 rounded-full bg-[#4682B4]/20 flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-[#4682B4] text-lg">storefront</span>
             </div>
             <div>
-              <div className="font-semibold text-slate-900 text-sm">Counter Sale</div>
-              <div className="text-xs text-slate-400">Walk-in customer without registration</div>
+              <div className="font-semibold text-gray-900 text-sm">Counter Sale</div>
+              <div className="text-xs text-gray-400">Walk-in customer without registration</div>
             </div>
           </button>
 
           {/* Loading */}
           {loading && (
-            <div className="px-4 py-6 text-center text-slate-400">
+            <div className="px-4 py-6 text-center text-gray-400">
               <span className="material-symbols-outlined animate-spin text-2xl">progress_activity</span>
               <p className="mt-2 text-sm">Searching patients…</p>
             </div>
@@ -116,15 +116,15 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
             <button
               key={patient.id}
               onClick={() => handleSelect(patient)}
-              className="w-full px-4 py-3 text-left hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100"
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100"
               data-testid={`patient-${patient.id}`}
             >
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined text-slate-400 text-lg">person</span>
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-gray-400 text-lg">person</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-slate-900 text-sm truncate">{patient.name}</div>
-                <div className="text-xs text-slate-400">
+                <div className="font-semibold text-gray-900 text-sm truncate">{patient.name}</div>
+                <div className="text-xs text-gray-400">
                   {patient.phone || patient.mobile || 'No phone'}
                   {patient.age    && ` · ${patient.age} yrs`}
                   {patient.gender && ` · ${patient.gender}`}
@@ -135,7 +135,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
 
           {/* Empty state */}
           {!loading && query.length > 0 && results.length === 0 && (
-            <div className="px-4 py-6 text-center text-slate-400">
+            <div className="px-4 py-6 text-center text-gray-400">
               <span className="material-symbols-outlined text-3xl mb-2">person_search</span>
               <p className="text-sm">No patients found for &ldquo;{query}&rdquo;</p>
               <p className="text-xs mt-1">Select &ldquo;Counter Sale&rdquo; for walk-in customers</p>

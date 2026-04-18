@@ -17,7 +17,7 @@ export default function InventoryHeader({ onAddStock, onBulkUpload }) {
         <div className="flex items-center gap-3">
           <button
             onClick={onAddStock}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#00CED1] text-white font-medium rounded-lg hover:bg-[#00B5B8] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#4682B4] text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
             data-testid="add-stock-btn"
           >
             <Plus className="w-4 h-4" />

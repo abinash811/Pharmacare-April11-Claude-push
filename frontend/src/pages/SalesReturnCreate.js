@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, X, Printer, Stethoscope } from 'lucide-react';
@@ -60,7 +60,7 @@ export default function SalesReturnCreate() {
   const fetchOriginalBill = async (id) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/bills/${id}`, {
+      const response = await api.get(`${API}/bills/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const bill = response.data;
@@ -108,7 +108,7 @@ export default function SalesReturnCreate() {
   const fetchUsers = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/users`, {
+      const response = await api.get(`${API}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(response.data || []);
@@ -218,7 +218,7 @@ export default function SalesReturnCreate() {
         note: note
       };
       
-      const response = await axios.post(`${API}/sales-returns`, payload, {
+      const response = await api.post(`${API}/sales-returns`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -240,7 +240,7 @@ export default function SalesReturnCreate() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'Manrope, sans-serif' }}>
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -266,20 +266,20 @@ export default function SalesReturnCreate() {
       {/* Main Content */}
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         {/* Subbar */}
-        <section className="bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
+        <section className="bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Date Picker */}
             <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
               <PopoverTrigger asChild>
                 <button
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   data-testid="date-picker-btn"
                 >
-                  <CalendarIcon className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-medium text-slate-700">
+                  <CalendarIcon className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
                     {format(returnDate, 'dd MMM yyyy')}
                   </span>
-                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -294,30 +294,30 @@ export default function SalesReturnCreate() {
             </Popover>
 
             {/* Customer Chip - Read Only */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">person</span>
-              <span className="text-sm font-medium text-slate-700">{patient.name || 'Walk-in'}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">person</span>
+              <span className="text-sm font-medium text-gray-700">{patient.name || 'Walk-in'}</span>
             </div>
 
             {/* Billing For */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">shopping_bag</span>
-              <span className="text-sm font-medium text-slate-700">{billingFor}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">shopping_bag</span>
+              <span className="text-sm font-medium text-gray-700">{billingFor}</span>
             </div>
 
             {/* Doctor Chip - Read Only */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <Stethoscope className="w-4 h-4 text-slate-400" />
-              <span className="text-sm font-medium text-slate-700">{doctor || 'No Doctor'}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <Stethoscope className="w-4 h-4 text-gray-400" />
+              <span className="text-sm font-medium text-gray-700">{doctor || 'No Doctor'}</span>
             </div>
 
             {/* Billed By */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">badge</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">badge</span>
               <select
                 value={billedBy}
                 onChange={(e) => setBilledBy(e.target.value)}
-                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
+                className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
                 data-testid="billed-by"
               >
                 <option value={user?.name || ''}>{user?.name || 'User'}</option>
@@ -330,12 +330,12 @@ export default function SalesReturnCreate() {
             <div className="flex-grow"></div>
 
             {/* Refund Method */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">payments</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">payments</span>
               <select
                 value={refundMethod}
                 onChange={(e) => setRefundMethod(e.target.value)}
-                className="text-sm font-medium text-slate-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
+                className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1"
                 data-testid="refund-method"
               >
                 <option value="same_as_original">Same as Original</option>
@@ -349,8 +349,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-4 py-1.5 font-semibold text-sm text-slate-900 rounded-lg flex items-center gap-1.5 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#13ecda' }}
+              className="px-4 py-1.5 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-1.5 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]"
               data-testid="save-btn"
             >
               <span className="material-symbols-outlined text-base">check_circle</span>
@@ -360,22 +359,22 @@ export default function SalesReturnCreate() {
         </section>
 
         {/* Table */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm flex-grow flex flex-col overflow-hidden">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow overflow-auto">
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="bg-slate-50 sticky top-0 z-10">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <th className="w-[25%] px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item Name</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unit/Pack</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Expiry</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">MRP</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Qty</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Disc%</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">D.Price</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">GST%</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                  <th className="w-10 px-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">×</th>
+                  <th className="w-[25%] px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Item Name</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unit/Pack</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Batch</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">MRP</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Qty</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Disc%</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">D.Price</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">GST%</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Amount</th>
+                  <th className="w-10 px-2 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">×</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -388,25 +387,25 @@ export default function SalesReturnCreate() {
                   const lineTotal = afterDisc + gst;
                   
                   return (
-                    <tr key={item.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <tr key={item.id} className="group hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-2">
-                        <div className="text-sm font-semibold text-slate-900">{item.medicine_name}</div>
+                        <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer">
+                          <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={item.is_damaged}
                               onChange={(e) => updateItem(index, 'is_damaged', e.target.checked)}
-                              className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 w-3 h-3"
+                              className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-3 h-3"
                             />
                             Damaged
                           </label>
                         </div>
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-600">Unit</td>
-                      <td className="px-4 py-2 text-xs font-mono text-slate-600">{item.batch_no}</td>
-                      <td className="px-4 py-2 text-sm text-slate-600">{formatExpiry(item.expiry_date)}</td>
-                      <td className="px-4 py-2 text-right text-sm text-slate-700">₹{item.mrp.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">Unit</td>
+                      <td className="px-4 py-2 text-xs font-mono text-gray-600">{item.batch_no}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{formatExpiry(item.expiry_date)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-700">₹{item.mrp.toFixed(2)}</td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex flex-col items-end">
                           <input
@@ -435,13 +434,13 @@ export default function SalesReturnCreate() {
                           data-testid={`disc-${index}`}
                         />
                       </td>
-                      <td className="px-4 py-2 text-right text-sm text-slate-600">₹{dPrice.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right text-sm text-slate-600">{item.gst_percent}%</td>
-                      <td className="px-4 py-2 text-right text-sm font-bold text-slate-900">₹{lineTotal.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-600">₹{dPrice.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-600">{item.gst_percent}%</td>
+                      <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{lineTotal.toFixed(2)}</td>
                       <td className="px-2 py-2 text-center">
                         <button
                           onClick={() => removeItem(index)}
-                          className="text-slate-300 hover:text-red-500 transition-colors text-lg font-bold"
+                          className="text-gray-300 hover:text-red-500 transition-colors text-lg font-bold"
                           data-testid={`remove-${index}`}
                         >
                           ×
@@ -452,7 +451,7 @@ export default function SalesReturnCreate() {
                 })}
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan="11" className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan="11" className="px-4 py-12 text-center text-gray-400">
                       No items to return. Please select items from the original bill.
                     </td>
                   </tr>
@@ -463,28 +462,28 @@ export default function SalesReturnCreate() {
         </section>
 
         {/* Sticky Footer */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-6 text-sm">
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Items</span>
-                <span className="font-bold text-slate-700">{items.length}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Items</span>
+                <span className="font-bold text-gray-700">{items.length}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">MRP Total</span>
-                <span className="font-bold text-slate-700">₹{totals.mrpTotal.toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">MRP Total</span>
+                <span className="font-bold text-gray-700">₹{totals.mrpTotal.toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Discount</span>
-                <span className="font-bold text-rose-500">-₹{totals.totalDiscount.toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Total Discount</span>
+                <span className="font-bold text-red-500">-₹{totals.totalDiscount.toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">GST</span>
-                <span className="font-bold text-slate-700">₹{totals.gstAmount.toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">GST</span>
+                <span className="font-bold text-gray-700">₹{totals.gstAmount.toFixed(2)}</span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Net Refund Amount</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Refund Amount</span>
               <span className="text-2xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
             </div>
           </div>
@@ -492,7 +491,7 @@ export default function SalesReturnCreate() {
           <div className="px-4 py-3 flex items-center justify-end gap-3">
             <button
               onClick={() => toast.info('Print functionality coming soon')}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
               Print
@@ -500,8 +499,7 @@ export default function SalesReturnCreate() {
             <button
               onClick={() => setShowFinaliseModal(true)}
               disabled={hasErrors() || items.length === 0}
-              className="px-6 py-2 font-semibold text-sm text-slate-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#13ecda' }}
+              className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg flex items-center gap-2 hover:brightness-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]"
               data-testid="save-return-btn"
             >
               Save Return
@@ -514,44 +512,44 @@ export default function SalesReturnCreate() {
       {showFinaliseModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Invoice Breakdown</h2>
-              <button onClick={() => setShowFinaliseModal(false)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5 text-slate-500" />
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Invoice Breakdown</h2>
+              <button onClick={() => setShowFinaliseModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
             <div className="p-6 grid grid-cols-2 gap-8">
               {/* Left Column - Amounts */}
               <div className="space-y-2">
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">MRP Total</span>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">MRP Total</span>
                   <span className="text-sm font-semibold">₹{totals.mrpTotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">Total Discount</span>
-                  <span className="text-sm font-semibold text-rose-500">-₹{totals.totalDiscount.toFixed(2)}</span>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Total Discount</span>
+                  <span className="text-sm font-semibold text-red-500">-₹{totals.totalDiscount.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">Bill Amount</span>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Bill Amount</span>
                   <span className="text-sm font-semibold">₹{(totals.mrpTotal - totals.totalDiscount).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">Round off</span>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Round off</span>
                   <span className="text-sm font-semibold">₹{(totals.netAmount - (totals.mrpTotal - totals.totalDiscount + totals.gstAmount)).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">Net Amount</span>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Net Amount</span>
                   <span className="text-sm font-semibold">₹{totals.netAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-sm text-slate-600">GST</span>
+                  <span className="text-sm text-gray-600">GST</span>
                   <span className="text-sm font-semibold">₹{totals.gstAmount.toFixed(2)}</span>
                 </div>
                 
-                <div className="pt-4 mt-4 border-t border-slate-200">
+                <div className="pt-4 mt-4 border-t border-gray-200">
                   <div className="flex justify-between items-center">
-                    <span className="text-base font-bold text-slate-900">Net Refund</span>
+                    <span className="text-base font-bold text-gray-900">Net Refund</span>
                     <span className="text-xl font-black text-red-600">₹{totals.netAmount.toFixed(2)}</span>
                   </div>
                 </div>
@@ -559,29 +557,29 @@ export default function SalesReturnCreate() {
               
               {/* Right Column - Notes */}
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Note</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value.slice(0, 150))}
                   placeholder="Add a note for this return..."
-                  className="w-full h-40 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-40 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="note-input"
                 />
-                <div className="text-right text-xs text-slate-400 mt-1">{note.length}/150</div>
+                <div className="text-right text-xs text-gray-400 mt-1">{note.length}/150</div>
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setShowFinaliseModal(false)}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleSave(true)}
                 disabled={isSaving}
-                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
               >
                 <Printer className="w-4 h-4" />
                 Save & Print
@@ -589,8 +587,7 @@ export default function SalesReturnCreate() {
               <button
                 onClick={() => handleSave(false)}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-slate-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50"
-                style={{ backgroundColor: '#13ecda' }}
+                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-[#4682B4]"
                 data-testid="submit-btn"
               >
                 {isSaving ? 'Saving...' : 'Submit'}

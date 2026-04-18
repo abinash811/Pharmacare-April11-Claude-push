@@ -20,7 +20,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
         <thead className="bg-gray-50 border-b">
           <tr>
             {['Supplier','Contact','GSTIN','Outstanding','Status'].map(h => (
-              <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase ${
+              <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
                 h === 'Outstanding' ? 'text-right' : h === 'Status' ? 'text-center' : 'text-left'
               }`}>{h}</th>
             ))}
@@ -49,7 +49,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
               return (
                 <tr
                   key={supplier.id}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${selectedId === supplier.id ? 'bg-[#4682B4]/10' : ''} ${!isActive ? 'opacity-60' : ''}`}
+                  className={`hover:bg-[#f0f7ff] cursor-pointer transition-colors ${selectedId === supplier.id ? 'bg-[#4682B4]/10' : ''} ${!isActive ? 'opacity-60' : ''}`}
                   onClick={() => onRowClick(supplier)}
                   data-testid={`supplier-row-${supplier.id}`}
                 >
@@ -69,7 +69,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
                   </td>
                   <td className="px-4 py-3 text-right">
                     {outstanding > 0
-                      ? <span className="font-mono font-semibold" style={{ color: '#CC2F2F' }}>₹{outstanding.toFixed(2)}</span>
+                      ? <span className="font-semibold tabular-nums text-red-600">₹{outstanding.toFixed(2)}</span>
                       : <span className="text-gray-400">—</span>
                     }
                   </td>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pharmacare-frontend",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["--cwd", "/Users/abinashhaldorai/Desktop/Pharmacare-April11-Claude-push/frontend", "start"],
+      "port": 3000
+    }
+  ]
+}

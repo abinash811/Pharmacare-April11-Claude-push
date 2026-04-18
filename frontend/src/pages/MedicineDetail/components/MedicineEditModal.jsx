@@ -29,7 +29,7 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
 
   const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
-  const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00CED1]';
+  const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4682B4]';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -139,7 +139,7 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
               Cancel
             </button>
             <button type="submit" disabled={loading}
-              className="px-4 py-2 bg-[#00CED1] text-white rounded-lg hover:bg-[#00B5B8] disabled:opacity-50"
+              className="px-4 py-2 bg-[#4682B4] text-white rounded-lg hover:bg-[#3a6fa0] disabled:opacity-50"
               data-testid="submit-edit-product">
               {loading ? 'Saving...' : 'Save Changes'}
             </button>

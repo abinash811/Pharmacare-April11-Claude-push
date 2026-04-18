@@ -96,7 +96,7 @@ export default function BillDetail() {
   const gstRows = Object.entries(gstGroups).filter(([, v]) => v.total > 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 print:p-0 print:bg-white" data-testid="bill-detail-page">
+    <div className="px-8 py-6 print:p-0" data-testid="bill-detail-page">
       {/* ── Toolbar (hidden on print) ── */}
       <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between print:hidden">
         <Button variant="ghost" onClick={() => navigate('/billing')}>
@@ -187,20 +187,20 @@ export default function BillDetail() {
           <table className="w-full text-sm" data-testid="bill-items-table">
             <thead>
               <tr className="border-b-2 border-gray-200">
-                <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase w-8">#</th>
-                <th className="py-2 text-left text-xs font-semibold text-gray-500 uppercase">Medicine</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">Batch</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">Expiry</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">MRP</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">Qty</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">Disc%</th>
-                <th className="py-2 text-center text-xs font-semibold text-gray-500 uppercase">GST%</th>
-                <th className="py-2 text-right text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">#</th>
+                <th className="py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicine</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">MRP</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Disc%</th>
+                <th className="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">GST%</th>
+                <th className="py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {(bill.items || []).map((item, idx) => (
-                <tr key={item.id || idx} className="hover:bg-gray-50">
+                <tr key={item.id || idx} className="hover:bg-[#f0f7ff]">
                   <td className="py-2.5 text-gray-400">{idx + 1}</td>
                   <td className="py-2.5">
                     <div className="font-medium text-gray-800">{item.product_name || item.medicine_name}</div>

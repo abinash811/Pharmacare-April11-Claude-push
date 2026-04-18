@@ -93,7 +93,7 @@ export default function BillingOperations() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="billing-operations-page">
+    <div className="px-8 py-6" data-testid="billing-operations-page">
       <PageHeader
         title="Sales & Billing"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} bills total` : undefined}
@@ -147,14 +147,14 @@ export default function BillingOperations() {
           <table className="w-full" data-testid="billing-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill No.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Patient</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Billed By</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill No.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Billed By</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -189,7 +189,7 @@ export default function BillingOperations() {
                   return (
                     <tr
                       key={bill.id}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-[#f0f7ff] cursor-pointer"
                       onClick={() => navigate(`/billing/${bill.id}`)}
                       data-testid={`bill-row-${bill.id}`}
                     >
@@ -229,7 +229,7 @@ export default function BillingOperations() {
                       </td>
 
                       <td className="px-4 py-3 text-right">
-                        <span className={`font-medium ${isDue ? 'text-red-600' : 'text-gray-800'}`}>
+                        <span className={`font-semibold tabular-nums ${isDue ? 'text-red-600' : 'text-gray-900'}`}>
                           ₹{(bill.total_amount || bill.grand_total || 0).toFixed(2)}
                         </span>
                       </td>

@@ -3,7 +3,7 @@
  */
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { api } from '@/lib/axios';
+import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
 import { exportToExcel, formatReportForExcel } from '@/utils/excelExport';

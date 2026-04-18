@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown, X, Stethoscope } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function SalesReturnDetail() {
   const fetchReturnData = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/sales-returns/${id}`, {
+      const response = await api.get(`${API}/sales-returns/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReturnData(response.data);
@@ -58,7 +58,7 @@ export default function SalesReturnDetail() {
     if (!user?.role) return;
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/roles/${user.role}/permissions/returns`, {
+      const response = await api.get(`${API}/roles/${user.role}/permissions/returns`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAllowFinancialEdit(response.data.allow_financial_edit_return || user.role === 'admin');
@@ -91,7 +91,7 @@ export default function SalesReturnDetail() {
     setIsSaving(true);
     const token = localStorage.getItem('token');
     try {
-      await axios.put(`${API}/sales-returns/${id}?financial_edit=false`, editForm, {
+      await api.put(`${API}/sales-returns/${id}?financial_edit=false`, editForm, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Return updated successfully');
@@ -133,7 +133,7 @@ export default function SalesReturnDetail() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'Manrope, sans-serif' }}>
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -167,24 +167,24 @@ export default function SalesReturnDetail() {
             <div className="relative">
               <button
                 onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className="px-3 py-1.5 bg-slate-100 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 flex items-center gap-1"
+                className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 flex items-center gap-1"
               >
                 More
                 <ChevronDown className="w-4 h-4" />
               </button>
               
               {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 w-48 py-1">
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-48 py-1">
                   <button
                     onClick={() => { setShowEditModal(true); setShowMoreMenu(false); }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                   >
                     <Edit className="w-4 h-4" />
                     Edit
                   </button>
                   <button
                     onClick={() => { setShowMoreMenu(false); window.print(); }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                   >
                     <Printer className="w-4 h-4" />
                     Print
@@ -192,7 +192,7 @@ export default function SalesReturnDetail() {
                   {returnData.original_bill_id && (
                     <button
                       onClick={() => { navigate(`/billing/${returnData.original_bill_id}`); setShowMoreMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                     >
                       <History className="w-4 h-4" />
                       Sales History
@@ -200,7 +200,7 @@ export default function SalesReturnDetail() {
                   )}
                   <button
                     onClick={() => { toast.info('Audit logs coming soon'); setShowMoreMenu(false); }}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
                     Logs
@@ -215,73 +215,73 @@ export default function SalesReturnDetail() {
       {/* Main Content */}
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         {/* Info Header */}
-        <section className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
+        <section className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
           <div className="flex items-center gap-6">
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Return No.</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Return No.</span>
               <span className="font-mono text-sm font-bold text-[#4682B4]">#{returnData.return_no}</span>
             </div>
             {returnData.original_bill_no && (
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Original Bill</span>
-                <span className="font-mono text-sm font-medium text-slate-700">#{returnData.original_bill_no}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Original Bill</span>
+                <span className="font-mono text-sm font-medium text-gray-700">#{returnData.original_bill_no}</span>
               </div>
             )}
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Bill Date</span>
-              <span className="text-sm font-medium text-slate-700">{formatDate(returnData.return_date)}</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Bill Date</span>
+              <span className="text-sm font-medium text-gray-700">{formatDate(returnData.return_date)}</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Customer</span>
-              <span className="text-sm font-medium text-slate-700">{returnData.patient?.name || 'Walk-in'}</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Customer</span>
+              <span className="text-sm font-medium text-gray-700">{returnData.patient?.name || 'Walk-in'}</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Billing For</span>
-              <span className="text-sm font-medium text-slate-700">{returnData.billing_for || 'Self'}</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Billing For</span>
+              <span className="text-sm font-medium text-gray-700">{returnData.billing_for || 'Self'}</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Doctor</span>
-              <span className="text-sm font-medium text-slate-700">{returnData.doctor || '-'}</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Doctor</span>
+              <span className="text-sm font-medium text-gray-700">{returnData.doctor || '-'}</span>
             </div>
           </div>
         </section>
 
         {/* Table */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm flex-grow flex flex-col overflow-hidden">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow overflow-auto">
             <table className="w-full text-left border-collapse min-w-[900px]">
-              <thead className="bg-slate-50 sticky top-0 z-10">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  <th className="w-[25%] px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Item Name</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unit/Pack</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Expiry</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">MRP</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Qty</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Disc%</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">D.Price</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">GST%</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</th>
+                  <th className="w-[25%] px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Item Name</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Unit/Pack</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Batch</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Expiry</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">MRP</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Qty</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Disc%</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">D.Price</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">GST%</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {returnData.items?.map((item, index) => (
-                  <tr key={item.id || index} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={item.id || index} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-2">
-                      <div className="text-sm font-semibold text-slate-900">{item.medicine_name}</div>
+                      <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                       {item.is_damaged && (
                         <span className="text-[10px] text-amber-600 font-medium">Damaged</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-sm text-slate-600">Unit</td>
-                    <td className="px-4 py-2 text-xs font-mono text-slate-600">{item.batch_no}</td>
-                    <td className="px-4 py-2 text-sm text-slate-600">{formatExpiry(item.expiry_date)}</td>
-                    <td className="px-4 py-2 text-right text-sm text-slate-700">₹{(item.mrp || 0).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right text-sm font-medium text-slate-700">{item.qty}</td>
-                    <td className="px-4 py-2 text-right text-sm text-slate-600">{(item.disc_percent || 0).toFixed(1)}%</td>
-                    <td className="px-4 py-2 text-right text-sm text-slate-600">₹{(item.disc_price || item.mrp || 0).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right text-sm text-slate-600">{item.gst_percent}%</td>
-                    <td className="px-4 py-2 text-right text-sm font-bold text-slate-900">₹{(item.amount || 0).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-sm text-gray-600">Unit</td>
+                    <td className="px-4 py-2 text-xs font-mono text-gray-600">{item.batch_no}</td>
+                    <td className="px-4 py-2 text-sm text-gray-600">{formatExpiry(item.expiry_date)}</td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-700">₹{(item.mrp || 0).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right text-sm font-medium text-gray-700">{item.qty}</td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-600">{(item.disc_percent || 0).toFixed(1)}%</td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-600">₹{(item.disc_price || item.mrp || 0).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-right text-sm text-gray-600">{item.gst_percent}%</td>
+                    <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{(item.amount || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -290,24 +290,24 @@ export default function SalesReturnDetail() {
         </section>
 
         {/* Footer Totals */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-6 text-sm">
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Qty</span>
-                <span className="font-bold text-slate-700">{returnData.items?.reduce((sum, item) => sum + item.qty, 0) || 0}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Qty</span>
+                <span className="font-bold text-gray-700">{returnData.items?.reduce((sum, item) => sum + item.qty, 0) || 0}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Items</span>
-                <span className="font-bold text-slate-700">{returnData.items?.length || 0}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Items</span>
+                <span className="font-bold text-gray-700">{returnData.items?.length || 0}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">GST</span>
-                <span className="font-bold text-slate-700">₹{(returnData.gst_amount || 0).toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">GST</span>
+                <span className="font-bold text-gray-700">₹{(returnData.gst_amount || 0).toFixed(2)}</span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Net Amount</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Amount</span>
               <span className="text-2xl font-black text-red-600">₹{(returnData.net_amount || 0).toFixed(2)}</span>
             </div>
           </div>
@@ -318,26 +318,26 @@ export default function SalesReturnDetail() {
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Edit Sales Return</h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5 text-slate-500" />
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Edit Sales Return</h2>
+              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
             <div className="p-6">
-              <p className="text-sm text-slate-600 mb-6">What do you want to change?</p>
+              <p className="text-sm text-gray-600 mb-6">What do you want to change?</p>
               
-              <div className="space-y-4 mb-6 p-4 bg-slate-50 rounded-lg">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Non-Financial Edit</h3>
-                <p className="text-xs text-slate-500 mb-4">Edit staff, billing for, doctor, or note without changing amounts.</p>
+              <div className="space-y-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Non-Financial Edit</h3>
+                <p className="text-xs text-gray-500 mb-4">Edit staff, billing for, doctor, or note without changing amounts.</p>
                 
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Billing For</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Billing For</label>
                   <select
                     value={editForm.billing_for}
                     onChange={(e) => setEditForm({ ...editForm, billing_for: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                   >
                     <option value="self">Self</option>
                     <option value="other">Other</option>
@@ -345,22 +345,22 @@ export default function SalesReturnDetail() {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Doctor</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Doctor</label>
                   <input
                     type="text"
                     value={editForm.doctor}
                     onChange={(e) => setEditForm({ ...editForm, doctor: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
                     placeholder="Doctor name"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Note</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Note</label>
                   <textarea
                     value={editForm.note}
                     onChange={(e) => setEditForm({ ...editForm, note: e.target.value.slice(0, 150) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none h-20"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none h-20"
                     placeholder="Add a note..."
                   />
                 </div>
@@ -374,9 +374,9 @@ export default function SalesReturnDetail() {
                 </button>
               </div>
               
-              <div className="p-4 bg-slate-50 rounded-lg">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Financial Edit</h3>
-                <p className="text-xs text-slate-500 mb-4">Edit items, quantities, and amounts. Requires permission.</p>
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Financial Edit</h3>
+                <p className="text-xs text-gray-500 mb-4">Edit items, quantities, and amounts. Requires permission.</p>
                 
                 <button
                   onClick={handleFinancialEdit}
@@ -384,7 +384,7 @@ export default function SalesReturnDetail() {
                   className={`w-full px-4 py-2 rounded-lg text-sm font-semibold ${
                     allowFinancialEdit
                       ? 'bg-amber-500 text-white hover:bg-amber-600'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
                   {allowFinancialEdit ? 'Open Financial Edit' : 'Permission Required'}

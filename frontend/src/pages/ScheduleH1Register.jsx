@@ -114,7 +114,7 @@ export default function ScheduleH1Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 print:p-0 print:bg-white" data-testid="schedule-h1-page">
+    <div className="px-8 py-6 print:p-0 print:bg-white" data-testid="schedule-h1-page">
       <PageHeader
         title="Schedule H1 Drug Register"
         subtitle={
@@ -170,15 +170,15 @@ export default function ScheduleH1Register() {
           <table className="w-full text-sm" data-testid="h1-register-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Drug Name</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Qty</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Batch</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Prescribing Doctor</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Reg. No.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Patient</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Address</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Age</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Drug Name</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prescribing Doctor</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reg. No.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -198,7 +198,7 @@ export default function ScheduleH1Register() {
                 </tr>
               ) : (
                 pageRows.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-gray-50" data-testid={`h1-row-${entry.id}`}>
+                  <tr key={entry.id} className="hover:bg-[#f0f7ff]" data-testid={`h1-row-${entry.id}`}>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-700">{formatDateShort(entry.supply_date)}</div>
                     </td>

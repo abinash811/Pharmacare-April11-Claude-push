@@ -17,7 +17,7 @@ const COLOR_CLASSES = {
   green:  'bg-green-50 text-green-600',
   blue:   'bg-blue-50 text-blue-600',
   purple: 'bg-purple-50 text-purple-600',
-  indigo: 'bg-indigo-50 text-indigo-600',
+  indigo: 'bg-blue-50 text-blue-600',
 };
 
 export default function MetricCard({ title, value, change, icon, color, subtitle, testId }) {

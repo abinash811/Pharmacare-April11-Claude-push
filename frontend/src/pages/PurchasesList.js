@@ -117,7 +117,7 @@ export default function PurchasesList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="purchases-page">
+    <div className="px-8 py-6" data-testid="purchases-page">
       <PageHeader
         title="Purchase Operations"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} purchases total` : undefined}
@@ -171,15 +171,15 @@ export default function PurchasesList() {
           <table className="w-full" data-testid="purchases-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Sr.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Purchase No.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry By</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Distributor</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sr.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase No.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bill Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry By</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distributor</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -213,7 +213,7 @@ export default function PurchasesList() {
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-[#f0f7ff] cursor-pointer"
                       onClick={() => navigate(`/purchases/${item.id}`)}
                       data-testid={`purchase-row-${item.id}`}
                     >
@@ -252,7 +252,7 @@ export default function PurchasesList() {
                       </td>
 
                       <td className="px-4 py-3 text-right">
-                        <span className={`font-medium ${isDue ? 'text-red-600' : 'text-gray-800'}`}>
+                        <span className={`font-semibold tabular-nums ${isDue ? 'text-red-600' : 'text-gray-900'}`}>
                           {formatCurrency(item.total_value || 0)}
                         </span>
                       </td>

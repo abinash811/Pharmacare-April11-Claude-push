@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { ArrowLeft, MoreVertical, Printer, X, Edit2, RotateCcw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -41,7 +41,7 @@ export default function PurchaseDetail() {
     const token = localStorage.getItem('token');
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/purchases/${id}`, {
+      const response = await api.get(`${API}/purchases/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPurchase(response.data);
@@ -94,7 +94,7 @@ export default function PurchaseDetail() {
     const token = localStorage.getItem('token');
 
     try {
-      await axios.post(`${API}/purchases/${id}/pay`, paymentData, {
+      await api.post(`${API}/purchases/${id}/pay`, paymentData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Payment recorded successfully');
@@ -235,7 +235,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       navigate(`/purchases/edit/${id}?type=purchase`);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit
@@ -245,7 +245,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       handlePrint();
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                   >
                     <Printer className="w-4 h-4" />
                     Print
@@ -255,7 +255,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       navigate(`/purchases/returns/create?purchase_id=${id}`);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                   >
                     <RotateCcw className="w-4 h-4" />
                     Purchase Return
@@ -265,7 +265,7 @@ export default function PurchaseDetail() {
                       setShowMoreMenu(false);
                       toast.info('Logs coming soon');
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
                     Logs
@@ -281,21 +281,21 @@ export default function PurchaseDetail() {
       <section className="bg-white border-b border-gray-200 px-6 py-2 shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Date Chip - Read Only */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-            <span className="material-symbols-outlined text-slate-500 text-base">calendar_today</span>
-            <span className="text-sm font-medium text-slate-700">{formatDateShort(purchase.purchase_date)}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+            <span className="material-symbols-outlined text-gray-500 text-base">calendar_today</span>
+            <span className="text-sm font-medium text-gray-700">{formatDateShort(purchase.purchase_date)}</span>
           </div>
 
           {/* Distributor Chip - Read Only */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg" style={{ maxWidth: '220px' }}>
-            <span className="material-symbols-outlined text-slate-400 text-base">business</span>
-            <span className="text-sm font-medium text-slate-900 truncate">{purchase.supplier_name}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}>
+            <span className="material-symbols-outlined text-gray-400 text-base">business</span>
+            <span className="text-sm font-medium text-gray-900 truncate">{purchase.supplier_name}</span>
           </div>
 
           {/* Invoice # Chip - Read Only */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-            <span className="text-[10px] text-slate-400 uppercase font-medium">Inv#</span>
-            <span className="text-sm font-medium text-slate-700">{purchase.supplier_invoice_no || '—'}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+            <span className="text-[10px] text-gray-400 uppercase font-medium">Inv#</span>
+            <span className="text-sm font-medium text-gray-700">{purchase.supplier_invoice_no || '—'}</span>
           </div>
 
           {/* Due Date Chip - Read Only */}
@@ -309,16 +309,16 @@ export default function PurchaseDetail() {
           )}
 
           {/* Divider */}
-          <div className="w-px h-5 bg-slate-200 mx-1"></div>
+          <div className="w-px h-5 bg-gray-200 mx-1"></div>
 
           {/* Order Type Chip - Read Only */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-            <span className="text-sm font-medium text-slate-600 capitalize">{purchase.order_type || 'direct'}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+            <span className="text-sm font-medium text-gray-600 capitalize">{purchase.order_type || 'direct'}</span>
           </div>
 
           {/* GST Chip - Read Only */}
-          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${purchase.with_gst !== false ? 'bg-green-50' : 'bg-slate-100'}`}>
-            <span className={`text-sm font-medium ${purchase.with_gst !== false ? 'text-green-700' : 'text-slate-600'}`}>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${purchase.with_gst !== false ? 'bg-green-50' : 'bg-gray-100'}`}>
+            <span className={`text-sm font-medium ${purchase.with_gst !== false ? 'text-green-700' : 'text-gray-600'}`}>
               {purchase.with_gst !== false ? 'GST' : 'No GST'}
             </span>
           </div>
@@ -361,7 +361,7 @@ export default function PurchaseDetail() {
                 const total = lineTotal + taxAmount;
 
                 return (
-                  <tr key={index} className="hover:bg-gray-50/50">
+                  <tr key={index} className="hover:bg-[#f0f7ff]/50">
                     {/* # */}
                     <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                     
@@ -376,7 +376,7 @@ export default function PurchaseDetail() {
                     </td>
                     
                     {/* Batch */}
-                    <td className="px-3 py-2 text-xs text-gray-700">{item.batch_no || '—'}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-gray-700">{item.batch_no || '—'}</td>
                     
                     {/* Expiry */}
                     <td className="px-3 py-2 text-xs text-gray-700 text-center">{formatExpiryMMYY(item.expiry_date)}</td>
@@ -441,7 +441,7 @@ export default function PurchaseDetail() {
             </span>
           </div>
           <div className="text-gray-600">
-            Net Amount <span className="font-bold text-gray-900 text-base" style={{ color: '#13ecda' }}>{formatCurrency(totals.netAmount)}</span>
+            Net Amount <span className="font-bold text-gray-900 text-base text-[#4682B4]">{formatCurrency(totals.netAmount)}</span>
           </div>
         </div>
 
@@ -474,7 +474,7 @@ export default function PurchaseDetail() {
             )}
             <button
               onClick={handlePrint}
-              className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-[#f0f7ff] transition-colors flex items-center gap-2"
               data-testid="print-btn"
             >
               <Printer className="w-4 h-4" />
@@ -489,20 +489,20 @@ export default function PurchaseDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowPayModal(false)}></div>
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Record Payment</h3>
-              <button onClick={() => setShowPayModal(false)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5 text-slate-400" />
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Record Payment</h3>
+              <button onClick={() => setShowPayModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               {/* Payment Method */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Payment Method</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Payment Method</label>
                 <select
                   value={paymentData.payment_method}
                   onChange={(e) => setPaymentData({ ...paymentData, payment_method: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="cash">Cash</option>
                   <option value="upi">UPI</option>
@@ -513,55 +513,54 @@ export default function PurchaseDetail() {
 
               {/* Amount */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Amount</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Amount</label>
                 <input
                   type="number"
                   step="0.01"
                   value={paymentData.amount}
                   onChange={(e) => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 text-lg font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 text-lg font-bold bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   data-testid="payment-amount"
                 />
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   Outstanding: {formatCurrency((purchase.total_value || 0) - (purchase.amount_paid || 0))}
                 </p>
               </div>
 
               {/* Date */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Date</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Date</label>
                 <input
                   type="date"
                   value={paymentData.payment_date}
                   onChange={(e) => setPaymentData({ ...paymentData, payment_date: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
               {/* Note */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Note (Optional)</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Note (Optional)</label>
                 <input
                   type="text"
                   value={paymentData.notes}
                   onChange={(e) => setPaymentData({ ...paymentData, notes: e.target.value })}
                   placeholder="Add a note"
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
               <button
                 onClick={() => setShowPayModal(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+                className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handlePayment}
                 disabled={paymentLoading || !paymentData.amount}
-                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: '#13ecda' }}
+                className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-[#4682B4]"
                 data-testid="confirm-payment-btn"
               >
                 {paymentLoading ? 'Processing...' : 'Confirm'}

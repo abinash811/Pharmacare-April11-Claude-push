@@ -58,11 +58,11 @@ export default function InventoryTable({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Bulk action bar */}
       {selectedItems.size > 0 && (
-        <div className="bg-[#E6FAFA] border-b border-[#B2F5F5] px-6 py-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-[#00A3A3]">
+        <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-green-700">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </span>
-          <button onClick={onBulkUpdate} className="px-4 py-2 bg-[#00CED1] text-white text-sm font-medium rounded-lg hover:bg-[#00B5B8]" data-testid="bulk-update-btn">
+          <button onClick={onBulkUpdate} className="px-4 py-2 bg-[#4682B4] text-white text-sm font-medium rounded-lg hover:bg-[#3a6fa0]" data-testid="bulk-update-btn">
             Bulk Update
           </button>
         </div>
@@ -76,11 +76,11 @@ export default function InventoryTable({
               <input type="checkbox"
                 checked={selectedItems.size === inventory.length && inventory.length > 0}
                 onChange={(e) => onSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-[#00CED1] focus:ring-[#00CED1]"
+                className="w-4 h-4 rounded border-gray-300 text-[#4682B4] focus:ring-[#4682B4]"
                 data-testid="select-all-checkbox" />
             </th>
             {['Medicine','Total Stock','Location','Discount %','Nearest Expiry','Status','Actions'].map((h) => (
-              <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider ${h === 'Total Stock' || h === 'Discount %' || h === 'Actions' ? 'text-right' : 'text-left'} ${h === 'Status' ? 'text-center' : ''}`}>
+              <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider tracking-wider ${h === 'Total Stock' || h === 'Discount %' || h === 'Actions' ? 'text-right' : 'text-left'} ${h === 'Status' ? 'text-center' : ''}`}>
                 {h}
               </th>
             ))}
@@ -89,7 +89,7 @@ export default function InventoryTable({
         <tbody className="divide-y divide-gray-100">
           {inventory.map((item) => (
             <tr key={item.product.sku}
-              className="hover:bg-gray-50 transition-colors cursor-pointer"
+              className="hover:bg-[#f0f7ff] transition-colors cursor-pointer"
               onClick={() => onRowClick(item)}
               data-testid={`inventory-row-${item.product.sku}`}
             >
@@ -97,7 +97,7 @@ export default function InventoryTable({
                 <input type="checkbox"
                   checked={selectedItems.has(item.product.sku)}
                   onChange={(e) => onSelectItem(item.product.sku, e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#00CED1] focus:ring-[#00CED1]"
+                  className="w-4 h-4 rounded border-gray-300 text-[#4682B4] focus:ring-[#4682B4]"
                   data-testid={`select-${item.product.sku}`} />
               </td>
 
@@ -133,10 +133,10 @@ export default function InventoryTable({
 
               <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-2">
-                  <button onClick={(e) => onEdit(item, e)} className="p-2 text-gray-400 hover:text-[#00CED1] hover:bg-[#E6FAFA] rounded-lg transition-colors" title="Edit" data-testid={`edit-${item.product.sku}`}>
+                  <button onClick={(e) => onEdit(item, e)} className="p-2 text-gray-400 hover:text-[#4682B4] hover:bg-green-50 rounded-lg transition-colors" title="Edit" data-testid={`edit-${item.product.sku}`}>
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button onClick={(e) => onAdjust(item, e)} className="p-2 text-gray-400 hover:text-[#00CED1] hover:bg-[#E6FAFA] rounded-lg transition-colors" title="Adjust Stock" data-testid={`adjust-${item.product.sku}`}>
+                  <button onClick={(e) => onAdjust(item, e)} className="p-2 text-gray-400 hover:text-[#4682B4] hover:bg-green-50 rounded-lg transition-colors" title="Adjust Stock" data-testid={`adjust-${item.product.sku}`}>
                     <Scale className="w-4 h-4" />
                   </button>
                 </div>
@@ -151,12 +151,12 @@ export default function InventoryTable({
         <p className="text-sm text-gray-500">Showing {from}–{to} of {totalItems} medicines</p>
         <div className="flex items-center gap-2">
           <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50" data-testid="prev-page">
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f0f7ff]" data-testid="prev-page">
             Previous
           </button>
           <span className="text-sm text-gray-600 px-3">Page {currentPage} of {totalPages}</span>
           <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50" data-testid="next-page">
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#f0f7ff]" data-testid="next-page">
             Next
           </button>
         </div>

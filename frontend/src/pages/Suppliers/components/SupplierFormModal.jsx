@@ -93,8 +93,7 @@ export default function SupplierFormModal({ open, editingSupplier, onClose, onSa
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
               Cancel
             </button>
-            <button type="submit" className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg"
-              style={{ backgroundColor: '#13ecda' }} data-testid="submit-supplier-btn">
+            <button type="submit" className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg bg-[#4682B4]" data-testid="submit-supplier-btn">
               {editingSupplier ? 'Update' : 'Create'}
             </button>
           </div>

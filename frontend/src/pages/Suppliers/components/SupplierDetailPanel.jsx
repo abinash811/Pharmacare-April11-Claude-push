@@ -99,7 +99,7 @@ export default function SupplierDetailPanel({
               <tbody className="divide-y divide-gray-100">
                 {purchaseHistory.map(p => (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 font-mono" style={{ color: '#0C7A6B' }}>{p.purchase_number}</td>
+                    <td className="px-3 py-2 font-mono text-[#4682B4]">{p.purchase_number}</td>
                     <td className="px-3 py-2 text-gray-700">{formatDate(p.purchase_date || p.created_at)}</td>
                     <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">₹{(p.net_amount || p.total_amount || 0).toFixed(2)}</td>
                     <td className="px-3 py-2 text-center">
@@ -119,13 +119,12 @@ export default function SupplierDetailPanel({
             <div className="p-4 bg-gray-50 rounded-lg flex items-center justify-between">
               <div>
                 <div className="text-sm text-gray-500">Current Outstanding</div>
-                <div className="text-3xl font-bold font-mono" style={{ color: outstanding > 0 ? '#CC2F2F' : '#166B3E' }}>
+                <div className={`text-3xl font-bold font-mono ${outstanding > 0 ? 'text-red-600' : 'text-green-700'}`}>
                   ₹{outstanding.toFixed(2)}
                 </div>
               </div>
               <button onClick={onRecordPayment} disabled={outstanding <= 0}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#13ecda' }} data-testid="record-payment-btn">
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-900 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-[#4682B4]" data-testid="record-payment-btn">
                 <Banknote className="w-4 h-4" />
                 Record Payment
               </button>
@@ -153,7 +152,7 @@ export default function SupplierDetailPanel({
                             {pay.type === 'purchase_return' ? 'Return' : 'Payment'}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono font-semibold" style={{ color: '#166B3E' }}>₹{(pay.amount||0).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">₹{(pay.amount||0).toFixed(2)}</td>
                         <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{pay.note || '—'}</td>
                       </tr>
                     ))}

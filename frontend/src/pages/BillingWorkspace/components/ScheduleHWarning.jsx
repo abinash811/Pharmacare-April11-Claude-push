@@ -39,7 +39,7 @@ export default function ScheduleHWarning({ open, onCancel, onConfirm }) {
           </div>
         </DialogHeader>
 
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-gray-600">
           This bill contains <strong>Schedule H medicines</strong>. Please confirm
           you have a valid prescription from the prescribing doctor before
           proceeding.

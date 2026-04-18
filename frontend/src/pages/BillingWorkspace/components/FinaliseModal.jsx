@@ -54,11 +54,11 @@ export default function FinaliseModal({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl p-0 gap-0 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="px-6 py-4 border-b border-slate-200 shrink-0">
+        <DialogHeader className="px-6 py-4 border-b border-gray-200 shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-lg">Finalise Bill</DialogTitle>
-              <p className="text-sm text-slate-500 mt-0.5">{customerName || 'Counter Sale'}</p>
+              <p className="text-sm text-gray-500 mt-0.5">{customerName || 'Counter Sale'}</p>
             </div>
           </div>
         </DialogHeader>
@@ -68,34 +68,34 @@ export default function FinaliseModal({
 
             {/* ── Left: Invoice breakdown ──────────────────────────── */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-4">Invoice Breakdown</h4>
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Invoice Breakdown</h4>
 
               {[
                 { label: 'MRP Total',       value: `₹${mrpTotal.toFixed(2)}`,                  cls: '' },
-                { label: 'Item Discounts',  value: `-₹${itemDiscAmt.toFixed(2)}`,               cls: 'text-rose-500' },
-                { label: 'Bill Discount',   value: `-₹${billDiscAmt.toFixed(2)}`,               cls: 'text-rose-500' },
+                { label: 'Item Discounts',  value: `-₹${itemDiscAmt.toFixed(2)}`,               cls: 'text-red-500' },
+                { label: 'Bill Discount',   value: `-₹${billDiscAmt.toFixed(2)}`,               cls: 'text-red-500' },
                 { label: 'GST',             value: `+₹${totalGst.toFixed(2)}`,                  cls: '' },
                 { label: 'CESS',            value: `+₹${totalCess.toFixed(2)}`,                 cls: '' },
                 { label: 'Round off',       value: '₹0.00',                                     cls: '' },
               ].map(({ label, value, cls }) => (
-                <div key={label} className="flex justify-between py-2 border-b border-slate-100">
-                  <span className="text-sm text-slate-600">{label}</span>
+                <div key={label} className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">{label}</span>
                   <span className={`text-sm font-semibold ${cls}`}>{value}</span>
                 </div>
               ))}
 
               {/* Net Payable highlight */}
               <div className="flex justify-between py-4 mt-4 bg-[#4682B4]/10 rounded-lg px-4 -mx-4">
-                <span className="text-base font-bold text-slate-900">Net Payable</span>
-                <span className="text-2xl font-black" style={{ color: '#0d9488' }}>₹{grandTotal.toFixed(2)}</span>
+                <span className="text-base font-bold text-gray-900">Net Payable</span>
+                <span className="text-2xl font-black text-gray-900">₹{grandTotal.toFixed(2)}</span>
               </div>
 
               <div className="flex justify-between py-2 mt-2">
-                <span className="text-sm text-slate-400">Margin</span>
+                <span className="text-sm text-gray-400">Margin</span>
                 <span className="text-sm font-semibold text-green-600">₹{margin.amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-sm text-slate-400">Margin %</span>
+                <span className="text-sm text-gray-400">Margin %</span>
                 <span className="text-sm font-semibold text-green-600">{margin.percent.toFixed(1)}%</span>
               </div>
             </div>
@@ -103,11 +103,11 @@ export default function FinaliseModal({
             {/* ── Right: Notes + confirm ───────────────────────────── */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Internal Note</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Internal Note</label>
                 <textarea
                   value={internalNote}
                   onChange={(e) => setInternalNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
                   rows="4"
                   placeholder="Internal notes (not visible to customer)"
                   data-testid="internal-note"
@@ -115,27 +115,26 @@ export default function FinaliseModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Delivery Note</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Delivery Note</label>
                 <textarea
                   value={deliveryNote}
                   onChange={(e) => setDeliveryNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4682B4] resize-none"
                   rows="4"
                   placeholder="Delivery instructions (if applicable)"
                   data-testid="delivery-note"
                 />
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <span className="text-xs text-slate-400 block mb-1">Payment Method</span>
-                <span className="font-semibold text-slate-700 capitalize">{paymentType || 'Not selected'}</span>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <span className="text-xs text-gray-400 block mb-1">Payment Method</span>
+                <span className="font-semibold text-gray-700 capitalize">{paymentType || 'Not selected'}</span>
               </div>
 
               <Button
                 onClick={handleConfirm}
                 disabled={isSaving}
-                className="w-full py-3 text-sm font-bold text-slate-900 flex items-center justify-center gap-2 hover:brightness-95 mt-4"
-                style={{ backgroundColor: '#13ecda' }}
+                className="w-full py-3 text-sm font-bold text-gray-900 flex items-center justify-center gap-2 hover:brightness-95 mt-4 bg-[#4682B4]"
                 data-testid="confirm-save-btn"
               >
                 {isSaving ? (

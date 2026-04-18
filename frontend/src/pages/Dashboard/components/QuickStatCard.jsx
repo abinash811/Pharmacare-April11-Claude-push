@@ -14,7 +14,7 @@ const COLOR_CLASSES = {
   yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
   gray:   'bg-gray-50 border-gray-200 text-gray-700',
   red:    'bg-red-50 border-red-200 text-red-700',
-  indigo: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+  indigo: 'bg-blue-50 border-blue-200 text-blue-700',
 };
 
 export default function QuickStatCard({ title, value, icon, color, onClick }) {

@@ -20,12 +20,12 @@ import { format } from 'date-fns';
 
 const NumberInput = ({ value, onChange }) => (
   <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
-    className="w-24 px-2 py-1 text-sm text-right bg-slate-50 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#4682B4]" />
+    className="w-24 px-2 py-1 text-sm text-right bg-gray-50 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-[#4682B4]" />
 );
 
 const Row = ({ label, children }) => (
   <div className="flex justify-between items-center">
-    <span className="text-sm text-slate-600">{label}</span>
+    <span className="text-sm text-gray-600">{label}</span>
     {children}
   </div>
 );
@@ -43,27 +43,27 @@ export default function InvoiceBreakdownModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="px-6 py-4 border-b border-slate-100 sticky top-0 bg-white">
-          <h3 className="text-lg font-bold text-slate-900">Invoice Breakdown</h3>
+        <div className="px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+          <h3 className="text-lg font-bold text-gray-900">Invoice Breakdown</h3>
         </div>
 
         <div className="p-6">
           {/* Header summary */}
-          <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-100">
+          <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-100">
             <div>
-              <span className="text-xs text-slate-400">Distributor</span>
+              <span className="text-xs text-gray-400">Distributor</span>
               <div className="text-sm font-semibold">{selectedSupplier?.name || '—'}</div>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Invoice #</span>
+              <span className="text-xs text-gray-400">Invoice #</span>
               <div className="text-sm font-semibold">{supplierInvoiceNo || '—'}</div>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Items</span>
+              <span className="text-xs text-gray-400">Items</span>
               <div className="text-sm font-semibold">{totals.itemCount}</div>
             </div>
             <div>
-              <span className="text-xs text-slate-400">Total Qty</span>
+              <span className="text-xs text-gray-400">Total Qty</span>
               <div className="text-sm font-semibold">{totals.totalQty} + {totals.totalFree} free</div>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function InvoiceBreakdownModal({
               <NumberInput value={breakdown.cess} onChange={(v) => onUpdateBreakdown('cess', v)} />
             </Row>
 
-            <hr className="border-slate-100" />
+            <hr className="border-gray-100" />
 
             <Row label="Bill Amount">
               <span className="text-sm font-semibold">₹{breakdown.billAmount.toFixed(2)}</span>
@@ -106,10 +106,10 @@ export default function InvoiceBreakdownModal({
               </span>
             </Row>
 
-            <hr className="border-slate-100" />
+            <hr className="border-gray-100" />
 
-            <Row label={<span className="text-base font-bold text-slate-800">Net Amount</span>}>
-              <span className="text-lg font-black" style={{ color: '#13ecda' }}>
+            <Row label={<span className="text-base font-bold text-gray-800">Net Amount</span>}>
+              <span className="text-lg font-black text-[#4682B4]">
                 ₹{breakdown.netAmount.toLocaleString()}
               </span>
             </Row>
@@ -124,26 +124,25 @@ export default function InvoiceBreakdownModal({
 
           {/* Internal note */}
           <div className="mt-4">
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Internal Note</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Internal Note</label>
             <textarea
               value={internalNote}
               onChange={(e) => onInternalNote(e.target.value)}
               placeholder="Add a note (optional)"
               rows={2}
-              className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4682B4]"
+              className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4682B4]"
               data-testid="internal-note"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0 bg-white">
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white">
           <button onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+            className="px-4 py-2 text-xs font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
             Cancel
           </button>
           <button onClick={onConfirm} disabled={loading}
-            className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#13ecda' }} data-testid="confirm-save-btn">
+            className="px-6 py-2 text-xs font-bold text-gray-900 rounded-lg disabled:opacity-50 bg-[#4682B4]" data-testid="confirm-save-btn">
             {loading ? 'Saving...' : 'Confirm & Save'}
           </button>
         </div>

@@ -29,7 +29,7 @@ export default function BatchesTab({
       {/* Action bar */}
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <label className="flex items-center gap-2 cursor-pointer">
-          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${hideZeroQty ? 'bg-[#00CED1] border-[#00CED1]' : 'border-gray-300'}`}>
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${hideZeroQty ? 'bg-[#4682B4] border-[#4682B4]' : 'border-gray-300'}`}>
             {hideZeroQty && <Check className="w-3.5 h-3.5 text-white" />}
           </div>
           <input type="checkbox" checked={hideZeroQty} onChange={(e) => onHideZeroQty(e.target.checked)}
@@ -44,7 +44,7 @@ export default function BatchesTab({
             <Trash2 className="w-4 h-4" />
             Delete Batches
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#00CED1] text-white font-medium rounded-lg hover:bg-[#00B5B8] transition-colors"
+          <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#4682B4] text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
             data-testid="print-qr-btn">
             <QrCode className="w-4 h-4" />
             Print QR
@@ -60,10 +60,10 @@ export default function BatchesTab({
               <th className="w-12 px-4 py-3">
                 <input type="checkbox" checked={selectedBatches.size === batches.length && batches.length > 0}
                   onChange={(e) => onSelectAll(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#00CED1] focus:ring-[#00CED1]" />
+                  className="w-4 h-4 rounded border-gray-300 text-[#4682B4] focus:ring-[#4682B4]" />
               </th>
               {['Batch ID','Qty.','Exp. Date','MRP','Prev. MRP','PTR','Disc. (%)','LP','Margin%'].map(h => (
-                <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase ${
+                <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
                   ['MRP','Prev. MRP','PTR','LP','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
                 }`}>{h}</th>
               ))}
@@ -84,12 +84,12 @@ export default function BatchesTab({
 
                 return (
                   <tr key={batch.id}
-                    className={`hover:bg-gray-50 ${expired ? 'bg-red-50' : soon ? 'bg-orange-50' : ''}`}
+                    className={`hover:bg-[#f0f7ff] ${expired ? 'bg-red-50' : soon ? 'bg-orange-50' : ''}`}
                     data-testid={`batch-row-${batch.id}`}>
                     <td className="px-4 py-4">
                       <input type="checkbox" checked={selectedBatches.has(batch.id)}
                         onChange={(e) => onSelectBatch(batch.id, e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-[#00CED1] focus:ring-[#00CED1]" />
+                        className="w-4 h-4 rounded border-gray-300 text-[#4682B4] focus:ring-[#4682B4]" />
                     </td>
                     <td className="px-4 py-4 font-medium text-gray-900">{batch.batch_no || '–'}</td>
                     <td className="px-4 py-4 text-center">
@@ -114,7 +114,7 @@ export default function BatchesTab({
                     <td className="px-4 py-4 text-right text-gray-700">₹{ptr.toFixed(2)}</td>
                     <td className="px-4 py-4 text-center text-gray-700">{batch.discount_percent || 0}</td>
                     <td className="px-4 py-4 text-right text-gray-700">₹{costPrice.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-right"><span className="text-[#00CED1] font-medium">{margin}%</span></td>
+                    <td className="px-4 py-4 text-right"><span className="text-[#4682B4] font-medium">{margin}%</span></td>
                   </tr>
                 );
               })

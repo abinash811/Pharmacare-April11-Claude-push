@@ -28,7 +28,7 @@ const CONFIG = {
     key: 'purchases',
     cols: ['Purchase #','Date','Supplier','Invoice #','Batch','Qty','Cost','MRP','Total','Status'],
     row: (t) => [
-      <span className="font-medium text-[#00CED1]">{t.purchase_number}</span>,
+      <span className="font-medium text-[#4682B4]">{t.purchase_number}</span>,
       formatDate(t.date), t.supplier_name, t.supplier_invoice, t.batch_no,
       <span className="font-medium">{t.quantity}</span>,
       `₹${t.cost_price?.toFixed(2)}`, `₹${t.mrp?.toFixed(2)}`,
@@ -110,7 +110,7 @@ export default function TransactionTab({ type, transactions, loading }) {
             <thead className="bg-gray-50">
               <tr>
                 {cfg.cols.map((col, i) => (
-                  <th key={i} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase ${
+                  <th key={i} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
                     ['Cost','MRP','Total','Amount','Unit Price','Discount','Refund Amount'].includes(col) ? 'text-right' :
                     ['Qty'].includes(col) ? 'text-center' : 'text-left'
                   }`}>{col}</th>
@@ -122,7 +122,7 @@ export default function TransactionTab({ type, transactions, loading }) {
                 <tr><td colSpan={cfg.colSpan} className="px-4 py-12 text-center text-gray-500">{cfg.emptyMsg}</td></tr>
               ) : (
                 rows.map((txn, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
+                  <tr key={idx} className="hover:bg-[#f0f7ff]">
                     {cfg.row(txn).map((cell, i) => (
                       <td key={i} className={`px-4 py-3 text-sm text-gray-700 ${
                         ['Cost','MRP','Total','Amount','Unit Price','Discount','Refund Amount'].includes(cfg.cols[i]) ? 'text-right' :

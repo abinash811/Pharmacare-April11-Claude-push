@@ -24,7 +24,7 @@ export default function LedgerTab({ movements }) {
           <thead className="bg-gray-50">
             <tr>
               {['Date & Time','Type','Batch','Qty Change','Reason','Reference','By'].map(h => (
-                <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-500 uppercase ${h === 'Qty Change' ? 'text-right' : 'text-left'}`}>{h}</th>
+                <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${h === 'Qty Change' ? 'text-right' : 'text-left'}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -33,7 +33,7 @@ export default function LedgerTab({ movements }) {
               <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">No stock movements found</td></tr>
             ) : (
               movements.map((m, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
+                <tr key={idx} className="hover:bg-[#f0f7ff]">
                   <td className="px-4 py-3 text-sm text-gray-700">
                     {new Date(m.performed_at).toLocaleString('en-GB')}
                   </td>
@@ -42,7 +42,7 @@ export default function LedgerTab({ movements }) {
                       {m.movement_type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{m.batch_no || '–'}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-gray-700">{m.batch_no || '–'}</td>
                   <td className={`px-4 py-3 text-sm text-right font-medium ${m.qty_delta_units > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {m.qty_delta_units > 0 ? '+' : ''}{m.qty_delta_units}
                   </td>

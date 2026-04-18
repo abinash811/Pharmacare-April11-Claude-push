@@ -105,7 +105,7 @@ export default function MedicineDetail() {
       </div>
 
       {/* Floating help */}
-      <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#00CED1] text-white rounded-full shadow-lg hover:bg-[#00B5B8] flex items-center justify-center">
+      <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#4682B4] text-white rounded-full shadow-lg hover:bg-[#3a6fa0] flex items-center justify-center">
         <span className="text-xl font-bold">?</span>
       </button>
 

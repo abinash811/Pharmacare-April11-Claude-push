@@ -54,7 +54,7 @@ export default function GSTReport() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="px-8 py-6">
       <PageHeader
         title="GST / Tax Report"
         subtitle="View GST collected and paid for compliance"
@@ -65,7 +65,7 @@ export default function GSTReport() {
         <div className="p-4">
           <div className="flex items-end gap-4 flex-wrap">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Start Date</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
               <input
                 type="date"
                 value={dateRange.start_date}
@@ -75,7 +75,7 @@ export default function GSTReport() {
             </div>
 
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">End Date</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">End Date</label>
               <input
                 type="date"
                 value={dateRange.end_date}
@@ -114,32 +114,32 @@ export default function GSTReport() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GST Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Taxable Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">CGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">IGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total GST</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">IGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total GST</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {reportData.sales_gst.breakup.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
+                    <tr key={idx} className="hover:bg-[#f0f7ff]">
                       <td className="px-4 py-3 text-sm font-medium text-[#4682B4]">{row.gst_rate}%</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.taxable_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.cgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.sgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.igst)}</td>
-                      <td className="px-4 py-3 text-sm text-right font-medium">{formatCurrency(row.total_gst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.cgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.sgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.igst)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{formatCurrency(row.total_gst)}</td>
                     </tr>
                   ))}
                   <tr className="bg-gray-50 font-semibold">
                     <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.sales_gst.total_igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-[#4682B4]">{formatCurrency(reportData.sales_gst.total_gst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-[#4682B4]">{formatCurrency(reportData.sales_gst.total_gst)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -156,32 +156,32 @@ export default function GSTReport() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">GST Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Taxable Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">CGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">SGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">IGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total GST</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">IGST</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total GST</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {reportData.purchase_gst.breakup.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
+                    <tr key={idx} className="hover:bg-[#f0f7ff]">
                       <td className="px-4 py-3 text-sm font-medium text-[#4682B4]">{row.gst_rate}%</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.taxable_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.cgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.sgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right">{formatCurrency(row.igst)}</td>
-                      <td className="px-4 py-3 text-sm text-right font-medium">{formatCurrency(row.total_gst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.cgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.sgst)}</td>
+                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.igst)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{formatCurrency(row.total_gst)}</td>
                     </tr>
                   ))}
                   <tr className="bg-gray-50 font-semibold">
                     <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(reportData.purchase_gst.total_igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-[#4682B4]">{formatCurrency(reportData.purchase_gst.total_gst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-[#4682B4]">{formatCurrency(reportData.purchase_gst.total_gst)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -208,15 +208,15 @@ export default function GSTReport() {
                 <div className={`rounded-lg p-4 border ${
                   reportData.net_gst_liability >= 0
                     ? 'bg-red-50 border-red-200'
-                    : 'bg-emerald-50 border-emerald-200'
+                    : 'bg-green-50 border-green-200'
                 }`}>
                   <p className={`text-xs font-semibold uppercase ${
-                    reportData.net_gst_liability >= 0 ? 'text-red-600' : 'text-emerald-600'
+                    reportData.net_gst_liability >= 0 ? 'text-red-600' : 'text-green-600'
                   }`}>
                     {reportData.net_gst_liability >= 0 ? 'Net GST Payable' : 'Net ITC Available'}
                   </p>
                   <p className={`text-2xl font-bold mt-1 ${
-                    reportData.net_gst_liability >= 0 ? 'text-red-700' : 'text-emerald-700'
+                    reportData.net_gst_liability >= 0 ? 'text-red-700' : 'text-green-700'
                   }`}>
                     {formatCurrency(Math.abs(reportData.net_gst_liability))}
                   </p>

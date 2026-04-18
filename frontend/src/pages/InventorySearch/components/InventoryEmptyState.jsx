@@ -18,9 +18,9 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
       {/* Hero */}
       <div className="flex flex-col items-center justify-center py-16 px-4">
         <div className="relative mb-6">
-          <div className="w-32 h-32 bg-[#E6FAFA] rounded-full flex items-center justify-center">
-            <div className="w-24 h-24 bg-[#B2F5F5] rounded-full flex items-center justify-center">
-              <Package className="w-12 h-12 text-[#00CED1]" />
+          <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center">
+            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center">
+              <Package className="w-12 h-12 text-[#4682B4]" />
             </div>
           </div>
           <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-lg shadow-md flex items-center justify-center">
@@ -44,7 +44,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
           </button>
           <button
             onClick={onViewLowStock}
-            className="px-5 py-2.5 bg-[#00CED1] text-white font-medium rounded-lg hover:bg-[#00B5B8] transition-colors"
+            className="px-5 py-2.5 bg-[#4682B4] text-white font-medium rounded-lg hover:bg-[#3a6fa0] transition-colors"
             data-testid="view-low-stock-btn"
           >
             View Low Stock
@@ -76,7 +76,7 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
             </div>
           </div>
         </div>
-        <div className="bg-[#FFFBEB] rounded-xl p-4">
+        <div className="bg-amber-50 rounded-xl p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
               <Clock className="w-5 h-5 text-yellow-600" />

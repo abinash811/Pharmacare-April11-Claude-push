@@ -98,7 +98,7 @@ export default function SalesReturnsList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="sales-returns-page">
+    <div className="px-8 py-6" data-testid="sales-returns-page">
       <PageHeader
         title="Sales Returns"
         subtitle={
@@ -152,15 +152,15 @@ export default function SalesReturnsList() {
           <table className="w-full" data-testid="sales-returns-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Return No.</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Original Bill</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Patient</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Return Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entry By</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Payment</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return No.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Bill</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry By</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -188,7 +188,7 @@ export default function SalesReturnsList() {
                 returns.map((item) => (
                   <tr
                     key={item.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="hover:bg-[#f0f7ff] cursor-pointer"
                     onClick={() => navigate(`/billing/returns/${item.id}`)}
                     data-testid={`return-row-${item.return_no}`}
                   >
@@ -221,7 +221,7 @@ export default function SalesReturnsList() {
                       <span className="text-sm text-gray-700">{item.created_by?.name || '-'}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="font-medium text-red-600">
+                      <span className="font-semibold tabular-nums text-red-600">
                         -₹{(item.net_amount || 0).toFixed(2)}
                       </span>
                     </td>

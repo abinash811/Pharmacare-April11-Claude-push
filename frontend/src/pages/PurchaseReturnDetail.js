@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Printer, MoreVertical, Edit, FileText, X } from 'lucide-react';
@@ -44,7 +44,7 @@ export default function PurchaseReturnDetail() {
   const fetchPurchaseReturn = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/purchase-returns/${id}`, {
+      const response = await api.get(`${API}/purchase-returns/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPurchaseReturn(response.data);
@@ -60,7 +60,7 @@ export default function PurchaseReturnDetail() {
   const fetchUsers = async () => {
     const token = localStorage.getItem('token');
     try {
-      const response = await axios.get(`${API}/users`, {
+      const response = await api.get(`${API}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(response.data || []);
@@ -90,7 +90,7 @@ export default function PurchaseReturnDetail() {
         billed_by: editBilledBy
       };
       
-      await axios.put(`${API}/purchase-returns/${id}`, payload, {
+      await api.put(`${API}/purchase-returns/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -153,7 +153,7 @@ export default function PurchaseReturnDetail() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       {/* Header - Pattern C */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -171,12 +171,11 @@ export default function PurchaseReturnDetail() {
                 <span>/</span>
               </div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold font-mono" style={{ color: '#0C7A6B' }}>
+                <h1 className="text-xl font-bold font-mono text-[#4682B4]">
                   {purchaseReturn.return_number}
                 </h1>
                 <span 
-                  className="px-2 py-0.5 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: '#EDFAF2', color: '#166B3E' }}
+                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700"
                 >
                   CONFIRMED
                 </span>
@@ -198,21 +197,21 @@ export default function PurchaseReturnDetail() {
               <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-20">
                 <button
                   onClick={() => openEditModal('non_financial')}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit (Non-Financial)
                 </button>
                 <button
                   onClick={() => openEditModal('financial')}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                 >
                   <Edit className="w-4 h-4" />
                   Edit (Financial)
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                 >
                   <Printer className="w-4 h-4" />
                   Print
@@ -222,7 +221,7 @@ export default function PurchaseReturnDetail() {
                     setShowMoreMenu(false);
                     toast.info('Logs coming soon');
                   }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-[#f0f7ff] flex items-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
                   Logs
@@ -236,50 +235,50 @@ export default function PurchaseReturnDetail() {
       {/* Main Content */}
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         {/* Subbar - Read Only Chips */}
-        <section className="bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
+        <section className="bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Date Chip */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <span className="material-symbols-outlined text-slate-500 text-base">calendar_today</span>
-              <span className="text-sm font-medium text-slate-700">{formatDate(purchaseReturn.return_date)}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="material-symbols-outlined text-gray-500 text-base">calendar_today</span>
+              <span className="text-sm font-medium text-gray-700">{formatDate(purchaseReturn.return_date)}</span>
             </div>
 
             {/* Supplier Chip */}
             <div 
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"
               style={{ maxWidth: '220px' }}
               title={purchaseReturn.supplier_name}
             >
-              <span className="material-symbols-outlined text-slate-400 text-base">business</span>
-              <span className="text-sm font-medium text-slate-900 truncate">{purchaseReturn.supplier_name}</span>
+              <span className="material-symbols-outlined text-gray-400 text-base">business</span>
+              <span className="text-sm font-medium text-gray-900 truncate">{purchaseReturn.supplier_name}</span>
             </div>
 
             {/* Purchase # Chip */}
             {purchaseReturn.purchase_number && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-                <span className="text-[10px] text-slate-400 uppercase font-medium">Orig#</span>
-                <span className="text-sm font-medium font-mono" style={{ color: '#0C7A6B' }}>{purchaseReturn.purchase_number}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+                <span className="text-[10px] text-gray-400 uppercase font-medium">Orig#</span>
+                <span className="text-sm font-medium font-mono text-[#4682B4]">{purchaseReturn.purchase_number}</span>
               </div>
             )}
 
             {/* Billed By Chip */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">badge</span>
-              <span className="text-sm font-medium text-slate-700">{purchaseReturn.billed_by || '—'}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">badge</span>
+              <span className="text-sm font-medium text-gray-700">{purchaseReturn.billed_by || '—'}</span>
             </div>
 
             <div className="flex-grow"></div>
 
             {/* Payment Type Chip */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 rounded-lg">
-              <span className="material-symbols-outlined text-slate-400 text-base">payments</span>
-              <span className="text-sm font-medium text-slate-700 capitalize">{purchaseReturn.payment_type || 'Credit'}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="material-symbols-outlined text-gray-400 text-base">payments</span>
+              <span className="text-sm font-medium text-gray-700 capitalize">{purchaseReturn.payment_type || 'Credit'}</span>
             </div>
           </div>
         </section>
 
         {/* Items Table - Read Only */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm flex-grow overflow-hidden flex flex-col">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow overflow-hidden flex flex-col">
           <div className="overflow-auto flex-grow">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 sticky top-0 z-10">
@@ -299,7 +298,7 @@ export default function PurchaseReturnDetail() {
                 {items.map((item, index) => {
                   const lineAmount = item.line_total || (item.qty_units * (item.ptr || item.cost_price_per_unit || 0));
                   return (
-                    <tr key={item.id || index} className="hover:bg-gray-50 transition-colors">
+                    <tr key={item.id || index} className="hover:bg-[#f0f7ff] transition-colors">
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">{item.product_name}</div>
@@ -308,10 +307,10 @@ export default function PurchaseReturnDetail() {
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>
                       <td className="px-4 py-3 text-gray-700">{formatExpiry(item.expiry_date)}</td>
                       <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.mrp || 0).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center font-semibold" style={{ color: '#0C7A6B' }}>{item.qty_units}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-[#4682B4]">{item.qty_units}</td>
                       <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.ptr || item.cost_price_per_unit || 0).toFixed(2)}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{item.gst_percent || 5}%</td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: '#CC2F2F' }}>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
                         ₹{lineAmount.toFixed(2)}
                       </td>
                     </tr>
@@ -319,7 +318,7 @@ export default function PurchaseReturnDetail() {
                 })}
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan="9" className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan="9" className="px-4 py-12 text-center text-gray-400">
                       No items in this return.
                     </td>
                   </tr>
@@ -330,30 +329,30 @@ export default function PurchaseReturnDetail() {
         </section>
 
         {/* Sticky Footer - Pattern C */}
-        <section className="bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm shrink-0">
           {/* Row 1: Totals */}
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between" style={{ backgroundColor: '#F7F7F6' }}>
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
             <div className="flex items-center gap-6 text-sm">
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Items</span>
-                <span className="font-bold text-slate-700">{items.length}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Items</span>
+                <span className="font-bold text-gray-700">{items.length}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Qty</span>
-                <span className="font-bold text-slate-700">{items.reduce((sum, i) => sum + (i.qty_units || 0), 0)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">Total Qty</span>
+                <span className="font-bold text-gray-700">{items.reduce((sum, i) => sum + (i.qty_units || 0), 0)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">PTR Total</span>
-                <span className="font-bold text-slate-700">₹{ptrTotal.toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">PTR Total</span>
+                <span className="font-bold text-gray-700">₹{ptrTotal.toFixed(2)}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-semibold block">GST</span>
-                <span className="font-bold text-slate-700">₹{gstAmount.toFixed(2)}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-semibold block">GST</span>
+                <span className="font-bold text-gray-700">₹{gstAmount.toFixed(2)}</span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Net Return Amount</span>
-              <span className="text-2xl font-black" style={{ color: '#CC2F2F' }}>₹{netAmount.toFixed(2)}</span>
+              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
+              <span className="text-2xl font-black text-red-600">₹{netAmount.toFixed(2)}</span>
             </div>
           </div>
           
@@ -361,7 +360,7 @@ export default function PurchaseReturnDetail() {
           <div className="px-4 py-3 flex items-center justify-end gap-3">
             <button
               onClick={handlePrint}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2"
             >
               <Printer className="w-4 h-4" />
               Print
@@ -371,9 +370,9 @@ export default function PurchaseReturnDetail() {
 
         {/* Note Section */}
         {purchaseReturn.note && (
-          <section className="bg-white rounded-xl border border-slate-200 px-4 py-3 shadow-sm">
-            <div className="text-xs text-slate-400 uppercase font-semibold mb-1">Note</div>
-            <div className="text-sm text-slate-700">{purchaseReturn.note}</div>
+          <section className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
+            <div className="text-xs text-gray-400 uppercase font-semibold mb-1">Note</div>
+            <div className="text-sm text-gray-700">{purchaseReturn.note}</div>
           </section>
         )}
       </main>
@@ -382,12 +381,12 @@ export default function PurchaseReturnDetail() {
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">
                 {editType === 'non_financial' ? 'Edit Return (Non-Financial)' : 'Edit Return (Financial)'}
               </h2>
-              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-slate-100 rounded">
-                <X className="w-5 h-5 text-slate-500" />
+              <button onClick={() => setShowEditModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
@@ -399,11 +398,11 @@ export default function PurchaseReturnDetail() {
               )}
               
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Billed By</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Billed By</label>
                 <select
                   value={editBilledBy}
                   onChange={(e) => setEditBilledBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Select staff</option>
                   {users.map(u => (
@@ -413,35 +412,34 @@ export default function PurchaseReturnDetail() {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Note</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
                 <textarea
                   value={editNote}
                   onChange={(e) => setEditNote(e.target.value.slice(0, 150))}
                   placeholder="Add a note..."
-                  className="w-full h-24 px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-24 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                 />
-                <div className="text-right text-xs text-slate-400 mt-1">{editNote.length}/150</div>
+                <div className="text-right text-xs text-gray-400 mt-1">{editNote.length}/150</div>
               </div>
               
               {editType === 'financial' && (
-                <div className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600">
+                <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
                   To edit quantities or add/remove items, please create a new return for any differences.
                 </div>
               )}
             </div>
             
-            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditSave}
                 disabled={isSaving}
-                className="px-6 py-2 font-semibold text-sm text-slate-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50"
-                style={{ backgroundColor: '#13ecda' }}
+                className="px-6 py-2 font-semibold text-sm text-gray-900 rounded-lg hover:brightness-95 transition-all disabled:opacity-50 bg-[#4682B4]"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>

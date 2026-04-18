@@ -28,7 +28,7 @@ function ActionBadge({ action }) {
     delete: 'bg-red-100 text-red-700',
     login:  'bg-purple-100 text-purple-700',
     logout: 'bg-gray-100 text-gray-600',
-    bill_finalized:    'bg-emerald-100 text-emerald-700',
+    bill_finalized:    'bg-green-100 text-green-700',
     bill_parked:       'bg-amber-100 text-amber-700',
     stock_adjusted:    'bg-orange-100 text-orange-700',
     payment_recorded:  'bg-green-100 text-green-700',
@@ -135,7 +135,7 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" data-testid="audit-log-page">
+    <div className="px-8 py-6" data-testid="audit-log-page">
       <PageHeader
         title="Audit Log"
         subtitle={pg.totalItems > 0 ? `${pg.totalItems} total events` : 'System activity history'}
@@ -179,12 +179,12 @@ export default function AuditLog() {
           <table className="w-full text-sm" data-testid="audit-log-table">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entity</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Entity ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Performed By</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Details</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performed By</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -204,7 +204,7 @@ export default function AuditLog() {
                 displayLogs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-[#f0f7ff] cursor-pointer"
                       onClick={() => toggleExpand(log.id)}
                       data-testid={`audit-row-${log.id}`}
                     >

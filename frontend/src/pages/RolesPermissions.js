@@ -186,7 +186,7 @@ export default function RolesPermissions() {
             </div>
             <div className="ml-7 space-y-1">
               {module.permissions.map((perm) => (
-                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-[#f0f7ff] p-1 rounded">
                   <input
                     type="checkbox"
                     checked={formData.selectedPermissions.includes(perm.id)}
@@ -216,7 +216,7 @@ export default function RolesPermissions() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="px-8 py-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
@@ -245,15 +245,15 @@ export default function RolesPermissions() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Role Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Permissions Count</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions Count</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {roles.map((role) => (
-                  <tr key={role.id} className="hover:bg-gray-50">
+                  <tr key={role.id} className="hover:bg-[#f0f7ff]">
                     <td className="px-4 py-3">
                       <div className="font-medium text-[#4682B4]">{role.display_name}</div>
                       <div className="text-xs text-gray-500">{role.name}</div>

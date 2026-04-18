@@ -1,6 +1,6 @@
 # PHARMACARE — QUICK CONTEXT
 # Read this first in any new session
-# Last updated: April 16, 2026
+# Last updated: April 18, 2026
 
 ---
 
@@ -14,7 +14,8 @@ Non-technical CEO/founder. Building with Claude Code + Claude.ai.
 Needs plain English explanations. No jargon without explanation.
 
 ## CURRENT BRANCH
-`main` ← all refactor work is committed here (Phases 1–7 complete)
+`main` — listing pages and backend work
+`claude/compassionate-agnesi` — design consistency fixes (active)
 
 ## TECH STACK
 - Frontend: React + Tailwind CSS + Shadcn/UI (JavaScript, converting to TypeScript)
@@ -41,7 +42,8 @@ Full refactor to international engineering standard:
 5. ✅ TypeScript conversion — DONE
 6. ✅ Break down giant files — DONE (9 files → 73 focused files, all ≤300 lines)
 7. ✅ Fix broken pages — DONE
-8. ⏳ Add missing features (pagination, barcode, print) ← CURRENT
+8. ✅ Add missing features (pagination, barcode, print) — DONE
+9. 🔄 Design consistency fixes — IN PROGRESS ← CURRENT
 
 ## CRITICAL RULES
 - One task at a time. Review before next task.
@@ -50,12 +52,28 @@ Full refactor to international engineering standard:
 - Always commit after each completed task
 - Money = INTEGER paise (₹1 = 100 paise). Never floats.
 - Steel Blue #4682B4 is the ONLY primary color. Never teal.
-- Customers.js is the design reference. Every page matches it.
+- PHARMACARE_DESIGN_SKILL.md is the single design reference. Read it before any frontend work.
 - Soft deletes only — never hard delete pharmacy data
 - Snapshot product details in bills — never reference live product name
+- Shadcn/UI exclusively — no other component libraries
+
+## WHAT IS WORKING NOW
+All features are complete and functional. The app works end to end.
+Currently polishing: design consistency across all pages.
+
+- ✅ All billing, purchases, inventory, returns, suppliers, customers features
+- ✅ Dashboard, reports, GST report, compliance, audit log, stock movement log
+- ✅ Consistent PageHeader on Dashboard, Reports, Suppliers pages
+- ✅ BillingWorkspace — labeled-column subbar, action buttons in header
+- ✅ PurchaseNew — labeled-column subbar, action buttons in header
+- 🔄 Rounds 1–4 design violation fixes (banned colors, badges, modals, row hover) — PENDING
 
 ## NEXT TASK
-Phase 8 — Missing Features (see PROGRESS.md for full list)
+Design Consistency — Round 1: banned colors + raw axios (see PROGRESS.md)
+
+## DESIGN COMMITS (April 18, 2026)
+- `f2052b8` — Billing & Purchase workspace redesign (labeled subbars, header CTAs)
+- prev session — PageHeader consistency (Dashboard, Reports, Suppliers)
 
 ## PHASE 6 COMMITS (ALL COMPLETE)
 1. `e0ea0a3` — BillingWorkspace (2,054 → 12 files)

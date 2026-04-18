@@ -1,6 +1,6 @@
 # PHARMACARE — DECISIONS LOG
 # Every important decision, why it was made, when
-# Last updated: April 13, 2026
+# Last updated: April 18, 2026
 
 ---
 
@@ -66,10 +66,10 @@
 - **Decision:** Steel Blue is the ONLY primary color. No teal variants ever.
 - **Why:** Standardized across entire app. Teal was the old color from early Emergent Labs work.
 
-### Customers.js as design reference
-- **Date:** April 2026 (pre-existing decision)
-- **Decision:** Every page must match Customers.js pixel-for-pixel
-- **Why:** It's the most complete, most correct page in the app. Gold standard.
+### Customers.js removed as design reference
+- **Date:** April 18, 2026
+- **Decision:** Customers.js is NO LONGER the design reference. Replaced by PHARMACARE_DESIGN_SKILL.md.
+- **Why:** Customers.js itself had inconsistencies. A written spec is better than referencing a page that can drift. PHARMACARE_DESIGN_SKILL.md is the single authoritative source — every token, pattern, and rule is documented explicitly, not inferred from code.
 
 ### FEFO (First Expiry First Out) for billing
 - **Date:** April 2026 (pre-existing decision)
@@ -131,3 +131,34 @@
 - **Date:** April 2026 (pre-existing)
 - **Decision:** All reusable UI in frontend/src/components/shared/
 - **Why:** Change once, updates everywhere. Zero duplication. Like Figma components in code.
+
+---
+
+## DESIGN SYSTEM DECISIONS
+
+### PHARMACARE_DESIGN_SKILL.md — single source of truth
+- **Date:** April 18, 2026
+- **Decision:** All UI decisions are documented in PHARMACARE_DESIGN_SKILL.md at the project root. No other design reference exists.
+- **Why:** A written spec outlives any single page. When a developer or AI starts a new session, they read one file and know every rule. Eliminates "which page do I copy?" ambiguity forever.
+- **When to revisit:** Add to it whenever a new pattern is established. Never contradict it without updating it first.
+
+### Shadcn/UI exclusively — no other component libraries
+- **Date:** April 18, 2026
+- **Decision:** All UI components come from Shadcn/UI. No other component libraries (Material UI, Ant Design, Chakra UI, etc.) are permitted.
+- **Why:** Shadcn/UI is unstyled, Tailwind-native, and fully controllable. Mixing component libraries creates inconsistent visual weight, conflicting CSS, and unpredictable overrides. One source, one style.
+- **Specific rules:** Dialog (not custom modal), Popover + Calendar (not date-picker packages), Tabs (not hand-rolled tab logic).
+
+### CLAUDE.md — auto-read at every session start
+- **Date:** April 18, 2026
+- **Decision:** CLAUDE.md exists at project root and is auto-read by Claude Code at session start. It lists mandatory files to read, current phase, and branch.
+- **Why:** Claude Code forgets context between sessions. CLAUDE.md bootstraps every session with the current state without the user having to re-explain anything.
+
+### Table density: Zoho-style 40 px rows
+- **Date:** April 18, 2026
+- **Decision:** All data tables use 40 px row height (`py-2.5`), `text-sm`, `font-medium text-gray-500` headers. Match Zoho Books / Tally density.
+- **Why:** Pharmacists scan many rows quickly. Dense tables (not card-style) let them see more data without scrolling. Zoho Books is familiar to Indian pharmacists.
+
+### Color restraint: Steel Blue only for primary actions
+- **Date:** April 18, 2026
+- **Decision:** `#4682B4` (Steel Blue) is used ONLY for primary action buttons and interactive highlights. Secondary actions use `border border-gray-200`. Informational badges use semantic `bg-X-50 text-X-700` only.
+- **Why:** Every extra color competes for attention. Restraint means Steel Blue always means "the most important action on this screen." Users learn the visual hierarchy immediately.

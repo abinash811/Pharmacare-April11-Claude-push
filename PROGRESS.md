@@ -1,13 +1,13 @@
 # PHARMACARE — PROGRESS TRACKER
 # Update this file after every completed task
-# Last updated: April 16, 2026
+# Last updated: April 18, 2026
 
 ---
 
 ## CURRENT STATUS
-**Branch:** main
-**Phase:** Phase 8 — Missing Features 🔄 IN PROGRESS (~65% done)
-**Overall Progress:** ~97% of full refactor complete
+**Branch:** main (listing pages) · claude/compassionate-agnesi (design fixes)
+**Phase:** Design Consistency Fixes — IN PROGRESS
+**Overall Progress:** All features complete. Design consistency pass underway.
 
 ---
 
@@ -22,7 +22,8 @@
 | Phase 5 | Add TypeScript to frontend | ✅ DONE |
 | Phase 6 | Break down giant page files | ✅ DONE |
 | Phase 7 | Fix broken/inconsistent pages | ✅ DONE |
-| Phase 8 | Missing features | ⏳ NOT STARTED |
+| Phase 8 | Missing features (pagination, barcode, print) | ✅ DONE |
+| Design | Design consistency fixes across all pages | 🔄 IN PROGRESS |
 
 ---
 
@@ -307,7 +308,7 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 
 ---
 
-## PHASE 8 — Missing Features 🔄 IN PROGRESS
+## PHASE 8 — Missing Features ✅ COMPLETE (April 16, 2026)
 
 ### Completed (April 16, 2026)
 
@@ -318,6 +319,10 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 | Schedule H1 drug register page | ✅ | `6780860` |
 | Audit log viewer page | ✅ | `6780860` |
 | Stock movement log page | ✅ | `35ec225` |
+| Print for purchases | ✅ | prev session |
+| Print for sales/purchase returns | ✅ | prev session |
+| Barcode scanner → billing | ✅ | this session |
+| Barcode scanner → inventory | ✅ | this session |
 
 ### What was done
 - `PaginationBar` shared component (prev/next + page numbers + "Showing X–Y of Z")
@@ -332,16 +337,22 @@ Page components (`.tsx`) will be converted as part of Phase 6 refactor.
 - `AuditLog.jsx` at `/audit-log` — admin-only activity log with expandable diff rows
 - `StockMovementLog.jsx` at `/inventory/stock-movements` — full stock in/out history with type filters
 - Backend: normalized pagination response across sales-returns, audit-logs, stock-movements
+- PurchaseDetail, SalesReturnDetail, PurchaseReturnDetail → `window.print()` wired up
+- **BillingWorkspace barcode integration:**
+  - `useUSBBarcodeScanner` passive hook active in new/edit mode (detects USB scanners via fast keypress < 50ms)
+  - `handleBarcodeScan` → calls `GET /products/barcode/:code` → resolves product + suggested_batch → `addItem()` + `saveDraft()`
+  - `<BarcodeScannerModal>` opened by "Scan" button in BillingSubbar or `Ctrl+B` shortcut
+  - Camera mode + manual entry + USB scanner all supported
+- **InventorySearch barcode integration:**
+  - `useUSBBarcodeScanner` passive hook for USB scanner
+  - "Scan" button in header → opens `BarcodeScannerModal`
+  - On scan → navigates to `/inventory/product/:sku`
 
 ### Still Remaining
 
 | Feature | Status |
 |---------|--------|
-| Barcode scanner connected to billing | ❌ |
-| Barcode scanner connected to inventory | ❌ |
-| Print/PDF for purchases | ❌ |
-| Print/PDF for returns | ❌ |
-| Mobile responsive layout | ❌ |
+| Mobile responsive layout | ✅ | this session |
 
 ---
 
@@ -351,8 +362,8 @@ PostgreSQL backend (main.py + routers/) is the active backend on port 8000.
 The original `server.py` (MongoDB) is preserved but not used.
 
 ✅ Login / logout / authentication
-✅ Billing — create, edit, park, finalize, view (BillDetail), print
-✅ Inventory — search, filter, bulk Excel upload, expiry write-off
+✅ Billing — create, edit, park, finalize, view (BillDetail), print, barcode scan (USB + camera)
+✅ Inventory — search, filter, bulk Excel upload, expiry write-off, barcode scan to product
 ✅ Purchases — create, edit, mark as paid, detail view
 ✅ Purchase Returns — create, confirm, detail view, list with pagination
 ✅ Sales Returns — create, detail view, list with server-side pagination
@@ -367,14 +378,51 @@ The original `server.py` (MongoDB) is preserved but not used.
 ✅ Schedule H1 Register — compliance drug register (auto-populated)
 ✅ Audit Log — system activity history with diff viewer
 ✅ Stock Movement Log — all inventory in/out movements
+✅ Mobile responsive — hamburger menu, collapsible sidebar, mobile top bar
+
+---
+
+## DESIGN CONSISTENCY FIXES — 🔄 IN PROGRESS (Started April 18, 2026)
+
+### What this phase is
+A full audit and repair pass to make every page match PHARMACARE_DESIGN_SKILL.md.
+No features are added or removed. Pure visual consistency.
+
+### Audit Status
+Full audit completed April 18, 2026. Violations grouped into 4 rounds.
+
+### Completed (April 18, 2026)
+
+| Task | Files | Commit |
+|------|-------|--------|
+| Consistent PageHeader on all listing pages | Dashboard, Reports, Suppliers | prev session |
+| Billing workspace redesign — labeled-column subbar, action buttons in header | BillingHeader, BillingSubbar, BillingWorkspace/index | `f2052b8` |
+| Purchase workspace redesign — labeled-column subbar, action buttons in header | PurchaseHeader, PurchaseSubbar, PurchaseFooter, PurchaseNew/index | `f2052b8` |
+
+### Still Remaining — 4 Rounds of Fixes
+
+**Round 1 — Banned colors + raw axios**
+- [ ] Replace banned teal hex (#0ea5e9, #38bdf8, #0284c7) with Steel Blue `#4682B4`
+- [ ] Remove raw `axios.get/post` — replace with `api` from `@/lib/axios`
+- [ ] Remove `style={{ ... }}` inline styles
+- [ ] Replace slate/rose/emerald/indigo palettes with design-system equivalents
+
+**Round 2 — Badges + typography**
+- [ ] `bg-X-100` badges → `bg-X-50` (semantic badge rule)
+- [ ] `font-black` → `font-semibold tabular-nums` on number cells
+- [ ] `font-semibold` table headers → `font-medium text-gray-500`
+
+**Round 3 — Modals**
+- [ ] All `fixed inset-0` custom divs → Shadcn `<Dialog>`
+- [ ] `window.confirm()` → `<ConfirmDialog>` pattern
+
+**Round 4 — Row hover + layout**
+- [ ] `hover:bg-gray-50` on table rows → `hover:bg-[#f0f7ff]`
+- [ ] Dashboard MetricCard: indigo color → blue
 
 ---
 
 ## NEXT TASK
 
-**Phase 8 — Continue remaining items:**
-1. Print/PDF for purchases (PurchaseDetail page → print button)
-2. Print/PDF for returns (SalesReturnDetail, PurchaseReturnDetail → print button)
-3. Barcode scanner connected to billing (BillingWorkspace → scan item → add to bill)
-4. Barcode scanner connected to inventory (search by barcode)
-5. Mobile responsive layout (sidebar collapses, tables scroll on mobile)
+Start Round 1 of design violation fixes (see Design Consistency section above).
+Reference: PHARMACARE_DESIGN_SKILL.md is the single source of truth for all decisions.

@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Last updated: April 18, 2026
+# Last updated: April 19, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -86,9 +86,9 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 These rules exist because adding uninstalled packages and wrong env values have crashed the app multiple times.
 
 ### Adding a new package (frontend)
-1. Run `yarn add <package>` first — confirm "success" in terminal
+1. Run `npm install <package>` first — confirm "added X packages" in terminal
 2. Only then add `import` statements in code
-3. Never add a package to `package.json` manually without running `yarn add`
+3. Never add a package to `package.json` manually without running `npm install`
 
 ### Adding a new package (backend)
 1. Run `pip install <package>` inside venv first — confirm "Successfully installed"
@@ -105,6 +105,43 @@ These rules exist because adding uninstalled packages and wrong env values have 
 - After any change to `main.py` imports or `requirements.txt` → restart backend and confirm `Application startup complete`
 - After any change to `package.json` or env files → restart frontend and confirm no compile errors
 - One change at a time. Verify. Then next change.
+
+---
+
+## CURRENT STATE — READ THIS FIRST EVERY SESSION
+
+> This section is the handoff note. Updated after every session. A new Claude must read this before touching any code.
+
+### App status (April 19, 2026)
+- ✅ App runs locally — backend on port 8000, frontend on port 3001
+- ✅ All Settings tabs built: Pharmacy Profile, Receipt & Print, Tax & GST, Notifications, Inventory, Billing, Bill Sequence, Returns
+- ✅ Dashboard dynamic thresholds + drug license expiry banner
+- ✅ Team page: Members + Roles with permissions matrix
+- ✅ All commits pushed to main
+
+### 🔴 Production blockers — fix before any deployment
+1. **Missing Alembic migration** — New `PharmacySettings` columns (GST, print, notifications fields) exist on local DB via raw SQL but are NOT in any Alembic migration. Production DB will crash on first settings API call. Fix: `alembic revision --autogenerate -m "add_pharmacy_settings_gst_print_notification_fields"` then `alembic upgrade head`.
+2. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True` is invalid. Browsers reject it. Fix: set `CORS_ORIGINS` env var to the actual production frontend URL. Default `"*"` must be changed to explicit origin.
+
+### 🟡 Infrastructure gaps (do before adding features)
+3. **Sentry not wired** — `frontend/src/lib/sentry.ts` committed but never initialized. Backend has no Sentry. Owner has not yet created a Sentry account. Wait for DSN from owner, then wire both.
+4. **CI/CD is placeholder** — `.github/workflows/staging.yml` exists but deploy steps are `echo` only. Needs real deploy commands for the chosen hosting provider.
+5. **No rate limiting** — API has no protection against abuse.
+6. **TypeScript errors in test files** — `@types/jest` and `@testing-library/react` not installed. `npm test` fails. Fix: `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`.
+
+### Next feature priorities (after infra is solid)
+1. Alembic migration (blocker above)
+2. Sheets — replace all centered modals with `<Sheet side="right">` 480px
+3. Zod + react-hook-form — all forms
+4. Error retry states — every page that fetches data
+5. Bill PDF download — endpoint exists, template WIP
+6. Split payment on one bill (cash + UPI)
+7. Day-end closing / Z-report
+8. Command Palette — `Cmd+K`
+
+### Terminal tabs (local dev)
+- **Tab 1 (backend):** `cd backend && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
+- **Tab 2 (frontend):** `cd frontend && npm start` → runs on port 3001
 
 ---
 
@@ -144,11 +181,18 @@ These rules exist because adding uninstalled packages and wrong env values have 
 - [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
 ### What's next (build in this order)
-1. Sheets (Shadcn `<Sheet side="right">` 480px) — replace all centered modals
-2. Zod + react-hook-form — all forms
-3. Error retry states — every page that fetches data
-4. Command Palette — `Cmd+K`
-5. Speed keys — `n` / `f` / `/` / `Esc` / `Enter`
+> Infrastructure first. Features on a broken foundation collapse.
+
+1. **Alembic migration** — `add_pharmacy_settings_gst_print_notification_fields` (PRODUCTION BLOCKER)
+2. **CORS fix** — explicit origin list, not `"*"` (PRODUCTION BLOCKER)
+3. **Sentry** — wire DSN into frontend + backend once owner creates account
+4. **Fix TypeScript test errors** — install `@types/jest` + `@testing-library/react`
+5. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
+6. **Zod + react-hook-form** — all forms
+7. **Error retry states** — every page that fetches data
+8. **Bill PDF** — template WIP, finish and wire download button
+9. **Split payment** — cash + UPI on one bill
+10. **Command Palette** — `Cmd+K`
 
 ### Dead files (already deleted)
 - `frontend/src/pages/InventorySearch/components/InventoryHeader.jsx`

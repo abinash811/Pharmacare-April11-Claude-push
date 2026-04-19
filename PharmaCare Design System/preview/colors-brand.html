@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.row { display: flex; gap: 8px; margin-bottom: 12px; }
+.swatch { border-radius: 8px; height: 52px; position: relative; }
+.label { font-size: 11px; color: #374151; margin-top: 5px; font-weight: 600; }
+.role  { font-size: 10px; color: #9ca3af; margin-top: 1px; }
+.hex   { font-size: 10px; color: #9ca3af; font-family: var(--font-mono); }
+.item  { flex: 1; }
+.divider { width: 1px; background: #f3f4f6; margin: 0 4px; }
+.section-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #d1d5db; margin-bottom: 6px; }
+</style>
+</head><body>
+
+<!-- Primary — the one brand blue, with its interactive states shown inline -->
+<div class="section-label">Primary (brand)</div>
+<div class="row">
+  <div class="item">
+    <div class="swatch" style="background:#4682B4;"></div>
+    <div class="label">Primary</div>
+    <div class="role">Default · <code style="font-size:9px">brand.DEFAULT</code></div>
+    <div class="hex">#4682B4 · hsl(207 44% 49%)</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:#3a6d96; display:flex; align-items:flex-end; padding:5px 8px;">
+      <span style="font-size:9px;color:rgba(255,255,255,0.7);font-weight:500;">hover / pressed</span>
+    </div>
+    <div class="label" style="color:#9ca3af; font-weight:500;">↑ Hover State</div>
+    <div class="role"><code style="font-size:9px">brand.dark</code> — not a separate color</div>
+    <div class="hex">#3a6d96</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:#f0f7ff; border:1px solid #e5e7eb;"></div>
+    <div class="label">Tint</div>
+    <div class="role">Row hover bg · <code style="font-size:9px">brand.tint</code></div>
+    <div class="hex">#f0f7ff</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:rgba(70,130,180,0.10); border:1px solid #e5e7eb;"></div>
+    <div class="label">Subtle</div>
+    <div class="role">Selected rows · <code style="font-size:9px">brand.subtle</code></div>
+    <div class="hex">brand / 10%</div>
+  </div>
+</div>
+
+<!-- Secondary / Neutral -->
+<div class="section-label">Secondary & Surfaces</div>
+<div class="row">
+  <div class="item">
+    <div class="swatch" style="background:#f3f4f6; border:1px solid #e5e7eb;"></div>
+    <div class="label">Secondary</div>
+    <div class="role">Buttons, muted bg · <code style="font-size:9px">secondary</code></div>
+    <div class="hex">#f3f4f6</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:#1a2332;"></div>
+    <div class="label">Sidebar</div>
+    <div class="role">Nav background (no token name)</div>
+    <div class="hex">#1a2332</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:#dc2626;"></div>
+    <div class="label">Destructive</div>
+    <div class="role">Delete, danger · <code style="font-size:9px">destructive</code></div>
+    <div class="hex">#dc2626</div>
+  </div>
+  <div class="item">
+    <div class="swatch" style="background:#f8f9fa; border:1px solid #e5e7eb;"></div>
+    <div class="label">Background</div>
+    <div class="role">App canvas · <code style="font-size:9px">background</code></div>
+    <div class="hex">#f8f9fa</div>
+  </div>
+</div>
+</body></html>

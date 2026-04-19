@@ -25,3 +25,4 @@ export { PaginationBar } from './PaginationBar';
 export { default as AppButton } from './AppButton';
 export { PageTabs } from './PageTabs';
 export { FilterPills } from './FilterPills';
+export { default as ErrorState } from './ErrorState';

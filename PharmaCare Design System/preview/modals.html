@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #e5e7eb; padding: 16px; font-size: 13px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+
+/* Mock backdrop + dialog */
+.backdrop { background: rgba(0,0,0,0.45); border-radius: 10px; padding: 24px; display: flex; align-items: center; justify-content: center; }
+.dialog {
+  background: #fff; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  width: 100%; max-width: 380px; overflow: hidden;
+}
+.dialog-header { padding: 20px 20px 0; }
+.dialog-title { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+.dialog-desc  { font-size: 13px; color: #6b7280; line-height: 1.5; }
+.dialog-body  { padding: 16px 20px; }
+.dialog-footer { padding: 12px 20px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #f3f4f6; }
+.btn {
+  height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-outline  { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.btn-primary  { background: #4682B4; color: #fff; }
+.btn-danger   { background: #dc2626; color: #fff; }
+.btn-loading  { background: #4682B4; color: #fff; opacity: 0.75; }
+
+/* Spinner */
+.spin { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Warning icon */
+.warn-icon { width: 44px; height: 44px; border-radius: 50%; background: #fef2f2; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+
+/* Field in dialog */
+.field-label { font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 5px; display: block; }
+.inp { width: 100%; height: 36px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0 12px; font-size: 13px; font-family: 'IBM Plex Sans', sans-serif; outline: none; }
+.inp:focus { border-color: #4682B4; box-shadow: 0 0 0 3px rgba(70,130,180,0.15); }
+</style>
+</head><body>
+
+<div class="label">Confirm Dialog — variants</div>
+<div class="row">
+
+  <!-- Standard confirm -->
+  <div style="flex:1;min-width:220px;">
+    <div class="backdrop">
+      <div class="dialog">
+        <div class="dialog-header">
+          <div class="dialog-title">Park this bill?</div>
+          <div class="dialog-desc">The bill will be saved as a draft and can be resumed later from the Billing page.</div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-outline">Cancel</button>
+          <button class="btn btn-primary">Park Bill</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">Standard confirm — neutral action</div>
+  </div>
+
+  <!-- Destructive confirm -->
+  <div style="flex:1;min-width:220px;">
+    <div class="backdrop">
+      <div class="dialog">
+        <div class="dialog-header">
+          <div class="warn-icon">
+            <svg width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="dialog-title">Delete this supplier?</div>
+          <div class="dialog-desc">Are you sure you want to delete <strong>Cipla Distributors</strong>? This action cannot be undone.</div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-outline">Cancel</button>
+          <button class="btn btn-danger">Delete</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">Destructive — red button + warning icon</div>
+  </div>
+
+  <!-- Loading state -->
+  <div style="flex:1;min-width:220px;">
+    <div class="backdrop">
+      <div class="dialog">
+        <div class="dialog-header">
+          <div class="dialog-title">Delete this supplier?</div>
+          <div class="dialog-desc">Are you sure you want to delete <strong>Cipla Distributors</strong>? This action cannot be undone.</div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-outline" disabled style="opacity:0.5;cursor:not-allowed;">Cancel</button>
+          <button class="btn btn-loading"><div class="spin"></div> Deleting…</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">Loading state — both buttons disabled</div>
+  </div>
+
+</div>
+
+<div class="label">Input Dialog</div>
+<div class="row">
+  <div style="max-width:360px;">
+    <div class="backdrop">
+      <div class="dialog">
+        <div class="dialog-header">
+          <div class="dialog-title">Add note to bill</div>
+          <div class="dialog-desc">This note will appear on the printed receipt.</div>
+        </div>
+        <div class="dialog-body">
+          <label class="field-label">Note</label>
+          <input class="inp" placeholder="e.g. Patient follow-up in 7 days" />
+        </div>
+        <div class="dialog-footer">
+          <button class="btn btn-outline">Cancel</button>
+          <button class="btn btn-primary">Add Note</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-top:6px;text-align:center;">Input dialog — for Finalise modal notes</div>
+  </div>
+</div>
+
+</body></html>

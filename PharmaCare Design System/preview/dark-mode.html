@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #e5e7eb; padding: 16px; font-size: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.row { display: flex; gap: 12px; margin-bottom: 16px; }
+
+/* Light / Dark shell side by side */
+.half { flex: 1; border-radius: 10px; overflow: hidden; border: 1px solid #d1d5db; }
+.half-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; }
+.tag { font-size: 9px; padding: 1px 7px; border-radius: 9999px; font-weight: 600; }
+
+/* Light mode app shell */
+.light-shell { background: #f8f9fa; display: flex; height: 260px; }
+.light-sidebar { width: 52px; background: #1a2332; display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 7px; }
+.ls-logo { width: 24px; height: 24px; background: #4682B4; border-radius: 5px; }
+.ls-dot { width: 20px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); }
+.ls-dot.active { background: rgba(70,130,180,0.4); }
+.light-main { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.l-header { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+.l-title { font-size: 12px; font-weight: 700; color: #111827; }
+.l-sub { font-size: 9px; color: #6b7280; }
+.l-btn { height: 24px; padding: 0 10px; border-radius: 5px; background: #4682B4; color: #fff; border: none; font-size: 10px; font-weight: 600; }
+.l-cards { display: flex; gap: 6px; }
+.l-card { flex: 1; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; }
+.l-card-val { font-size: 14px; font-weight: 700; color: #111827; }
+.l-card-lbl { font-size: 9px; color: #6b7280; margin-top: 2px; }
+.l-table { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; flex: 1; overflow: hidden; }
+.l-thead { background: #f9fafb; padding: 5px 8px; display: flex; gap: 8px; border-bottom: 1px solid #e5e7eb; }
+.l-th { font-size: 9px; color: #9ca3af; font-weight: 700; text-transform: uppercase; }
+.l-row { padding: 6px 8px; display: flex; gap: 8px; border-bottom: 1px solid #f3f4f6; align-items: center; }
+.l-cell { font-size: 10px; color: #374151; }
+.l-cell.link { color: #4682B4; font-weight: 600; }
+
+/* Dark mode app shell */
+.dark-shell { background: #0f172a; display: flex; height: 260px; }
+.dark-sidebar { width: 52px; background: #0a1628; display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 7px; border-right: 1px solid rgba(255,255,255,0.05); }
+.ds-logo { width: 24px; height: 24px; background: #4682B4; border-radius: 5px; }
+.ds-dot { width: 20px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); }
+.ds-dot.active { background: rgba(70,130,180,0.35); }
+.dark-main { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.d-header { background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+.d-title { font-size: 12px; font-weight: 700; color: #f1f5f9; }
+.d-sub { font-size: 9px; color: #94a3b8; }
+.d-btn { height: 24px; padding: 0 10px; border-radius: 5px; background: #4682B4; color: #fff; border: none; font-size: 10px; font-weight: 600; }
+.d-cards { display: flex; gap: 6px; }
+.d-card { flex: 1; background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px; }
+.d-card-val { font-size: 14px; font-weight: 700; color: #f1f5f9; }
+.d-card-lbl { font-size: 9px; color: #94a3b8; margin-top: 2px; }
+.d-table { background: #1e293b; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; flex: 1; overflow: hidden; }
+.d-thead { background: #0f172a; padding: 5px 8px; display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.d-th { font-size: 9px; color: #475569; font-weight: 700; text-transform: uppercase; }
+.d-row { padding: 6px 8px; display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center; }
+.d-cell { font-size: 10px; color: #94a3b8; }
+.d-cell.link { color: #60a5fa; font-weight: 600; }
+
+/* Token table */
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { text-align: left; padding: 5px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+td:first-child { font-family: monospace; font-size: 10px; color: #4682B4; font-weight: 500; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(0,0,0,0.1); }
+.warn { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #92400e; margin-top: 10px; line-height: 1.6; }
+code { font-family: monospace; font-size: 10px; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head><body>
+
+<div class="label">Light vs Dark — side by side preview</div>
+<div class="row">
+  <div class="half">
+    <div class="half-label" style="background:#fff;border-bottom:1px solid #e5e7eb;color:#374151;">Light Mode (current default) <span class="tag" style="background:#dbeafe;color:#1d4ed8;">Active</span></div>
+    <div class="light-shell">
+      <div class="light-sidebar">
+        <div class="ls-logo"></div>
+        <div class="ls-dot active"></div>
+        <div class="ls-dot"></div>
+        <div class="ls-dot"></div>
+        <div class="ls-dot"></div>
+      </div>
+      <div class="light-main">
+        <div class="l-header">
+          <div><div class="l-title">Dashboard</div><div class="l-sub">Today's overview</div></div>
+          <button class="l-btn">+ New Bill</button>
+        </div>
+        <div class="l-cards">
+          <div class="l-card"><div class="l-card-val">₹1.2L</div><div class="l-card-lbl">Today</div></div>
+          <div class="l-card"><div class="l-card-val">₹6.8L</div><div class="l-card-lbl">This Week</div></div>
+          <div class="l-card"><div class="l-card-val">₹24L</div><div class="l-card-lbl">This Month</div></div>
+        </div>
+        <div class="l-table">
+          <div class="l-thead"><span class="l-th">Bill ID</span><span class="l-th">Customer</span><span class="l-th" style="margin-left:auto;">Total</span></div>
+          <div class="l-row"><span class="l-cell link">BL-1042</span><span class="l-cell">Ravi Shankar</span><span class="l-cell" style="margin-left:auto;font-weight:600;">₹1,240</span></div>
+          <div class="l-row"><span class="l-cell link">BL-1041</span><span class="l-cell">Meera Nair</span><span class="l-cell" style="margin-left:auto;font-weight:600;">₹680</span></div>
+          <div class="l-row"><span class="l-cell link">BL-1040</span><span class="l-cell">Walk-in</span><span class="l-cell" style="margin-left:auto;font-weight:600;">₹2,140</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="half">
+    <div class="half-label" style="background:#1e293b;border-bottom:1px solid rgba(255,255,255,0.08);color:#94a3b8;">Dark Mode (.dark class on html) <span class="tag" style="background:rgba(255,255,255,0.08);color:#94a3b8;">Not yet activated</span></div>
+    <div class="dark-shell">
+      <div class="dark-sidebar">
+        <div class="ds-logo"></div>
+        <div class="ds-dot active"></div>
+        <div class="ds-dot"></div>
+        <div class="ds-dot"></div>
+        <div class="ds-dot"></div>
+      </div>
+      <div class="dark-main">
+        <div class="d-header">
+          <div><div class="d-title">Dashboard</div><div class="d-sub">Today's overview</div></div>
+          <button class="d-btn">+ New Bill</button>
+        </div>
+        <div class="d-cards">
+          <div class="d-card"><div class="d-card-val">₹1.2L</div><div class="d-card-lbl">Today</div></div>
+          <div class="d-card"><div class="d-card-val">₹6.8L</div><div class="d-card-lbl">This Week</div></div>
+          <div class="d-card"><div class="d-card-val">₹24L</div><div class="d-card-lbl">This Month</div></div>
+        </div>
+        <div class="d-table">
+          <div class="d-thead"><span class="d-th">Bill ID</span><span class="d-th">Customer</span><span class="d-th" style="margin-left:auto;">Total</span></div>
+          <div class="d-row"><span class="d-cell link">BL-1042</span><span class="d-cell">Ravi Shankar</span><span class="d-cell" style="margin-left:auto;font-weight:600;color:#f1f5f9;">₹1,240</span></div>
+          <div class="d-row"><span class="d-cell link">BL-1041</span><span class="d-cell">Meera Nair</span><span class="d-cell" style="margin-left:auto;font-weight:600;color:#f1f5f9;">₹680</span></div>
+          <div class="d-row"><span class="d-cell link">BL-1040</span><span class="d-cell">Walk-in</span><span class="d-cell" style="margin-left:auto;font-weight:600;color:#f1f5f9;">₹2,140</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="label">Dark Mode Token Mapping — .dark class on &lt;html&gt;</div>
+<table>
+  <thead><tr><th>CSS Var</th><th>Light</th><th>Dark</th><th>Used for</th></tr></thead>
+  <tbody>
+    <tr><td>--background</td><td><span class="sw" style="background:#f8f9fa;"></span>#f8f9fa</td><td><span class="sw" style="background:#0f172a;"></span>#0f172a</td><td>App canvas</td></tr>
+    <tr><td>--foreground</td><td><span class="sw" style="background:#111827;border-color:#111827;"></span>#111827</td><td><span class="sw" style="background:#f1f5f9;"></span>#f1f5f9</td><td>Primary text</td></tr>
+    <tr><td>--card</td><td><span class="sw" style="background:#ffffff;"></span>#ffffff</td><td><span class="sw" style="background:#1e293b;"></span>#1e293b</td><td>Card bg</td></tr>
+    <tr><td>--card-foreground</td><td><span class="sw" style="background:#111827;border-color:#111827;"></span>#111827</td><td><span class="sw" style="background:#f1f5f9;"></span>#f1f5f9</td><td>Card text</td></tr>
+    <tr><td>--border</td><td><span class="sw" style="background:#e5e7eb;"></span>#e5e7eb</td><td><span class="sw" style="background:#1e293b;"></span>rgba(255,255,255,0.08)</td><td>All borders</td></tr>
+    <tr><td>--muted</td><td><span class="sw" style="background:#f3f4f6;"></span>#f3f4f6</td><td><span class="sw" style="background:#1e293b;"></span>#1e293b</td><td>Secondary bg</td></tr>
+    <tr><td>--muted-foreground</td><td><span class="sw" style="background:#6b7280;border-color:#6b7280;"></span>#6b7280</td><td><span class="sw" style="background:#94a3b8;border-color:#94a3b8;"></span>#94a3b8</td><td>Secondary text</td></tr>
+    <tr><td>--primary (brand)</td><td><span class="sw" style="background:#4682B4;border-color:#4682B4;"></span>#4682B4</td><td><span class="sw" style="background:#4682B4;border-color:#4682B4;"></span>#4682B4 (unchanged)</td><td>Brand actions</td></tr>
+    <tr><td>--sidebar-bg</td><td><span class="sw" style="background:#1a2332;border-color:#1a2332;"></span>#1a2332</td><td><span class="sw" style="background:#0a1628;border-color:#0a1628;"></span>#0a1628 (deeper)</td><td>Sidebar</td></tr>
+    <tr><td>--input</td><td><span class="sw" style="background:#e5e7eb;"></span>#e5e7eb</td><td><span class="sw" style="background:#334155;border-color:#334155;"></span>#334155</td><td>Input border</td></tr>
+  </tbody>
+</table>
+
+<div class="warn">
+  ⚠ <strong>Implementation status:</strong> The <code>.dark</code> class CSS vars are defined in <code>index.css</code> but the toggle mechanism is never activated. The <code>darkMode: ["class"]</code> is set in <code>tailwind.config.js</code>.
+  To activate: add a theme toggle button in the Settings page that adds/removes <code>class="dark"</code> on <code>&lt;html&gt;</code> and persists the preference in localStorage. Sidebar will need <code>dark:bg-[#0a1628]</code> overrides — it currently uses a hardcoded hex.
+</div>
+</body></html>

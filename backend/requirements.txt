@@ -43,5 +43,8 @@ typing_extensions==4.15.0
 # ── Legacy backup only (server.py — MongoDB — DO NOT USE in production) ───────
 motor==3.7.1             # async MongoDB driver, needed only if running server.py
 
+# ── Monitoring ────────────────────────────────────────────────────────────────
+sentry-sdk[fastapi]==2.8.0
+
 # ── Dev / Test ────────────────────────────────────────────────────────────────
 pytest==8.4.2

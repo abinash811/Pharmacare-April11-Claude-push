@@ -48,12 +48,29 @@ class PharmacySettings(Base):
     # Inventory
     low_stock_threshold_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     near_expiry_threshold_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
+    # Notifications
+    alert_low_stock_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    alert_near_expiry_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    alert_drug_license_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    drug_license_alert_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
     # GST
     default_gst_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=5.00, nullable=False)
+    is_composition_scheme: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    default_hsn_medicines: Mapped[str] = mapped_column(String(10), default="3004", nullable=False)
+    default_hsn_surgical: Mapped[str] = mapped_column(String(10), default="9018", nullable=False)
+    auto_apply_hsn: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    gst_type: Mapped[str] = mapped_column(String(20), default="intrastate", nullable=False)
+    round_off_amount: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    print_gst_summary: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Print
     print_logo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_drug_license: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_patient_name: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    print_gstin: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    print_fssai: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    print_signature: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    bill_header: Mapped[Optional[str]] = mapped_column(Text)
+    bill_footer: Mapped[Optional[str]] = mapped_column(Text, default="Thank you for your purchase!")
     created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

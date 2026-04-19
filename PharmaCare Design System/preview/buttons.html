@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 6px; }
+button { font-family: var(--font-sans); cursor: pointer; }
+</style>
+</head><body>
+<div class="label">Variants</div>
+<div class="row">
+  <button class="btn btn-primary">Primary</button>
+  <button class="btn btn-secondary">Secondary</button>
+  <button class="btn btn-outline">Outline</button>
+  <button class="btn btn-danger">Danger</button>
+  <button class="btn btn-ghost">Ghost</button>
+  <button class="btn btn-primary" disabled>Disabled</button>
+</div>
+<div class="label">Sizes</div>
+<div class="row">
+  <button class="btn btn-primary" style="padding:0.25rem 0.75rem;font-size:12px;border-radius:6px;">Small</button>
+  <button class="btn btn-primary">Medium</button>
+  <button class="btn btn-primary" style="padding:0.625rem 1.5rem;font-size:14px;">Large</button>
+</div>
+<div class="label">With Icons (Lucide CDN)</div>
+<div class="row" id="icon-row">
+  <button class="btn btn-primary" id="btn-new">+ New Bill</button>
+  <button class="btn btn-outline" id="btn-print">&#128438; Print</button>
+  <button class="btn btn-secondary" id="btn-refresh">&#8635; Refresh</button>
+  <button class="btn btn-danger" id="btn-delete">&#128465; Delete</button>
+</div>
+</body></html>

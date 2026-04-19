@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; padding: 16px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-start; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes spin  { to { transform: rotate(360deg); } }
+.pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+/* Skeleton base */
+.sk { background: #e5e7eb; border-radius: 4px; }
+
+/* Table skeleton */
+.table-sk { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; width: 340px; }
+.sk-header { background: #f9fafb; padding: 10px 14px; display: flex; gap: 12px; border-bottom: 1px solid #e5e7eb; }
+.sk-row    { padding: 12px 14px; display: flex; gap: 12px; border-bottom: 1px solid #f3f4f6; align-items: center; }
+.sk-row:last-child { border-bottom: none; }
+
+/* Metric card skeleton */
+.metric-sk { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; width: 140px; }
+
+/* Inline loader */
+.inline-loader { display: flex; align-items: center; gap: 8px; color: #9ca3af; font-size: 13px; }
+.spinner { width: 16px; height: 16px; border: 2px solid #e5e7eb; border-top-color: #4682B4; border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+/* Page skeleton */
+.page-sk { background: #f8f9fa; border-radius: 8px; padding: 16px; width: 340px; }
+.sk-page-header { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+</style>
+</head><body>
+
+<div class="label">TableSkeleton — used on all list pages during data load</div>
+<div class="row">
+  <div class="table-sk">
+    <div class="sk-header">
+      <div class="sk pulse" style="width:60px;height:10px;"></div>
+      <div class="sk pulse" style="width:100px;height:10px;"></div>
+      <div class="sk pulse" style="width:50px;height:10px;"></div>
+      <div class="sk pulse" style="width:70px;height:10px;margin-left:auto;"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk pulse" style="width:48px;height:12px;flex-shrink:0;"></div>
+      <div class="sk pulse" style="width:96px;height:12px;"></div>
+      <div class="sk pulse" style="width:64px;height:12px;"></div>
+      <div class="sk pulse" style="width:56px;height:12px;margin-left:auto;"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk pulse" style="width:56px;height:12px;flex-shrink:0;"></div>
+      <div class="sk pulse" style="width:80px;height:12px;"></div>
+      <div class="sk pulse" style="width:72px;height:12px;"></div>
+      <div class="sk pulse" style="width:48px;height:12px;margin-left:auto;"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk pulse" style="width:44px;height:12px;flex-shrink:0;"></div>
+      <div class="sk pulse" style="width:112px;height:12px;"></div>
+      <div class="sk pulse" style="width:56px;height:12px;"></div>
+      <div class="sk pulse" style="width:60px;height:12px;margin-left:auto;"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk pulse" style="width:52px;height:12px;flex-shrink:0;"></div>
+      <div class="sk pulse" style="width:88px;height:12px;"></div>
+      <div class="sk pulse" style="width:68px;height:12px;"></div>
+      <div class="sk pulse" style="width:52px;height:12px;margin-left:auto;"></div>
+    </div>
+    <div class="sk-row">
+      <div class="sk pulse" style="width:48px;height:12px;flex-shrink:0;"></div>
+      <div class="sk pulse" style="width:100px;height:12px;"></div>
+      <div class="sk pulse" style="width:60px;height:12px;"></div>
+      <div class="sk pulse" style="width:44px;height:12px;margin-left:auto;"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">Dashboard metric skeletons</div>
+    <div class="row" style="gap:8px;">
+      <div class="metric-sk">
+        <div class="sk pulse" style="width:100%;height:10px;margin-bottom:14px;"></div>
+        <div class="sk pulse" style="width:70%;height:22px;margin-bottom:6px;"></div>
+        <div class="sk pulse" style="width:90%;height:28px;margin-bottom:8px;"></div>
+        <div class="sk pulse" style="width:100%;height:1px;margin-bottom:8px;background:#f3f4f6;"></div>
+        <div class="sk pulse" style="width:60%;height:10px;"></div>
+      </div>
+      <div class="metric-sk">
+        <div class="sk pulse" style="width:80%;height:10px;margin-bottom:14px;"></div>
+        <div class="sk pulse" style="width:65%;height:22px;margin-bottom:6px;"></div>
+        <div class="sk pulse" style="width:100%;height:28px;margin-bottom:8px;"></div>
+        <div class="sk pulse" style="width:100%;height:1px;margin-bottom:8px;background:#f3f4f6;"></div>
+        <div class="sk pulse" style="width:50%;height:10px;"></div>
+      </div>
+    </div>
+
+    <div class="label" style="margin-top:12px;">Inline loader — search results, dropdowns</div>
+    <div class="inline-loader">
+      <div class="spinner"></div>
+      Loading medicines…
+    </div>
+
+    <div class="label" style="margin-top:14px;">Button loading state</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button style="display:flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:8px;background:#4682B4;color:#fff;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;opacity:0.8;cursor:not-allowed;">
+        <div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff;"></div>
+        Saving…
+      </button>
+      <button style="display:flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:8px;background:#dc2626;color:#fff;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;opacity:0.8;cursor:not-allowed;">
+        <div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff;"></div>
+        Deleting…
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="label">Components available in shared/TableSkeleton.jsx</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;color:#1d4ed8;">&lt;TableSkeleton rows={8} columns={6} /&gt;</div>
+  <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;color:#1d4ed8;">&lt;PageSkeleton /&gt;</div>
+  <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;color:#1d4ed8;">&lt;InlineLoader text="Loading medicines…" /&gt;</div>
+  <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;color:#1d4ed8;">&lt;CardSkeleton count={3} /&gt;</div>
+</div>
+</body></html>

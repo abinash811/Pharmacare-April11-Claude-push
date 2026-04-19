@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 16px; font-size: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.section { margin-bottom: 16px; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+th { text-align: left; padding: 6px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; line-height: 1.4; }
+td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #111827; font-weight: 500; white-space: nowrap; }
+code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+
+/* Contrast swatches */
+.contrast-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.swatch {
+  border-radius: 8px; padding: 10px 14px; min-width: 120px;
+  display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(0,0,0,0.08);
+}
+.swatch-label { font-size: 10px; font-weight: 600; }
+.swatch-ratio { font-size: 12px; font-weight: 700; font-family: monospace; }
+.swatch-result { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.pass { color: #15803d; } .fail { color: #dc2626; }
+
+/* Focus ring demo */
+.focus-demo { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.fd-btn {
+  height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  font-family: 'IBM Plex Sans', sans-serif; cursor: pointer;
+}
+.fd-unfocused { background: #4682B4; color: #fff; border: none; }
+.fd-focused   { background: #4682B4; color: #fff; border: none; outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4682B4; }
+.fd-outline   { background: #fff; color: #374151; border: 1px solid #e5e7eb; outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4682B4; }
+.fd-nav { background: rgba(37,99,235,0.20); color: #fff; border: none; border-radius: 8px; padding: 4px 12px; height: 36px; outline: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.2), 0 0 0 4px #4682B4; }
+.fd-label { font-size: 9px; color: #9ca3af; margin-top: 4px; text-align: center; }
+</style>
+</head><body>
+
+<div class="section">
+  <div class="label">WCAG 2.1 AA — Color Contrast Ratios</div>
+  <div class="contrast-row">
+    <div class="swatch" style="background:#4682B4;color:#fff;">
+      <div class="swatch-label">Brand on White</div>
+      <div class="swatch-ratio">4.6:1</div>
+      <div class="swatch-result pass">✓ AA Pass</div>
+    </div>
+    <div class="swatch" style="background:#fff;color:#4682B4;border:1px solid #e5e7eb;">
+      <div class="swatch-label">Brand on White (text)</div>
+      <div class="swatch-ratio">4.6:1</div>
+      <div class="swatch-result pass">✓ AA Pass</div>
+    </div>
+    <div class="swatch" style="background:#1a2332;color:#fff;">
+      <div class="swatch-label">White on Sidebar</div>
+      <div class="swatch-ratio">14.5:1</div>
+      <div class="swatch-result pass">✓ AAA Pass</div>
+    </div>
+    <div class="swatch" style="background:#1a2332;color:#d1d5db;">
+      <div class="swatch-label">Inactive Nav on Sidebar</div>
+      <div class="swatch-ratio">7.2:1</div>
+      <div class="swatch-result pass">✓ AAA Pass</div>
+    </div>
+    <div class="swatch" style="background:#fff;color:#6b7280;border:1px solid #e5e7eb;">
+      <div class="swatch-label">Muted text on White</div>
+      <div class="swatch-ratio">4.5:1</div>
+      <div class="swatch-result pass">✓ AA Pass</div>
+    </div>
+    <div class="swatch" style="background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb;">
+      <div class="swatch-label">Subtle on gray bg ⚠</div>
+      <div class="swatch-ratio">2.8:1</div>
+      <div class="swatch-result fail">✗ AA Fail</div>
+    </div>
+    <div class="swatch" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">
+      <div class="swatch-label">Green badge text</div>
+      <div class="swatch-ratio">4.6:1</div>
+      <div class="swatch-result pass">✓ AA Pass</div>
+    </div>
+    <div class="swatch" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;">
+      <div class="swatch-label">Red badge text</div>
+      <div class="swatch-ratio">5.1:1</div>
+      <div class="swatch-result pass">✓ AA Pass</div>
+    </div>
+  </div>
+  <div style="font-size:10px;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px;">
+    ⚠ <strong>Fix needed:</strong> Subtle text (#9ca3af) on gray backgrounds (#f9fafb) fails AA. Use #6b7280 minimum for any readable text. #9ca3af is acceptable only for decorative/placeholder text.
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Focus Indicator — must be visible on ALL interactive elements</div>
+  <div class="focus-demo">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <button class="fd-btn fd-unfocused">Unfocused</button>
+      <div class="fd-label">No ring</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <button class="fd-btn fd-focused">Focused</button>
+      <div class="fd-label">ring-2 ring-brand ring-offset-2</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <button class="fd-btn fd-outline">Outline Focused</button>
+      <div class="fd-label">Same ring on outline variant</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <button class="fd-nav">Nav Item</button>
+      <div class="fd-label">On dark sidebar bg</div>
+    </div>
+  </div>
+  <div style="font-size:10px;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;line-height:1.6;">
+    CSS: <code>focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2</code><br>
+    Use <code>focus-visible</code> not <code>focus</code> — prevents mouse-click focus rings while keeping keyboard navigation visible.
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">ARIA Requirements — key components</div>
+  <table>
+    <thead><tr><th>Component</th><th>Required ARIA</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Sidebar nav</td><td><code>role="navigation"</code>, <code>aria-label="Main navigation"</code>, active item: <code>aria-current="page"</code></td><td style="color:#15803d;">✓ Done</td></tr>
+      <tr><td>PageTabs</td><td><code>role="tablist"</code>, tab: <code>role="tab"</code>, <code>aria-selected</code></td><td style="color:#15803d;">✓ Done</td></tr>
+      <tr><td>Dialog/Modal</td><td><code>role="dialog"</code>, <code>aria-modal="true"</code>, <code>aria-labelledby</code></td><td style="color:#15803d;">✓ shadcn</td></tr>
+      <tr><td>Hamburger btn</td><td><code>aria-label="Open menu"</code>, <code>aria-expanded</code></td><td style="color:#15803d;">✓ Done</td></tr>
+      <tr><td>Logout btn</td><td><code>data-testid</code> set, no aria-label needed (visible text)</td><td style="color:#15803d;">✓ Done</td></tr>
+      <tr><td>Table sort</td><td><code>aria-sort="ascending|descending|none"</code> on sortable <code>th</code></td><td style="color:#dc2626;">✗ Missing</td></tr>
+      <tr><td>Status badges</td><td><code>data-testid</code> present; add <code>aria-label</code> for screen readers</td><td style="color:#b45309;">⚠ Partial</td></tr>
+      <tr><td>Search input</td><td><code>aria-label="Search"</code> or visible label</td><td style="color:#dc2626;">✗ Missing</td></tr>
+      <tr><td>Pagination</td><td>Prev/Next: <code>aria-label="Previous page"</code>, <code>aria-label="Next page"</code></td><td style="color:#15803d;">✓ Done</td></tr>
+      <tr><td>Toast</td><td>Sonner uses <code>role="status"</code> and <code>aria-live="polite"</code> internally</td><td style="color:#15803d;">✓ Sonner</td></tr>
+      <tr><td>Loading skeleton</td><td><code>aria-busy="true"</code> on parent container, <code>aria-label="Loading…"</code></td><td style="color:#dc2626;">✗ Missing</td></tr>
+      <tr><td>Form errors</td><td><code>aria-describedby</code> linking input to error message</td><td style="color:#dc2626;">✗ Missing</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Keyboard Navigation — required shortcuts</div>
+  <table>
+    <thead><tr><th>Key</th><th>Expected behaviour</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td>Tab / Shift+Tab</td><td>Move focus through all interactive elements in DOM order</td><td>Everywhere</td></tr>
+      <tr><td>Enter / Space</td><td>Activate focused button, link, checkbox</td><td>Everywhere</td></tr>
+      <tr><td>Escape</td><td>Close modal, dismiss toast, collapse mobile sidebar</td><td>Modals, toasts, sidebar</td></tr>
+      <tr><td>Arrow keys</td><td>Navigate tab lists and pagination</td><td>PageTabs, pagination</td></tr>
+      <tr><td>Ctrl+F</td><td>Focus medicine search in BillingWorkspace</td><td>BillingWorkspace</td></tr>
+      <tr><td>F8</td><td>Park bill (hold)</td><td>BillingWorkspace</td></tr>
+      <tr><td>F12</td><td>Save & print bill</td><td>BillingWorkspace</td></tr>
+      <tr><td>Ctrl+B</td><td>Open barcode scanner modal</td><td>BillingWorkspace</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Touch Target Sizes — iPad compliance</div>
+  <table>
+    <thead><tr><th>Element</th><th>Desktop</th><th>iPad (min)</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Nav items</td><td>36px (h-9)</td><td>44px (h-11)</td><td style="color:#dc2626;">✗ Fix needed</td></tr>
+      <tr><td>Buttons (default)</td><td>36px (h-9)</td><td>44px (h-11)</td><td style="color:#dc2626;">✗ Fix needed (see PROMPT 5)</td></tr>
+      <tr><td>Table row actions</td><td>28px</td><td>44px</td><td style="color:#dc2626;">✗ Fix needed</td></tr>
+      <tr><td>Form inputs</td><td>36px (h-9)</td><td>48px (h-12)</td><td style="color:#dc2626;">✗ Fix needed</td></tr>
+      <tr><td>Pagination buttons</td><td>30px</td><td>44px</td><td style="color:#dc2626;">✗ Fix needed</td></tr>
+      <tr><td>Checkbox</td><td>16px</td><td>24px minimum</td><td style="color:#dc2626;">✗ Fix needed</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</body></html>

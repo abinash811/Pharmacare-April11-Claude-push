@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Stethoscope, Plus, FileSpreadsheet } from 'lucide-react';
-import { SearchInput, PageSkeleton, DeleteConfirmDialog, PaginationBar, PageTabs, PageHeader, AppButton } from '@/components/shared';
+import { SearchInput, TableSkeleton, DeleteConfirmDialog, PaginationBar, PageTabs, PageHeader, AppButton } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { toast } from 'sonner';
 import { exportCustomersToExcel } from '@/utils/excelExport';
@@ -83,8 +83,6 @@ export default function Customers() {
     toast.success('Exported to Excel');
   };
 
-  if (loading) return <PageSkeleton />;
-
   const isCustomers = activeSection === 'customers';
 
   return (
@@ -131,6 +129,7 @@ export default function Customers() {
           <>
             <CustomersTable
               customers={pageCustomers}
+              loading={loading}
               searchQuery={searchQuery}
               onEdit={handleEditCustomer}
               onDelete={(c) => setDelCustomer({ open: true, item: c, loading: false })}
@@ -145,6 +144,7 @@ export default function Customers() {
           <>
             <DoctorsTable
               doctors={pageDoctors}
+              loading={loading}
               searchQuery={searchQuery}
               onEdit={handleEditDoctor}
               onDelete={(d) => setDelDoctor({ open: true, item: d, loading: false })}

@@ -65,8 +65,8 @@
 | Stock batches (CRUD) | ✅ | batch_number, expiry, MRP, cost |
 | FEFO batch selection | ✅ | Earliest expiry consumed first |
 | Stock movements log | ✅ | All changes traced (purchase/sale/adjustment) |
-| Low stock alerts | 🔄 | Backend flag exists, UI alert pending |
-| Expiry alerts | 🔄 | Logic exists, dashboard widget pending |
+| Low stock alerts | ✅ | Threshold from settings, shown in Dashboard AlertsPanel |
+| Expiry alerts | ✅ | Threshold from settings, shown in Dashboard AlertsPanel |
 | Manual stock adjustment | ✅ | With reason note, audit logged |
 | Bulk upload (Excel) | 🔄 | Backend done, frontend UX incomplete |
 | Inventory search | ✅ | By name, SKU, batch number |
@@ -97,7 +97,8 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Dashboard analytics | ✅ | Revenue, bills, top products |
+| Dashboard analytics | ✅ | Revenue, bills, top products, dynamic thresholds from settings |
+| Drug license expiry banner | ✅ | Amber strip above metrics, dismissible, links to Settings |
 | GST report (GSTR-1 summary) | ✅ | Grouped by HSN, date range |
 | Sales report | ✅ | By date range |
 | Margin report | 🔄 | Data exists, UI WIP |
@@ -111,11 +112,16 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Pharmacy profile (name, address, GSTIN) | ✅ | |
+| Pharmacy profile (name, address, GSTIN, logo, DL, FSSAI, PAN) | ✅ | Drag & drop logo, inline validation, DL expiry warning |
+| Receipt & Print settings | ✅ | Live bill preview, paper size (A4/A5/58mm/80mm), show/hide toggles, header/footer |
+| Tax & GST settings | ✅ | Composition scheme, IGST toggle, default rate, HSN defaults, round off |
+| Notifications settings | ✅ | Low stock, near expiry, drug license alerts — toggle + threshold stepper |
 | Bill number prefix + sequence config | ✅ | |
+| Inventory settings | ✅ | Near expiry days, low stock threshold |
+| Billing settings | ✅ | Draft bills, auto-print |
+| Returns settings | ✅ | Return window, partial returns |
 | Team management (add/remove users) | ✅ | |
-| Role assignment | ✅ | admin / pharmacist / staff |
-| Drug schedule config | ✅ | H, H1, X, OTC |
+| Role assignment | ✅ | admin / manager / cashier / inventory_staff |
 
 ---
 
@@ -160,6 +166,33 @@ Replace all centered modals for data-entry forms.
 - `/` = focus search
 - `Esc` = close sheet/modal
 - `Enter` = confirm primary action
+
+---
+
+## AUTH OVERHAUL — `📋 Planned` (build as one sprint)
+
+All auth improvements must be built together — they share the same architectural change (stateless JWT → DB-backed sessions).
+
+### 6. Forgot password / reset flow — `📋 Planned`
+
+- **What:** "Forgot password?" on login → email with reset link → user sets new password
+- **Why:** Currently no self-service recovery. If a user forgets their password, they are locked out.
+- **Needs:** Email infrastructure (SMTP / SendGrid), password reset token table in DB
+- **Rule:** Reset tokens expire in 1 hour. Single use only.
+
+### 7. Admin force-logout / session management — `📋 Planned`
+
+- **What:** Admin can see all active sessions per user (device, IP, last seen) and remotely log them out
+- **Where:** Team → Members → click member → Sessions panel
+- **Why:** Staff leave, devices go missing, suspicious after-hours logins. Pharmacy handles PII + financial data — session control is a compliance requirement.
+- **Needs:** `user_sessions` table (user_id, device, ip, last_seen, token_ref), token blacklist or DB-backed refresh tokens, `GET /users/{id}/sessions`, `DELETE /sessions/{id}` endpoints
+- **Rule:** Logging out a session must take effect within seconds — not at next JWT expiry.
+
+### 8. Admin reset password for other users — `📋 Planned`
+
+- **What:** Admin sets a temporary password for any user from Team → Members
+- **Why:** Cashier forgets password → billing counter stops. Admin must be able to unblock them instantly.
+- **Needs:** Shares infra with #6 and #7. Build in same sprint.
 
 ---
 
@@ -212,11 +245,12 @@ Replace all centered modals for data-entry forms.
 | Sheets not implemented — forms use centered modals | High | Next sprint |
 | Zod not on all forms — some use uncontrolled inputs | High | Next sprint |
 | Bill PDF template incomplete | Medium | Renderer exists, layout WIP |
-| Low stock / expiry alerts not surfaced in UI | Medium | Backend flags exist |
+| Low stock / expiry alerts surfaced in Dashboard AlertsPanel | ✅ | Done — thresholds read from PharmacySettings |
 | Bulk upload UX incomplete | Medium | Backend done |
 | Margin report UI WIP | Low | Data available via API |
 | No CI/CD pipeline | Medium | Manual deploys today |
 | No staging environment | Medium | Dev → prod directly today |
+| Feature flags not connected to Roadmap items | Medium | All 📋 items should ship behind a flag |
 
 ---
 

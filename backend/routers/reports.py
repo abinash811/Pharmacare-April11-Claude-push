@@ -17,6 +17,7 @@ from models.purchases import (
     PurchaseItem as PurchaseItemORM,
     PurchaseReturn as PurchaseReturnORM,
 )
+from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
 from routers.auth_helpers import User, get_current_user
 
@@ -359,7 +360,29 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(get_db), current_us
         last_week_start = week_start - timedelta(days=7)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
         thirty_ago = today - timedelta(days=30)
-        thirty_ahead = today + timedelta(days=30)
+
+        # Load pharmacy settings for dynamic thresholds
+        ps = (await db.execute(
+            select(PharmacySettings).where(PharmacySettings.pharmacy_id == pid)
+        )).scalars().first()
+        near_expiry_days = getattr(ps, "near_expiry_threshold_days", 30) if ps else 30
+        low_stock_qty = getattr(ps, "low_stock_threshold_days", 10) if ps else 10
+        alert_near_expiry = getattr(ps, "alert_near_expiry_enabled", True) if ps else True
+        alert_low_stock   = getattr(ps, "alert_low_stock_enabled", True) if ps else True
+        alert_drug_license = getattr(ps, "alert_drug_license_enabled", True) if ps else True
+        drug_license_alert_days = getattr(ps, "drug_license_alert_days", 90) if ps else 90
+        thirty_ahead = today + timedelta(days=near_expiry_days)
+
+        # Drug license expiry from pharmacy profile
+        pharmacy_row = (await db.execute(
+            select(Pharmacy).where(Pharmacy.id == pid)
+        )).scalars().first()
+        drug_license_expiry = getattr(pharmacy_row, "drug_license_expiry", None) if pharmacy_row else None
+        drug_license_days_left = None
+        drug_license_warning = False
+        if drug_license_expiry:
+            drug_license_days_left = (drug_license_expiry - today).days
+            drug_license_warning = alert_drug_license and drug_license_days_left <= drug_license_alert_days
 
         base = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
         bills = (await db.execute(select(BillORM).where(*base))).scalars().all()
@@ -430,11 +453,11 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(get_db), current_us
             .group_by(ProductORM.category).order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(6)
         )).all()
 
-        # Stock health
+        # Stock health — use settings-based thresholds
         low_stock_items = (await db.execute(
             select(ProductORM.name, BatchORM.batch_number, BatchORM.quantity_on_hand)
             .join(BatchORM, BatchORM.product_id == ProductORM.id)
-            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < 10)
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < low_stock_qty)
             .order_by(BatchORM.quantity_on_hand).limit(5)
         )).all()
         expiring_items = (await db.execute(
@@ -449,7 +472,7 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(get_db), current_us
         sv_paise = (await db.execute(select(func.coalesce(func.sum(BatchORM.quantity_on_hand * BatchORM.cost_price_paise), 0)).where(
             BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)))).scalar()
         low_total = (await db.execute(select(func.count()).where(
-            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < 10))).scalar()
+            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < low_stock_qty))).scalar()
         exp_total = (await db.execute(select(func.count()).where(
             BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead))).scalar()
 
@@ -476,6 +499,18 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(get_db), current_us
             "recent_bills": recent_bills[:5],
             "quick_stats": {"pending_payments": _p2r(pending_payments), "draft_bills": draft_bills, "month_returns": _p2r(month_returns),
                             "total_products": product_count, "stock_value": _p2r(sv_paise), "low_stock_count": low_total, "expiring_count": exp_total},
+            "alerts_config": {
+                "low_stock_enabled": alert_low_stock,
+                "near_expiry_enabled": alert_near_expiry,
+                "near_expiry_days": near_expiry_days,
+                "low_stock_qty": low_stock_qty,
+            },
+            "license_alert": {
+                "enabled": drug_license_warning,
+                "expiry_date": drug_license_expiry.isoformat() if drug_license_expiry else None,
+                "days_left": drug_license_days_left,
+                "alert_days": drug_license_alert_days,
+            },
         }
     except Exception as e:
         logger.error(f"Dashboard analytics error: {e}")

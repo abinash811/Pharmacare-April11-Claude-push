@@ -334,6 +334,8 @@ const schema = z.object({
 // Never toast client-side validation errors
 ```
 
+> **Component:** `import { ErrorState } from '@/components/shared'` — always use this, never inline the error UI.
+
 ---
 
 ## EMPTY STATES vs ERROR STATES

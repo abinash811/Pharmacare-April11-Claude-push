@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 20px; font-size: 13px; }
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.divider { height: 1px; background: #f3f4f6; margin: 16px 0; }
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; text-align: left; padding: 6px 10px; border-bottom: 1px solid #e5e7eb; }
+td { padding: 10px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 12px; color: #374151; }
+td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #111827; font-weight: 500; }
+code { font-family: 'IBM Plex Mono', monospace; font-size: 10px; background: #f3f4f6; padding: 1px 5px; border-radius: 3px; }
+
+/* Button demos */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; cursor: pointer;
+  border: none; border-radius: 8px; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+/* Variants */
+.v-default   { background: #4682B4; color: #fff; }
+.v-secondary { background: #f3f4f6; color: #374151; }
+.v-outline   { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.v-danger    { background: #dc2626; color: #fff; }
+.v-ghost     { background: transparent; color: #4b5563; }
+.v-link      { background: transparent; color: #4682B4; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Sizes */
+.s-sm      { height: 32px; padding: 0 12px; font-size: 12px; }
+.s-default { height: 36px; padding: 0 16px; font-size: 13px; }
+.s-lg      { height: 40px; padding: 0 24px; font-size: 14px; }
+.s-icon    { height: 36px; width: 36px; padding: 0; }
+
+/* States */
+.s-disabled { opacity: 0.5; cursor: not-allowed; }
+.s-loading  { opacity: 0.8; cursor: not-allowed; }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.focus-demo { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #4682B4; }
+
+.note { font-size: 10px; color: #9ca3af; font-style: italic; margin-top: 4px; }
+</style>
+</head><body>
+
+<div class="section-label">Unified Button System — ui/button.jsx (single source)</div>
+<p style="font-size:12px;color:#6b7280;margin-bottom:16px;">
+  AppButton.jsx is deprecated. All button usage moves to <code>&lt;Button&gt;</code> from <code>@/components/ui/button</code>.
+  Same 6 variants, same 4 sizes, one file.
+</p>
+
+<div class="section-label">Variants</div>
+<table>
+  <thead>
+    <tr>
+      <th>variant=</th>
+      <th>Demo</th>
+      <th>When to use</th>
+      <th>Background → Hover</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>default</td>
+      <td><button class="btn v-default s-default">Save Changes</button></td>
+      <td>Primary CTA. One per screen section max.</td>
+      <td><code>#4682B4</code> → <code>#3a6d96</code></td>
+    </tr>
+    <tr>
+      <td>secondary</td>
+      <td><button class="btn v-secondary s-default">Cancel</button></td>
+      <td>Secondary actions, back buttons, neutral CTA.</td>
+      <td><code>#f3f4f6</code> → <code>#e5e7eb</code></td>
+    </tr>
+    <tr>
+      <td>outline</td>
+      <td><button class="btn v-outline s-default">Export</button></td>
+      <td>Tertiary actions alongside a primary button.</td>
+      <td><code>#fff border</code> → <code>#f9fafb</code></td>
+    </tr>
+    <tr>
+      <td>destructive</td>
+      <td><button class="btn v-danger s-default">Delete</button></td>
+      <td>Irreversible actions only. Never in bulk.</td>
+      <td><code>#dc2626</code> → <code>#b91c1c</code></td>
+    </tr>
+    <tr>
+      <td>ghost</td>
+      <td><button class="btn v-ghost s-default">View all</button></td>
+      <td>Icon buttons, table row actions, subtle links.</td>
+      <td><code>transparent</code> → <code>#f3f4f6</code></td>
+    </tr>
+    <tr>
+      <td>link</td>
+      <td><button class="btn v-link s-default">Learn more</button></td>
+      <td>Inline text links, "skip" actions.</td>
+      <td><code>transparent underline</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="divider"></div>
+
+<div class="section-label">Sizes</div>
+<div class="row" style="margin-bottom:8px;">
+  <button class="btn v-default s-sm">Small sm</button>
+  <button class="btn v-default s-default">Default</button>
+  <button class="btn v-default s-lg">Large lg</button>
+  <button class="btn v-default s-icon">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
+</div>
+<div class="note">sm=h-8 (32px) · default=h-9 (36px) · lg=h-10 (40px) · icon=h-9 w-9</div>
+<div class="note" style="margin-top:2px;">iPad override: min-h-[44px] via responsive class on touch-target-critical buttons</div>
+
+<div class="divider"></div>
+
+<div class="section-label">States</div>
+<div class="row" style="margin-bottom:8px;">
+  <button class="btn v-default s-default">Normal</button>
+  <button class="btn v-default s-default focus-demo">Focused</button>
+  <button class="btn v-default s-default s-disabled" disabled>Disabled</button>
+  <button class="btn v-default s-default s-loading">
+    <svg style="animation:spin 1s linear infinite" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-dasharray="50" stroke-dashoffset="20"/></svg>
+    Saving…
+  </button>
+</div>
+<div class="note">Focus ring: <code>ring-2 ring-brand ring-offset-2</code> (existing, keep as-is)</div>
+
+<div class="divider"></div>
+
+<div class="section-label">With keyboard shortcut hint (BillingWorkspace only)</div>
+<div class="row">
+  <button class="btn v-secondary s-default" style="flex-direction:column;height:auto;padding:5px 14px;">
+    <span style="font-size:12px;font-weight:600;">Park Bill</span>
+    <span style="font-size:9px;font-family:monospace;color:rgba(0,0,0,0.35);margin-top:1px;">F8</span>
+  </button>
+  <button class="btn v-default s-default" style="flex-direction:column;height:auto;padding:5px 16px;">
+    <span style="font-size:12px;font-weight:600;">Save & Print</span>
+    <span style="font-size:9px;font-family:monospace;color:rgba(255,255,255,0.55);margin-top:1px;">F12</span>
+  </button>
+  <button class="btn s-default" style="flex-direction:column;height:auto;padding:5px 16px;background:#15803d;color:#fff;">
+    <span style="font-size:12px;font-weight:600;">Finalise</span>
+    <span style="font-size:9px;font-family:monospace;color:rgba(255,255,255,0.55);margin-top:1px;">Ctrl+↵</span>
+  </button>
+</div>
+<div class="note" style="margin-top:8px;">Kbd hint: shown only in BillingWorkspace header. Implemented as a <code>shortcut</code> prop on Button: <code>&lt;Button shortcut="F12"&gt;Save &amp; Print&lt;/Button&gt;</code></div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</body></html>

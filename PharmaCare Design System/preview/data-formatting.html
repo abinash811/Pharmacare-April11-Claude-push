@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 16px; font-size: 13px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+th { text-align: left; padding: 6px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; }
+td:first-child { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #4682B4; font-weight: 500; width: 160px; }
+td:nth-child(2) { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #111827; width: 130px; }
+td:nth-child(3) { font-size: 11px; color: #6b7280; }
+td:last-child   { font-size: 11px; color: #9ca3af; font-style: italic; }
+
+.chip { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.chip-green  { background: #f0fdf4; color: #15803d; }
+.chip-amber  { background: #fffbeb; color: #b45309; }
+.chip-red    { background: #fef2f2; color: #b91c1c; }
+.chip-blue   { background: #eff6ff; color: #1d4ed8; }
+.chip-gray   { background: #f3f4f6; color: #6b7280; }
+
+.warn { background: #fff8e1; border: 1px solid #fcd34d; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #92400e; margin-top: 8px; line-height: 1.5; }
+</style>
+</head><body>
+
+<div class="label">Date Formatting — utils/dates.js (single source of truth)</div>
+<table>
+  <thead><tr><th>Function</th><th>Output</th><th>Used in</th><th>Input</th></tr></thead>
+  <tbody>
+    <tr><td>formatDate()</td><td>19 Apr 2026</td><td>Table cells, bill headers, created_at</td><td>'2026-04-19T10:30:00'</td></tr>
+    <tr><td>formatDateShort()</td><td>19 Apr</td><td>Compact table cells, inline labels</td><td>'2026-04-19'</td></tr>
+    <tr><td>formatDateTime()</td><td>19 Apr 2026, 10:30 AM</td><td>Audit log, stock movements</td><td>ISO datetime string</td></tr>
+    <tr><td>formatTime()</td><td>10:30 AM</td><td>Activity feeds, timestamps</td><td>ISO datetime string</td></tr>
+    <tr><td>formatExpiry()</td><td>Jun 2027</td><td>Batch cards, inventory table</td><td>'2027-06-30'</td></tr>
+    <tr><td>formatExpiry('mmyy')</td><td>06/27</td><td>Purchase entry, barcode print</td><td>'2027-06-30'</td></tr>
+    <tr><td>toISODate()</td><td>2026-04-19</td><td>API payloads, date inputs</td><td>Date object</td></tr>
+    <tr><td>fyLabel()</td><td>FY 2026–27</td><td>Report headers, GST report</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<div class="label">Expiry Status — colour coding</div>
+<table>
+  <thead><tr><th>Status</th><th>Condition</th><th>Class (expiryClassName)</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>ok</td><td>&gt; 90 days away</td><td>text-slate-500</td><td><span style="color:#64748b;font-size:12px;">Jun 2027</span></td></tr>
+    <tr><td>soon</td><td>1–90 days away</td><td>text-amber-600 font-bold</td><td><span style="color:#d97706;font-weight:700;font-size:12px;">Jun 2025 ⚠</span></td></tr>
+    <tr><td>expired</td><td>Past today</td><td>text-red-600 font-bold</td><td><span style="color:#dc2626;font-weight:700;font-size:12px;">Jan 2025 ✕</span></td></tr>
+    <tr><td>unknown</td><td>null / missing</td><td>text-slate-400</td><td><span style="color:#94a3b8;font-size:12px;">–</span></td></tr>
+  </tbody>
+</table>
+
+<div class="label">Currency Formatting — utils/currency.js</div>
+<table>
+  <thead><tr><th>Function</th><th>Output</th><th>Used in</th><th>Input</th></tr></thead>
+  <tbody>
+    <tr><td>formatCurrency()</td><td>₹1,234.50</td><td>Bill totals, invoice line items, footers</td><td>1234.5</td></tr>
+    <tr><td>formatCurrency(-50)</td><td>-₹50.00</td><td>Negative amounts, discounts</td><td>-50</td></tr>
+    <tr><td>formatCompact()</td><td>₹1.5L</td><td>Dashboard metric cards, chart axes</td><td>150000</td></tr>
+    <tr><td>formatCompact()</td><td>₹1.5K</td><td>Quick stat cards</td><td>1500</td></tr>
+    <tr><td>formatCompact()</td><td>₹1.0Cr</td><td>Total revenue display</td><td>10000000</td></tr>
+    <tr><td>formatPercent()</td><td>12.5%</td><td>GST rate, discount %, margin</td><td>12.5</td></tr>
+    <tr><td>roundOffLabel()</td><td>-₹0.40</td><td>Invoice footer round-off row</td><td>56.6</td></tr>
+    <tr><td>toRupees()</td><td>56.00</td><td>Converting backend paise → display</td><td>5600 (paise)</td></tr>
+  </tbody>
+</table>
+
+<div class="label">Compact Scale (formatCompact)</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+  <div style="text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;">
+    <div style="font-size:16px;font-weight:700;color:#111827;">₹500</div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">&lt; ₹1,000</div>
+  </div>
+  <div style="text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;">
+    <div style="font-size:16px;font-weight:700;color:#111827;">₹1.5K</div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">₹1K – ₹1L</div>
+  </div>
+  <div style="text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;">
+    <div style="font-size:16px;font-weight:700;color:#111827;">₹1.5L</div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">₹1L – ₹1Cr</div>
+  </div>
+  <div style="text-align:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;">
+    <div style="font-size:16px;font-weight:700;color:#111827;">₹1.0Cr</div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:2px;">&gt; ₹1Cr</div>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠ <strong>Backend stores amounts as INTEGER PAISE.</strong> Always use <code>toRupees()</code> when reading from API, and <code>toPaise()</code> when writing. Never display raw paise values. Never use <code>Math.round()</code> on currency — use <code>roundToRupee()</code>.
+</div>
+</body></html>

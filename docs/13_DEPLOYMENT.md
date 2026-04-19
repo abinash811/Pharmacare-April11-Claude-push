@@ -250,3 +250,33 @@ When these are set up, this file must be updated with the actual URLs, credentia
 ---
 
 *Owner: whoever sets up infra documents it here before it goes live.*
+
+---
+
+## Environments
+
+| Environment | Branch    | Frontend URL                        | Trigger          |
+|-------------|-----------|-------------------------------------|------------------|
+| Local       | any       | http://localhost:3000               | manual           |
+| Staging     | `develop` | https://staging.pharmacare.app      | push to develop  |
+| Production  | `main`    | https://pharmacare.app              | manual / tag     |
+
+### Environment variables
+
+Frontend env files:
+- `.env.local` — local dev overrides (git-ignored)
+- `.env.staging` — staging template (committed, no secrets)
+- `.env.production` — production template (committed, no secrets)
+
+Real secrets live in GitHub Actions secrets only — never in committed files.
+
+### Required secrets (GitHub Actions)
+
+| Secret | Used by |
+|--------|---------|
+| `STAGING_BACKEND_URL` | Frontend staging build |
+| `STAGING_DATABASE_URL` | Backend staging |
+| `STAGING_SECRET_KEY` | Backend staging JWT |
+| `SENTRY_DSN` | Both frontend and backend |
+| `E2E_EMAIL` | Playwright CI |
+| `E2E_PASSWORD` | Playwright CI |

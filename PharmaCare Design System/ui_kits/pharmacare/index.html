@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PharmaCare UI Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; color: #374151; -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Design Tokens ─────────────────────────────────────────────────────────────
+const C = {
+  brand: '#4682B4', brandDark: '#3a6d96', brandTint: '#f0f7ff',
+  sidebarBg: '#1a2332', appBg: '#f8f9fa', surface: '#fff',
+  border: '#e5e7eb', fg: '#111827', body: '#374151',
+  muted: '#6b7280', subtle: '#9ca3af',
+};
+
+// ── Icons (inline SVG) ────────────────────────────────────────────────────────
+const Icon = ({ d, size=16, color='currentColor', strokeWidth=2 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path}/>) : <path d={d}/>}
+  </svg>
+);
+
+const FlaskIcon = ({size=16, color='currentColor'}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+  </svg>
+);
+
+const icons = {
+  dashboard: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  billing: 'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0',
+  inventory: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z',
+  purchases: 'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0',
+  customers: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  suppliers: 'M1 3h15v13H1zM16 8h4l3 3v5h-7V8z M5.5 21a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM18.5 21a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+  reports: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
+  settings: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
+  team: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+  logout: 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
+  menu: 'M3 12h18M3 6h18M3 18h18',
+  x: 'M18 6L6 18M6 6l12 12',
+  search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35',
+  plus: 'M12 5v14M5 12h14',
+  refresh: 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15',
+  trending: 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
+  dollar: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+  bar: 'M18 20V10M12 20V4M6 20v-6',
+  cart: 'M9 20a1 1 0 100 2 1 1 0 000-2zM20 20a1 1 0 100 2 1 1 0 000-2zM1 1h4l2.68 13.39a2 2 0 001.98 1.61h9.72a2 2 0 001.98-1.61L23 6H6',
+  credit: 'M21 4H3a2 2 0 00-2 2v12a2 2 0 002 2h18a2 2 0 002-2V6a2 2 0 00-2-2zM1 10h22',
+  clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
+  package: 'M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.27 6.96L12 12.01l8.73-5.05M12 22.08V12',
+  alert: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01',
+  check: 'M20 6L9 17l-5-5',
+  trash: 'M3 6h18M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2',
+  edit: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  chevronRight: 'M9 18l6-6-6-6',
+  eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 100 6 3 3 0 000-6z',
+};
+
+// ── Shared UI Components ──────────────────────────────────────────────────────
+
+function Badge({ status }) {
+  const map = {
+    paid:      { bg:'#f0fdf4', color:'#15803d', label:'Paid' },
+    cash:      { bg:'#f0fdf4', color:'#15803d', label:'Cash' },
+    active:    { bg:'#f0fdf4', color:'#15803d', label:'Active' },
+    due:       { bg:'#fffbeb', color:'#b45309', label:'Due' },
+    partial:   { bg:'#fffbeb', color:'#b45309', label:'Partial' },
+    pending:   { bg:'#fffbeb', color:'#b45309', label:'Pending' },
+    draft:     { bg:'#fffbeb', color:'#b45309', label:'Draft' },
+    overdue:   { bg:'#fef2f2', color:'#b91c1c', label:'Overdue' },
+    cancelled: { bg:'#fef2f2', color:'#b91c1c', label:'Cancelled' },
+    upi:       { bg:'#eff6ff', color:'#1d4ed8', label:'UPI' },
+    credit:    { bg:'#faf5ff', color:'#7e22ce', label:'Credit' },
+    card:      { bg:'#faf5ff', color:'#7e22ce', label:'Card' },
+    regular:   { bg:'#eff6ff', color:'#1d4ed8', label:'Regular' },
+    wholesale: { bg:'#faf5ff', color:'#7e22ce', label:'Wholesale' },
+    low:       { bg:'#fef2f2', color:'#b91c1c', label:'Low Stock' },
+    ok:        { bg:'#f0fdf4', color:'#15803d', label:'In Stock' },
+  };
+  const s = map[status] || { bg:'#f3f4f6', color:'#374151', label: status || '—' };
+  return (
+    <span style={{
+      background: s.bg, color: s.color,
+      padding:'2px 10px', borderRadius:9999, fontSize:11, fontWeight:500,
+      display:'inline-block', whiteSpace:'nowrap',
+    }}>{s.label}</span>
+  );
+}
+
+function Btn({ children, variant='primary', size='md', onClick, style={} }) {
+  const base = {
+    display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6,
+    fontFamily:'IBM Plex Sans, sans-serif', fontWeight:600, cursor:'pointer',
+    border:'none', borderRadius:8, transition:'all 0.15s ease',
+    fontSize: size==='sm' ? 12 : 14,
+    padding: size==='sm' ? '5px 12px' : size==='lg' ? '10px 24px' : '7px 16px',
+  };
+  const vars = {
+    primary:   { background: C.brand, color:'#fff' },
+    secondary: { background:'#f3f4f6', color:'#374151' },
+    outline:   { background:'#fff', color:'#374151', border:'1px solid #e5e7eb' },
+    danger:    { background:'#dc2626', color:'#fff' },
+    ghost:     { background:'transparent', color:'#4b5563' },
+  };
+  return (
+    <button onClick={onClick} style={{ ...base, ...vars[variant], ...style }}
+      onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
+      onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+      onMouseDown={e => e.currentTarget.style.transform='translateY(0)'}
+    >{children}</button>
+  );
+}
+
+function Input({ placeholder, value, onChange, style={} }) {
+  return (
+    <input
+      placeholder={placeholder} value={value} onChange={onChange}
+      style={{
+        height:36, padding:'0 12px', borderRadius:8, border:'1px solid #e5e7eb',
+        fontSize:13, fontFamily:'IBM Plex Sans, sans-serif', color:'#111827',
+        outline:'none', background:'#fff', width:'100%', ...style,
+      }}
+    />
+  );
+}
+
+function Card({ children, style={} }) {
+  return (
+    <div style={{
+      background:'#fff', border:'1px solid #e5e7eb', borderRadius:8,
+      boxShadow:'0 1px 2px rgba(0,0,0,0.05)', ...style,
+    }}>{children}</div>
+  );
+}
+
+function PageHeader({ title, subtitle, actions }) {
+  return (
+    <div style={{
+      background:'#fff', borderBottom:'1px solid #e5e7eb',
+      boxShadow:'0 1px 2px rgba(0,0,0,0.05)',
+      padding:'14px 32px', display:'flex', alignItems:'center', justifyContent:'space-between',
+      flexShrink:0,
+    }}>
+      <div>
+        <h1 style={{fontSize:20, fontWeight:700, color:'#111827', lineHeight:1.2}}>{title}</h1>
+        {subtitle && <p style={{fontSize:11, color:'#6b7280', marginTop:2}}>{subtitle}</p>}
+      </div>
+      {actions && <div style={{display:'flex', gap:8}}>{actions}</div>}
+    </div>
+  );
+}
+
+function Tabs({ tabs, active, onChange }) {
+  return (
+    <div style={{
+      background:'#fff', borderBottom:'1px solid #e5e7eb',
+      padding:'0 32px', display:'flex', flexShrink:0,
+    }}>
+      {tabs.map(t => (
+        <button key={t.key} onClick={() => onChange(t.key)}
+          style={{
+            padding:'10px 16px', fontSize:13, fontWeight:500,
+            borderBottom: active===t.key ? `2px solid ${C.brand}` : '2px solid transparent',
+            color: active===t.key ? C.brand : '#6b7280',
+            background:'none', border:'none', borderBottom: active===t.key ? `2px solid ${C.brand}` : '2px solid transparent',
+            cursor:'pointer', fontFamily:'IBM Plex Sans, sans-serif',
+            display:'flex', alignItems:'center', gap:6, marginBottom:-1, transition:'all 0.15s',
+          }}
+        >
+          {t.label}
+          {t.count !== undefined && (
+            <span style={{
+              fontSize:10, padding:'1px 6px', borderRadius:9999, fontWeight:500,
+              background: active===t.key ? 'rgba(70,130,180,0.10)' : '#f3f4f6',
+              color: active===t.key ? C.brand : '#6b7280',
+            }}>{t.count}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+
+const NAV_GROUPS = [
+  { label:'DAILY OPS', items:[
+    { key:'dashboard', label:'Dashboard', icon:'dashboard' },
+    { key:'billing',   label:'Billing',   icon:'billing'   },
+    { key:'inventory', label:'Inventory', icon:'inventory' },
+    { key:'purchases', label:'Purchases', icon:'purchases' },
+  ]},
+  { label:'RELATIONSHIPS', items:[
+    { key:'customers', label:'Customers', icon:'customers' },
+    { key:'suppliers', label:'Suppliers', icon:'suppliers' },
+  ]},
+  { label:'REPORTS', items:[
+    { key:'reports',   label:'Reports',   icon:'reports'   },
+  ]},
+  { label:'ADMIN', items:[
+    { key:'settings',  label:'Settings',  icon:'settings'  },
+    { key:'team',      label:'Team',      icon:'team'      },
+  ]},
+];
+
+function Sidebar({ page, onNav }) {
+  return (
+    <aside style={{
+      width:200, background:C.sidebarBg, display:'flex', flexDirection:'column',
+      flexShrink:0, height:'100%',
+    }}>
+      {/* Logo */}
+      <div style={{
+        display:'flex', alignItems:'center', gap:8,
+        padding:'0 12px', height:56, borderBottom:'1px solid rgba(255,255,255,0.1)',
+        flexShrink:0,
+      }}>
+        <div style={{
+          width:28, height:28, background:C.brand, borderRadius:6,
+          display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
+        }}>
+          <FlaskIcon size={15} color="#fff" />
+        </div>
+        <div>
+          <div style={{fontSize:14, fontWeight:600, color:'#fff', lineHeight:1.2}}>PharmaCare</div>
+          <div style={{fontSize:10, color:'#6b7280', lineHeight:1}}>v1.0</div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav style={{flex:1, overflowY:'auto', padding:'8px'}}>
+        {NAV_GROUPS.map(g => (
+          <div key={g.label}>
+            <div style={{
+              fontSize:10, fontWeight:500, textTransform:'uppercase',
+              letterSpacing:'0.1em', color:'#6b7280',
+              padding:'0 12px', marginTop:16, marginBottom:4,
+            }}>{g.label}</div>
+            {g.items.map(item => {
+              const active = page === item.key;
+              return (
+                <button key={item.key} onClick={() => onNav(item.key)}
+                  style={{
+                    display:'flex', alignItems:'center', gap:10,
+                    padding:'0 12px', height:36, borderRadius:8, width:'100%',
+                    fontSize:13, fontWeight:500,
+                    background: active ? 'rgba(37,99,235,0.20)' : 'transparent',
+                    color: active ? '#fff' : '#d1d5db',
+                    border:'none', cursor:'pointer', textAlign:'left',
+                    marginBottom:2, transition:'all 0.15s', fontFamily:'IBM Plex Sans, sans-serif',
+                  }}
+                  onMouseEnter={e => { if (!active) { e.currentTarget.style.background='rgba(255,255,255,0.05)'; e.currentTarget.style.color='#fff'; }}}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='#d1d5db'; }}}
+                >
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none"
+                    stroke={active ? '#fff' : '#9ca3af'} strokeWidth={2}
+                    strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+                    <path d={icons[item.icon]}/>
+                  </svg>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      {/* User footer */}
+      <div style={{borderTop:'1px solid rgba(255,255,255,0.1)', padding:12}}>
+        <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:8}}>
+          <div style={{
+            width:28, height:28, borderRadius:'50%',
+            background:'rgba(255,255,255,0.10)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:11, fontWeight:600, color:'#d1d5db', flexShrink:0,
+          }}>A</div>
+          <div>
+            <div style={{fontSize:13, fontWeight:500, color:'#fff', lineHeight:1.2}}>Admin User</div>
+            <span style={{
+              fontSize:10, fontWeight:500, padding:'1px 6px', borderRadius:9999,
+              background:'#faf5ff', color:'#7e22ce',
+            }}>Admin</span>
+          </div>
+        </div>
+        <button style={{
+          display:'flex', alignItems:'center', gap:8, padding:'0 12px', height:32,
+          borderRadius:8, fontSize:13, fontWeight:500, color:'#9ca3af',
+          background:'none', border:'none', cursor:'pointer', width:'100%',
+          fontFamily:'IBM Plex Sans, sans-serif', transition:'all 0.15s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.05)'; e.currentTarget.style.color='#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background='transparent'; e.currentTarget.style.color='#9ca3af'; }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.logout}/></svg>
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ── Auth Page ─────────────────────────────────────────────────────────────────
+
+function AuthPage({ onLogin }) {
+  const [email, setEmail] = useState('admin@pharmacy.com');
+  const [pass, setPass] = useState('password123');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => { setLoading(false); onLogin(); }, 800);
+  };
+
+  return (
+    <div style={{
+      minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
+      padding:16, background:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    }}>
+      <div style={{
+        width:'100%', maxWidth:400, background:'#fff', borderRadius:12,
+        boxShadow:'0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{padding:'32px 32px 24px', textAlign:'center'}}>
+          <div style={{
+            width:64, height:64, background:C.brand, borderRadius:14,
+            display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px',
+          }}>
+            <FlaskIcon size={36} color="#fff" />
+          </div>
+          <h1 style={{fontSize:24, fontWeight:700, color:'#111827', marginBottom:4}}>PharmaCare</h1>
+          <p style={{fontSize:13, color:'#6b7280'}}>Pharmacy Management System</p>
+        </div>
+        <div style={{padding:'0 32px 32px'}}>
+          <form onSubmit={handleSubmit}>
+            <div style={{marginBottom:16}}>
+              <label style={{fontSize:13, fontWeight:500, color:'#374151', display:'block', marginBottom:6}}>Email</label>
+              <Input value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@pharmacy.com" />
+            </div>
+            <div style={{marginBottom:20}}>
+              <label style={{fontSize:13, fontWeight:500, color:'#374151', display:'block', marginBottom:6}}>Password</label>
+              <Input value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" style={{}} />
+            </div>
+            <button type="submit" style={{
+              width:'100%', height:40, background: loading ? '#6b9fca' : C.brand, color:'#fff',
+              border:'none', borderRadius:8, fontSize:14, fontWeight:600,
+              cursor: loading ? 'not-allowed' : 'pointer', fontFamily:'IBM Plex Sans, sans-serif',
+              transition:'background 0.15s',
+            }}>{loading ? 'Logging in…' : 'Login'}</button>
+          </form>
+          <div style={{margin:'20px 0', display:'flex', alignItems:'center', gap:12}}>
+            <div style={{flex:1, height:1, background:'#e5e7eb'}}/>
+            <span style={{fontSize:11, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.05em'}}>Or continue with</span>
+            <div style={{flex:1, height:1, background:'#e5e7eb'}}/>
+          </div>
+          <button style={{
+            width:'100%', height:40, background:'#fff', color:'#374151',
+            border:'1px solid #e5e7eb', borderRadius:8, fontSize:14, fontWeight:500,
+            cursor:'pointer', fontFamily:'IBM Plex Sans, sans-serif',
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          }}>
+            <svg width={18} height={18} viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+const METRIC_CARDS = [
+  { title:"Today's Sales",  value:'₹1.2L', change:'+12%', up:true,  color:'#dcfce7', iconColor:'#16a34a', icon:'dollar'  },
+  { title:'This Week',      value:'₹6.8L', change:'+5%',  up:true,  color:'#dbeafe', iconColor:'#1d4ed8', icon:'trending' },
+  { title:'This Month',     value:'₹24L',  change:'-2%',  up:false, color:'#f3e8ff', iconColor:'#7e22ce', icon:'bar'     },
+  { title:'Total Sales',    value:'₹2.1Cr',change:null,   up:null,  color:'#e0e7ff', iconColor:'#4338ca', icon:'cart'    },
+];
+
+const QUICK_STATS = [
+  { title:'Pending Payments', value:'₹42K',  color:'#d97706', icon:'credit' },
+  { title:'Draft Bills',      value:'3',     color:'#6b7280', icon:'clock'  },
+  { title:'Returns (Month)',  value:'₹8.2K', color:'#dc2626', icon:'refresh'},
+  { title:'Stock Value',      value:'₹3.8L', color:'#4338ca', icon:'package'},
+];
+
+function MetricCard({ title, value, change, up, color, iconColor, icon }) {
+  return (
+    <Card style={{padding:16, flex:1}}>
+      <div style={{
+        width:36, height:36, background:color, borderRadius:8,
+        display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10,
+      }}>
+        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons[icon]}/></svg>
+      </div>
+      <div style={{fontSize:22, fontWeight:700, color:'#111827'}}>{value}</div>
+      <div style={{fontSize:12, color:'#6b7280', marginTop:2}}>{title}</div>
+      {change && (
+        <div style={{fontSize:11, marginTop:4, color: up ? '#16a34a' : '#dc2626'}}>
+          {up ? '▲' : '▼'} {change} vs previous
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function AlertRow({ label, value, badge }) {
+  return (
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 0', borderBottom:'1px solid #f3f4f6'}}>
+      <span style={{fontSize:13, color:'#374151'}}>{label}</span>
+      <div style={{display:'flex', alignItems:'center', gap:8}}>
+        <span style={{fontSize:13, fontWeight:600, color:'#111827'}}>{value}</span>
+        {badge && <Badge status={badge}/>}
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ onNav }) {
+  return (
+    <div style={{display:'flex', flexDirection:'column', height:'100%', overflow:'auto'}}>
+      <PageHeader title="Dashboard" subtitle="Welcome back! Here's your pharmacy overview"
+        actions={<Btn variant="outline" size="sm">↻ Refresh</Btn>}
+      />
+      <div style={{padding:'24px 32px', flex:1}}>
+        {/* Metrics */}
+        <div style={{display:'flex', gap:12, marginBottom:20}}>
+          {METRIC_CARDS.map(c => <MetricCard key={c.title} {...c} />)}
+        </div>
+        {/* Charts row */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
+          <Card style={{padding:16}}>
+            <div style={{fontSize:13, fontWeight:600, color:'#111827', marginBottom:12}}>Daily Sales Trend</div>
+            <div style={{display:'flex', alignItems:'flex-end', gap:4, height:80}}>
+              {[45,62,38,71,55,89,76,92,68,84,70,94].map((h, i) => (
+                <div key={i} style={{flex:1, background: i===11 ? C.brand : '#dbeafe', borderRadius:'3px 3px 0 0', height:`${h}%`, transition:'height 0.2s'}}/>
+              ))}
+            </div>
+            <div style={{display:'flex', justifyContent:'space-between', marginTop:4}}>
+              <span style={{fontSize:10, color:'#9ca3af'}}>Apr 8</span>
+              <span style={{fontSize:10, color:'#9ca3af'}}>Today</span>
+            </div>
+          </Card>
+          <Card style={{padding:16}}>
+            <div style={{fontSize:13, fontWeight:600, color:'#111827', marginBottom:12}}>Top Categories</div>
+            {[['Antibiotics','₹4.2L',68],['Analgesics','₹2.1L',34],['Vitamins','₹1.8L',29],['Antacids','₹1.1L',18]].map(([name,val,pct]) => (
+              <div key={name} style={{marginBottom:8}}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:3}}>
+                  <span style={{fontSize:12, color:'#374151'}}>{name}</span>
+                  <span style={{fontSize:12, fontWeight:600, color:'#111827'}}>{val}</span>
+                </div>
+                <div style={{height:4, background:'#f3f4f6', borderRadius:2}}>
+                  <div style={{height:4, background:C.brand, borderRadius:2, width:`${pct}%`}}/>
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+        {/* Alerts */}
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20}}>
+          <Card style={{padding:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+              <div style={{fontSize:13, fontWeight:600, color:'#111827'}}>⚠ Low Stock</div>
+              <Btn variant="ghost" size="sm" onClick={()=>onNav('inventory')}>View all</Btn>
+            </div>
+            <AlertRow label="Amoxicillin 500mg" value="8 strips" badge="low"/>
+            <AlertRow label="Paracetamol 650mg" value="12 strips" badge="low"/>
+            <AlertRow label="Metformin 500mg"  value="5 strips" badge="low"/>
+          </Card>
+          <Card style={{padding:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+              <div style={{fontSize:13, fontWeight:600, color:'#111827'}}>📅 Expiring Soon</div>
+              <Btn variant="ghost" size="sm">View all</Btn>
+            </div>
+            <AlertRow label="Azithromycin 250mg" value="Jun 2025" badge="pending"/>
+            <AlertRow label="Insulin Glargine"   value="May 2025" badge="overdue"/>
+            <AlertRow label="Aspirin 75mg"        value="Jul 2025" badge="pending"/>
+          </Card>
+        </div>
+        {/* Quick Stats */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12}}>
+          {QUICK_STATS.map(s => (
+            <Card key={s.title} style={{padding:14, cursor:'pointer'}}
+              onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.10)'}
+              onMouseLeave={e=>e.currentTarget.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)'}
+            >
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+                <div>
+                  <div style={{fontSize:11, color:'#6b7280', marginBottom:4}}>{s.title}</div>
+                  <div style={{fontSize:18, fontWeight:700, color:'#111827'}}>{s.value}</div>
+                </div>
+                <div style={{width:32, height:32, background:`${s.color}20`, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center'}}>
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={s.color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons[s.icon]}/></svg>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Billing List ──────────────────────────────────────────────────────────────
+
+const BILLS = [
+  { id:'BL-1042', customer:'Ravi Shankar',   date:'Apr 19, 2025', items:5, total:'₹1,240', status:'paid',    method:'cash'   },
+  { id:'BL-1041', customer:'Meera Nair',     date:'Apr 19, 2025', items:3, total:'₹680',   status:'upi',     method:'upi'    },
+  { id:'BL-1040', customer:'Walk-in',        date:'Apr 19, 2025', items:8, total:'₹2,140', status:'credit',  method:'credit' },
+  { id:'BL-1039', customer:'Arjun Kumar',    date:'Apr 18, 2025', items:2, total:'₹320',   status:'paid',    method:'cash'   },
+  { id:'BL-1038', customer:'Priya Sharma',   date:'Apr 18, 2025', items:6, total:'₹890',   status:'due',     method:null     },
+  { id:'BL-1037', customer:'Suresh Patil',   date:'Apr 18, 2025', items:4, total:'₹1,560', status:'partial', method:null     },
+  { id:'BL-1036', customer:'Kavitha Rao',    date:'Apr 17, 2025', items:1, total:'₹240',   status:'draft',   method:null     },
+  { id:'BL-1035', customer:'Mohammed Ali',   date:'Apr 17, 2025', items:9, total:'₹3,200', status:'paid',    method:'card'   },
+];
+
+function BillingList({ onNewBill }) {
+  const [tab, setTab] = useState('bills');
+  const [search, setSearch] = useState('');
+
+  const filtered = BILLS.filter(b =>
+    b.customer.toLowerCase().includes(search.toLowerCase()) ||
+    b.id.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const TH = ({children, w}) => (
+    <th style={{padding:'10px 12px', fontSize:11, fontWeight:600, color:'#6b7280', textAlign:'left', width:w, borderBottom:'1px solid #e5e7eb', background:'#f9fafb', textTransform:'uppercase', letterSpacing:'0.04em'}}>{children}</th>
+  );
+  const TD = ({children, style={}}) => (
+    <td style={{padding:'12px 12px', fontSize:13, color:'#374151', borderBottom:'1px solid #f3f4f6', ...style}}>{children}</td>
+  );
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', height:'100%', overflow:'hidden'}}>
+      <PageHeader title="Billing Operations" subtitle={`${BILLS.length} bills · ₹24L this month`}
+        actions={<>
+          <Btn variant="outline" size="sm">Export</Btn>
+          <Btn size="sm" onClick={onNewBill}>+ New Bill</Btn>
+        </>}
+      />
+      <Tabs
+        tabs={[{key:'bills',label:'Bills',count:128},{key:'returns',label:'Sales Returns',count:14},{key:'parked',label:'Parked',count:3}]}
+        active={tab} onChange={setTab}
+      />
+      {/* Search bar */}
+      <div style={{padding:'12px 32px', background:'#fff', borderBottom:'1px solid #e5e7eb', flexShrink:0}}>
+        <div style={{position:'relative', maxWidth:320}}>
+          <svg style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none'}}
+            width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.search}/></svg>
+          <input
+            placeholder="Search bills or customers…"
+            value={search} onChange={e=>setSearch(e.target.value)}
+            style={{width:'100%', height:34, padding:'0 10px 0 32px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:13, fontFamily:'IBM Plex Sans, sans-serif', outline:'none'}}
+          />
+        </div>
+      </div>
+      {/* Table */}
+      <div style={{flex:1, overflow:'auto', padding:'0 32px 24px'}}>
+        <table style={{width:'100%', borderCollapse:'collapse', marginTop:16}}>
+          <thead>
+            <tr>
+              <TH w={100}>Bill ID</TH>
+              <TH>Customer</TH>
+              <TH w={120}>Date</TH>
+              <TH w={60}>Items</TH>
+              <TH w={100}>Total</TH>
+              <TH w={100}>Status</TH>
+              <TH w={80}>Actions</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(b => (
+              <tr key={b.id}
+                style={{cursor:'pointer', transition:'background 0.1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#f0f7ff'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+              >
+                <TD><span style={{fontWeight:600, color:C.brand}}>{b.id}</span></TD>
+                <TD>{b.customer}</TD>
+                <TD style={{color:'#6b7280', fontSize:12}}>{b.date}</TD>
+                <TD style={{textAlign:'center'}}>{b.items}</TD>
+                <TD><span style={{fontWeight:600}}>{b.total}</span></TD>
+                <TD><Badge status={b.method || b.status}/></TD>
+                <TD>
+                  <div style={{display:'flex', gap:4}}>
+                    <button style={{padding:'4px 8px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', fontSize:11, cursor:'pointer', color:'#374151'}}>View</button>
+                    <button style={{padding:'4px 8px', borderRadius:6, border:'none', background:'transparent', fontSize:11, cursor:'pointer', color:'#6b7280'}}>Print</button>
+                  </div>
+                </TD>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div style={{textAlign:'center', padding:'48px 0'}}>
+            <div style={{width:52, height:52, background:'#f3f4f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px'}}>
+              <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.search}/></svg>
+            </div>
+            <div style={{fontSize:14, fontWeight:500, color:'#111827'}}>No bills match your search</div>
+            <div style={{fontSize:12, color:'#6b7280', marginTop:4}}>Try adjusting your search term</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Billing Workspace ─────────────────────────────────────────────────────────
+
+const MEDICINES = [
+  { name:'Amoxicillin 500mg', brand:'Cipla', price:12.50, stock:240 },
+  { name:'Paracetamol 650mg', brand:'GSK',   price:4.20,  stock:580 },
+  { name:'Azithromycin 250mg',brand:'Pfizer',price:24.00, stock:120 },
+  { name:'Metformin 500mg',   brand:'Sun',   price:6.80,  stock:310 },
+  { name:'Atorvastatin 10mg', brand:'Cipla', price:18.40, stock:90  },
+];
+
+function BillingWorkspace({ onBack }) {
+  const [items, setItems] = useState([
+    { id:1, name:'Amoxicillin 500mg', brand:'Cipla', qty:2, price:12.50 },
+    { id:2, name:'Paracetamol 650mg', brand:'GSK',   qty:3, price:4.20  },
+  ]);
+  const [search, setSearch] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [customer, setCustomer] = useState('');
+  const [payMethod, setPayMethod] = useState('cash');
+
+  const subtotal = items.reduce((s,i) => s + i.qty*i.price, 0);
+  const gst = subtotal * 0.12;
+  const total = subtotal + gst;
+
+  const addItem = (m) => {
+    setItems(prev => [...prev, { id: Date.now(), name:m.name, brand:m.brand, qty:1, price:m.price }]);
+    setSearch(''); setShowSuggestions(false);
+  };
+  const removeItem = (id) => setItems(prev => prev.filter(i => i.id !== id));
+  const updateQty = (id, q) => setItems(prev => prev.map(i => i.id===id ? {...i, qty:Math.max(1,q)} : i));
+
+  const suggestions = MEDICINES.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) && search.length > 1);
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', height:'100%', overflow:'hidden'}}>
+      <PageHeader title="New Bill" subtitle="BL-1043 · Draft"
+        actions={<>
+          <Btn variant="secondary" size="sm" onClick={onBack}>← Back</Btn>
+          <Btn variant="outline" size="sm">Park Bill</Btn>
+          <Btn size="sm">Save & Print</Btn>
+        </>}
+      />
+      <div style={{flex:1, overflow:'hidden', display:'flex'}}>
+        {/* Left: Items */}
+        <div style={{flex:1, overflow:'auto', padding:24}}>
+          {/* Customer */}
+          <Card style={{padding:16, marginBottom:16}}>
+            <div style={{fontSize:12, fontWeight:600, color:'#374151', marginBottom:8}}>CUSTOMER</div>
+            <div style={{display:'flex', gap:8}}>
+              <input placeholder="Search customer or Walk-in…" value={customer} onChange={e=>setCustomer(e.target.value)}
+                style={{flex:1, height:36, padding:'0 12px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:13, fontFamily:'IBM Plex Sans, sans-serif', outline:'none'}}
+              />
+              <Btn variant="outline" size="sm">+ New</Btn>
+            </div>
+          </Card>
+          {/* Search medicine */}
+          <Card style={{padding:16, marginBottom:16}}>
+            <div style={{fontSize:12, fontWeight:600, color:'#374151', marginBottom:8}}>ADD MEDICINE</div>
+            <div style={{position:'relative'}}>
+              <svg style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', zIndex:1}}
+                width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.search}/></svg>
+              <input placeholder="Search by name, brand, or scan barcode…"
+                value={search} onChange={e=>{ setSearch(e.target.value); setShowSuggestions(true); }}
+                style={{width:'100%', height:36, padding:'0 12px 0 32px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:13, fontFamily:'IBM Plex Sans, sans-serif', outline:'none'}}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div style={{position:'absolute', top:40, left:0, right:0, background:'#fff', border:'1px solid #e5e7eb', borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.10)', zIndex:10}}>
+                  {suggestions.map(m => (
+                    <div key={m.name} onClick={()=>addItem(m)}
+                      style={{padding:'10px 14px', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #f3f4f6', fontSize:13}}
+                      onMouseEnter={e=>e.currentTarget.style.background='#f0f7ff'}
+                      onMouseLeave={e=>e.currentTarget.style.background='#fff'}
+                    >
+                      <div>
+                        <div style={{fontWeight:500, color:'#111827'}}>{m.name}</div>
+                        <div style={{fontSize:11, color:'#6b7280'}}>{m.brand} · Stock: {m.stock}</div>
+                      </div>
+                      <div style={{fontWeight:600, color:C.brand}}>₹{m.price.toFixed(2)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+          {/* Items table */}
+          <Card>
+            <table style={{width:'100%', borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{background:'#f9fafb'}}>
+                  {['Medicine','Brand','Qty','Unit Price','Total',''].map(h => (
+                    <th key={h} style={{padding:'10px 12px', fontSize:11, fontWeight:600, color:'#6b7280', textAlign: h==='Qty'||h==='Total'||h==='Unit Price' ? 'center' : 'left', borderBottom:'1px solid #e5e7eb', textTransform:'uppercase', letterSpacing:'0.04em'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id} style={{borderBottom:'1px solid #f3f4f6'}}>
+                    <td style={{padding:'10px 12px', fontSize:13, fontWeight:500}}>{item.name}</td>
+                    <td style={{padding:'10px 12px', fontSize:12, color:'#6b7280'}}>{item.brand}</td>
+                    <td style={{padding:'10px 12px', textAlign:'center'}}>
+                      <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:4}}>
+                        <button onClick={()=>updateQty(item.id, item.qty-1)} style={{width:24, height:24, borderRadius:6, border:'1px solid #e5e7eb', background:'#f9fafb', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center'}}>−</button>
+                        <span style={{width:28, textAlign:'center', fontSize:13, fontWeight:500}}>{item.qty}</span>
+                        <button onClick={()=>updateQty(item.id, item.qty+1)} style={{width:24, height:24, borderRadius:6, border:'1px solid #e5e7eb', background:'#f9fafb', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center'}}>+</button>
+                      </div>
+                    </td>
+                    <td style={{padding:'10px 12px', textAlign:'center', fontSize:13}}>₹{item.price.toFixed(2)}</td>
+                    <td style={{padding:'10px 12px', textAlign:'center', fontSize:13, fontWeight:600}}>₹{(item.qty*item.price).toFixed(2)}</td>
+                    <td style={{padding:'10px 12px', textAlign:'center'}}>
+                      <button onClick={()=>removeItem(item.id)} style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:4}}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.trash}/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {items.length === 0 && (
+              <div style={{textAlign:'center', padding:32, color:'#9ca3af', fontSize:13}}>No items added yet. Search above to add medicines.</div>
+            )}
+          </Card>
+        </div>
+        {/* Right: Summary */}
+        <div style={{width:280, padding:'24px 24px 24px 0', flexShrink:0}}>
+          <Card style={{padding:16, marginBottom:12}}>
+            <div style={{fontSize:12, fontWeight:600, color:'#374151', marginBottom:12}}>PAYMENT</div>
+            <div style={{display:'flex', gap:6, marginBottom:12}}>
+              {['cash','upi','card','credit'].map(m => (
+                <button key={m} onClick={()=>setPayMethod(m)}
+                  style={{
+                    flex:1, padding:'6px 4px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer',
+                    background: payMethod===m ? C.brand : '#f3f4f6',
+                    color: payMethod===m ? '#fff' : '#374151',
+                    border: payMethod===m ? `1px solid ${C.brand}` : '1px solid #e5e7eb',
+                    textTransform:'capitalize', fontFamily:'IBM Plex Sans, sans-serif',
+                  }}
+                >{m.toUpperCase()}</button>
+              ))}
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:8}}>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:13}}>
+                <span style={{color:'#6b7280'}}>Subtotal</span>
+                <span style={{fontWeight:500}}>₹{subtotal.toFixed(2)}</span>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:13}}>
+                <span style={{color:'#6b7280'}}>GST (12%)</span>
+                <span style={{fontWeight:500}}>₹{gst.toFixed(2)}</span>
+              </div>
+              <div style={{height:1, background:'#e5e7eb', margin:'4px 0'}}/>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:16, fontWeight:700}}>
+                <span>Total</span>
+                <span style={{color:C.brand}}>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+          </Card>
+          <Btn style={{width:'100%', marginBottom:8, justifyContent:'center'}} size="lg">✓ Save & Print Bill</Btn>
+          <Btn variant="secondary" style={{width:'100%', justifyContent:'center'}}>Park Bill</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Inventory ─────────────────────────────────────────────────────────────────
+
+const INVENTORY = [
+  { sku:'AMX-500', name:'Amoxicillin 500mg',  brand:'Cipla',  category:'Antibiotics',  stock:240, minStock:50,  mrp:14.00, batch:'B2024-11', expiry:'Nov 2026', status:'ok'  },
+  { sku:'PCT-650', name:'Paracetamol 650mg',  brand:'GSK',    category:'Analgesics',   stock:580, minStock:100, mrp:5.00,  batch:'B2024-12', expiry:'Dec 2026', status:'ok'  },
+  { sku:'AZI-250', name:'Azithromycin 250mg', brand:'Pfizer', category:'Antibiotics',  stock:8,   minStock:30,  mrp:28.00, batch:'B2024-09', expiry:'Jun 2025', status:'low' },
+  { sku:'MET-500', name:'Metformin 500mg',    brand:'Sun',    category:'Antidiabetic', stock:310, minStock:80,  mrp:8.00,  batch:'B2024-10', expiry:'Oct 2026', status:'ok'  },
+  { sku:'ATO-10',  name:'Atorvastatin 10mg',  brand:'Cipla',  category:'Cardiac',      stock:12,  minStock:40,  mrp:22.00, batch:'B2024-08', expiry:'May 2025', status:'low' },
+  { sku:'INS-GL',  name:'Insulin Glargine',   brand:'Sanofi', category:'Antidiabetic', stock:45,  minStock:20,  mrp:960.00,batch:'B2024-07', expiry:'May 2025', status:'ok'  },
+  { sku:'ASP-75',  name:'Aspirin 75mg',       brand:'Bayer',  category:'Cardiac',      stock:190, minStock:50,  mrp:6.50,  batch:'B2024-11', expiry:'Jul 2025', status:'ok'  },
+];
+
+function InventorySearch() {
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('all');
+
+  const cats = ['all', ...new Set(INVENTORY.map(i=>i.category))];
+  const filtered = INVENTORY.filter(i => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q) || i.brand.toLowerCase().includes(q);
+    const matchCat = catFilter==='all' || i.category===catFilter;
+    return matchSearch && matchCat;
+  });
+
+  const TH = ({children, w}) => (
+    <th style={{padding:'10px 12px', fontSize:11, fontWeight:600, color:'#6b7280', textAlign:'left', width:w, borderBottom:'1px solid #e5e7eb', background:'#f9fafb', textTransform:'uppercase', letterSpacing:'0.04em'}}>{children}</th>
+  );
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', height:'100%', overflow:'hidden'}}>
+      <PageHeader title="Inventory" subtitle={`${INVENTORY.length} products · ₹3.8L stock value`}
+        actions={<>
+          <Btn variant="outline" size="sm">Import CSV</Btn>
+          <Btn size="sm">+ Add Product</Btn>
+        </>}
+      />
+      <div style={{padding:'12px 32px', background:'#fff', borderBottom:'1px solid #e5e7eb', display:'flex', gap:12, alignItems:'center', flexShrink:0}}>
+        <div style={{position:'relative', flex:1, maxWidth:360}}>
+          <svg style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none'}}
+            width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons.search}/></svg>
+          <input placeholder="Search by name, SKU or brand…" value={search} onChange={e=>setSearch(e.target.value)}
+            style={{width:'100%', height:34, padding:'0 10px 0 32px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:13, fontFamily:'IBM Plex Sans, sans-serif', outline:'none'}}
+          />
+        </div>
+        <div style={{display:'flex', gap:4}}>
+          {cats.map(c => (
+            <button key={c} onClick={()=>setCatFilter(c)}
+              style={{
+                padding:'5px 10px', borderRadius:6, fontSize:11, fontWeight:500, cursor:'pointer',
+                background: catFilter===c ? C.brand : '#f3f4f6',
+                color: catFilter===c ? '#fff' : '#374151',
+                border:'none', fontFamily:'IBM Plex Sans, sans-serif', textTransform:'capitalize',
+              }}
+            >{c==='all' ? 'All' : c}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{flex:1, overflow:'auto', padding:'0 32px 24px'}}>
+        <table style={{width:'100%', borderCollapse:'collapse', marginTop:16}}>
+          <thead>
+            <tr>
+              <TH w={90}>SKU</TH>
+              <TH>Medicine</TH>
+              <TH w={80}>Brand</TH>
+              <TH w={110}>Category</TH>
+              <TH w={80}>Stock</TH>
+              <TH w={80}>MRP</TH>
+              <TH w={80}>Expiry</TH>
+              <TH w={90}>Status</TH>
+              <TH w={80}>Actions</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(item => (
+              <tr key={item.sku}
+                style={{cursor:'pointer', transition:'background 0.1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#f0f7ff'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+              >
+                <td style={{padding:'11px 12px', fontSize:12, color:'#6b7280', fontFamily:'monospace', borderBottom:'1px solid #f3f4f6'}}>{item.sku}</td>
+                <td style={{padding:'11px 12px', fontSize:13, fontWeight:500, color:'#111827', borderBottom:'1px solid #f3f4f6'}}>{item.name}</td>
+                <td style={{padding:'11px 12px', fontSize:12, color:'#6b7280', borderBottom:'1px solid #f3f4f6'}}>{item.brand}</td>
+                <td style={{padding:'11px 12px', fontSize:12, color:'#374151', borderBottom:'1px solid #f3f4f6'}}>{item.category}</td>
+                <td style={{padding:'11px 12px', fontSize:13, fontWeight:item.stock<=item.minStock ? 700 : 400, color: item.stock<=item.minStock ? '#dc2626' : '#111827', borderBottom:'1px solid #f3f4f6'}}>{item.stock}</td>
+                <td style={{padding:'11px 12px', fontSize:13, fontWeight:500, borderBottom:'1px solid #f3f4f6'}}>₹{item.mrp.toFixed(2)}</td>
+                <td style={{padding:'11px 12px', fontSize:12, color:'#6b7280', borderBottom:'1px solid #f3f4f6'}}>{item.expiry}</td>
+                <td style={{padding:'11px 12px', borderBottom:'1px solid #f3f4f6'}}><Badge status={item.status}/></td>
+                <td style={{padding:'11px 12px', borderBottom:'1px solid #f3f4f6'}}>
+                  <div style={{display:'flex', gap:4}}>
+                    <button style={{padding:'3px 8px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', fontSize:11, cursor:'pointer', color:'#374151'}}>Edit</button>
+                    <button style={{padding:'3px 8px', borderRadius:6, border:'none', background:'transparent', fontSize:11, cursor:'pointer', color:'#6b7280'}}>View</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── App Shell ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem('pc_authed') === 'true');
+  const [page, setPage] = useState(() => localStorage.getItem('pc_page') || 'dashboard');
+  const [billingView, setBillingView] = useState('list'); // 'list' | 'workspace'
+
+  useEffect(() => { localStorage.setItem('pc_authed', authed); }, [authed]);
+  useEffect(() => { localStorage.setItem('pc_page', page); }, [page]);
+
+  if (!authed) return <AuthPage onLogin={() => setAuthed(true)} />;
+
+  const nav = (p) => { setPage(p); setBillingView('list'); };
+
+  const renderPage = () => {
+    switch(page) {
+      case 'dashboard': return <Dashboard onNav={nav} />;
+      case 'billing':
+        return billingView === 'workspace'
+          ? <BillingWorkspace onBack={() => setBillingView('list')} />
+          : <BillingList onNewBill={() => setBillingView('workspace')} />;
+      case 'inventory': return <InventorySearch />;
+      default:
+        return (
+          <div style={{display:'flex', flexDirection:'column', height:'100%', overflow:'auto'}}>
+            <PageHeader title={page.charAt(0).toUpperCase()+page.slice(1)} subtitle="Coming soon in this prototype" />
+            <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12}}>
+              <div style={{width:56, height:56, background:'#f3f4f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={icons[page] || icons.reports}/></svg>
+              </div>
+              <div style={{fontSize:14, fontWeight:500, color:'#374151'}}>This screen is not included in the prototype</div>
+              <div style={{fontSize:12, color:'#6b7280'}}>Navigate to Dashboard, Billing, or Inventory to explore</div>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{display:'flex', height:'100vh', overflow:'hidden', background:'#f8f9fa'}}>
+      <Sidebar page={page} onNav={nav} />
+      <main style={{flex:1, display:'flex', flexDirection:'column', overflow:'hidden', background:'#f8f9fa'}}>
+        {renderPage()}
+      </main>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

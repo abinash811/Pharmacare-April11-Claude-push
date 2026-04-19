@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 0; background: #f8f9fa; font-family: var(--font-sans); }
+.page-header {
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  padding: 14px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-header h1 { font-size: 20px; font-weight: 700; color: #111827; margin: 0; }
+.page-header p  { font-size: 11px; color: #6b7280; margin: 2px 0 0; }
+.tabs {
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  padding: 0 32px; display: flex; gap: 0;
+}
+.tab {
+  padding: 10px 16px; font-size: 14px; font-weight: 500;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  cursor: pointer; transition: all 0.2s; color: #6b7280; display: flex; align-items: center; gap: 6px;
+}
+.tab.active { border-color: #4682B4; color: #4682B4; }
+.tab:hover:not(.active) { color: #374151; border-color: #d1d5db; }
+.tab-count {
+  font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 9999px;
+}
+.tab.active .tab-count { background: rgba(70,130,180,0.10); color: #4682B4; }
+.tab:not(.active) .tab-count { background: #f3f4f6; color: #6b7280; }
+</style>
+</head><body>
+<div class="page-header">
+  <div>
+    <h1>Billing Operations</h1>
+    <p>142 bills · ₹24L this month</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-outline" style="font-family:var(--font-sans);font-size:13px;padding:6px 14px;border-radius:8px;background:#fff;border:1px solid #e5e7eb;color:#374151;cursor:pointer;">Export</button>
+    <button class="btn btn-primary" style="font-family:var(--font-sans);font-size:13px;padding:6px 14px;border-radius:8px;background:#4682B4;color:#fff;border:none;cursor:pointer;">+ New Bill</button>
+  </div>
+</div>
+<div class="tabs">
+  <div class="tab active">Bills <span class="tab-count">128</span></div>
+  <div class="tab">Sales Returns <span class="tab-count">14</span></div>
+  <div class="tab">Parked <span class="tab-count">3</span></div>
+</div>
+</body></html>

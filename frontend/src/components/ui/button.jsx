@@ -37,13 +37,31 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+/**
+ * Button — base Shadcn button with PharmaCare design tokens applied.
+ *
+ * Extra props beyond standard Shadcn:
+ *   shortcut {string}  — keyboard shortcut badge shown on the right (e.g. "N", "⌘K")
+ *
+ * Usage:
+ *   <Button shortcut="N">New Bill</Button>
+ *   <Button variant="outline" shortcut="⌘K">Search</Button>
+ */
+const Button = React.forwardRef(({ className, variant, size, asChild = false, shortcut, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
   return (
     <Comp
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
-      {...props} />
+      {...props}
+    >
+      {children}
+      {shortcut && (
+        <kbd className="ml-1 inline-flex h-5 items-center rounded border border-current/20 bg-current/10 px-1.5 font-mono text-[10px] font-medium opacity-70">
+          {shortcut}
+        </kbd>
+      )}
+    </Comp>
   );
 })
 Button.displayName = "Button"

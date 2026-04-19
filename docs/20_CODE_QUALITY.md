@@ -276,3 +276,14 @@ export function isExpired(expiryDate) {
 - [ ] No `TODO` comments without a linked issue
 - [ ] Boy Scout Rule applied — fixed at least one pre-existing issue in touched files
 - [ ] PR audit score ≥ 7 across all dimensions
+
+---
+
+## Zod Schema Rules
+
+- All schemas live in `frontend/src/lib/schemas/`
+- Every form field that touches the API must have a Zod schema
+- Export types with `z.infer<typeof schema>` — no separate TypeScript interfaces for form shapes
+- Import: `import { customerSchema, type CustomerFormValues } from '@/lib/schemas'`
+- Wire with react-hook-form: `const form = useForm<T>({ resolver: zodResolver(schema) })`
+- Rule: No new form without a schema. No `useState` for individual form fields.

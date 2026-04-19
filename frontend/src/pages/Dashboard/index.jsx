@@ -11,12 +11,14 @@ import {
 import { formatCompact } from '@/utils/currency';
 import { PageHeader, AppButton } from '@/components/shared';
 
-import { useDashboard }    from './hooks/useDashboard';
-import MetricCard          from './components/MetricCard';
-import QuickStatCard       from './components/QuickStatCard';
-import SalesCharts         from './components/SalesCharts';
-import InsightsList        from './components/InsightsList';
-import AlertsPanel         from './components/AlertsPanel';
+import { useDashboard }      from './hooks/useDashboard';
+import MetricCard            from './components/MetricCard';
+import QuickStatCard         from './components/QuickStatCard';
+import SalesCharts           from './components/SalesCharts';
+import InsightsList          from './components/InsightsList';
+import AlertsPanel           from './components/AlertsPanel';
+import WelcomeCard           from './components/WelcomeCard';
+import LicenseExpiryBanner   from './components/LicenseExpiryBanner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -41,7 +43,8 @@ export default function Dashboard() {
     );
   }
 
-  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats } = data || {};
+  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats, license_alert } = data || {};
+  const isNewPharmacy = !metrics?.today_sales && !metrics?.total_sales;
 
   return (
     <div className="px-8 py-6" data-testid="dashboard">
@@ -60,6 +63,9 @@ export default function Dashboard() {
         }
       />
 
+      {/* Drug license expiry banner — shows only when license is expiring soon */}
+      <LicenseExpiryBanner licenseAlert={license_alert} onNavigate={navigate} />
+
       {/* Row 1: Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard title="Today's Sales"  value={formatCompact(metrics?.today_sales)}  change={metrics?.today_change}  icon={<DollarSign className="w-5 h-5" />}  color="green"  subtitle="vs yesterday"  testId="today-sales-card" />
@@ -68,28 +74,34 @@ export default function Dashboard() {
         <MetricCard title="Total Sales"    value={formatCompact(metrics?.total_sales)}                                  icon={<ShoppingCart className="w-5 h-5" />} color="indigo" subtitle="all time"      testId="total-sales-card" />
       </div>
 
-      {/* Row 2: Charts */}
-      <SalesCharts dailyTrend={daily_trend} categorySales={category_sales} />
+      {isNewPharmacy ? (
+        <WelcomeCard onNavigate={navigate} />
+      ) : (
+        <>
+          {/* Row 2: Charts */}
+          <SalesCharts dailyTrend={daily_trend} categorySales={category_sales} />
 
-      {/* Row 3: Insights */}
-      <InsightsList topProducts={top_products} topCustomers={top_customers} />
+          {/* Row 3: Insights */}
+          <InsightsList topProducts={top_products} topCustomers={top_customers} />
 
-      {/* Row 4: Alerts */}
-      <AlertsPanel
-        lowStock={low_stock}
-        expiringSoon={expiring_soon}
-        recentBills={recent_bills}
-        quickStats={quick_stats}
-        onNavigate={navigate}
-      />
+          {/* Row 4: Alerts */}
+          <AlertsPanel
+            lowStock={low_stock}
+            expiringSoon={expiring_soon}
+            recentBills={recent_bills}
+            quickStats={quick_stats}
+            onNavigate={navigate}
+          />
 
-      {/* Row 5: Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing')} />
-        <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing')} />
-        <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red" />
-        <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory-v2')} />
-      </div>
+          {/* Row 5: Quick Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing')} />
+            <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing')} />
+            <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red" />
+            <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory-v2')} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

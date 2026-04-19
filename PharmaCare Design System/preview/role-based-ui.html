@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 16px; font-size: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.section { margin-bottom: 16px; }
+
+/* Role badges */
+.role { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+.r-admin     { background: #faf5ff; color: #7e22ce; }
+.r-manager   { background: #eff6ff; color: #1d4ed8; }
+.r-cashier   { background: #f0fdf4; color: #15803d; }
+.r-inventory { background: #fff7ed; color: #c2410c; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+th { text-align: left; padding: 7px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 2px solid #e5e7eb; background: #f9fafb; }
+th:first-child { width: 200px; }
+td { padding: 8px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
+td:first-child { font-weight: 500; color: #111827; }
+
+.y { color: #15803d; font-size: 14px; }   /* ✓ */
+.n { color: #d1d5db; font-size: 14px; }   /* — */
+.p { color: #d97706; font-size: 11px; font-weight: 500; } /* Partial */
+
+/* Sidebar miniature */
+.sidebar-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.sidebar-mini { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; min-width: 140px; }
+.sm-head { padding: 6px 10px; font-size: 10px; font-weight: 700; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 6px; }
+.sm-nav { background: #1a2332; padding: 6px; }
+.sm-group { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #4b5563; padding: 4px 6px 2px; }
+.sm-item { padding: 3px 6px; font-size: 10px; color: #d1d5db; border-radius: 4px; margin-bottom: 1px; }
+.sm-item.hidden { opacity: 0; height: 0; overflow: hidden; padding: 0; margin: 0; }
+.sm-item.active { background: rgba(37,99,235,0.2); color: #fff; }
+</style>
+</head><body>
+
+<div class="section">
+  <div class="label">Role Definitions</div>
+  <table>
+    <thead><tr><th>Role</th><th>Who they are</th><th>Primary daily task</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="role r-admin">Admin</span></td>
+        <td>Pharmacy owner or head pharmacist</td>
+        <td>Full access — settings, team, all reports, all operations</td>
+      </tr>
+      <tr>
+        <td><span class="role r-manager">Manager</span></td>
+        <td>Senior pharmacist or shift in-charge</td>
+        <td>All daily ops + reports; cannot manage team or settings</td>
+      </tr>
+      <tr>
+        <td><span class="role r-cashier">Cashier</span></td>
+        <td>Counter staff handling billing</td>
+        <td>Billing only — create bills, manage customers; no purchases or reports</td>
+      </tr>
+      <tr>
+        <td><span class="role r-inventory">Inventory</span></td>
+        <td>Stock/godown staff</td>
+        <td>Inventory + purchases only — no billing, no reports</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Navigation Access Matrix</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Nav Item</th>
+        <th><span class="role r-admin">Admin</span></th>
+        <th><span class="role r-manager">Manager</span></th>
+        <th><span class="role r-cashier">Cashier</span></th>
+        <th><span class="role r-inventory">Inventory</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Dashboard</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+      <tr><td>Billing</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+      <tr><td>Inventory</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
+      <tr><td>Purchases</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+      <tr><td>Customers</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+      <tr><td>Suppliers</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+      <tr><td>Reports</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Sch H1 Register</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Audit Log</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Settings</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Team</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Sidebar appearance by role — nav groups shown/hidden</div>
+  <div class="sidebar-grid">
+
+    <div class="sidebar-mini">
+      <div class="sm-head"><span class="role r-admin" style="font-size:9px;">Admin</span> — all groups</div>
+      <div class="sm-nav">
+        <div class="sm-group">DAILY OPS</div>
+        <div class="sm-item active">Dashboard</div>
+        <div class="sm-item">Billing</div>
+        <div class="sm-item">Inventory</div>
+        <div class="sm-item">Purchases</div>
+        <div class="sm-group">RELATIONSHIPS</div>
+        <div class="sm-item">Customers</div>
+        <div class="sm-item">Suppliers</div>
+        <div class="sm-group">REPORTS</div>
+        <div class="sm-item">Reports</div>
+        <div class="sm-group">COMPLIANCE</div>
+        <div class="sm-item">Sch H1</div>
+        <div class="sm-item">Audit Log</div>
+        <div class="sm-group">ADMIN</div>
+        <div class="sm-item">Settings</div>
+        <div class="sm-item">Team</div>
+      </div>
+    </div>
+
+    <div class="sidebar-mini">
+      <div class="sm-head"><span class="role r-cashier" style="font-size:9px;">Cashier</span> — billing focus</div>
+      <div class="sm-nav">
+        <div class="sm-group">DAILY OPS</div>
+        <div class="sm-item active">Dashboard</div>
+        <div class="sm-item">Billing</div>
+        <div class="sm-item">Inventory</div>
+        <div class="sm-group">RELATIONSHIPS</div>
+        <div class="sm-item">Customers</div>
+      </div>
+    </div>
+
+    <div class="sidebar-mini">
+      <div class="sm-head"><span class="role r-inventory" style="font-size:9px;">Inventory</span> — stock focus</div>
+      <div class="sm-nav">
+        <div class="sm-group">DAILY OPS</div>
+        <div class="sm-item active">Dashboard</div>
+        <div class="sm-item">Inventory</div>
+        <div class="sm-item">Purchases</div>
+        <div class="sm-group">RELATIONSHIPS</div>
+        <div class="sm-item">Suppliers</div>
+      </div>
+    </div>
+
+    <div class="sidebar-mini">
+      <div class="sm-head"><span class="role r-manager" style="font-size:9px;">Manager</span> — ops + reports</div>
+      <div class="sm-nav">
+        <div class="sm-group">DAILY OPS</div>
+        <div class="sm-item active">Dashboard</div>
+        <div class="sm-item">Billing</div>
+        <div class="sm-item">Inventory</div>
+        <div class="sm-item">Purchases</div>
+        <div class="sm-group">RELATIONSHIPS</div>
+        <div class="sm-item">Customers</div>
+        <div class="sm-item">Suppliers</div>
+        <div class="sm-group">REPORTS</div>
+        <div class="sm-item">Reports</div>
+        <div class="sm-group">COMPLIANCE</div>
+        <div class="sm-item">Sch H1</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">UI Behaviour by Role — beyond nav visibility</div>
+  <table>
+    <thead><tr><th>Feature</th><th>Admin</th><th>Manager</th><th>Cashier</th><th>Inventory</th></tr></thead>
+    <tbody>
+      <tr><td>Create / edit bills</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td></tr>
+      <tr><td>Delete bills</td><td class="y">✓</td><td class="p">Own only</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Apply bill discount</td><td class="y">✓</td><td class="y">✓</td><td class="p">≤ 10%</td><td class="n">—</td></tr>
+      <tr><td>View margin %</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>Edit inventory</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+      <tr><td>Create purchase orders</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="y">✓</td></tr>
+      <tr><td>Manage team members</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>View all users' bills</td><td class="y">✓</td><td class="y">✓</td><td class="p">Own only</td><td class="n">—</td></tr>
+      <tr><td>Export reports (CSV)</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+      <tr><td>GST report</td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td class="n">—</td></tr>
+    </tbody>
+  </table>
+  <div style="font-size:10px;color:#6b7280;margin-top:4px;">
+    <span style="color:#d97706;font-weight:600;">Partial</span> = feature available but restricted (e.g. discount capped, own bills only)
+  </div>
+</div>
+
+</body></html>

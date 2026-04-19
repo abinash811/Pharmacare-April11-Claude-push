@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; color: #374151; font-size: 13px; line-height: 1.5; padding: 20px; }
+h1  { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+.sub { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+
+.section { margin-bottom: 20px; }
+.section-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid;
+}
+.p1 .section-head { color: #b91c1c; border-color: #fca5a5; }
+.p2 .section-head { color: #b45309; border-color: #fcd34d; }
+.p3 .section-head { color: #1d4ed8; border-color: #bfdbfe; }
+
+.pill { padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; }
+.pill-p1 { background: #fef2f2; color: #b91c1c; }
+.pill-p2 { background: #fffbeb; color: #b45309; }
+.pill-p3 { background: #eff6ff; color: #1d4ed8; }
+
+.issue {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 8px;
+  display: grid; grid-template-columns: 1fr auto; gap: 8px;
+}
+.issue-title { font-size: 13px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+.issue-desc  { font-size: 12px; color: #6b7280; line-height: 1.5; }
+.file { 
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  background: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 4px;
+  display: inline-block; margin-top: 5px; margin-right: 4px;
+}
+.fix {
+  font-size: 11px; color: #15803d; background: #f0fdf4;
+  border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px;
+  margin-top: 6px; line-height: 1.5;
+}
+.fix::before { content: '→ Fix: '; font-weight: 600; }
+.code {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  background: #1e293b; color: #e2e8f0; padding: 6px 10px;
+  border-radius: 5px; margin-top: 6px; display: block; line-height: 1.6;
+  white-space: pre;
+}
+.vs { display: flex; gap: 8px; margin-top: 6px; }
+.vs-bad  { flex:1; background: #fef2f2; border: 1px solid #fca5a5; border-radius:5px; padding:6px 8px; font-size:11px; color:#7f1d1d; }
+.vs-good { flex:1; background: #f0fdf4; border: 1px solid #86efac; border-radius:5px; padding:6px 8px; font-size:11px; color:#14532d; }
+.vs-bad::before  { content: '✗ Now  '; font-weight:700; font-family:monospace; }
+.vs-good::before { content: '✓ Fix  '; font-weight:700; font-family:monospace; }
+.star { font-size: 14px; }
+</style>
+</head><body>
+
+<h1>PharmaCare — Refinement Audit</h1>
+<p class="sub">Specific issues found in codebase · April 2025 · References exact files + line patterns</p>
+
+<!-- ── P1: Critical consistency issues ───────────────────────────────────── -->
+<div class="section p1">
+  <div class="section-head">
+    <span class="pill pill-p1">P1</span> Critical — Consistency breaks the system feel
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">Two parallel button systems</div>
+      <div class="issue-desc">
+        <code class="file">AppButton.jsx</code> and <code class="file">ui/button.jsx</code> both exist and are used in different pages.
+        They look nearly identical but have different APIs, sizes, and hover behaviour.
+        AuthPage uses shadcn Button; most other pages use AppButton. This will drift over time.
+      </div>
+      <div class="vs">
+        <div class="vs-bad">AuthPage.js uses &lt;Button&gt; from ui/button.jsx → h-9 default</div>
+        <div class="vs-good">All pages should use AppButton — or unify AppButton into ui/button.jsx variants</div>
+      </div>
+      <div class="fix">Deprecate AppButton. Merge its 5 variants into buttonVariants in ui/button.jsx. Same API, one file.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">Font mismatch on BillingWorkspace</div>
+      <div class="issue-desc">
+        The billing workspace hardcodes <code class="file">BillingWorkspace/index.jsx</code> line:
+        <span class="code">style={{ fontFamily: 'Manrope, sans-serif' }}</span>
+        The rest of the app uses IBM Plex Sans. Manrope is only meant as a display/heading font.
+        This makes the most-used screen feel visually different.
+      </div>
+      <div class="fix">Remove inline fontFamily. BillingWorkspace should inherit body font (IBM Plex Sans) like every other page.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">MetricCard hardcodes Tailwind colors instead of design tokens</div>
+      <div class="issue-desc">
+        <code class="file">Dashboard/components/MetricCard.jsx</code> uses <code>bg-green-50 text-green-600</code> directly,
+        bypassing the brand token system. When the brand color changes, metric cards won't update.
+      </div>
+      <div class="vs">
+        <div class="vs-bad">const COLOR_CLASSES = { green: 'bg-green-50 text-green-600' }</div>
+        <div class="vs-good">Use semantic vars: bg-[var(--status-green-bg)] text-[var(--status-green-text)]</div>
+      </div>
+      <div class="fix">Replace hardcoded Tailwind color strings with CSS var references. Keeps token system as single source of truth.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── P2: Important UX gaps ──────────────────────────────────────────────── -->
+<div class="section p2">
+  <div class="section-head">
+    <span class="pill pill-p2">P2</span> Important — UX gaps vs international standard
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">MetricCard title hierarchy is flat — value and label share one line</div>
+      <div class="issue-desc">
+        <code class="file">MetricCard.jsx</code> puts title + subtitle in one <code>&lt;p&gt;</code> separated by a bullet <code>•</code>.
+        International dashboards (Shopify, Stripe, Linear) always give value, label, and change separate hierarchy levels.
+      </div>
+      <div class="vs">
+        <div class="vs-bad">&lt;p&gt;{title} • {subtitle}&lt;/p&gt;</div>
+        <div class="vs-good">&lt;p class="text-2xl font-bold"&gt;{value}&lt;/p&gt;&lt;p class="text-xs text-muted"&gt;{title}&lt;/p&gt;&lt;p class="text-xs text-muted"&gt;{subtitle}&lt;/p&gt;</div>
+      </div>
+      <div class="fix">Separate into 3 distinct elements: value (bold, 24px), label (12px muted), change (11px green/red). Clear visual scanning.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">Keyboard shortcuts are undiscoverable</div>
+      <div class="issue-desc">
+        <code class="file">BillingWorkspace/index.jsx</code> has excellent shortcuts (Ctrl+F, F8, F12, Ctrl+B) but they are completely
+        invisible to users. No tooltip, no help panel, no keyboard shortcut indicator on buttons.
+        Power users never discover them.
+      </div>
+      <div class="fix">Add ⌨ keyboard hint badges to relevant buttons (e.g. "Save & Print F12", "Hold F8"). A small kbd-shortcut tooltip on hover is the international standard (see Notion, Linear, Figma).</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">iPad: tap targets below 44px on nav items and table rows</div>
+      <div class="issue-desc">
+        Nav items use <code>h-9</code> (36px) which is fine for desktop but fails the WCAG 2.5.5 touch target minimum of 44px on iPad.
+        Table action buttons ("View", "Print") are even smaller.
+      </div>
+      <div class="fix">On iPad (below md breakpoint), apply h-11 (44px) to nav items via Tailwind: <code>h-9 md:h-9</code> pattern. Table action buttons need min-h-[44px] on touch devices.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">No loading skeleton on BillingList / Inventory — only Dashboard has it</div>
+      <div class="issue-desc">
+        Dashboard has a proper <code>animate-pulse</code> skeleton loader. Other pages (Billing, Inventory, Purchases)
+        show nothing while data loads — just an empty table. Inconsistent loading UX.
+      </div>
+      <div class="fix">Use the existing <code class="file">shared/TableSkeleton.jsx</code> component (already built!) on all list pages. It's imported in 0 pages currently.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── P3: Polish ─────────────────────────────────────────────────────────── -->
+<div class="section p3">
+  <div class="section-head">
+    <span class="pill pill-p3">P3</span> Polish — the details that make it feel premium
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">Auth page gradient is the only gradient in the app — feels disconnected</div>
+      <div class="issue-desc">
+        <code class="file">AuthPage.js</code>: <code>linear-gradient(135deg, #667eea 0%, #764ba2 100%)</code> — purple/blue gradient
+        that has zero connection to the Steel Blue brand palette. First impression of the product doesn't match the product.
+      </div>
+      <div class="fix">Replace with brand-aligned background: solid #1a2332 (sidebar color) or a very subtle brand-tint (#f0f7ff) with the logo mark as a watermark. Ties login to the product identity.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">No empty state on Dashboard when data is zero</div>
+      <div class="issue-desc">
+        If a new pharmacy has zero sales, metric cards show "₹0" and charts render empty axes.
+        International products show an onboarding nudge: "Create your first bill to see data here."
+      </div>
+      <div class="fix">Add zero-state check in Dashboard: if metrics.total_sales === 0, show a welcome card with quick-start actions (New Bill, Add Inventory, Add Supplier).</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">index.css and App.css both define body font — one overrides the other</div>
+      <div class="issue-desc">
+        <code class="file">index.css</code> sets system fonts on body. <code class="file">App.css</code> sets IBM Plex Sans.
+        Load order determines which wins. Fragile.
+      </div>
+      <div class="fix">Remove font-family from index.css body. Keep only App.css as the font authority. One file, one source.</div>
+    </div>
+  </div>
+
+  <div class="issue">
+    <div>
+      <div class="issue-title">TableSkeleton.jsx exists but is used nowhere</div>
+      <div class="issue-desc">
+        <code class="file">components/shared/TableSkeleton.jsx</code> — a complete, well-built skeleton component.
+        Zero imports found across the codebase. Dead code that should be the loading standard.
+      </div>
+      <div class="fix">Import and use in BillingOperations, PurchasesList, Customers, Suppliers, InventorySearch. Estimated: ~5 files, ~3 lines each.</div>
+    </div>
+  </div>
+</div>
+
+<div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;font-size:12px;color:#1d4ed8;margin-top:4px;">
+  <strong>Summary:</strong> 3 P1 fixes (font, button unification, token consistency) · 4 P2 UX gaps (hierarchy, shortcuts, touch targets, skeletons) · 4 P3 polish items.<br>
+  Biggest ROI: fix the font mismatch on BillingWorkspace + use TableSkeleton everywhere. 30 minutes of work, large perceived quality jump.
+</div>
+
+</body></html>

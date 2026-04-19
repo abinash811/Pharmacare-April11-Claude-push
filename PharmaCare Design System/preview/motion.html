@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.grid { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.chip { padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid #e5e7eb; background: #f9fafb; display: flex; flex-direction: column; gap: 2px; min-width: 90px; }
+.chip-name { font-family: monospace; font-size: 10px; color: #4682B4; }
+.chip-val  { font-size: 10px; color: #374151; font-weight: 600; }
+.chip-use  { font-size: 9px; color: #9ca3af; }
+
+.demo-row  { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.demo-box  {
+  width: 36px; height: 36px; background: #4682B4; border-radius: 8px;
+  cursor: pointer;
+}
+.demo-box:hover { transform: translateY(-2px); }
+.sem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sem { background: #f0f7ff; border-radius: 6px; padding: 7px 10px; }
+.sem-name { font-size: 10px; font-family: monospace; color: #3a6d96; font-weight: 600; }
+.sem-val  { font-size: 9px; color: #6b7280; margin-top: 2px; }
+</style>
+</head><body>
+
+<div class="section-label">Duration Scale</div>
+<div class="grid">
+  <div class="chip"><span class="chip-name">--duration-instant</span><span class="chip-val">0ms</span><span class="chip-use">no animation</span></div>
+  <div class="chip"><span class="chip-name">--duration-fast</span><span class="chip-val">100ms</span><span class="chip-use">checkbox, toggle</span></div>
+  <div class="chip"><span class="chip-name">--duration-base</span><span class="chip-val">150ms</span><span class="chip-use">buttons, color</span></div>
+  <div class="chip"><span class="chip-name">--duration-moderate</span><span class="chip-val">200ms</span><span class="chip-use">drawers, tabs</span></div>
+  <div class="chip"><span class="chip-name">--duration-slow</span><span class="chip-val">300ms</span><span class="chip-use">page transitions</span></div>
+  <div class="chip"><span class="chip-name">--duration-enter</span><span class="chip-val">250ms</span><span class="chip-use">elements arriving</span></div>
+  <div class="chip"><span class="chip-name">--duration-exit</span><span class="chip-val">150ms</span><span class="chip-use">elements leaving</span></div>
+</div>
+
+<div class="section-label">Easing Curves</div>
+<div class="grid">
+  <div class="chip"><span class="chip-name">--ease-standard</span><span class="chip-val">cubic-bezier(0.4,0,0.2,1)</span><span class="chip-use">most transitions</span></div>
+  <div class="chip"><span class="chip-name">--ease-decelerate</span><span class="chip-val">cubic-bezier(0,0,0.2,1)</span><span class="chip-use">enter / slide-in</span></div>
+  <div class="chip"><span class="chip-name">--ease-accelerate</span><span class="chip-val">cubic-bezier(0.4,0,1,1)</span><span class="chip-use">exit / slide-out</span></div>
+  <div class="chip"><span class="chip-name">--ease-spring</span><span class="chip-val">cubic-bezier(0.34,1.56,0.64,1)</span><span class="chip-use">bounce / pop</span></div>
+  <div class="chip"><span class="chip-name">--ease-out</span><span class="chip-val">cubic-bezier(0,0,0.2,1)</span><span class="chip-use">hover lift</span></div>
+</div>
+
+<div class="section-label">Semantic Aliases</div>
+<div class="sem-grid">
+  <div class="sem"><div class="sem-name">--transition-button</div><div class="sem-val">150ms ease-standard · color, transform</div></div>
+  <div class="sem"><div class="sem-name">--transition-color</div><div class="sem-val">150ms ease-standard · bg, border, text</div></div>
+  <div class="sem"><div class="sem-name">--transition-drawer</div><div class="sem-val">200ms ease-decelerate · slide in/out</div></div>
+  <div class="sem"><div class="sem-name">--transition-fade</div><div class="sem-val">300ms ease-standard · opacity</div></div>
+  <div class="sem"><div class="sem-name">--transition-expand</div><div class="sem-val">300ms ease-decelerate · height, accordion</div></div>
+</div>
+</body></html>

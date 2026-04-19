@@ -68,11 +68,18 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
 
     return {
         "inventory": {
-            "near_expiry_days": ps.near_expiry_threshold_days if ps else 90,
-            "low_stock_threshold_days": ps.low_stock_threshold_days if ps else 30,
-            "block_expired_stock": True,
-            "allow_near_expiry_sale": True,
-            "low_stock_alert_enabled": True,
+            "near_expiry_days":        ps.near_expiry_threshold_days if ps else 90,
+            "low_stock_threshold_days":ps.low_stock_threshold_days   if ps else 30,
+            "block_expired_stock":     True,
+            "allow_near_expiry_sale":  True,
+        },
+        "notifications": {
+            "alert_low_stock_enabled":    ps.alert_low_stock_enabled    if ps else True,
+            "alert_near_expiry_enabled":  ps.alert_near_expiry_enabled  if ps else True,
+            "alert_drug_license_enabled": ps.alert_drug_license_enabled if ps else True,
+            "low_stock_threshold_days":   ps.low_stock_threshold_days   if ps else 30,
+            "near_expiry_days":           ps.near_expiry_threshold_days if ps else 90,
+            "drug_license_alert_days":    ps.drug_license_alert_days    if ps else 90,
         },
         "billing": {
             "enable_draft_bills": True,
@@ -87,21 +94,39 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "allow_partial_return": True,
         },
         "general": {
-            "pharmacy_name": pharmacy.name if pharmacy else "PharmaCare",
-            "address":       pharmacy.address  if pharmacy else "",
-            "city":          pharmacy.city     if pharmacy else "",
-            "state":         pharmacy.state    if pharmacy else "",
-            "pincode":       pharmacy.pincode  if pharmacy else "",
-            "phone":         pharmacy.phone    if pharmacy else "",
-            "gstin":         pharmacy.gstin    if pharmacy else "",
-            "drug_license":  pharmacy.drug_license_number if pharmacy else "",
-            "currency": "INR",
-            "timezone": "Asia/Kolkata",
+            "name":                 pharmacy.name                 if pharmacy else "",
+            "address":              pharmacy.address              if pharmacy else "",
+            "city":                 pharmacy.city                 if pharmacy else "",
+            "state":                pharmacy.state                if pharmacy else "",
+            "pincode":              pharmacy.pincode              if pharmacy else "",
+            "phone":                pharmacy.phone                if pharmacy else "",
+            "email":                pharmacy.email                if pharmacy else "",
+            "gstin":                pharmacy.gstin                if pharmacy else "",
+            "drug_license_number":  pharmacy.drug_license_number  if pharmacy else "",
+            "drug_license_expiry":  pharmacy.drug_license_expiry.isoformat() if pharmacy and pharmacy.drug_license_expiry else "",
+            "fssai_number":         pharmacy.fssai_number         if pharmacy else "",
+            "pan_number":           pharmacy.pan_number           if pharmacy else "",
+            "logo_url":             pharmacy.logo_url             if pharmacy else "",
+        },
+        "gst": {
+            "default_gst_rate":       float(ps.default_gst_rate)    if ps else 5.0,
+            "is_composition_scheme":  ps.is_composition_scheme       if ps else False,
+            "default_hsn_medicines":  ps.default_hsn_medicines       if ps else "3004",
+            "default_hsn_surgical":   ps.default_hsn_surgical        if ps else "9018",
+            "auto_apply_hsn":         ps.auto_apply_hsn              if ps else True,
+            "gst_type":               ps.gst_type                    if ps else "intrastate",
+            "round_off_amount":       ps.round_off_amount            if ps else True,
+            "print_gst_summary":      ps.print_gst_summary           if ps else True,
         },
         "print": {
-            "print_logo": ps.print_logo if ps else True,
-            "print_drug_license": ps.print_drug_license if ps else True,
-            "print_patient_name": ps.print_patient_name if ps else True,
+            "print_logo":         ps.print_logo          if ps else True,
+            "print_drug_license": ps.print_drug_license  if ps else True,
+            "print_patient_name": ps.print_patient_name  if ps else True,
+            "print_gstin":        ps.print_gstin         if ps else True,
+            "print_fssai":        ps.print_fssai         if ps else False,
+            "print_signature":    ps.print_signature     if ps else False,
+            "bill_header":        ps.bill_header         if ps else "",
+            "bill_footer":        ps.bill_footer         if ps else "Thank you for your purchase!",
         },
     }
 
@@ -112,6 +137,8 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         raise HTTPException(status_code=403, detail="Admin access required")
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+
+    # ── PharmacySettings (inventory / print / gst) ────────────────────────────
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
     if not ps:
@@ -124,6 +151,15 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
     if "low_stock_threshold_days" in inv:
         ps.low_stock_threshold_days = inv["low_stock_threshold_days"]
 
+    notif = settings_data.get("notifications", {})
+    for field in ["alert_low_stock_enabled", "alert_near_expiry_enabled", "alert_drug_license_enabled", "drug_license_alert_days"]:
+        if field in notif:
+            setattr(ps, field, notif[field])
+    if "low_stock_threshold_days" in notif:
+        ps.low_stock_threshold_days = notif["low_stock_threshold_days"]
+    if "near_expiry_days" in notif:
+        ps.near_expiry_threshold_days = notif["near_expiry_days"]
+
     printing = settings_data.get("print", {})
     if "print_logo" in printing:
         ps.print_logo = printing["print_logo"]
@@ -131,10 +167,35 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         ps.print_drug_license = printing["print_drug_license"]
     if "print_patient_name" in printing:
         ps.print_patient_name = printing["print_patient_name"]
+    if "bill_header" in printing:
+        ps.bill_header = printing["bill_header"]
+    if "bill_footer" in printing:
+        ps.bill_footer = printing["bill_footer"]
+    if "print_signature" in printing:
+        ps.print_signature = printing["print_signature"]
+    if "print_gstin" in printing:
+        ps.print_gstin = printing["print_gstin"]
+    if "print_fssai" in printing:
+        ps.print_fssai = printing["print_fssai"]
 
     gst = settings_data.get("gst", {})
-    if "default_gst_rate" in gst:
-        ps.default_gst_rate = gst["default_gst_rate"]
+    for field in ["default_gst_rate", "is_composition_scheme", "default_hsn_medicines",
+                  "default_hsn_surgical", "auto_apply_hsn", "gst_type",
+                  "round_off_amount", "print_gst_summary"]:
+        if field in gst:
+            setattr(ps, field, gst[field])
+
+    # ── Pharmacy profile ──────────────────────────────────────────────────────
+    general = settings_data.get("general", {})
+    if general:
+        pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
+        pharmacy = pharm_result.scalar_one_or_none()
+        if pharmacy:
+            for field in ["name", "address", "city", "state", "pincode", "phone", "email",
+                          "gstin", "drug_license_number", "drug_license_expiry",
+                          "fssai_number", "pan_number", "logo_url"]:
+                if field in general and general[field] is not None:
+                    setattr(pharmacy, field, general[field])
 
     await db.flush()
     return {"message": "Settings updated successfully"}

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; padding: 0; }
+
+/* Table shell */
+.table-shell { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+
+/* Search + filter bar */
+.toolbar { padding: 10px 16px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 10px; }
+.search-wrap { position: relative; }
+.search-wrap svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.search-inp {
+  height: 32px; border: 1px solid #e5e7eb; border-radius: 7px;
+  padding: 0 10px 0 30px; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif;
+  outline: none; width: 220px; color: #374151;
+}
+.filter-btn {
+  height: 32px; padding: 0 12px; border: 1px solid #e5e7eb; border-radius: 7px;
+  background: #fff; font-size: 12px; font-family: 'IBM Plex Sans', sans-serif;
+  color: #374151; cursor: pointer; display: flex; align-items: center; gap: 5px;
+}
+.count { font-size: 11px; color: #9ca3af; margin-left: auto; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; }
+
+/* Header */
+thead tr { background: #f9fafb; }
+th {
+  padding: 9px 14px; font-size: 10px; font-weight: 700; color: #6b7280;
+  text-align: left; border-bottom: 1px solid #e5e7eb;
+  text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; user-select: none;
+}
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: #374151; }
+th.sorted { color: #4682B4; }
+.sort-icon { display: inline-flex; flex-direction: column; margin-left: 4px; gap: 1px; vertical-align: middle; }
+.sort-icon span { display: block; width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; }
+.sort-asc  { border-bottom: 4px solid #4682B4; }
+.sort-desc { border-top: 4px solid #9ca3af; }
+.sort-inactive-a { border-bottom: 4px solid #d1d5db; }
+.sort-inactive-d { border-top: 4px solid #d1d5db; }
+
+/* Rows */
+tbody tr { transition: background 0.1s; cursor: pointer; }
+tbody tr:hover { background: #f0f7ff; }
+tbody tr.selected { background: rgba(70,130,180,0.08); }
+td { padding: 11px 14px; font-size: 13px; color: #374151; border-bottom: 1px solid #f3f4f6; }
+td.mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6b7280; }
+td.primary { font-weight: 600; color: #111827; }
+td.link { font-weight: 600; color: #4682B4; }
+td.muted { font-size: 12px; color: #6b7280; }
+td.amount { font-weight: 600; text-align: right; }
+
+/* Badge */
+.badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+
+/* Row actions */
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.1s; }
+tbody tr:hover .row-actions { opacity: 1; }
+.act-btn {
+  padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 500;
+  border: 1px solid #e5e7eb; background: #fff; cursor: pointer; color: #374151;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.act-btn.danger { color: #b91c1c; border-color: #fecaca; }
+
+/* Pagination footer */
+.pg-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid #e5e7eb; background: #fff; }
+.pg-text { font-size: 12px; color: #6b7280; }
+.pg-btns { display: flex; gap: 3px; align-items: center; }
+.pg-btn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e5e7eb;
+  background: #fff; font-size: 12px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; color: #374151;
+  font-family: 'IBM Plex Sans', sans-serif; font-weight: 500;
+}
+.pg-btn.active { background: #111827; color: #fff; border-color: #111827; }
+.pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pg-ellipsis { width: 30px; text-align: center; color: #9ca3af; font-size: 12px; }
+</style>
+</head><body>
+
+<div class="table-shell">
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-inp" placeholder="Search bills or customers…" />
+    </div>
+    <button class="filter-btn">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+      Filter
+    </button>
+    <button class="filter-btn">Apr 1 – Apr 19</button>
+    <span class="count">142 results</span>
+    <button class="filter-btn" style="margin-left:auto;">Export</button>
+  </div>
+
+  <!-- Table -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px;"><input type="checkbox" style="width:14px;height:14px;border-radius:3px;border:1.5px solid #d1d5db;appearance:none;cursor:pointer;"/></th>
+        <th class="sortable sorted">Bill ID <span class="sort-icon"><span class="sort-asc"></span><span class="sort-inactive-d"></span></span></th>
+        <th class="sortable">Customer</th>
+        <th class="sortable">Date <span class="sort-icon"><span class="sort-inactive-a"></span><span class="sort-inactive-d"></span></span></th>
+        <th>Items</th>
+        <th class="sortable" style="text-align:right;">Total <span class="sort-icon"><span class="sort-inactive-a"></span><span class="sort-inactive-d"></span></span></th>
+        <th>Status</th>
+        <th style="width:80px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="selected">
+        <td><input type="checkbox" checked style="width:14px;height:14px;border-radius:3px;border:1.5px solid #4682B4;appearance:none;background:#4682B4;cursor:pointer;"/></td>
+        <td class="link">BL-1042</td>
+        <td class="primary">Ravi Shankar</td>
+        <td class="muted">19 Apr 2026</td>
+        <td class="muted" style="text-align:center;">5</td>
+        <td class="amount">₹1,240.00</td>
+        <td><span class="badge" style="background:#f0fdf4;color:#15803d;">Cash</span></td>
+        <td><div class="row-actions"><button class="act-btn">View</button><button class="act-btn">Print</button></div></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" style="width:14px;height:14px;border-radius:3px;border:1.5px solid #d1d5db;appearance:none;cursor:pointer;"/></td>
+        <td class="link">BL-1041</td>
+        <td class="primary">Meera Nair</td>
+        <td class="muted">19 Apr 2026</td>
+        <td class="muted" style="text-align:center;">3</td>
+        <td class="amount">₹680.00</td>
+        <td><span class="badge" style="background:#eff6ff;color:#1d4ed8;">UPI</span></td>
+        <td><div class="row-actions"><button class="act-btn">View</button><button class="act-btn">Print</button></div></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" style="width:14px;height:14px;border-radius:3px;border:1.5px solid #d1d5db;appearance:none;cursor:pointer;"/></td>
+        <td class="link">BL-1040</td>
+        <td class="primary">Walk-in</td>
+        <td class="muted">19 Apr 2026</td>
+        <td class="muted" style="text-align:center;">8</td>
+        <td class="amount">₹2,140.00</td>
+        <td><span class="badge" style="background:#faf5ff;color:#7e22ce;">Credit</span></td>
+        <td><div class="row-actions"><button class="act-btn">View</button><button class="act-btn">Print</button></div></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" style="width:14px;height:14px;border-radius:3px;border:1.5px solid #d1d5db;appearance:none;cursor:pointer;"/></td>
+        <td class="link">BL-1039</td>
+        <td class="primary">Priya Sharma</td>
+        <td class="muted">18 Apr 2026</td>
+        <td class="muted" style="text-align:center;">6</td>
+        <td class="amount">₹890.00</td>
+        <td><span class="badge" style="background:#fffbeb;color:#b45309;">Due</span></td>
+        <td><div class="row-actions"><button class="act-btn">View</button><button class="act-btn danger">Delete</button></div></td>
+      </tr>
+      <tr>
+        <td><input type="checkbox" style="width:14px;height:14px;border-radius:3px;border:1.5px solid #d1d5db;appearance:none;cursor:pointer;"/></td>
+        <td class="link">BL-1038</td>
+        <td class="primary">Suresh Patil</td>
+        <td class="muted">18 Apr 2026</td>
+        <td class="muted" style="text-align:center;">4</td>
+        <td class="amount">₹1,560.00</td>
+        <td><span class="badge" style="background:#fffbeb;color:#b45309;">Partial</span></td>
+        <td><div class="row-actions"><button class="act-btn">View</button><button class="act-btn">Print</button></div></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Pagination -->
+  <div class="pg-footer">
+    <span class="pg-text">Showing 1–20 of 142 bills</span>
+    <div class="pg-btns">
+      <button class="pg-btn" disabled>‹</button>
+      <button class="pg-btn active">1</button>
+      <button class="pg-btn">2</button>
+      <button class="pg-btn">3</button>
+      <span class="pg-ellipsis">…</span>
+      <button class="pg-btn">8</button>
+      <button class="pg-btn">›</button>
+    </div>
+  </div>
+</div>
+</body></html>

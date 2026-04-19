@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #e5e7eb; padding: 16px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.frame {
+  flex: 1; min-width: 200px; background: #f8f9fa; border-radius: 10px;
+  overflow: hidden; border: 1px solid #d1d5db; display: flex; flex-direction: column;
+}
+.frame-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 6px 12px; background: #fff; border-bottom: 1px solid #e5e7eb; color: #9ca3af;
+  display: flex; justify-content: space-between;
+}
+.status-code { font-family: monospace; color: #374151; }
+
+/* App shell mockup */
+.shell { display: flex; flex: 1; overflow: hidden; }
+.mini-sidebar { width: 48px; background: #1a2332; display: flex; flex-direction: column; align-items: center; padding: 10px 0; gap: 8px; }
+.s-logo { width: 24px; height: 24px; background: #4682B4; border-radius: 5px; }
+.s-dot { width: 20px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; }
+.s-dot.active { background: rgba(70,130,180,0.4); }
+
+/* Error content */
+.error-content { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.error-box { text-align: center; max-width: 280px; }
+.error-code { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; margin-bottom: 10px; }
+.error-title { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+.error-desc  { font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 16px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; }
+.btn-primary  { background: #4682B4; color: #fff; }
+.btn-outline  { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.btn-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.illus { margin: 0 auto 16px; }
+
+/* Offline bar */
+.offline-bar { background: #1e293b; color: #fff; padding: 8px 16px; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.offline-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+</head><body>
+
+<div class="row">
+
+  <!-- 404 -->
+  <div class="frame">
+    <div class="frame-label">Page Not Found <span class="status-code">404</span></div>
+    <div class="shell">
+      <div class="mini-sidebar">
+        <div class="s-logo"></div>
+        <div class="s-dot active"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot"></div>
+      </div>
+      <div class="error-content">
+        <div class="error-box">
+          <svg class="illus" width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="28" fill="#f3f4f6"/>
+            <text x="32" y="40" text-anchor="middle" font-size="28" font-weight="700" fill="#d1d5db" font-family="IBM Plex Sans">?</text>
+          </svg>
+          <div class="error-code" style="color:#e5e7eb;">404</div>
+          <div class="error-title">Page not found</div>
+          <div class="error-desc">The page you're looking for doesn't exist or has been moved.</div>
+          <div class="btn-row">
+            <button class="btn btn-primary">← Back to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 500 -->
+  <div class="frame">
+    <div class="frame-label">Server Error <span class="status-code">500</span></div>
+    <div class="shell">
+      <div class="mini-sidebar">
+        <div class="s-logo"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot active"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot"></div>
+      </div>
+      <div class="error-content">
+        <div class="error-box">
+          <svg class="illus" width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="28" fill="#fef2f2"/>
+            <path d="M32 20v14M32 38v2" stroke="#fca5a5" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+          <div class="error-code" style="color:#fca5a5;">500</div>
+          <div class="error-title">Something went wrong</div>
+          <div class="error-desc">Our servers hit an unexpected error. Your data is safe. Please try again in a moment.</div>
+          <div class="btn-row">
+            <button class="btn btn-primary">↻ Try Again</button>
+            <button class="btn btn-outline">Contact Support</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline -->
+  <div class="frame">
+    <div class="frame-label">Network Offline <span class="status-code">No connection</span></div>
+    <div style="display:flex;flex-direction:column;flex:1;">
+      <div class="offline-bar">
+        <div class="offline-dot"></div>
+        No internet connection — working offline
+      </div>
+      <div class="shell">
+        <div class="mini-sidebar">
+          <div class="s-logo"></div>
+          <div class="s-dot active"></div>
+          <div class="s-dot"></div>
+          <div class="s-dot"></div>
+          <div class="s-dot"></div>
+        </div>
+        <div class="error-content">
+          <div class="error-box">
+            <svg class="illus" width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="28" fill="#fffbeb"/>
+              <path d="M20 44c0-6.627 5.373-12 12-12s12 5.373 12 12" stroke="#fcd34d" stroke-width="3" stroke-linecap="round"/>
+              <path d="M14 38c0-9.941 8.059-18 18-18s18 8.059 18 18" stroke="#fcd34d" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+              <circle cx="32" cy="48" r="2" fill="#fcd34d"/>
+              <path d="M10 10L54 54" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <div class="error-title">No internet connection</div>
+            <div class="error-desc">Check your connection. Parked bills and recently loaded data are still available.</div>
+            <div class="btn-row">
+              <button class="btn btn-primary">↻ Retry</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unauthorised -->
+  <div class="frame">
+    <div class="frame-label">Unauthorised <span class="status-code">403</span></div>
+    <div class="shell">
+      <div class="mini-sidebar">
+        <div class="s-logo"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot"></div>
+        <div class="s-dot active"></div>
+        <div class="s-dot"></div>
+      </div>
+      <div class="error-content">
+        <div class="error-box">
+          <svg class="illus" width="64" height="64" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="28" fill="#faf5ff"/>
+            <rect x="22" y="30" width="20" height="16" rx="3" fill="#e9d5ff"/>
+            <path d="M26 30v-6a6 6 0 0112 0v6" stroke="#a855f7" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="32" cy="38" r="2" fill="#a855f7"/>
+          </svg>
+          <div class="error-code" style="color:#e9d5ff;">403</div>
+          <div class="error-title">Access restricted</div>
+          <div class="error-desc">Your role doesn't have permission to view this page. Contact your Admin.</div>
+          <div class="btn-row">
+            <button class="btn btn-primary">← Back to Dashboard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body></html>

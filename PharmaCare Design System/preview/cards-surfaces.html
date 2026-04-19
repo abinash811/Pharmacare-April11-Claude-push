@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #f8f9fa; font-family: var(--font-sans); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 14px; min-width: 140px; }
+.metric-card { flex: 1; min-width: 120px; }
+.metric-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.metric-value { font-size: 20px; font-weight: 700; color: #111827; }
+.metric-label { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.metric-change { font-size: 11px; margin-top: 4px; }
+.page-header { background: #fff; border-bottom: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 12px 24px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; }
+.page-header h1 { font-size: 18px; font-weight: 700; color: #111827; margin: 0; }
+.page-header p { font-size: 11px; color: #6b7280; margin: 2px 0 0; }
+.empty-state { text-align: center; padding: 32px 20px; }
+.empty-icon { width: 56px; height: 56px; background: #f3f4f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+</style>
+</head><body>
+<div class="page-header">
+  <div>
+    <h1>Billing Operations</h1>
+    <p>Manage your sales bills and returns</p>
+  </div>
+  <button class="btn btn-primary" style="font-family:var(--font-sans);">+ New Bill</button>
+</div>
+<div class="row">
+  <div class="card metric-card">
+    <div class="metric-icon" style="background:#dcfce7;">
+      <svg width="18" height="18" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    </div>
+    <div class="metric-value">₹1.2L</div>
+    <div class="metric-label">Today's Sales</div>
+    <div class="metric-change" style="color:#16a34a">▲ +12% vs yesterday</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-icon" style="background:#dbeafe;">
+      <svg width="18" height="18" fill="none" stroke="#1d4ed8" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    </div>
+    <div class="metric-value">₹6.8L</div>
+    <div class="metric-label">This Week</div>
+    <div class="metric-change" style="color:#16a34a">▲ +5% vs last week</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-icon" style="background:#f3e8ff;">
+      <svg width="18" height="18" fill="none" stroke="#7e22ce" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    </div>
+    <div class="metric-value">₹24L</div>
+    <div class="metric-label">This Month</div>
+    <div class="metric-change" style="color:#dc2626">▼ -2% vs last month</div>
+  </div>
+  <div class="card" style="display:flex;align-items:center;justify-content:center;min-width:140px;">
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg width="24" height="24" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div style="font-size:13px;font-weight:500;color:#111827;">No bills yet</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">Create your first bill to get started</div>
+    </div>
+  </div>
+</div>
+</body></html>

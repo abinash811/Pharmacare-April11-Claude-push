@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
+    "@sentry/react": "^8.0.0",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-alert-dialog": "^1.1.11",
     "@radix-ui/react-aspect-ratio": "^1.1.4",
@@ -62,10 +63,14 @@
     "start": "craco start",
     "build": "craco build",
     "test": "craco test",
+    "test:coverage": "craco test --coverage --watchAll=false",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx --max-warnings 0",
     "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "format:check": "prettier --check src",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report"
   },
   "browserslist": {
     "production": [
@@ -96,7 +101,23 @@
     "globals": "15.15.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "@playwright/test": "^1.44.0"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "jest": {
+    "collectCoverageFrom": [
+      "src/components/shared/**/*.{js,jsx,ts,tsx}",
+      "!src/components/shared/**/__tests__/**",
+      "!src/components/shared/index.js"
+    ],
+    "coverageThresholds": {
+      "global": {
+        "branches": 60,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    }
+  }
 }

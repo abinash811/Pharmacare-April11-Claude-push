@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 20px 16px; background: #f8f9fa; font-family: var(--font-sans); }
+.row { display: flex; gap: 16px; align-items: flex-end; }
+.el { flex: 1; background: #fff; border-radius: 10px; padding: 14px 12px; display: flex; flex-direction: column; gap: 6px; }
+.el-name  { font-size: 11px; font-weight: 700; color: #111827; }
+.el-token { font-size: 9px; font-family: monospace; color: #4682B4; }
+.el-use   { font-size: 10px; color: #6b7280; line-height: 1.4; margin-top: 2px; }
+.el-val   { font-size: 9px; font-family: monospace; color: #9ca3af; margin-top: 4px; line-height: 1.5; }
+</style>
+</head><body>
+<div class="row">
+  <div class="el" style="box-shadow:none; border: 1px solid #e5e7eb;">
+    <div class="el-name">E0 · Flat</div>
+    <div class="el-token">--elevation-0</div>
+    <div class="el-use">Table rows, inline elements, dividers. No perceived depth.</div>
+    <div class="el-val">none</div>
+  </div>
+  <div class="el" style="box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);">
+    <div class="el-name">E1 · Card</div>
+    <div class="el-token">--elevation-1 / --shadow-card</div>
+    <div class="el-use">Cards, inputs, page header. Default surface lift.</div>
+    <div class="el-val">0 1px 2px rgba(0,0,0,0.05)</div>
+  </div>
+  <div class="el" style="box-shadow: 0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.08);">
+    <div class="el-name">E2 · Dropdown</div>
+    <div class="el-token">--elevation-2 / --shadow-dropdown</div>
+    <div class="el-use">Select menus, popovers, tooltips, date pickers.</div>
+    <div class="el-val">0 4px 6px -1px rgba(0,0,0,0.10)<br>0 2px 4px -2px rgba(0,0,0,0.08)</div>
+  </div>
+  <div class="el" style="box-shadow: 0 10px 25px -5px rgba(0,0,0,0.12), 0 4px 6px -2px rgba(0,0,0,0.07);">
+    <div class="el-name">E3 · Modal</div>
+    <div class="el-token">--elevation-3 / --shadow-modal</div>
+    <div class="el-use">Dialogs, confirm prompts, side drawers.</div>
+    <div class="el-val">0 10px 25px -5px rgba(0,0,0,0.12)<br>0 4px 6px -2px rgba(0,0,0,0.07)</div>
+  </div>
+  <div class="el" style="box-shadow: 0 20px 40px -8px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.10);">
+    <div class="el-name">E4 · Toast</div>
+    <div class="el-token">--elevation-4 / --shadow-toast</div>
+    <div class="el-use">Sonner toasts, critical alerts. Maximum depth.</div>
+    <div class="el-val">0 20px 40px -8px rgba(0,0,0,0.18)<br>0 8px 16px -4px rgba(0,0,0,0.10)</div>
+  </div>
+</div>
+</body></html>

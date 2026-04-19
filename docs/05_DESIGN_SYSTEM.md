@@ -913,3 +913,42 @@ import { Plus, Trash2, Edit2, Search, Filter, Download, Printer, X, Check } from
 *This document is the law for all visual decisions.*
 *When a new pattern is approved and built, it is added here in the same PR.*
 *Owner: The developer who establishes the pattern documents it here.*
+
+---
+
+## §8 — Animation & Motion Tokens
+
+**Rule:** Never use arbitrary `duration-[Xms]`. Always use a token.
+
+| Token | Value | Use case |
+|-------|-------|----------|
+| `duration-fast`   | 100ms | Hover states, button press feedback |
+| `duration-base`   | 150ms | Default — color/opacity transitions |
+| `duration-slow`   | 250ms | Modal open, dropdown appear |
+| `duration-slower` | 350ms | Sheet/drawer slide-in, page transitions |
+
+**Easing:**
+- Entrances: `ease-out-smooth` (`cubic-bezier(0.16, 1, 0.3, 1)`)
+- Exits/dismissals: `ease-in-smooth` (`cubic-bezier(0.4, 0, 1, 1)`)
+- Simple color/opacity: `ease-out` (Tailwind default — acceptable)
+
+**Examples:**
+```jsx
+// Button hover
+className="transition-colors duration-fast"
+
+// Modal backdrop
+className="transition-opacity duration-slow"
+
+// Sheet drawer
+className="transition-transform duration-slower ease-out-smooth"
+```
+
+**Anti-patterns:**
+```jsx
+// ❌ Arbitrary duration
+className="duration-[200ms]"
+
+// ❌ No easing on Sheet — looks mechanical
+className="transition-transform duration-slower"  // missing ease-out-smooth
+```

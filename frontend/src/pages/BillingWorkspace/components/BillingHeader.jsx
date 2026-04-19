@@ -2,7 +2,7 @@
  * BillingHeader
  *
  * Page-level header for the billing workspace.
- * - new/edit mode: shows [Park Bill] [Save & Print ▼] [✓ Finalise Bill]
+ * - new/edit mode: shows [Park Bill] [Save & Print ▼] [✓ Finalise Bill] [?]
  * - view mode: shows status badges + [Collect Payment] [Return] [Print] [History]
  *
  * Props:
@@ -22,7 +22,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Printer, RotateCcw, History, CreditCard, PauseCircle, ChevronDown, CheckCircle } from 'lucide-react';
+import {
+  ArrowLeft, Printer, RotateCcw, History, CreditCard,
+  PauseCircle, ChevronDown, CheckCircle, HelpCircle,
+} from 'lucide-react';
+import { AppButton } from '@/components/shared';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function BillingHeader({
   viewMode,
@@ -66,14 +71,14 @@ export default function BillingHeader({
 
         {/* ── Left: back + breadcrumb + title + draft badge ───────────── */}
         <div className="flex items-center gap-4">
-          <button
+          <AppButton
+            variant="ghost"
+            iconOnly
+            icon={<ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={1.5} />}
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             data-testid="back-btn"
             aria-label="Back to bills"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          />
 
           <div>
             <div className="flex items-center gap-2 text-xs text-gray-400 mb-0.5">
@@ -98,27 +103,33 @@ export default function BillingHeader({
           <div className="flex items-center gap-2">
 
             {/* Park Bill */}
-            <button
+            <AppButton
+              variant="outline"
+              size="sm"
               onClick={onParkBill}
               disabled={isSaving}
-              className="px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              shortcut="F8"
+              icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
               data-testid="park-bill-btn"
             >
-              <PauseCircle className="w-4 h-4 text-amber-500" />
               Park Bill
-            </button>
+            </AppButton>
 
             {/* Save & Print (split button) */}
             <div className="relative flex" ref={menuRef}>
-              <button
+              <AppButton
+                variant="outline"
+                size="sm"
                 onClick={onSavePrint}
                 disabled={isSaving}
-                className="px-3 py-2 border border-gray-200 text-gray-700 rounded-l-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                shortcut="F12"
+                icon={<Printer className="w-4 h-4" />}
+                className="rounded-r-none"
                 data-testid="save-print-btn"
               >
-                <Printer className="w-4 h-4" />
                 Save &amp; Print
-              </button>
+              </AppButton>
+              {/* Keep as raw button — special split-button control with border-l-0 */}
               <button
                 onClick={() => setShowSavePrintMenu((v) => !v)}
                 disabled={isSaving}
@@ -131,6 +142,7 @@ export default function BillingHeader({
 
               {showSavePrintMenu && (
                 <div className="absolute top-full right-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+                  {/* Dropdown menu items kept as raw buttons — special layout needs */}
                   <button
                     onClick={() => { setShowSavePrintMenu(false); onSavePrint(); }}
                     className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2.5 text-sm text-gray-700"
@@ -152,15 +164,44 @@ export default function BillingHeader({
             </div>
 
             {/* Finalise Bill — primary CTA */}
-            <button
+            <AppButton
               onClick={onFinalise}
               disabled={isSaving}
-              className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-1.5 transition-colors disabled:opacity-60"
+              loading={isSaving}
+              icon={!isSaving ? <CheckCircle className="w-4 h-4" /> : undefined}
               data-testid="finalise-btn"
             >
-              <CheckCircle className="w-4 h-4" />
               {isSaving ? 'Saving…' : 'Finalise Bill'}
-            </button>
+            </AppButton>
+
+            {/* Keyboard shortcut legend */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <AppButton
+                  variant="ghost"
+                  iconOnly
+                  icon={<HelpCircle className="w-4 h-4 text-gray-400" />}
+                  aria-label="Keyboard shortcuts"
+                />
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" align="end">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Keyboard Shortcuts</p>
+                <div className="space-y-1.5">
+                  {[
+                    { key: 'Ctrl+F', label: 'Focus medicine search' },
+                    { key: 'F8',     label: 'Park / hold bill'       },
+                    { key: 'F12',    label: 'Save & print'           },
+                    { key: 'Ctrl+B', label: 'Open barcode scanner'   },
+                    { key: 'Esc',    label: 'Close modal'            },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <span className="text-xs text-gray-600">{label}</span>
+                      <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1.5 font-mono text-[10px] text-gray-500">{key}</kbd>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
@@ -180,44 +221,44 @@ export default function BillingHeader({
             )}
 
             {loadedBill.status === 'due' && (
-              <button
+              <AppButton
                 onClick={onCollectPayment}
-                className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-2 transition-colors"
+                icon={<CreditCard className="w-4 h-4" />}
                 data-testid="collect-payment-btn"
               >
-                <CreditCard className="w-4 h-4" />
                 Collect Payment
-              </button>
+              </AppButton>
             )}
 
             {loadedBill.status === 'paid' && !hasReturns && (
-              <button
+              <AppButton
+                variant="outline"
                 onClick={onReturn}
-                className="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 flex items-center gap-2 transition-colors"
+                icon={<RotateCcw className="w-4 h-4" />}
+                className="border-orange-300 text-orange-600 hover:bg-orange-50"
                 data-testid="return-btn"
               >
-                <RotateCcw className="w-4 h-4" />
                 Return
-              </button>
+              </AppButton>
             )}
 
-            <button
+            <AppButton
+              variant="outline"
               onClick={onPrint}
-              className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 transition-colors"
+              icon={<Printer className="w-4 h-4" />}
               data-testid="print-btn"
             >
-              <Printer className="w-4 h-4" />
               Print
-            </button>
+            </AppButton>
 
-            <button
+            <AppButton
+              variant="outline"
+              iconOnly
+              icon={<History className="w-4 h-4" />}
               onClick={onHistory}
-              className="p-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               data-testid="history-btn"
               aria-label="Bill history"
-            >
-              <History className="w-4 h-4" />
-            </button>
+            />
           </div>
         )}
       </div>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #e5e7eb; padding: 20px; font-size: 12px; }
+
+/* A4 invoice container */
+.invoice {
+  background: #fff; width: 794px; margin: 0 auto;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12); border-radius: 4px; overflow: hidden;
+}
+
+/* Header */
+.inv-header {
+  background: #1a2332; color: #fff; padding: 20px 28px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.inv-brand { display: flex; align-items: center; gap: 10px; }
+.inv-logo  { width: 36px; height: 36px; background: #4682B4; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.inv-name  { font-size: 18px; font-weight: 700; }
+.inv-sub   { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.inv-title { text-align: right; }
+.inv-title h2 { font-size: 20px; font-weight: 700; letter-spacing: 0.05em; }
+.inv-title .bill-no { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 3px; }
+
+/* Meta row */
+.inv-meta {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  border-bottom: 1px solid #e5e7eb; background: #f9fafb;
+}
+.meta-cell { padding: 12px 28px; border-right: 1px solid #e5e7eb; }
+.meta-cell:last-child { border-right: none; }
+.meta-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 3px; }
+.meta-value { font-size: 12px; font-weight: 600; color: #111827; }
+.meta-sub   { font-size: 10px; color: #6b7280; margin-top: 1px; }
+
+/* Parties */
+.inv-parties { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #e5e7eb; }
+.party { padding: 14px 28px; border-right: 1px solid #e5e7eb; }
+.party:last-child { border-right: none; }
+.party-head { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 6px; }
+.party-name { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 2px; }
+.party-line { font-size: 11px; color: #6b7280; margin-top: 1px; }
+.party-gstin { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #374151; margin-top: 4px; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+/* Items table */
+.inv-items { padding: 0 0 0 0; }
+table { width: 100%; border-collapse: collapse; }
+.items-table th {
+  padding: 8px 10px; font-size: 9px; font-weight: 700; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.06em; text-align: left;
+  background: #f9fafb; border-bottom: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
+}
+.items-table th:last-child, .items-table td:last-child { text-align: right; }
+.items-table th.center, .items-table td.center { text-align: center; }
+.items-table td {
+  padding: 8px 10px; font-size: 11px; color: #374151;
+  border-bottom: 1px solid #f3f4f6; vertical-align: top;
+}
+.items-table td.med-name { font-weight: 600; color: #111827; }
+.items-table td.mono { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #6b7280; }
+.items-table tr:last-child td { border-bottom: none; }
+.schedule-h { font-size: 9px; color: #dc2626; font-weight: 600; margin-top: 1px; }
+.items-table tr:hover td { background: #f9fafb; }
+
+/* Totals */
+.inv-totals { display: flex; justify-content: flex-end; border-top: 1px solid #e5e7eb; }
+.totals-box { width: 280px; padding: 14px 28px; }
+.tot-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px; }
+.tot-label { color: #6b7280; }
+.tot-value { font-weight: 500; color: #374151; font-family: 'IBM Plex Mono', monospace; }
+.tot-divider { height: 1px; background: #e5e7eb; margin: 8px 0; }
+.tot-grand { font-size: 14px; font-weight: 700; color: #111827; }
+.tot-grand-val { font-size: 16px; font-weight: 700; color: #4682B4; font-family: 'IBM Plex Mono', monospace; }
+
+/* GST summary */
+.gst-summary { border-top: 1px solid #e5e7eb; padding: 12px 28px; background: #f9fafb; }
+.gst-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.gst-table { width: 100%; }
+.gst-table th { font-size: 9px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 8px; }
+.gst-table td { font-size: 10px; color: #374151; padding: 4px 8px; font-family: 'IBM Plex Mono', monospace; }
+.gst-table th, .gst-table td { text-align: right; border: 1px solid #e5e7eb; background: #fff; }
+.gst-table th:first-child, .gst-table td:first-child { text-align: left; }
+
+/* Footer */
+.inv-footer { padding: 12px 28px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e5e7eb; }
+.inv-words { font-size: 10px; color: #6b7280; max-width: 360px; line-height: 1.5; }
+.inv-words strong { color: #111827; font-size: 11px; }
+.inv-sig { text-align: right; }
+.sig-line { width: 120px; height: 1px; background: #374151; margin: 0 0 4px auto; }
+.sig-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Watermark for paid */
+.paid-stamp {
+  position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg);
+  font-size: 64px; font-weight: 700; color: rgba(21,128,61,0.07);
+  border: 8px solid rgba(21,128,61,0.07); padding: 8px 20px; border-radius: 8px;
+  pointer-events: none; letter-spacing: 0.1em; white-space: nowrap;
+}
+
+.inv-wrap { position: relative; }
+</style>
+</head><body>
+
+<div class="invoice">
+  <!-- Header -->
+  <div class="inv-header">
+    <div class="inv-brand">
+      <div class="inv-logo">
+        <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+      </div>
+      <div>
+        <div class="inv-name">PharmaCare</div>
+        <div class="inv-sub">Pharmacy Management System</div>
+      </div>
+    </div>
+    <div class="inv-title">
+      <h2>TAX INVOICE</h2>
+      <div class="bill-no">BL-1042</div>
+    </div>
+  </div>
+
+  <!-- Meta -->
+  <div class="inv-meta">
+    <div class="meta-cell">
+      <div class="meta-label">Bill Date</div>
+      <div class="meta-value">19 Apr 2026</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Payment Method</div>
+      <div class="meta-value">Cash</div>
+      <div class="meta-sub">Paid</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-label">Billed By</div>
+      <div class="meta-value">Rajan Kumar</div>
+      <div class="meta-sub">Cashier</div>
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="inv-parties">
+    <div class="party">
+      <div class="party-head">Sold By</div>
+      <div class="party-name">Sai Pharmacy</div>
+      <div class="party-line">14 Gandhi Road, Coimbatore – 641001</div>
+      <div class="party-line">Tamil Nadu · Ph: +91 98765 43210</div>
+      <div class="party-gstin">GSTIN: 33AAACS1234F1Z5</div>
+      <div class="party-line" style="margin-top:4px;">Drug Lic: TN-CBE-2021-0042</div>
+    </div>
+    <div class="party">
+      <div class="party-head">Patient / Customer</div>
+      <div class="party-name">Ravi Shankar</div>
+      <div class="party-line">Ph: +91 98400 12345</div>
+      <div class="party-line" style="margin-top:4px;">Doctor: Dr. Meera Krishnan</div>
+      <div class="party-line">Billing for: Self</div>
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="inv-items">
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:24px;">#</th>
+          <th>Medicine</th>
+          <th>Batch / Expiry</th>
+          <th class="center">Qty</th>
+          <th class="center" style="width:50px;">GST%</th>
+          <th style="width:70px;">MRP</th>
+          <th style="width:60px;">Disc%</th>
+          <th style="width:80px;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:#9ca3af;">1</td>
+          <td>
+            <div class="med-name">Amoxicillin 500mg Tab</div>
+            <div class="mono">Cipla Ltd · Strip of 10</div>
+            <div class="schedule-h">⚠ Schedule H</div>
+          </td>
+          <td class="mono">B24-1122<br>Nov 2026</td>
+          <td class="center">2</td>
+          <td class="center">12%</td>
+          <td>₹14.00</td>
+          <td class="center">5%</td>
+          <td style="font-weight:600;">₹26.60</td>
+        </tr>
+        <tr>
+          <td style="color:#9ca3af;">2</td>
+          <td>
+            <div class="med-name">Paracetamol 650mg Tab</div>
+            <div class="mono">GSK · Strip of 15</div>
+          </td>
+          <td class="mono">B24-0891<br>Dec 2026</td>
+          <td class="center">3</td>
+          <td class="center">5%</td>
+          <td>₹5.00</td>
+          <td class="center">0%</td>
+          <td style="font-weight:600;">₹15.75</td>
+        </tr>
+        <tr>
+          <td style="color:#9ca3af;">3</td>
+          <td>
+            <div class="med-name">Azithromycin 250mg Tab</div>
+            <div class="mono">Pfizer · Strip of 6</div>
+            <div class="schedule-h">⚠ Schedule H</div>
+          </td>
+          <td class="mono">B24-0712<br>Jun 2026</td>
+          <td class="center">1</td>
+          <td class="center">12%</td>
+          <td>₹28.00</td>
+          <td class="center">0%</td>
+          <td style="font-weight:600;">₹31.36</td>
+        </tr>
+        <tr>
+          <td style="color:#9ca3af;">4</td>
+          <td>
+            <div class="med-name">Vitamin D3 60K IU Cap</div>
+            <div class="mono">Sun Pharma · 4 Caps</div>
+          </td>
+          <td class="mono">B24-1034<br>Mar 2027</td>
+          <td class="center">2</td>
+          <td class="center">5%</td>
+          <td>₹42.00</td>
+          <td class="center">10%</td>
+          <td style="font-weight:600;">₹79.38</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals -->
+  <div class="inv-totals">
+    <div class="totals-box">
+      <div class="tot-row"><span class="tot-label">MRP Total</span><span class="tot-value">₹173.00</span></div>
+      <div class="tot-row"><span class="tot-label">Discount</span><span class="tot-value" style="color:#15803d;">-₹13.91</span></div>
+      <div class="tot-row"><span class="tot-label">Taxable Amount</span><span class="tot-value">₹140.09</span></div>
+      <div class="tot-row"><span class="tot-label">CGST</span><span class="tot-value">₹9.01</span></div>
+      <div class="tot-row"><span class="tot-label">SGST</span><span class="tot-value">₹9.01</span></div>
+      <div class="tot-row"><span class="tot-label">Round Off</span><span class="tot-value">-₹0.11</span></div>
+      <div class="tot-divider"></div>
+      <div class="tot-row">
+        <span class="tot-grand">Grand Total</span>
+        <span class="tot-grand-val">₹158.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GST Summary -->
+  <div class="gst-summary">
+    <div class="gst-label">GST Summary</div>
+    <table class="gst-table">
+      <thead>
+        <tr><th>HSN / SAC</th><th>Taxable</th><th>GST %</th><th>CGST</th><th>SGST</th><th>Total Tax</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>3004</td><td>₹52.71</td><td>5%</td><td>₹1.32</td><td>₹1.32</td><td>₹2.64</td></tr>
+        <tr><td>3004</td><td>₹87.38</td><td>12%</td><td>₹5.24</td><td>₹5.24</td><td>₹10.48</td></tr>
+        <tr><td style="font-weight:700;">Total</td><td style="font-weight:700;">₹140.09</td><td>—</td><td style="font-weight:700;">₹6.56</td><td style="font-weight:700;">₹6.56</td><td style="font-weight:700;">₹13.12</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="inv-footer">
+    <div class="inv-words">
+      <strong>Amount in words:</strong><br>
+      Rupees One Hundred and Fifty-Eight Only
+      <br><br>
+      <span style="font-size:9px;color:#9ca3af;">This is a computer-generated invoice. Medicines sold are non-returnable. Valid subject to Coimbatore jurisdiction.</span>
+    </div>
+    <div class="inv-sig">
+      <div class="sig-line"></div>
+      <div class="sig-label">Authorised Signatory</div>
+      <div style="font-size:9px;color:#9ca3af;margin-top:2px;">Sai Pharmacy</div>
+    </div>
+  </div>
+</div>
+
+</body></html>

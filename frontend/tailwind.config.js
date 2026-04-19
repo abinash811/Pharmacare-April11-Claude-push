@@ -87,7 +87,22 @@ module.exports = {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
-  		}
+  		},
+		// ── Animation tokens ─────────────────────────────────────────────────────
+		// Use duration-fast/base/slow/slower instead of arbitrary ms values.
+		// Use ease-out-smooth for entrances, ease-in-smooth for exits.
+		// Example: className="transition-colors duration-base"
+		//          className="transition-transform duration-slower ease-out-smooth"
+		transitionDuration: {
+			fast:   '100ms',   // hover states, button press
+			base:   '150ms',   // default — use for most transitions
+			slow:   '250ms',   // modals opening, panels sliding
+			slower: '350ms',   // page-level transitions, Sheet drawers
+		},
+		transitionTimingFunction: {
+			'ease-out-smooth': 'cubic-bezier(0.16, 1, 0.3, 1)',   // Sheet/drawer slide-in
+			'ease-in-smooth':  'cubic-bezier(0.4, 0, 1, 1)',       // dismiss/close
+		},
   	}
   },
   plugins: [require("tailwindcss-animate")],

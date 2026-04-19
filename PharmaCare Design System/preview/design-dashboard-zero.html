@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; }
+
+.page-header {
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  padding: 14px 32px; display: flex; align-items: center; justify-content: space-between;
+}
+.page-header h1 { font-size: 20px; font-weight: 700; color: #111827; }
+.page-header p  { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+.content { padding: 24px 32px; }
+
+/* Metric cards — empty state */
+.metric-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+.metric-empty {
+  background: #fff; border: 1px dashed #d1d5db; border-radius: 8px;
+  padding: 16px; display: flex; flex-direction: column;
+}
+.metric-icon-empty { width: 36px; height: 36px; background: #f3f4f6; border-radius: 8px; margin-bottom: 10px; }
+.metric-val-empty  { height: 24px; background: #f3f4f6; border-radius: 4px; width: 60px; margin-bottom: 6px; }
+.metric-lbl-empty  { height: 12px; background: #f3f4f6; border-radius: 4px; width: 80px; }
+
+/* Welcome card */
+.welcome-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 40px 32px; text-align: center; max-width: 560px; margin: 0 auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.welcome-icon {
+  width: 64px; height: 64px; background: #f0f7ff; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+}
+.welcome-title { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+.welcome-desc  { font-size: 13px; color: #6b7280; line-height: 1.6; max-width: 360px; margin: 0 auto 24px; }
+
+.action-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.action-btn {
+  padding: 14px 10px; border-radius: 10px; border: 1px solid #e5e7eb;
+  background: #fff; cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.action-btn:hover { border-color: #4682B4; background: #f0f7ff; }
+.action-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;
+}
+.action-label { font-size: 12px; font-weight: 600; color: #111827; margin-bottom: 2px; }
+.action-sub   { font-size: 10px; color: #9ca3af; }
+
+.primary-action {
+  width: 100%; height: 40px; background: #4682B4; color: #fff;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; margin-bottom: 10px;
+}
+
+.skip { font-size: 11px; color: #9ca3af; margin-top: 12px; cursor: pointer; }
+.skip:hover { color: #6b7280; }
+</style>
+</head><body>
+
+<div class="page-header">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Welcome to PharmaCare — let's get you set up</p>
+  </div>
+</div>
+
+<div class="content">
+  <!-- Empty metric placeholders -->
+  <div class="metric-row">
+    <div class="metric-empty">
+      <div class="metric-icon-empty"></div>
+      <div class="metric-val-empty"></div>
+      <div class="metric-lbl-empty"></div>
+    </div>
+    <div class="metric-empty">
+      <div class="metric-icon-empty"></div>
+      <div class="metric-val-empty"></div>
+      <div class="metric-lbl-empty"></div>
+    </div>
+    <div class="metric-empty">
+      <div class="metric-icon-empty"></div>
+      <div class="metric-val-empty"></div>
+      <div class="metric-lbl-empty"></div>
+    </div>
+    <div class="metric-empty">
+      <div class="metric-icon-empty"></div>
+      <div class="metric-val-empty"></div>
+      <div class="metric-lbl-empty"></div>
+    </div>
+  </div>
+
+  <!-- Welcome / onboarding card -->
+  <div class="welcome-card">
+    <div class="welcome-icon">
+      <svg width="32" height="32" fill="none" stroke="#4682B4" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+      </svg>
+    </div>
+    <div class="welcome-title">Welcome to PharmaCare</div>
+    <div class="welcome-desc">You're all set up. Complete these steps to start using your pharmacy management system.</div>
+
+    <button class="primary-action">+ Create Your First Bill</button>
+
+    <div class="action-grid">
+      <div class="action-btn">
+        <div class="action-icon" style="background:#dbeafe;">
+          <svg width="18" height="18" fill="none" stroke="#1d4ed8" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        </div>
+        <div class="action-label">Add Inventory</div>
+        <div class="action-sub">Upload medicines & stock</div>
+      </div>
+      <div class="action-btn">
+        <div class="action-icon" style="background:#f3e8ff;">
+          <svg width="18" height="18" fill="none" stroke="#7e22ce" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <div class="action-label">Add Supplier</div>
+        <div class="action-sub">Connect your vendors</div>
+      </div>
+      <div class="action-btn">
+        <div class="action-icon" style="background:#f0fdf4;">
+          <svg width="18" height="18" fill="none" stroke="#15803d" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <div class="action-label">Add Customer</div>
+        <div class="action-sub">Build your customer list</div>
+      </div>
+    </div>
+
+    <div class="skip">Skip setup — I'll explore on my own</div>
+  </div>
+</div>
+
+</body></html>

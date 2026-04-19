@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.section { margin-bottom: 14px; }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.sp { background: #4682B4; border-radius: 2px; }
+.sp-label { font-size: 10px; color: #6b7280; margin-top: 4px; font-family: var(--font-mono); }
+.radius-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.r-box { width: 48px; height: 36px; background: #f0f7ff; border: 2px solid #4682B4; display: flex; align-items: center; justify-content: center; }
+.r-label { font-size: 10px; color: #6b7280; margin-top: 4px; text-align: center; }
+.shadow-row { display: flex; gap: 16px; }
+.s-box { width: 60px; height: 40px; background: #fff; border-radius: 8px; }
+</style>
+</head><body>
+<div class="section">
+  <div class="label">Spacing Scale</div>
+  <div class="row">
+    <div><div class="sp" style="width:4px;height:16px;"></div><div class="sp-label">4px</div></div>
+    <div><div class="sp" style="width:8px;height:16px;"></div><div class="sp-label">8px</div></div>
+    <div><div class="sp" style="width:12px;height:16px;"></div><div class="sp-label">12px</div></div>
+    <div><div class="sp" style="width:16px;height:20px;"></div><div class="sp-label">16px</div></div>
+    <div><div class="sp" style="width:24px;height:24px;"></div><div class="sp-label">24px</div></div>
+    <div><div class="sp" style="width:32px;height:28px;"></div><div class="sp-label">32px</div></div>
+    <div><div class="sp" style="width:48px;height:32px;"></div><div class="sp-label">48px</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="label">Border Radii</div>
+  <div class="radius-row">
+    <div><div class="r-box" style="border-radius:4px;"></div><div class="r-label">4px<br>sm</div></div>
+    <div><div class="r-box" style="border-radius:6px;"></div><div class="r-label">6px<br>md</div></div>
+    <div><div class="r-box" style="border-radius:8px;"></div><div class="r-label">8px<br>lg</div></div>
+    <div><div class="r-box" style="border-radius:12px;"></div><div class="r-label">12px<br>xl</div></div>
+    <div><div class="r-box" style="border-radius:9999px;width:64px;"></div><div class="r-label">full<br>badge</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="label">Shadows</div>
+  <div class="shadow-row">
+    <div><div class="s-box" style="box-shadow:0 1px 2px rgba(0,0,0,0.05);"></div><div class="sp-label">sm</div></div>
+    <div><div class="s-box" style="box-shadow:0 4px 6px -1px rgba(0,0,0,0.10),0 2px 4px -2px rgba(0,0,0,0.10);"></div><div class="sp-label">md</div></div>
+    <div><div class="s-box" style="box-shadow:0 10px 25px -5px rgba(0,0,0,0.10);"></div><div class="sp-label">lg</div></div>
+  </div>
+</div>
+</body></html>

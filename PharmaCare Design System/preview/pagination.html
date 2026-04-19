@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 16px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.col { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+
+/* Pagination bar */
+.pg-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border: 1px solid #e5e7eb; border-radius: 8px;
+  background: #fff;
+}
+.pg-text { font-size: 12px; color: #6b7280; }
+.pg-btns { display: flex; gap: 3px; align-items: center; }
+.pg-btn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e5e7eb;
+  background: #fff; font-size: 12px; cursor: pointer; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  color: #374151; font-family: 'IBM Plex Sans', sans-serif; transition: all 0.1s;
+}
+.pg-btn:hover:not(:disabled):not(.active) { background: #f3f4f6; }
+.pg-btn.active { background: #111827; color: #fff; border-color: #111827; }
+.pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pg-btn.nav { color: #6b7280; }
+.pg-ellipsis { width: 30px; text-align: center; color: #9ca3af; font-size: 13px; line-height: 30px; }
+.pg-note { font-size: 10px; color: #9ca3af; font-style: italic; }
+
+/* Usage note */
+.usage { background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #1d4ed8; line-height: 1.6; }
+code { font-family: monospace; font-size: 10px; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head><body>
+
+<div class="label">PaginationBar — shared/PaginationBar.jsx</div>
+<div class="col">
+
+  <!-- Page 1 of 8 -->
+  <div>
+    <div class="pg-bar">
+      <span class="pg-text">Showing 1–20 of 142 bills</span>
+      <div class="pg-btns">
+        <button class="pg-btn nav" disabled>‹</button>
+        <button class="pg-btn active">1</button>
+        <button class="pg-btn">2</button>
+        <button class="pg-btn">3</button>
+        <span class="pg-ellipsis">…</span>
+        <button class="pg-btn">8</button>
+        <button class="pg-btn nav">›</button>
+      </div>
+    </div>
+    <div class="pg-note" style="margin-top:4px;">Page 1 of 8 — first page (Prev disabled)</div>
+  </div>
+
+  <!-- Page 4 of 8 (middle) -->
+  <div>
+    <div class="pg-bar">
+      <span class="pg-text">Showing 61–80 of 142 bills</span>
+      <div class="pg-btns">
+        <button class="pg-btn nav">‹</button>
+        <button class="pg-btn">1</button>
+        <span class="pg-ellipsis">…</span>
+        <button class="pg-btn">3</button>
+        <button class="pg-btn active">4</button>
+        <button class="pg-btn">5</button>
+        <span class="pg-ellipsis">…</span>
+        <button class="pg-btn">8</button>
+        <button class="pg-btn nav">›</button>
+      </div>
+    </div>
+    <div class="pg-note" style="margin-top:4px;">Page 4 of 8 — middle (ellipsis on both sides)</div>
+  </div>
+
+  <!-- Page 8 of 8 -->
+  <div>
+    <div class="pg-bar">
+      <span class="pg-text">Showing 141–142 of 142 bills</span>
+      <div class="pg-btns">
+        <button class="pg-btn nav">‹</button>
+        <button class="pg-btn">1</button>
+        <span class="pg-ellipsis">…</span>
+        <button class="pg-btn">6</button>
+        <button class="pg-btn">7</button>
+        <button class="pg-btn active">8</button>
+        <button class="pg-btn nav" disabled>›</button>
+      </div>
+    </div>
+    <div class="pg-note" style="margin-top:4px;">Page 8 of 8 — last page (Next disabled)</div>
+  </div>
+
+  <!-- Single page — hidden -->
+  <div>
+    <div class="pg-bar">
+      <span class="pg-text">Showing 1–12 of 12 bills</span>
+      <!-- No page buttons — totalPages === 1 -->
+    </div>
+    <div class="pg-note" style="margin-top:4px;">Single page — page buttons hidden, only "Showing X of Y" shown</div>
+  </div>
+
+</div>
+
+<div class="usage">
+  <strong>Usage:</strong> Always use <code>usePagination()</code> hook + <code>&lt;PaginationBar /&gt;</code> together.<br>
+  <code>const pg = usePagination({'{ pageSize: 20 }'});</code><br>
+  <code>&lt;PaginationBar {'{ ...pg }'} /&gt;</code><br><br>
+  Page size standard: <strong>20 rows</strong> on list pages (billing, inventory, purchases, customers, suppliers).
+  Audit log / stock movements: <strong>50 rows</strong>.
+</div>
+</body></html>

@@ -11,7 +11,7 @@
  */
 import React from 'react';
 import { Edit, Trash2, Eye, Phone, Mail } from 'lucide-react';
-import { CustomersEmptyState, AppButton } from '@/components/shared';
+import { CustomersEmptyState, AppButton, TableSkeleton } from '@/components/shared';
 
 function CustomerTypeBadge({ type }) {
   const safeType = type && typeof type === 'string' && type.trim() ? type.toLowerCase() : 'regular';
@@ -27,7 +27,7 @@ function CustomerTypeBadge({ type }) {
   );
 }
 
-export default function CustomersTable({ customers, searchQuery, onAdd, onEdit, onDelete, onView }) {
+export default function CustomersTable({ customers, loading, searchQuery, onAdd, onEdit, onDelete, onView }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" data-testid="customers-table">
       <div className="overflow-x-auto">
@@ -47,8 +47,10 @@ export default function CustomersTable({ customers, searchQuery, onAdd, onEdit, 
               ))}
             </tr>
           </thead>
-          <tbody>
-            {customers.length === 0 ? (
+          <tbody className="divide-y divide-gray-100">
+            {loading ? (
+              <tr><td colSpan={6} className="p-0"><TableSkeleton rows={6} columns={5} /></td></tr>
+            ) : customers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-0">
                   <CustomersEmptyState filtered={!!searchQuery} action={null} />

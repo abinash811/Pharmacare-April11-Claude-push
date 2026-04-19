@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 12px; }
+.item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.bar { background: #4682B4; border-radius: 3px; width: 100%; }
+.token { font-size: 9px; font-family: monospace; color: #6b7280; text-align: center; }
+.px { font-size: 10px; font-weight: 600; color: #374151; }
+.semantic-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.sem { background: #f0f7ff; border: 1px dashed #4682B4; border-radius: 6px; padding: 6px 8px; }
+.sem-name { font-size: 10px; font-family: monospace; color: #3a6d96; font-weight: 600; }
+.sem-val  { font-size: 9px; color: #6b7280; margin-top: 2px; }
+</style>
+</head><body>
+
+<div class="label">4px Base Grid</div>
+<div class="row">
+  <div class="item" style="width:28px"><div class="bar" style="height:4px"></div><div class="px">4</div><div class="token">--space-1</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:8px"></div><div class="px">8</div><div class="token">--space-2</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:12px"></div><div class="px">12</div><div class="token">--space-3</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:16px"></div><div class="px">16</div><div class="token">--space-4</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:20px"></div><div class="px">20</div><div class="token">--space-5</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:24px"></div><div class="px">24</div><div class="token">--space-6</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:32px"></div><div class="px">32</div><div class="token">--space-8</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:40px"></div><div class="px">40</div><div class="token">--space-10</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:48px"></div><div class="px">48</div><div class="token">--space-12</div></div>
+  <div class="item" style="width:28px"><div class="bar" style="height:64px"></div><div class="px">64</div><div class="token">--space-16</div></div>
+</div>
+
+<div class="label">Semantic Aliases</div>
+<div class="semantic-row">
+  <div class="sem"><div class="sem-name">--space-page-x</div><div class="sem-val">32px · horizontal page padding</div></div>
+  <div class="sem"><div class="sem-name">--space-page-y</div><div class="sem-val">24px · vertical page padding</div></div>
+  <div class="sem"><div class="sem-name">--space-card</div><div class="sem-val">16px · card internal padding</div></div>
+  <div class="sem"><div class="sem-name">--space-section</div><div class="sem-val">20px · between sections</div></div>
+  <div class="sem"><div class="sem-name">--space-row-gap</div><div class="sem-val">12px · grid row gap</div></div>
+  <div class="sem"><div class="sem-name">--space-col-gap</div><div class="sem-val">12px · grid column gap</div></div>
+  <div class="sem"><div class="sem-name">--space-inline</div><div class="sem-val">8px · inline element gap</div></div>
+  <div class="sem"><div class="sem-name">--space-icon-gap</div><div class="sem-val">6px · icon to label</div></div>
+</div>
+</body></html>

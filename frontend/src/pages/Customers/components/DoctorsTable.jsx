@@ -10,9 +10,9 @@
  */
 import React from 'react';
 import { Edit, Trash2, Phone, Stethoscope } from 'lucide-react';
-import { EmptyState, AppButton } from '@/components/shared';
+import { EmptyState, AppButton, TableSkeleton } from '@/components/shared';
 
-export default function DoctorsTable({ doctors, searchQuery, onAdd, onEdit, onDelete }) {
+export default function DoctorsTable({ doctors, loading, searchQuery, onAdd, onEdit, onDelete }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" data-testid="doctors-table">
       <div className="overflow-x-auto">
@@ -31,8 +31,10 @@ export default function DoctorsTable({ doctors, searchQuery, onAdd, onEdit, onDe
               ))}
             </tr>
           </thead>
-          <tbody>
-            {doctors.length === 0 ? (
+          <tbody className="divide-y divide-gray-100">
+            {loading ? (
+              <tr><td colSpan={4} className="p-0"><TableSkeleton rows={6} columns={5} /></td></tr>
+            ) : doctors.length === 0 ? (
               <tr>
                 <td colSpan={4} className="p-0">
                   <EmptyState

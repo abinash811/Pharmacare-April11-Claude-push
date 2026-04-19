@@ -7,24 +7,31 @@ import { Save } from 'lucide-react';
 import { AuthContext } from '@/App';
 import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
 
-import { useSettings }     from './hooks/useSettings';
-import InventoryTab        from './components/InventoryTab';
-import BillingTab          from './components/BillingTab';
-import ReturnsTab          from './components/ReturnsTab';
-import GeneralTab          from './components/GeneralTab';
-import BillSequenceTab     from './components/BillSequenceTab';
+import { useSettings }        from './hooks/useSettings';
+import InventoryTab           from './components/InventoryTab';
+import BillingTab             from './components/BillingTab';
+import ReturnsTab             from './components/ReturnsTab';
+import GeneralTab             from './components/GeneralTab';
+import BillSequenceTab        from './components/BillSequenceTab';
+import PharmacyProfileTab     from './components/PharmacyProfileTab';
+import ReceiptTab             from './components/ReceiptTab';
+import GSTTab                 from './components/GSTTab';
+import NotificationsTab       from './components/NotificationsTab';
 
 const SETTINGS_TABS = [
-  { key: 'inventory',     label: 'Inventory'     },
-  { key: 'billing',       label: 'Billing'       },
-  { key: 'bill_sequence', label: 'Bill Sequence' },
-  { key: 'returns',       label: 'Returns'       },
-  { key: 'general',       label: 'General'       },
+  { key: 'profile',       label: 'Pharmacy Profile' },
+  { key: 'receipt',       label: 'Receipt & Print'  },
+  { key: 'gst',           label: 'Tax & GST'        },
+  { key: 'notifications', label: 'Notifications'    },
+  { key: 'inventory',     label: 'Inventory'        },
+  { key: 'billing',       label: 'Billing'          },
+  { key: 'bill_sequence', label: 'Bill Sequence'    },
+  { key: 'returns',       label: 'Returns'          },
 ];
 
 export default function Settings() {
   const { user } = useContext(AuthContext);
-  const [activeTab, setActiveTab] = React.useState('inventory');
+  const [activeTab, setActiveTab] = React.useState('profile');
 
   const {
     settings, loading, saving,
@@ -71,6 +78,10 @@ export default function Settings() {
             <div className="text-center py-12"><InlineLoader text="Loading settings…" /></div>
           ) : (
             <>
+              {activeTab === 'profile'       && <PharmacyProfileTab general={settings.general || {}}  onUpdate={makeUpdater('general')} />}
+              {activeTab === 'receipt'       && <ReceiptTab         print={settings.print || {}}  general={settings.general || {}}  onUpdate={makeUpdater('print')}  onUpdateGeneral={makeUpdater('general')} />}
+              {activeTab === 'gst'           && <GSTTab           gst={settings.gst || {}}                       onUpdate={makeUpdater('gst')} />}
+              {activeTab === 'notifications' && <NotificationsTab notifications={settings.notifications || {}} onUpdate={makeUpdater('notifications')} />}
               {activeTab === 'inventory'     && <InventoryTab     inventory={settings.inventory}  onUpdate={makeUpdater('inventory')} />}
               {activeTab === 'billing'       && <BillingTab       billing={settings.billing}      onUpdate={makeUpdater('billing')} />}
               {activeTab === 'returns'       && <ReturnsTab       returns={settings.returns}      onUpdate={makeUpdater('returns')} />}

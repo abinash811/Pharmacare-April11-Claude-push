@@ -14,6 +14,28 @@
 5. **Money is integer paise. Always.** ₹1 = 100 paise. Never floats for currency calculations. Display only converts.
 6. **Soft deletes only.** Pharmacy data is compliance data. Hard delete is never acceptable.
 7. **International standard or nothing.** If it wouldn't ship in Linear, Notion, or Stripe — don't ship it here.
+8. **Zero cognitive load.** Every feature must be completable in the fewest possible clicks. No unnecessary steps, no confirmation modals for reversible actions, no forms asking for data we can infer. If the user has to think — we've failed. Smart defaults, inline edits, auto-save where possible.
+
+---
+
+## DESIGN SYSTEM — VISUAL AUTHORITY
+
+**Location:** `PharmaCare Design System/` folder in the project root.
+
+> Before building any new page, component, or UI pattern — **check this folder first.**
+> The HTML previews are the ground truth for visual output. Code must match them.
+
+| File | What it governs |
+|------|----------------|
+| `preview/design-auth.html`              | Auth page — split layout, both breakpoints |
+| `preview/design-billing-shortcuts.html` | Billing header — shortcut badges, legend popover |
+| `preview/design-dashboard-zero.html`    | Dashboard — zero state for new pharmacies |
+| `tokens/colors.css`                     | All brand color tokens |
+| `tokens/typography.css`                 | Font scale, weights |
+
+**Rule:** If a design preview exists for what you're building, match it exactly. If none exists, follow CLAUDE.md patterns and create a preview after shipping.
+
+> ⛔ HARD STOP: Before writing ANY component, page, or UI pattern — open this folder and check. No exceptions. No skipping. Code first = rework guaranteed.
 
 ---
 
@@ -55,6 +77,34 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 | 18 | `docs/18_ICONOGRAPHY_MOTION.md` | Lucide icons, sizes, stroke, animation durations |
 | 19 | `docs/19_PERFORMANCE.md` | Lighthouse targets, lazy loading, pagination, N+1 rules |
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
+| 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
+
+---
+
+## DEPENDENCY & ENV SAFETY RULES — NEVER BREAK THE APP
+
+These rules exist because adding uninstalled packages and wrong env values have crashed the app multiple times.
+
+### Adding a new package (frontend)
+1. Run `yarn add <package>` first — confirm "success" in terminal
+2. Only then add `import` statements in code
+3. Never add a package to `package.json` manually without running `yarn add`
+
+### Adding a new package (backend)
+1. Run `pip install <package>` inside venv first — confirm "Successfully installed"
+2. Add to `requirements.txt` after install succeeds
+3. Only then add `import` statements in `main.py` or any module
+
+### Env files — strictly forbidden
+- NEVER add a URL to `.env.production` unless it is a real, live production URL
+- NEVER add placeholder values — an empty key is safer than a fake value
+- `REACT_APP_BACKEND_URL` is set via CI secret only — never hardcode it in any env file
+- Always state explicitly when touching any `.env*` file — treat it as a breaking change
+
+### Verify after every infrastructure change
+- After any change to `main.py` imports or `requirements.txt` → restart backend and confirm `Application startup complete`
+- After any change to `package.json` or env files → restart frontend and confirm no compile errors
+- One change at a time. Verify. Then next change.
 
 ---
 
@@ -89,6 +139,9 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 - [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else
 - [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared
 - [ ] Zero `import` statements after `const` declarations
+- [ ] New files use `.tsx` extension, not `.jsx`
+- [ ] `npx tsc --noEmit` passes with zero errors
+- [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
 ### What's next (build in this order)
 1. Sheets (Shadcn `<Sheet side="right">` 480px) — replace all centered modals

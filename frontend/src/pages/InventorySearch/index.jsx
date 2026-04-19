@@ -6,7 +6,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Upload } from 'lucide-react';
-import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
+import { InlineLoader, TableSkeleton, PageHeader, PageTabs, AppButton } from '@/components/shared';
 import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
 
 const INVENTORY_TABS = [
@@ -126,10 +126,8 @@ export default function InventorySearch() {
             onViewLowStock={handleViewLowStock}
           />
         ) : loading ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12">
-            <div className="flex flex-col items-center">
-              <InlineLoader text="Searching inventory…" />
-            </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <TableSkeleton rows={8} columns={6} />
           </div>
         ) : inventory.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">

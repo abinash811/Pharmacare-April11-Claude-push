@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; padding: 20px; }
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+
+/* Header bar simulation */
+.header {
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  padding: 12px 20px; display: flex; align-items: center;
+  justify-content: space-between; border-radius: 8px; margin-bottom: 16px;
+}
+.header-left h2 { font-size: 16px; font-weight: 700; color: #111827; }
+.header-left p  { font-size: 11px; color: #6b7280; margin-top: 1px; }
+.btn-row { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; flex-direction: column; align-items: center;
+  border-radius: 8px; font-family: 'IBM Plex Sans', sans-serif;
+  cursor: pointer; border: none; position: relative;
+}
+.btn-inner { display: flex; align-items: center; gap: 6px; }
+
+/* Without kbd hint (BEFORE) */
+.btn-plain {
+  padding: 7px 14px; font-size: 13px; font-weight: 600;
+}
+.btn-primary-plain { background: #4682B4; color: #fff; }
+.btn-outline-plain { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.btn-secondary-plain { background: #f3f4f6; color: #374151; }
+
+/* With kbd hint (AFTER) */
+.btn-with-kbd {
+  padding: 5px 14px 5px; font-size: 13px; font-weight: 600;
+}
+.btn-label { font-size: 12px; font-weight: 600; }
+.kbd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  margin-top: 1px;
+  letter-spacing: 0.02em;
+}
+.kbd-dark { color: rgba(0,0,0,0.35); }
+
+.btn-primary-kbd  { background: #4682B4; color: #fff; }
+.btn-outline-kbd  { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.btn-secondary-kbd{ background: #f3f4f6; color: #374151; }
+
+/* Key legend */
+.legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.key-item {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 6px 10px; font-size: 11px; color: #374151;
+}
+.key-chip {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600;
+  background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;
+  border-radius: 4px; padding: 1px 6px;
+  box-shadow: 0 1px 0 #d1d5db;
+}
+
+.annotation { font-size: 10px; color: #4682B4; font-style: italic; margin-top: 10px; line-height: 1.6; }
+.divider { height: 1px; background: #e5e7eb; margin: 16px 0; }
+</style>
+</head><body>
+
+<div class="section-label">Before — buttons give no hint of keyboard shortcuts</div>
+<div class="header">
+  <div class="header-left">
+    <h2>New Bill <span style="font-size:12px;font-weight:400;color:#6b7280;margin-left:4px;">BL-1043 · Draft</span></h2>
+    <p>Apr 19, 2025</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-plain btn-secondary-plain">← Back</button>
+    <button class="btn btn-plain btn-outline-plain">Park Bill</button>
+    <button class="btn btn-plain btn-outline-plain">Print</button>
+    <button class="btn btn-plain btn-primary-plain">Save & Print</button>
+    <button class="btn btn-plain btn-primary-plain" style="background:#15803d;">Finalise</button>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section-label" style="color:#4682B4;">After — keyboard shortcut shown inside button</div>
+<div class="header">
+  <div class="header-left">
+    <h2>New Bill <span style="font-size:12px;font-weight:400;color:#6b7280;margin-left:4px;">BL-1043 · Draft</span></h2>
+    <p>Apr 19, 2025</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-with-kbd btn-secondary-kbd">
+      <div class="btn-label">← Back</div>
+    </button>
+    <button class="btn btn-with-kbd btn-outline-kbd">
+      <div class="btn-label">Park Bill</div>
+      <div class="kbd kbd-dark">F8</div>
+    </button>
+    <button class="btn btn-with-kbd btn-outline-kbd">
+      <div class="btn-label">Print</div>
+      <div class="kbd kbd-dark">Ctrl+P</div>
+    </button>
+    <button class="btn btn-with-kbd btn-primary-kbd">
+      <div class="btn-label">Save & Print</div>
+      <div class="kbd">F12</div>
+    </button>
+    <button class="btn btn-with-kbd" style="background:#15803d;color:#fff;border-radius:8px;padding:5px 14px;">
+      <div class="btn-label">Finalise</div>
+      <div class="kbd">Ctrl+↵</div>
+    </button>
+  </div>
+</div>
+
+<div class="annotation">
+  Shortcut label sits below the button text, inside the same button, at 9px mono font.<br>
+  Only shown for buttons that have shortcuts — Back and other non-shortcut buttons remain unchanged.
+</div>
+
+<div class="divider"></div>
+
+<div class="section-label">Full shortcut legend — shown in a "?" tooltip / help corner</div>
+<div class="legend">
+  <div class="key-item"><span class="key-chip">Ctrl+F</span> Focus medicine search</div>
+  <div class="key-item"><span class="key-chip">F8</span> Park / hold bill</div>
+  <div class="key-item"><span class="key-chip">F12</span> Save & print</div>
+  <div class="key-item"><span class="key-chip">Ctrl+B</span> Open barcode scanner</div>
+  <div class="key-item"><span class="key-chip">Ctrl+↵</span> Finalise bill</div>
+  <div class="key-item"><span class="key-chip">Esc</span> Close modal / cancel</div>
+</div>
+
+</body></html>

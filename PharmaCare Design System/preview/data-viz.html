@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; padding: 16px; font-size: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
+.card-title { font-size: 12px; font-weight: 600; color: #111827; margin-bottom: 12px; }
+
+/* Bar chart */
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+.bar { flex: 1; border-radius: 3px 3px 0 0; position: relative; transition: opacity 0.15s; min-width: 8px; }
+.bar:hover { opacity: 0.8; }
+.x-axis { display: flex; gap: 4px; margin-top: 4px; }
+.x-label { flex: 1; font-size: 9px; color: #9ca3af; text-align: center; }
+
+/* Line chart */
+.line-area { height: 80px; width: 100%; }
+
+/* Donut */
+.donut-wrap { display: flex; gap: 14px; align-items: center; }
+.legend { display: flex; flex-direction: column; gap: 5px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #374151; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.legend-pct { font-weight: 600; margin-left: auto; color: #111827; }
+
+/* Color tokens */
+.color-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+.ct { border-radius: 6px; padding: 8px 12px; font-size: 10px; font-family: monospace; font-weight: 600; min-width: 90px; }
+
+/* Axis labels */
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; height: 80px; margin-right: 4px; }
+.y-label { font-size: 9px; color: #9ca3af; }
+.chart-area { flex: 1; }
+
+/* Grid lines */
+.grid-line { width: 100%; height: 1px; background: #f3f4f6; position: absolute; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { text-align: left; padding: 5px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+td:first-child { font-family: monospace; font-size: 10px; color: #4682B4; }
+code { font-family: monospace; font-size: 10px; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head><body>
+
+<div class="label">Chart Color Palette — Recharts (used in Dashboard/components/SalesCharts.jsx)</div>
+<div class="color-grid" style="margin-bottom:14px;">
+  <div class="ct" style="background:#4682B4;color:#fff;">chart-1<br>#4682B4<br>Brand Blue</div>
+  <div class="ct" style="background:#22c55e;color:#fff;">chart-2<br>#22c55e<br>Green</div>
+  <div class="ct" style="background:#a855f7;color:#fff;">chart-3<br>#a855f7<br>Purple</div>
+  <div class="ct" style="background:#f59e0b;color:#fff;">chart-4<br>#f59e0b<br>Amber</div>
+  <div class="ct" style="background:#ef4444;color:#fff;">chart-5<br>#ef4444<br>Red</div>
+  <div class="ct" style="background:#06b6d4;color:#fff;">chart-6<br>#06b6d4<br>Cyan</div>
+  <div class="ct" style="background:#84cc16;color:#fff;">chart-7<br>#84cc16<br>Lime</div>
+  <div class="ct" style="background:#f97316;color:#fff;">chart-8<br>#f97316<br>Orange</div>
+</div>
+
+<div class="row">
+
+  <!-- Bar chart: Daily sales -->
+  <div class="card" style="flex:1;min-width:220px;">
+    <div class="card-title">Daily Sales Trend</div>
+    <div style="display:flex;">
+      <div class="y-axis">
+        <span class="y-label">₹2L</span>
+        <span class="y-label">₹1L</span>
+        <span class="y-label">₹0</span>
+      </div>
+      <div class="chart-area">
+        <div class="bar-chart">
+          <div class="bar" style="background:#bfdbfe;height:40%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:55%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:35%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:70%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:48%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:85%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:62%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:90%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:68%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:82%;"></div>
+          <div class="bar" style="background:#bfdbfe;height:72%;"></div>
+          <div class="bar" style="background:#4682B4;height:95%;"></div>
+        </div>
+        <div class="x-axis">
+          <span class="x-label">8</span>
+          <span class="x-label">9</span>
+          <span class="x-label">10</span>
+          <span class="x-label">11</span>
+          <span class="x-label">12</span>
+          <span class="x-label">13</span>
+          <span class="x-label">14</span>
+          <span class="x-label">15</span>
+          <span class="x-label">16</span>
+          <span class="x-label">17</span>
+          <span class="x-label">18</span>
+          <span class="x-label" style="color:#4682B4;font-weight:700;">19</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Donut: Category breakdown -->
+  <div class="card" style="min-width:200px;">
+    <div class="card-title">Sales by Category</div>
+    <div class="donut-wrap">
+      <svg width="72" height="72" viewBox="0 0 36 36">
+        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#4682B4" stroke-width="5" stroke-dasharray="38 62" stroke-dashoffset="25"/>
+        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#22c55e" stroke-width="5" stroke-dasharray="24 76" stroke-dashoffset="-13"/>
+        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#a855f7" stroke-width="5" stroke-dasharray="18 82" stroke-dashoffset="-37"/>
+        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#f59e0b" stroke-width="5" stroke-dasharray="14 86" stroke-dashoffset="-55"/>
+        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="6 94" stroke-dashoffset="-69"/>
+        <circle cx="18" cy="18" r="10" fill="#fff"/>
+        <text x="18" y="19.5" text-anchor="middle" font-size="5" font-weight="700" fill="#111827" font-family="IBM Plex Sans">₹24L</text>
+      </svg>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4682B4;"></div>Antibiotics<span class="legend-pct">38%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Analgesics<span class="legend-pct">24%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a855f7;"></div>Vitamins<span class="legend-pct">18%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>Antacids<span class="legend-pct">14%</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e5e7eb;"></div>Other<span class="legend-pct">6%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Area sparkline -->
+  <div class="card" style="min-width:180px;">
+    <div class="card-title">Revenue Trend (area)</div>
+    <svg width="100%" height="80" viewBox="0 0 200 80" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4682B4" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#4682B4" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- Grid lines -->
+      <line x1="0" y1="20" x2="200" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+      <line x1="0" y1="40" x2="200" y2="40" stroke="#f3f4f6" stroke-width="1"/>
+      <line x1="0" y1="60" x2="200" y2="60" stroke="#f3f4f6" stroke-width="1"/>
+      <!-- Area -->
+      <path d="M0,65 L25,58 L50,60 L75,45 L100,50 L125,35 L150,30 L175,20 L200,15 L200,80 L0,80 Z" fill="url(#area-grad)"/>
+      <!-- Line -->
+      <path d="M0,65 L25,58 L50,60 L75,45 L100,50 L125,35 L150,30 L175,20 L200,15" fill="none" stroke="#4682B4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Dot on last point -->
+      <circle cx="200" cy="15" r="3" fill="#4682B4"/>
+    </svg>
+  </div>
+
+</div>
+
+<div class="label">Recharts Configuration Standards</div>
+<table>
+  <thead><tr><th>Property</th><th>Value</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Tick font</td><td><code>'IBM Plex Sans'</code>, 11px, #9ca3af</td><td>Match body font — no default sans-serif</td></tr>
+    <tr><td>Grid lines</td><td><code>stroke="#f3f4f6"</code>, strokeDasharray="3 3"</td><td>Subtle, not distracting</td></tr>
+    <tr><td>Tooltip bg</td><td><code>bg: #fff</code>, border: #e5e7eb, shadow: elevation-2</td><td>Match card style</td></tr>
+    <tr><td>Tooltip label</td><td>13px IBM Plex Sans, #111827 bold</td><td>—</td></tr>
+    <tr><td>Bar radius</td><td><code>radius={[3, 3, 0, 0]}</code></td><td>Rounded top only</td></tr>
+    <tr><td>Active bar</td><td><code>fill="#3a6d96"</code> (brand-dark)</td><td>Hover state</td></tr>
+    <tr><td>Currency tick</td><td><code>tickFormatter={formatCompact}</code></td><td>₹1.5L not ₹150000</td></tr>
+    <tr><td>Currency tooltip</td><td><code>formatter={(v) => formatCurrency(v)}</code></td><td>₹1,234.50 in tooltip</td></tr>
+    <tr><td>Animation</td><td><code>animationDuration={300}</code>, ease-out</td><td>Match --duration-slow</td></tr>
+    <tr><td>Responsive</td><td>Always wrap in <code>&lt;ResponsiveContainer width="100%" height={280}&gt;</code></td><td>Never hardcode width</td></tr>
+  </tbody>
+</table>
+</body></html>

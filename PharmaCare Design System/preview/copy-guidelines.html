@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #fff; padding: 16px; font-size: 12px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.section { margin-bottom: 16px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+th { text-align: left; padding: 6px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; line-height: 1.5; }
+td.bad  { color: #b91c1c; text-decoration: line-through; }
+td.good { color: #15803d; font-weight: 500; }
+td.label-col { font-weight: 600; color: #111827; white-space: nowrap; width: 120px; }
+
+.rule-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.rule-title { font-size: 12px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+.rule-body  { font-size: 11px; color: #374151; line-height: 1.6; }
+.rule-body strong { color: #111827; }
+
+.pair { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.pair-bad  { flex: 1; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 8px 10px; font-size: 11px; }
+.pair-good { flex: 1; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 8px 10px; font-size: 11px; }
+.pair-bad::before  { content: '✗ '; color: #b91c1c; font-weight: 700; }
+.pair-good::before { content: '✓ '; color: #15803d; font-weight: 700; }
+
+code { font-family: monospace; font-size: 10px; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head><body>
+
+<div class="section">
+  <div class="label">Voice & Tone</div>
+  <div class="rule-box">
+    <div class="rule-title">Professional, functional, direct. Never playful.</div>
+    <div class="rule-body">
+      PharmaCare is a daily operational tool for pharmacy staff. Copy should be <strong>as short as possible</strong>.
+      Users are completing tasks, not reading. Every word must earn its place.<br><br>
+      <strong>Tone:</strong> Confident, calm, precise. Like a well-trained pharmacist — not a chatbot.<br>
+      <strong>Not:</strong> Cheerful, trendy, emoji-heavy, or vague. Never "Oops!" or "Yikes!" or "Awesome!"<br>
+      <strong>India context:</strong> Rupee (₹), Indian names, GST, Schedule H — assume Indian pharmacy workflow.
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Casing Rules</div>
+  <table>
+    <thead><tr><th>Element</th><th>Case</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td class="label-col">Page titles</td><td>Title Case</td><td>Billing Operations · Inventory Search · Schedule H1 Register</td></tr>
+      <tr><td class="label-col">Nav items</td><td>Title Case</td><td>Dashboard · Billing · Purchases · Sch H1 Register</td></tr>
+      <tr><td class="label-col">Nav group labels</td><td>ALL CAPS</td><td>DAILY OPS · RELATIONSHIPS · REPORTS · COMPLIANCE · ADMIN</td></tr>
+      <tr><td class="label-col">Button labels</td><td>Title Case</td><td>New Bill · Save & Print · Park Bill · Delete Supplier</td></tr>
+      <tr><td class="label-col">Form labels</td><td>Title Case</td><td>Customer Name · Email Address · Payment Method</td></tr>
+      <tr><td class="label-col">Body text / descriptions</td><td>Sentence case</td><td>No bills yet. Create your first bill to get started.</td></tr>
+      <tr><td class="label-col">Error messages</td><td>Sentence case</td><td>Enter a valid email address.</td></tr>
+      <tr><td class="label-col">Toast messages</td><td>Sentence case</td><td>Bill saved successfully. · Failed to load inventory.</td></tr>
+      <tr><td class="label-col">Table headers</td><td>ALL CAPS, tracked</td><td>BILL ID · CUSTOMER · DATE · TOTAL · STATUS</td></tr>
+      <tr><td class="label-col">Badge labels</td><td>Title Case</td><td>Paid · Due · Partial · Credit · Schedule H</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Button Copy</div>
+  <table>
+    <thead><tr><th>Action</th><th>✗ Avoid</th><th>✓ Use</th></tr></thead>
+    <tbody>
+      <tr><td>Create new record</td><td class="bad">Add New Bill, Create New, Click Here</td><td class="good">+ New Bill · + New Supplier · + Add Product</td></tr>
+      <tr><td>Save</td><td class="bad">Submit, OK, Done, Confirm</td><td class="good">Save Changes · Save & Print · Save Bill</td></tr>
+      <tr><td>Delete</td><td class="bad">Remove, Erase, Clear</td><td class="good">Delete · Delete Supplier · Delete Bill</td></tr>
+      <tr><td>Cancel</td><td class="bad">No, Go Back, Exit</td><td class="good">Cancel</td></tr>
+      <tr><td>Navigate back</td><td class="bad">Back, Return, Previous</td><td class="good">← Back · Back to Billing</td></tr>
+      <tr><td>Hold/park</td><td class="bad">Save Draft, Hold, Pause</td><td class="good">Park Bill</td></tr>
+      <tr><td>Export data</td><td class="bad">Download, Get CSV</td><td class="good">Export · Export CSV</td></tr>
+      <tr><td>Sign in</td><td class="bad">Login, Submit, Enter</td><td class="good">Sign In</td></tr>
+      <tr><td>View detail</td><td class="bad">Click to view, Open, See more</td><td class="good">View · View Bill</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Empty States — formula: [what's missing] + [why] + [what to do]</div>
+  <div class="pair">
+    <div class="pair-bad">No data available</div>
+    <div class="pair-good">No bills yet. Create your first bill to get started.</div>
+  </div>
+  <div class="pair">
+    <div class="pair-bad">No results found</div>
+    <div class="pair-good">No bills match "amox". Try a different search term.</div>
+  </div>
+  <div class="pair">
+    <div class="pair-bad">Error occurred</div>
+    <div class="pair-good">Something went wrong. We couldn't load the data. Please try again.</div>
+  </div>
+  <div class="pair">
+    <div class="pair-bad">No suppliers added</div>
+    <div class="pair-good">No suppliers yet. Add your first supplier to start recording purchases.</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Error Messages — specific, not generic</div>
+  <table>
+    <thead><tr><th>Context</th><th>✗ Avoid</th><th>✓ Use</th></tr></thead>
+    <tbody>
+      <tr><td>Login failure</td><td class="bad">Invalid credentials</td><td class="good">Incorrect email or password. Try again.</td></tr>
+      <tr><td>Required field</td><td class="bad">This field is required</td><td class="good">Enter a customer name.</td></tr>
+      <tr><td>Email format</td><td class="bad">Invalid email</td><td class="good">Enter a valid email address.</td></tr>
+      <tr><td>Out of stock</td><td class="bad">Insufficient quantity</td><td class="good">Amoxicillin 500mg — only 8 strips in stock.</td></tr>
+      <tr><td>Save failure</td><td class="bad">Something went wrong</td><td class="good">Failed to save bill. Check your connection and try again.</td></tr>
+      <tr><td>Delete blocked</td><td class="bad">Cannot delete</td><td class="good">Ravi Shankar has 14 bills and cannot be deleted.</td></tr>
+      <tr><td>Schedule H</td><td class="bad">Doctor info required</td><td class="good">This bill contains Schedule H medicines. Enter the prescribing doctor's name.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">Number & Currency Formatting</div>
+  <table>
+    <thead><tr><th>Value</th><th>✗ Avoid</th><th>✓ Use</th><th>Context</th></tr></thead>
+    <tbody>
+      <tr><td>1234.50</td><td class="bad">1234.50 · Rs 1234.5 · INR 1234</td><td class="good">₹1,234.50</td><td>Line items, totals, invoice</td></tr>
+      <tr><td>150000</td><td class="bad">₹150000 · ₹1,50,000 · 1.5L</td><td class="good">₹1.5L</td><td>Metric cards, chart axes</td></tr>
+      <tr><td>10000000</td><td class="bad">₹10,000,000 · ₹100L</td><td class="good">₹1.0Cr</td><td>Total revenue</td></tr>
+      <tr><td>Date</td><td class="bad">2026-04-19 · 19/04/26 · Apr-19</td><td class="good">19 Apr 2026</td><td>All date display</td></tr>
+      <tr><td>Expiry</td><td class="bad">2026-11-30 · 11/26 · Nov-26</td><td class="good">Nov 2026</td><td>Batch expiry display</td></tr>
+      <tr><td>Time</td><td class="bad">10:30:00 · 1030</td><td class="good">10:30 AM</td><td>Audit log, stock movements</td></tr>
+      <tr><td>GST rate</td><td class="bad">0.12 · 12 · GST@12</td><td class="good">12%</td><td>Line items, totals</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="label">What We Never Use</div>
+  <div class="rule-box">
+    <div class="rule-body">
+      <strong>No emoji</strong> anywhere in the interface (status indicators use colored badges, not emoji).<br>
+      <strong>No exclamation marks</strong> in UI copy — "Bill saved!" → "Bill saved".<br>
+      <strong>No "Please"</strong> in form labels or error messages — "Please enter email" → "Enter email".<br>
+      <strong>No passive voice</strong> — "Bill was saved" → "Bill saved".<br>
+      <strong>No abbreviations</strong> without context — "Qty" is fine (standard pharmacy term); "Inv" alone is not.<br>
+      <strong>No lorem ipsum</strong> anywhere in shipping UI — use realistic pharmacy data in demos.<br>
+      <strong>No ellipsis in buttons</strong> — buttons say what they do, not "More...".<br>
+      <strong>"Walk-in"</strong> not "Walk In" or "Walkin" — consistent hyphenation for counter sales.
+    </div>
+  </div>
+</div>
+
+</body></html>

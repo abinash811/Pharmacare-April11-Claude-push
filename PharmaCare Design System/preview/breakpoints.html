@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.cols { display: flex; gap: 12px; margin-bottom: 16px; }
+
+/* Device frames */
+.frame { border-radius: 10px; overflow: hidden; border: 2px solid #e5e7eb; flex-shrink: 0; }
+.frame-label { font-size: 10px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+.frame-sub   { font-size: 9px; color: #9ca3af; }
+
+/* Mini app shell */
+.shell { display: flex; height: 100%; }
+.sidebar-full { background: #1a2332; width: 42px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 6px; }
+.sidebar-collapsed { background: #1a2332; width: 32px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 5px; }
+.nav-dot { width: 12px; height: 12px; border-radius: 3px; background: rgba(255,255,255,0.15); }
+.nav-dot.active { background: rgba(70,130,180,0.6); }
+.content { flex: 1; background: #f8f9fa; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.topbar { background: #1a2332; height: 14px; display: flex; align-items: center; padding: 0 6px; gap: 4px; }
+.hamburger { width: 10px; height: 8px; display: flex; flex-direction: column; gap: 2px; }
+.hamburger span { height: 1.5px; background: #9ca3af; border-radius: 1px; }
+.card-row { display: flex; gap: 3px; }
+.mini-card { flex: 1; height: 18px; background: #fff; border-radius: 3px; border: 1px solid #e5e7eb; }
+.mini-table { background: #fff; border-radius: 3px; border: 1px solid #e5e7eb; flex: 1; padding: 3px; }
+.mini-row { height: 7px; border-bottom: 1px solid #f3f4f6; }
+.mini-row.header { background: #f9fafb; }
+.overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); }
+
+/* Breakpoint table */
+.bp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bp-table th { text-align: left; padding: 7px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 2px solid #e5e7eb; }
+.bp-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; line-height: 1.5; }
+.bp-table tr:last-child td { border-bottom: none; }
+.bp-table td:first-child { font-weight: 600; color: #111827; font-family: monospace; white-space: nowrap; }
+.tag { display: inline-block; padding: 1px 7px; border-radius: 9999px; font-size: 10px; font-weight: 500; margin-right: 4px; }
+.tag-web  { background: #dbeafe; color: #1d4ed8; }
+.tag-ipad { background: #f0fdf4; color: #15803d; }
+.tag-no   { background: #f3f4f6; color: #9ca3af; }
+</style>
+</head><body>
+
+<div class="section-label">Target Surfaces — Web & iPad only (no mobile)</div>
+<div class="cols">
+
+  <!-- Desktop Web -->
+  <div>
+    <div class="frame-label">Desktop Web <span class="frame-sub">≥ 1024px · md breakpoint</span></div>
+    <div class="frame" style="width:220px; height:130px;">
+      <div class="shell">
+        <div class="sidebar-full">
+          <div style="width:14px;height:14px;background:#4682B4;border-radius:3px;margin-bottom:4px;"></div>
+          <div class="nav-dot active"></div>
+          <div class="nav-dot"></div>
+          <div class="nav-dot"></div>
+          <div class="nav-dot"></div>
+          <div class="nav-dot"></div>
+        </div>
+        <div class="content">
+          <div class="card-row">
+            <div class="mini-card"></div>
+            <div class="mini-card"></div>
+            <div class="mini-card"></div>
+            <div class="mini-card"></div>
+          </div>
+          <div class="card-row" style="gap:3px;">
+            <div class="mini-card" style="height:30px;"></div>
+            <div class="mini-card" style="height:30px;"></div>
+          </div>
+          <div class="mini-table" style="flex:1;">
+            <div class="mini-row header"></div>
+            <div class="mini-row"></div>
+            <div class="mini-row"></div>
+            <div class="mini-row"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:#6b7280;line-height:1.6;">
+      ✓ Persistent sidebar (200px)<br>
+      ✓ Full data table columns<br>
+      ✓ Hover states active<br>
+      ✓ Dense compact/comfortable layout
+    </div>
+  </div>
+
+  <!-- iPad -->
+  <div>
+    <div class="frame-label">iPad <span class="frame-sub">768px – 1023px · sm breakpoint</span></div>
+    <div class="frame" style="width:160px; height:130px; position:relative;">
+      <div style="background:#1a2332; height:18px;" class="topbar">
+        <div class="hamburger"><span></span><span></span><span></span></div>
+        <div style="width:8px;height:8px;background:#4682B4;border-radius:2px;margin-left:4px;"></div>
+        <div style="font-size:7px;color:#fff;margin-left:2px;font-weight:600;">PharmaCare</div>
+      </div>
+      <div class="content" style="height:calc(100% - 18px);">
+        <div class="card-row">
+          <div class="mini-card"></div>
+          <div class="mini-card"></div>
+        </div>
+        <div class="card-row">
+          <div class="mini-card" style="height:28px;"></div>
+          <div class="mini-card" style="height:28px;"></div>
+        </div>
+        <div class="mini-table" style="flex:1;">
+          <div class="mini-row header"></div>
+          <div class="mini-row" style="height:9px;"></div>
+          <div class="mini-row" style="height:9px;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:#6b7280;line-height:1.6;">
+      ✓ Sidebar collapses → overlay drawer<br>
+      ✓ Hamburger menu in top bar<br>
+      ✓ Min tap target 44px<br>
+      ✗ Hover states disabled<br>
+      ✓ 2-col metric grid (not 4-col)
+    </div>
+  </div>
+
+  <!-- Breakpoint table -->
+  <div style="flex:1;">
+    <div class="frame-label">Breakpoint Rules</div>
+    <table class="bp-table">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th><span class="tag tag-web">Web</span></th>
+          <th><span class="tag tag-ipad">iPad</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Min width</td><td>≥ 1024px</td><td>768–1023px</td></tr>
+        <tr><td>Sidebar</td><td>Persistent, 200px fixed</td><td>Hidden; overlay on tap</td></tr>
+        <tr><td>Nav trigger</td><td>—</td><td>Hamburger in top bar</td></tr>
+        <tr><td>Metric grid</td><td>4 columns</td><td>2 columns</td></tr>
+        <tr><td>Data table</td><td>All columns visible</td><td>Hide low-priority cols</td></tr>
+        <tr><td>Touch targets</td><td>36px min (h-9)</td><td>44px min</td></tr>
+        <tr><td>Hover states</td><td>Active</td><td>Disabled</td></tr>
+        <tr><td>Tailwind class</td><td><code>md:</code> prefix</td><td>base (no prefix)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body></html>

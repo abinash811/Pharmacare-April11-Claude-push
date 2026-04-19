@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: #f8f9fa; padding: 16px; }
+.label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 10px; }
+.col { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 12px 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  max-width: 360px; position: relative; overflow: hidden;
+}
+/* Left accent bar */
+.toast::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--accent);
+}
+.toast-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; color: #111827; line-height: 1.3; }
+.toast-desc  { font-size: 11px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
+.toast-action { font-size: 11px; font-weight: 600; color: #4682B4; margin-top: 6px; cursor: pointer; }
+.toast-close {
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer; color: #9ca3af; border-radius: 4px; flex-shrink: 0;
+}
+.toast-close:hover { background: #f3f4f6; color: #374151; }
+
+/* Variants */
+.toast-success { --accent: #16a34a; }
+.toast-success .toast-icon { background: #f0fdf4; }
+
+.toast-error { --accent: #dc2626; }
+.toast-error .toast-icon { background: #fef2f2; }
+
+.toast-warning { --accent: #d97706; }
+.toast-warning .toast-icon { background: #fffbeb; }
+
+.toast-info { --accent: #4682B4; }
+.toast-info .toast-icon { background: #eff6ff; }
+
+/* Usage table */
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th { text-align: left; padding: 6px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; border-bottom: 1px solid #e5e7eb; }
+td { padding: 8px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+td:first-child { font-family: monospace; font-size: 11px; color: #4682B4; font-weight: 600; }
+code { font-family: monospace; font-size: 10px; background: #f3f4f6; padding: 1px 5px; border-radius: 3px; }
+</style>
+</head><body>
+
+<div class="label">Toast Types — Sonner (position: top-right, richColors)</div>
+<div class="col">
+
+  <div class="toast toast-success">
+    <div class="toast-icon">
+      <svg width="12" height="12" fill="none" stroke="#16a34a" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="toast-body">
+      <div class="toast-title">Bill saved successfully</div>
+      <div class="toast-desc">BL-1042 · ₹1,240.00 · Ravi Shankar</div>
+      <div class="toast-action">View Bill →</div>
+    </div>
+    <button class="toast-close">✕</button>
+  </div>
+
+  <div class="toast toast-error">
+    <div class="toast-icon">
+      <svg width="12" height="12" fill="none" stroke="#dc2626" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <div class="toast-body">
+      <div class="toast-title">Failed to save bill</div>
+      <div class="toast-desc">Network error — please check your connection and try again.</div>
+    </div>
+    <button class="toast-close">✕</button>
+  </div>
+
+  <div class="toast toast-warning">
+    <div class="toast-icon">
+      <svg width="12" height="12" fill="none" stroke="#d97706" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div class="toast-body">
+      <div class="toast-title">Amoxicillin — out of stock</div>
+      <div class="toast-desc">This item cannot be added. Update stock in Inventory.</div>
+    </div>
+    <button class="toast-close">✕</button>
+  </div>
+
+  <div class="toast toast-info">
+    <div class="toast-icon">
+      <svg width="12" height="12" fill="none" stroke="#4682B4" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+    </div>
+    <div class="toast-body">
+      <div class="toast-title">Bill held — Draft #4821</div>
+      <div class="toast-desc">You can resume this bill from the Billing page.</div>
+    </div>
+    <button class="toast-close">✕</button>
+  </div>
+
+</div>
+
+<div class="label">Usage Rules</div>
+<table>
+  <thead><tr><th>Call</th><th>When to use</th><th>Auto-dismiss</th></tr></thead>
+  <tbody>
+    <tr><td>toast.success()</td><td>Successful save, create, or delete</td><td>4s</td></tr>
+    <tr><td>toast.error()</td><td>API failure, validation error, network issue</td><td>Stays until dismissed</td></tr>
+    <tr><td>toast.warning()</td><td>Out of stock, near expiry, partial action</td><td>6s</td></tr>
+    <tr><td>toast.info()</td><td>Neutral confirmation — bill parked, draft saved</td><td>4s</td></tr>
+    <tr><td>toast.loading()</td><td>Long async — e.g. bulk CSV import</td><td>Manual dismiss</td></tr>
+  </tbody>
+</table>
+</body></html>

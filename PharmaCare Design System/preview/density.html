@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { margin: 0; padding: 16px; background: #fff; font-family: var(--font-sans); }
+.section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 8px; }
+.cols { display: flex; gap: 12px; }
+.col { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+.col-head { padding: 8px 12px; font-size: 11px; font-weight: 700; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.badge-compact  { background: #f3f4f6; color: #374151; font-size: 9px; padding: 1px 6px; border-radius: 9999px; font-weight: 500; }
+.badge-comfortable { background: #dbeafe; color: #1d4ed8; font-size: 9px; padding: 1px 6px; border-radius: 9999px; font-weight: 500; }
+.badge-spacious { background: #dcfce7; color: #15803d; font-size: 9px; padding: 1px 6px; border-radius: 9999px; font-weight: 500; }
+
+/* Compact */
+.c .nav-item { height: 28px; font-size: 12px; padding: 0 10px; display: flex; align-items: center; gap: 6px; color: #d1d5db; }
+.c .nav-item.active { background: rgba(37,99,235,0.20); color: #fff; border-radius: 6px; }
+.c .table-row { height: 32px; font-size: 12px; padding: 0 10px; display: flex; align-items: center; border-bottom: 1px solid #f3f4f6; color: #374151; gap: 8px; }
+.c .card-pad  { padding: 10px 12px; }
+.c .btn       { padding: 3px 10px; font-size: 11px; }
+
+/* Comfortable */
+.f .nav-item { height: 36px; font-size: 13px; padding: 0 12px; display: flex; align-items: center; gap: 8px; color: #d1d5db; }
+.f .nav-item.active { background: rgba(37,99,235,0.20); color: #fff; border-radius: 8px; }
+.f .table-row { height: 44px; font-size: 13px; padding: 0 12px; display: flex; align-items: center; border-bottom: 1px solid #f3f4f6; color: #374151; gap: 10px; }
+.f .card-pad  { padding: 14px 16px; }
+.f .btn       { padding: 5px 14px; font-size: 13px; }
+
+/* Spacious */
+.s .nav-item { height: 44px; font-size: 14px; padding: 0 14px; display: flex; align-items: center; gap: 10px; color: #d1d5db; }
+.s .nav-item.active { background: rgba(37,99,235,0.20); color: #fff; border-radius: 8px; }
+.s .table-row { height: 56px; font-size: 14px; padding: 0 14px; display: flex; align-items: center; border-bottom: 1px solid #f3f4f6; color: #374151; gap: 12px; }
+.s .card-pad  { padding: 20px 24px; }
+.s .btn       { padding: 8px 18px; font-size: 14px; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.btn-demo { border-radius: 6px; background: #4682B4; color: #fff; border: none; cursor: pointer; font-family: var(--font-sans); font-weight: 600; }
+.sidebar-demo { background: #1a2332; border-radius: 6px; margin-bottom: 8px; }
+.meta-row { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding: 0 12px 10px; }
+.meta { font-size: 9px; color: #9ca3af; font-family: monospace; }
+</style>
+</head><body>
+<div class="section-label">Data-density attribute on &lt;body&gt; — set via user preference</div>
+<div class="cols">
+  <!-- Compact -->
+  <div class="col c">
+    <div class="col-head">Compact <span class="badge-compact">data-density="compact"</span></div>
+    <div class="sidebar-demo c" style="margin:8px;">
+      <div class="nav-item active"><div class="dot" style="color:#fff"></div> Dashboard</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Billing</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Inventory</div>
+    </div>
+    <div class="table-row"><strong>BL-1042</strong><span style="color:#6b7280">Ravi Shankar</span><span style="margin-left:auto">₹1,240</span></div>
+    <div class="table-row"><strong>BL-1041</strong><span style="color:#6b7280">Meera Nair</span><span style="margin-left:auto">₹680</span></div>
+    <div class="card-pad" style="border-top:1px solid #f3f4f6;">
+      <button class="btn-demo btn">Save Bill</button>
+    </div>
+    <div class="meta-row">
+      <div class="meta">--nav-h-compact: 28px</div>
+      <div class="meta">--row-h-compact: 32px</div>
+      <div class="meta">--card-p-compact: 10px 12px</div>
+      <div class="meta">--fs-compact: 12px</div>
+    </div>
+  </div>
+
+  <!-- Comfortable (default) -->
+  <div class="col f" style="border-color:#4682B4; border-width:2px;">
+    <div class="col-head" style="background:#f0f7ff;">Comfortable <span class="badge-comfortable">default · current codebase</span></div>
+    <div class="sidebar-demo f" style="margin:8px;">
+      <div class="nav-item active"><div class="dot" style="color:#fff"></div> Dashboard</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Billing</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Inventory</div>
+    </div>
+    <div class="table-row"><strong>BL-1042</strong><span style="color:#6b7280">Ravi Shankar</span><span style="margin-left:auto">₹1,240</span></div>
+    <div class="table-row"><strong>BL-1041</strong><span style="color:#6b7280">Meera Nair</span><span style="margin-left:auto">₹680</span></div>
+    <div class="card-pad" style="border-top:1px solid #f3f4f6;">
+      <button class="btn-demo btn">Save Bill</button>
+    </div>
+    <div class="meta-row">
+      <div class="meta">--nav-h-comfortable: 36px</div>
+      <div class="meta">--row-h-comfortable: 44px</div>
+      <div class="meta">--card-p-comfortable: 14px 16px</div>
+      <div class="meta">--fs-comfortable: 14px</div>
+    </div>
+  </div>
+
+  <!-- Spacious -->
+  <div class="col s">
+    <div class="col-head">Spacious <span class="badge-spacious">data-density="spacious"</span></div>
+    <div class="sidebar-demo s" style="margin:8px;">
+      <div class="nav-item active"><div class="dot" style="color:#fff"></div> Dashboard</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Billing</div>
+      <div class="nav-item"><div class="dot" style="color:#9ca3af"></div> Inventory</div>
+    </div>
+    <div class="table-row"><strong>BL-1042</strong><span style="color:#6b7280">Ravi Shankar</span><span style="margin-left:auto">₹1,240</span></div>
+    <div class="table-row"><strong>BL-1041</strong><span style="color:#6b7280">Meera Nair</span><span style="margin-left:auto">₹680</span></div>
+    <div class="card-pad" style="border-top:1px solid #f3f4f6;">
+      <button class="btn-demo btn">Save Bill</button>
+    </div>
+    <div class="meta-row">
+      <div class="meta">--nav-h-spacious: 44px</div>
+      <div class="meta">--row-h-spacious: 56px</div>
+      <div class="meta">--card-p-spacious: 20px 24px</div>
+      <div class="meta">--fs-spacious: 15px</div>
+    </div>
+  </div>
+</div>
+</body></html>

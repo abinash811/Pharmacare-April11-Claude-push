@@ -1,0 +1,54 @@
+# Dependabot — automated dependency updates
+# Raises PRs weekly for outdated packages in all three ecosystems.
+# PRs are raised against develop (not main) so they go through staging first.
+
+version: 2
+
+updates:
+
+  # ── Frontend (npm) ──────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    groups:
+      radix-ui:
+        patterns: ["@radix-ui/*"]
+      testing:
+        patterns: ["@testing-library/*", "@playwright/*"]
+      linting:
+        patterns: ["eslint*", "prettier"]
+    ignore:
+      # Pin react-scripts — major upgrades need manual testing
+      - dependency-name: "react-scripts"
+        update-types: ["version-update:semver-major"]
+
+  # ── Backend (pip) ───────────────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kolkata"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    ignore:
+      # Pin SQLAlchemy and Alembic — migrations are sensitive to version changes
+      - dependency-name: "SQLAlchemy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "alembic"
+        update-types: ["version-update:semver-major"]
+
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    target-branch: "develop"
+    open-pull-requests-limit: 3

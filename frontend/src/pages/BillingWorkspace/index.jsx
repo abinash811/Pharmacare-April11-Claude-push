@@ -214,7 +214,7 @@ export default function BillingWorkspace() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50" style={{ fontFamily: 'Manrope, sans-serif' }}>
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <BillingHeader
         viewMode={viewMode} loadedBill={loadedBill} draftNumber={draftNumber}
         isSaving={isSaving}

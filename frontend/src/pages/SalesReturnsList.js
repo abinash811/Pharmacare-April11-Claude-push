@@ -3,21 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, SalesReturnsEmptyState, PaginationBar,
+  FilterPills, AppButton,
 } from '../components/shared';
-
-const BILLING_TABS = [
-  { key: 'bills',   label: 'Bills'         },
-  { key: 'returns', label: 'Sales Returns' },
-];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
+
+const BILLING_TABS = [
+  { key: 'bills',   label: 'Bills'         },
+  { key: 'returns', label: 'Sales Returns' },
+];
 
 export default function SalesReturnsList() {
   const navigate = useNavigate();
@@ -103,19 +103,14 @@ export default function SalesReturnsList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6" data-testid="sales-returns-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="sales-returns-page">
       <PageHeader
         title="Billing"
-        subtitle={
-          stats.returnsToday > 0
-            ? `Today -₹${(stats.totalRefundedToday || 0).toFixed(2)} · ${stats.returnsToday} returns`
-            : pg.totalItems > 0 ? `${pg.totalItems} returns total` : undefined
-        }
         actions={
-          <Button onClick={handleNewReturn} data-testid="new-return-btn">
+          <AppButton onClick={handleNewReturn} data-testid="new-return-btn">
             <Plus className="w-4 h-4 mr-2" />
             New Return
-          </Button>
+          </AppButton>
         }
       />
       <PageTabs
@@ -136,23 +131,16 @@ export default function SalesReturnsList() {
 
           <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-          <div className="flex items-center gap-1">
-            {['all', 'cash', 'upi', 'credit_to_account'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  activeFilter === f
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {f === 'all' ? 'All'
-                  : f === 'credit_to_account' ? 'Credit'
-                  : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
+          <FilterPills
+            options={[
+              { key: 'all',               label: 'All'    },
+              { key: 'cash',              label: 'Cash'   },
+              { key: 'upi',               label: 'UPI'    },
+              { key: 'credit_to_account', label: 'Credit' },
+            ]}
+            active={activeFilter}
+            onChange={setActiveFilter}
+          />
         </div>
       </div>
 
@@ -186,10 +174,10 @@ export default function SalesReturnsList() {
                     <SalesReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <Button onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
+                        <AppButton onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
                           <Plus className="w-4 h-4 mr-2" />
                           New Sales Return
-                        </Button>
+                        </AppButton>
                       }
                     />
                   </td>
@@ -240,22 +228,22 @@ export default function SalesReturnsList() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
+                        <AppButton
                           variant="ghost"
-                          size="sm"
+                          iconOnly
+                          icon={<Eye className="w-4 h-4 text-blue-600" />}
+                          aria-label="View"
                           className="p-1.5 h-auto hover:bg-blue-50"
                           onClick={(e) => { e.stopPropagation(); navigate(`/billing/returns/${item.id}`); }}
-                        >
-                          <Eye className="w-4 h-4 text-blue-600" />
-                        </Button>
-                        <Button
+                        />
+                        <AppButton
                           variant="ghost"
-                          size="sm"
+                          iconOnly
+                          icon={<Printer className="w-4 h-4 text-gray-600" />}
+                          aria-label="Print"
                           className="p-1.5 h-auto hover:bg-gray-100"
                           onClick={(e) => { e.stopPropagation(); toast.info('Print functionality coming soon'); }}
-                        >
-                          <Printer className="w-4 h-4 text-gray-600" />
-                        </Button>
+                        />
                       </div>
                     </td>
                   </tr>

@@ -9,25 +9,25 @@
  */
 import React from 'react';
 import { AlertCircle, AlertTriangle, FileText } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppButton } from '@/components/shared';
 
 export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quickStats, onNavigate }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       {/* Low Stock */}
-      <Card data-testid="low-stock-alert">
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="low-stock-alert">
+        <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-orange-500" />
-              <CardTitle className="text-base font-semibold">Low Stock</CardTitle>
+              <p className="text-base font-semibold text-gray-900">Low Stock</p>
             </div>
             <span className="text-xs bg-orange-50 text-orange-600 px-2 py-1 rounded-full font-medium">
               {quickStats?.low_stock_count || 0} items
             </span>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {lowStock && lowStock.length > 0 ? (
             <div className="space-y-2">
               {lowStock.map((item, idx) => (
@@ -39,31 +39,28 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
                   <span className="font-bold text-orange-600">{item.qty} left</span>
                 </div>
               ))}
-              <button onClick={() => onNavigate('/inventory-v2')}
-                className="w-full text-center text-sm text-orange-600 hover:text-orange-700 font-medium mt-2">
-                View All →
-              </button>
+              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory-v2')}>View All</AppButton>
             </div>
           ) : (
             <p className="text-center text-gray-400 py-4 text-sm">All stock levels healthy</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Expiring Soon */}
-      <Card data-testid="expiring-soon-alert">
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="expiring-soon-alert">
+        <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-500" />
-              <CardTitle className="text-base font-semibold">Expiring Soon</CardTitle>
+              <p className="text-base font-semibold text-gray-900">Expiring Soon</p>
             </div>
             <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full font-medium">
               {quickStats?.expiring_count || 0} items
             </span>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {expiringSoon && expiringSoon.length > 0 ? (
             <div className="space-y-2">
               {expiringSoon.map((item, idx) => (
@@ -75,26 +72,23 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
                   <span className="text-xs font-semibold text-red-600">{item.expiry_date}</span>
                 </div>
               ))}
-              <button onClick={() => onNavigate('/inventory-v2')}
-                className="w-full text-center text-sm text-red-600 hover:text-red-700 font-medium mt-2">
-                View All →
-              </button>
+              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory-v2')}>View All</AppButton>
             </div>
           ) : (
             <p className="text-center text-gray-400 py-4 text-sm">No items expiring soon</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Recent Bills */}
-      <Card data-testid="recent-bills-card">
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="recent-bills-card">
+        <div className="px-6 pt-6 pb-2">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-500" />
-            <CardTitle className="text-base font-semibold">Recent Bills</CardTitle>
+            <p className="text-base font-semibold text-gray-900">Recent Bills</p>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {recentBills && recentBills.length > 0 ? (
             <div className="space-y-2">
               {recentBills.map((bill, idx) => (
@@ -113,16 +107,13 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
                   </div>
                 </div>
               ))}
-              <button onClick={() => onNavigate('/billing')}
-                className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium mt-2">
-                View All →
-              </button>
+              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/billing')}>View All</AppButton>
             </div>
           ) : (
             <p className="text-center text-gray-400 py-4 text-sm">No recent bills</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

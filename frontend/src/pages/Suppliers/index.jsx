@@ -4,8 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { PageHeader, SearchInput, DateRangePicker, PaginationBar } from '@/components/shared';
+import { PageHeader, SearchInput, DateRangePicker, PaginationBar, FilterPills, AppButton } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -15,7 +14,12 @@ import SupplierDetailPanel       from './components/SupplierDetailPanel';
 import SupplierFormModal         from './components/SupplierFormModal';
 import SupplierPaymentModal      from './components/SupplierPaymentModal';
 
-const FILTERS = ['all', 'active', 'inactive', 'outstanding'];
+const FILTERS = [
+  { key: 'all',         label: 'All'         },
+  { key: 'active',      label: 'Active'      },
+  { key: 'inactive',    label: 'Inactive'    },
+  { key: 'outstanding', label: 'Outstanding' },
+];
 
 export default function Suppliers() {
   const { suppliers, loading, fetchSuppliers, saveSupplier, recordPayment, fetchPurchaseHistory } = useSuppliers();
@@ -85,15 +89,14 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="px-8 py-6" data-testid="suppliers-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="suppliers-page">
       <PageHeader
         title="Suppliers"
-        subtitle={`${suppliers.length} suppliers · ${suppliers.filter(s => (s.outstanding || 0) > 0).length} with outstanding`}
         actions={
-          <Button onClick={handleAdd} data-testid="add-supplier-btn">
+          <AppButton onClick={handleAdd} data-testid="add-supplier-btn">
             <Plus className="w-4 h-4 mr-2" />
             Add Supplier
-          </Button>
+          </AppButton>
         }
       />
 
@@ -101,15 +104,7 @@ export default function Suppliers() {
       <div className="flex items-center gap-4 mb-4">
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Name, phone, GSTIN..." className="w-64" />
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-        <div className="flex items-center gap-1">
-          {FILTERS.map(f => (
-            <button key={f} onClick={() => setActiveFilter(f)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${activeFilter === f ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              data-testid={`filter-${f}`}>
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
+        <FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
       </div>
 
       {/* Split view */}

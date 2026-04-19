@@ -104,11 +104,6 @@ export default function MedicineDetail() {
         )}
       </div>
 
-      {/* Floating help */}
-      <button className="fixed bottom-6 right-6 w-12 h-12 bg-brand text-white rounded-full shadow-lg hover:bg-brand-dark transition-colors flex items-center justify-center">
-        <span className="text-xl font-bold">?</span>
-      </button>
-
       {showEditModal && product && (
         <MedicineEditModal
           product={product}

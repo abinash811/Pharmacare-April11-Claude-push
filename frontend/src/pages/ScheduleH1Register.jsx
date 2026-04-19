@@ -8,10 +8,9 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Printer, Download, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   PageHeader, DataCard, DateRangePicker,
-  SearchInput, TableSkeleton, PaginationBar,
+  SearchInput, TableSkeleton, PaginationBar, AppButton,
 } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -114,24 +113,19 @@ export default function ScheduleH1Register() {
   }
 
   return (
-    <div className="px-8 py-6 print:p-0 print:bg-white" data-testid="schedule-h1-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB] print:p-0 print:bg-white" data-testid="schedule-h1-page">
       <PageHeader
         title="Schedule H1 Drug Register"
-        subtitle={
-          total > 0
-            ? `${filtered.length} of ${total} entries${period.from_date ? ` · ${period.from_date} to ${period.to_date || 'today'}` : ''}`
-            : 'Dispensed Schedule H1 / H drugs'
-        }
         actions={
           <div className="flex gap-2 print:hidden">
-            <Button variant="outline" onClick={handleExportCSV} disabled={filtered.length === 0}>
+            <AppButton variant="outline" onClick={handleExportCSV} disabled={filtered.length === 0}>
               <Download className="w-4 h-4 mr-2" />
               Export CSV
-            </Button>
-            <Button variant="outline" onClick={handlePrint} disabled={filtered.length === 0}>
+            </AppButton>
+            <AppButton variant="outline" onClick={handlePrint} disabled={filtered.length === 0}>
               <Printer className="w-4 h-4 mr-2" />
               Print
-            </Button>
+            </AppButton>
           </div>
         }
       />
@@ -155,12 +149,13 @@ export default function ScheduleH1Register() {
         />
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
         {(dateRange.start || dateRange.end) && (
-          <button
+          <AppButton
+            variant="ghost"
+            size="sm"
             onClick={() => setDateRange({ start: null, end: null })}
-            className="text-xs text-blue-600 hover:underline"
           >
-            Clear dates
-          </button>
+            Clear
+          </AppButton>
         )}
       </div>
 

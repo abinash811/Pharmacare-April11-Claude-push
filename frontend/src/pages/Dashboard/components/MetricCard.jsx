@@ -11,7 +11,6 @@
  */
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 
 const COLOR_CLASSES = {
   green:  'bg-green-50 text-green-600',
@@ -24,8 +23,8 @@ export default function MetricCard({ title, value, change, icon, color, subtitle
   const isPositive = change >= 0;
 
   return (
-    <Card className="hover:shadow-md transition-shadow" data-testid={testId}>
-      <CardContent className="p-4">
+    <div className="bg-white rounded-xl border border-gray-200 hover:shadow-md transition-shadow" data-testid={testId}>
+      <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <span className={`p-2 rounded-lg ${COLOR_CLASSES[color]}`}>
             {icon}
@@ -41,7 +40,7 @@ export default function MetricCard({ title, value, change, icon, color, subtitle
           <p className="text-2xl font-bold text-gray-800">{value}</p>
           <p className="text-xs text-gray-500 mt-1">{title} <span className="text-gray-400">• {subtitle}</span></p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

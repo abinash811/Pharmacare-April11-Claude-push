@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/shared';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -112,7 +112,7 @@ export default function CustomerDetailDialog({ open, customer, onClose }) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={onClose}>Close</Button>
+            <AppButton variant="outline" onClick={onClose}>Close</AppButton>
           </DialogFooter>
         </div>
       </DialogContent>

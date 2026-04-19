@@ -360,26 +360,27 @@ Row of filters above a table. Consistent pattern:
 
 ### 3.4 Pill Type Selector
 
-Used for switching between report types, view modes. Not tabs (no underline).
+Used for switching between filter states or view modes. Not tabs (no underline).
+
+**Always use the shared `<FilterPills>` component. Never inline this pattern.**
 
 ```jsx
-// Active pill: dark, filled. Inactive: light gray.
-{REPORT_TYPES.map(type => (
-  <button
-    key={type.id}
-    onClick={() => setActiveType(type.id)}
-    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-      activeType === type.id
-        ? 'bg-gray-900 text-white'
-        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-    }`}
-  >
-    {type.label}
-  </button>
-))}
+import { FilterPills } from '@/components/shared';
+
+const FILTERS = [
+  { key: 'all',    label: 'All'    },
+  { key: 'cash',   label: 'Cash'   },
+  { key: 'credit', label: 'Credit' },
+];
+
+<FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
 ```
 
-**Do not use AppButton for pill selectors** — pills are toggle controls, not action buttons.
+**Rules:**
+- Active pill: `bg-gray-900 text-white` — handled automatically by the component
+- Inactive pill: `bg-gray-100 text-gray-600` — handled automatically
+- Do NOT use `AppButton` for pill selectors — pills are toggle controls, not action buttons
+- Do NOT inline the pill `.map()` pattern — it causes visual drift across pages (this already happened)
 
 ---
 

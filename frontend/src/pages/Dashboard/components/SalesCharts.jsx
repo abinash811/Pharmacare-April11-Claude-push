@@ -5,7 +5,6 @@
  *   categorySales {Array}
  */
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AreaChart, Area,
   PieChart, Pie, Cell, Legend,
@@ -19,12 +18,12 @@ export default function SalesCharts({ dailyTrend, categorySales }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       {/* Sales Trend */}
-      <Card className="lg:col-span-2" data-testid="sales-trend-chart">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Sales Trend</CardTitle>
-          <CardDescription>Last 14 days performance</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl border border-gray-200 lg:col-span-2" data-testid="sales-trend-chart">
+        <div className="px-6 pt-6 pb-2">
+          <p className="text-base font-semibold text-gray-900">Sales Trend</p>
+          <p className="text-sm text-gray-500">Last 14 days performance</p>
+        </div>
+        <div className="p-4">
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -50,16 +49,16 @@ export default function SalesCharts({ dailyTrend, categorySales }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Category Pie */}
-      <Card data-testid="category-chart">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">Sales by Category</CardTitle>
-          <CardDescription>Revenue distribution</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="category-chart">
+        <div className="px-6 pt-6 pb-2">
+          <p className="text-base font-semibold text-gray-900">Sales by Category</p>
+          <p className="text-sm text-gray-500">Revenue distribution</p>
+        </div>
+        <div className="p-4">
           <div className="h-64">
             {categorySales && categorySales.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -91,8 +90,8 @@ export default function SalesCharts({ dailyTrend, categorySales }) {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

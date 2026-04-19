@@ -2,21 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, PurchaseReturnsEmptyState, PaginationBar,
+  FilterPills, AppButton,
 } from '../components/shared';
-
-const PURCHASES_TABS = [
-  { key: 'purchases', label: 'Purchases'        },
-  { key: 'returns',   label: 'Purchase Returns' },
-];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
+
+const PURCHASES_TABS = [
+  { key: 'purchases', label: 'Purchases'        },
+  { key: 'returns',   label: 'Purchase Returns' },
+];
 
 export default function PurchaseReturnsList() {
   const navigate = useNavigate();
@@ -79,12 +79,11 @@ export default function PurchaseReturnsList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6" data-testid="purchase-returns-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="purchase-returns-page">
       <PageHeader
         title="Purchases"
-        subtitle={filtered.length > 0 ? `${filtered.length} returns` : undefined}
         actions={
-          <Button
+          <AppButton
             onClick={() =>
               toast.info(
                 'Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return'
@@ -94,7 +93,7 @@ export default function PurchaseReturnsList() {
           >
             <Plus className="w-4 h-4 mr-2" />
             Purchase Return
-          </Button>
+          </AppButton>
         }
       />
       <PageTabs
@@ -115,22 +114,16 @@ export default function PurchaseReturnsList() {
 
           <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-          <div className="flex items-center gap-1">
-            {['all', 'credit', 'cash', 'upi'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                  activeFilter === f
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-                data-testid={`filter-${f}`}
-              >
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
+          <FilterPills
+            options={[
+              { key: 'all',    label: 'All'    },
+              { key: 'credit', label: 'Credit' },
+              { key: 'cash',   label: 'Cash'   },
+              { key: 'upi',    label: 'UPI'    },
+            ]}
+            active={activeFilter}
+            onChange={setActiveFilter}
+          />
         </div>
       </div>
 
@@ -163,10 +156,10 @@ export default function PurchaseReturnsList() {
                     <PurchaseReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <Button onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
+                        <AppButton onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
                           <Plus className="w-4 h-4 mr-2" />
                           New Purchase Return
-                        </Button>
+                        </AppButton>
                       }
                     />
                   </td>
@@ -216,22 +209,22 @@ export default function PurchaseReturnsList() {
 
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
+                        <AppButton
                           variant="ghost"
-                          size="sm"
+                          iconOnly
+                          icon={<Eye className="w-4 h-4 text-blue-600" />}
+                          aria-label="View"
                           className="p-1.5 h-auto hover:bg-blue-50"
                           onClick={(e) => { e.stopPropagation(); navigate(`/purchases/returns/${ret.id}`); }}
-                        >
-                          <Eye className="w-4 h-4 text-blue-600" />
-                        </Button>
-                        <Button
+                        />
+                        <AppButton
                           variant="ghost"
-                          size="sm"
+                          iconOnly
+                          icon={<Printer className="w-4 h-4 text-gray-600" />}
+                          aria-label="Print"
                           className="p-1.5 h-auto hover:bg-gray-100"
                           onClick={(e) => { e.stopPropagation(); toast.info(`Printing return #${ret.return_number}...`); }}
-                        >
-                          <Printer className="w-4 h-4 text-gray-600" />
-                        </Button>
+                        />
                       </div>
                     </td>
                   </tr>

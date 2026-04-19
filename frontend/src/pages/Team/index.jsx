@@ -30,7 +30,7 @@ export default function Team() {
 
   return (
     <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
-      <PageHeader title="Team" subtitle="Manage team members and their roles" />
+      <PageHeader title="Team" />
       <PageTabs tabs={TEAM_TABS} activeTab={activeTab} onChange={setActiveTab} />
 
       <div className={activeTab !== 'members' ? 'hidden' : ''}>

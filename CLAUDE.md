@@ -83,8 +83,12 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 - [ ] Zero raw `<button>` tags
 - [ ] Zero hardcoded hex in className
 - [ ] Zero `hover:bg-[#...]` patterns
-- [ ] Every page uses `<PageHeader>`
+- [ ] Every page uses `<PageHeader>` — no inline `<h1>`, no subtitle
 - [ ] Every multi-view page uses `<PageTabs>`
+- [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-[#F8FAFB]` — never `flex flex-col h-full`
+- [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else
+- [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared
+- [ ] Zero `import` statements after `const` declarations
 
 ### What's next (build in this order)
 1. Sheets (Shadcn `<Sheet side="right">` 480px) — replace all centered modals

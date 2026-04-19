@@ -10,8 +10,7 @@
  */
 import React from 'react';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DataCard, TableSkeleton, SuppliersEmptyState } from '@/components/shared';
+import { DataCard, TableSkeleton, SuppliersEmptyState, AppButton } from '@/components/shared';
 
 export default function SuppliersList({ suppliers, selectedId, loading, searchQuery, onRowClick, onAdd }) {
   return (
@@ -35,9 +34,9 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
                 <SuppliersEmptyState
                   filtered={!!searchQuery}
                   action={
-                    <Button onClick={onAdd} data-testid="empty-add-supplier-btn">
+                    <AppButton onClick={onAdd} data-testid="empty-add-supplier-btn">
                       <Plus className="w-4 h-4 mr-2" />Add Supplier
-                    </Button>
+                    </AppButton>
                   }
                 />
               </td>

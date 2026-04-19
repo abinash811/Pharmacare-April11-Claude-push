@@ -7,7 +7,7 @@
  *   onSave          {(form, editingId) => Promise<boolean>}
  */
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -91,8 +91,8 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">{editingCustomer ? 'Update Customer' : 'Add Customer'}</Button>
+            <AppButton type="button" variant="outline" onClick={onClose}>Cancel</AppButton>
+            <AppButton type="submit">{editingCustomer ? 'Update Customer' : 'Add Customer'}</AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

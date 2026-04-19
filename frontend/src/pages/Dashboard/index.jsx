@@ -9,7 +9,7 @@ import {
   CreditCard, Clock, RefreshCw, Package,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
-import { PageHeader } from '@/components/shared';
+import { PageHeader, AppButton } from '@/components/shared';
 
 import { useDashboard }    from './hooks/useDashboard';
 import MetricCard          from './components/MetricCard';
@@ -26,7 +26,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="px-8 py-6">
+      <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -47,17 +47,16 @@ export default function Dashboard() {
     <div className="px-8 py-6" data-testid="dashboard">
       <PageHeader
         title="Dashboard"
-        subtitle="Welcome back! Here's your pharmacy overview"
         actions={
-          <button
+          <AppButton
+            variant="outline"
+            icon={<RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={1.5} />}
             onClick={() => fetchDashboardData(true)}
             disabled={refreshing}
-            className="h-10 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
             data-testid="refresh-btn"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </AppButton>
         }
       />
 

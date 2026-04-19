@@ -30,7 +30,13 @@
 | Audit logging | ✅ | All state changes logged |
 | PostgreSQL + SQLAlchemy async | ✅ | Migrated from MongoDB |
 | Alembic migrations | ✅ | Schema version controlled |
-| Design system (tokens, shared components) | ✅ | AppButton, PageHeader, PageTabs, etc. |
+| Design system (tokens, shared components) | ✅ | AppButton, PageHeader, PageTabs, FilterPills, etc. |
+| 300-line file rule enforced | ✅ | All oversized pages split into folder/index.jsx + components/ |
+| Zero raw `<button>` tags | ✅ | All pages use AppButton exclusively |
+| Zero Shadcn `<Button>` / `<Card>` in pages | ✅ | Replaced with AppButton and plain divs |
+| Consistent page layout | ✅ | All list pages use `px-8 py-6 min-h-screen bg-[#F8FAFB]` + PageHeader |
+| Consistent filter pills | ✅ | All pages use shared FilterPills component |
+| Subtitles removed from all PageHeaders | ✅ | April 19, 2026 |
 
 ### Billing (Sales)
 

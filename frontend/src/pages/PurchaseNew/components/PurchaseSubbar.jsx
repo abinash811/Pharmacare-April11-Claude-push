@@ -23,7 +23,13 @@ import { ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { FilterPills } from '@/components/shared';
 import SupplierDropdown from './SupplierDropdown';
+
+const PURCHASE_PAYMENT_TYPES = [
+  { key: 'cash',   label: 'Cash'   },
+  { key: 'credit', label: 'Credit' },
+];
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
 
@@ -140,30 +146,7 @@ export default function PurchaseSubbar({
         {/* ── PAYMENT ─────────────────────────────────────────────────── */}
         <div className="shrink-0">
           <span className={LABEL}>Payment</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onPurchaseOnChange('cash')}
-              className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-all ${
-                purchaseOn === 'cash'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              data-testid="payment-cash"
-            >
-              Cash
-            </button>
-            <button
-              onClick={() => onPurchaseOnChange('credit')}
-              className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-all ${
-                purchaseOn === 'credit'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              data-testid="payment-credit"
-            >
-              Credit
-            </button>
-          </div>
+          <FilterPills options={PURCHASE_PAYMENT_TYPES} active={purchaseOn} onChange={onPurchaseOnChange} />
         </div>
 
       </div>

@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { Plus, Printer, Eye } from 'lucide-react';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
+  FilterPills, AppButton,
 } from '../components/shared';
-
-const BILLING_TABS = [
-  { key: 'bills',   label: 'Bills'         },
-  { key: 'returns', label: 'Sales Returns' },
-];
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
+
+const BILLING_TABS = [
+  { key: 'bills',   label: 'Bills'         },
+  { key: 'returns', label: 'Sales Returns' },
+];
 
 // WhatsApp icon component
 const WhatsAppIcon = ({ className }) => (
@@ -98,15 +98,14 @@ export default function BillingOperations() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6" data-testid="billing-operations-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="billing-operations-page">
       <PageHeader
         title="Billing"
-        subtitle={pg.totalItems > 0 ? `${pg.totalItems} bills total` : undefined}
         actions={
-          <Button onClick={() => navigate('/billing/new')} data-testid="new-bill-btn">
+          <AppButton onClick={() => navigate('/billing/new')} data-testid="new-bill-btn">
             <Plus className="w-4 h-4 mr-2" />
             New Bill
-          </Button>
+          </AppButton>
         }
       />
       <PageTabs
@@ -127,22 +126,17 @@ export default function BillingOperations() {
 
           <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-          <div className="flex items-center gap-1">
-            {['all', 'cash', 'upi', 'due', 'parked'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setActiveFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                  activeFilter === f
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-                data-testid={`filter-${f}`}
-              >
-                {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
+          <FilterPills
+            options={[
+              { key: 'all',    label: 'All'    },
+              { key: 'cash',   label: 'Cash'   },
+              { key: 'upi',    label: 'UPI'    },
+              { key: 'due',    label: 'Due'    },
+              { key: 'parked', label: 'Parked' },
+            ]}
+            active={activeFilter}
+            onChange={setActiveFilter}
+          />
         </div>
       </div>
 
@@ -175,10 +169,10 @@ export default function BillingOperations() {
                     <BillingEmptyState
                       filtered={isFiltered}
                       action={
-                        <Button onClick={() => navigate('/billing/new')} data-testid="empty-new-bill-btn">
+                        <AppButton onClick={() => navigate('/billing/new')} data-testid="empty-new-bill-btn">
                           <Plus className="w-4 h-4 mr-2" />
                           New Bill
-                        </Button>
+                        </AppButton>
                       }
                     />
                   </td>
@@ -251,33 +245,30 @@ export default function BillingOperations() {
 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
+                          <AppButton
                             variant="ghost"
-                            size="sm"
+                            iconOnly
+                            icon={<Eye className="w-4 h-4 text-blue-600" />}
+                            aria-label="View"
                             className="p-1.5 h-auto hover:bg-blue-50"
                             onClick={(e) => { e.stopPropagation(); navigate(`/billing/${bill.id}`); }}
-                            title="View"
-                          >
-                            <Eye className="w-4 h-4 text-blue-600" />
-                          </Button>
-                          <Button
+                          />
+                          <AppButton
                             variant="ghost"
-                            size="sm"
+                            iconOnly
+                            icon={<Printer className="w-4 h-4 text-gray-600" />}
+                            aria-label="Print"
                             className="p-1.5 h-auto hover:bg-gray-100"
                             onClick={(e) => handlePrint(e, bill)}
-                            title="Print"
-                          >
-                            <Printer className="w-4 h-4 text-gray-600" />
-                          </Button>
-                          <Button
+                          />
+                          <AppButton
                             variant="ghost"
-                            size="sm"
+                            iconOnly
+                            icon={<WhatsAppIcon className="w-4 h-4 text-green-600" />}
+                            aria-label="Send via WhatsApp"
                             className="p-1.5 h-auto hover:bg-green-50"
                             onClick={(e) => handleWhatsApp(e, bill)}
-                            title="Send via WhatsApp"
-                          >
-                            <WhatsAppIcon className="w-4 h-4 text-green-600" />
-                          </Button>
+                          />
                         </div>
                       </td>
                     </tr>

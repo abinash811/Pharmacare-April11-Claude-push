@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckSquare, Square } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 export default function PermissionsMatrix({ permissions, selectedPermissions, onTogglePermission, onToggleModule }) {
   return (
@@ -11,7 +12,7 @@ export default function PermissionsMatrix({ permissions, selectedPermissions, on
         const someOn = ids.some((id)  => selectedPermissions.includes(id));
         return (
           <div key={moduleKey} className="bg-white rounded-lg p-3 border border-gray-100">
-            <button type="button" onClick={() => onToggleModule(moduleKey)} className="flex items-center gap-2 w-full mb-2">
+            <AppButton variant="ghost" type="button" onClick={() => onToggleModule(moduleKey)} className="flex items-center gap-2 w-full mb-2">
               {allOn ? (
                 <CheckSquare className="h-4 w-4 text-brand flex-shrink-0" strokeWidth={1.5} />
               ) : someOn ? (
@@ -20,7 +21,7 @@ export default function PermissionsMatrix({ permissions, selectedPermissions, on
                 <Square className="h-4 w-4 text-gray-300 flex-shrink-0" strokeWidth={1.5} />
               )}
               <span className="text-sm font-medium text-gray-800">{mod.display_name}</span>
-            </button>
+            </AppButton>
             <div className="ml-6 space-y-1">
               {mod.permissions.map((perm) => (
                 <label key={perm.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">

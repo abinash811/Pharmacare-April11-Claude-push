@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
-import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton } from '@/components/shared';
+import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, FilterPills } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -15,7 +15,12 @@ const PURCHASES_TABS = [
   { key: 'returns',   label: 'Purchase Returns' },
 ];
 
-const FILTERS = ['all', 'cash', 'credit', 'due'];
+const FILTERS = [
+  { key: 'all',    label: 'All'    },
+  { key: 'cash',   label: 'Cash'   },
+  { key: 'credit', label: 'Credit' },
+  { key: 'due',    label: 'Due'    },
+];
 
 export default function PurchasesList() {
   const navigate = useNavigate();
@@ -86,7 +91,6 @@ export default function PurchasesList() {
     <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="purchases-page">
       <PageHeader
         title="Purchases"
-        subtitle={pg.totalItems > 0 ? `${pg.totalItems} purchases total` : undefined}
         actions={<AppButton icon={<Plus className="h-4 w-4" strokeWidth={1.5} />} onClick={() => navigate('/purchases/create?type=purchase')} data-testid="new-purchase-btn">New Purchase</AppButton>}
       />
       <PageTabs tabs={PURCHASES_TABS} activeTab="purchases" onChange={() => navigate('/purchases/returns')} />
@@ -94,14 +98,7 @@ export default function PurchasesList() {
       <div className="flex items-center gap-4 mb-4">
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Bill no., invoice, supplier..." className="w-64" />
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
-        <div className="flex items-center gap-1">
-          {FILTERS.map((f) => (
-            <AppButton key={f} size="sm" variant={activeFilter === f ? 'primary' : 'secondary'}
-              onClick={() => setActiveFilter(f)} data-testid={`filter-${f}`}>
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
-            </AppButton>
-          ))}
-        </div>
+        <FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
       </div>
 
       <PurchasesTable purchases={purchases} loading={loading} pagination={pg} isFiltered={isFiltered}

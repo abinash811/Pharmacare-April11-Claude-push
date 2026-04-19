@@ -9,21 +9,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   PageHeader, PageTabs, DataCard, SearchInput,
   TableSkeleton, PaginationBar,
+  FilterPills, AppButton,
 } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
+import usePagination from '@/hooks/usePagination';
 
 const INVENTORY_TABS = [
   { key: 'products',        label: 'Products'        },
   { key: 'stock-movements', label: 'Stock Movements' },
 ];
-import usePagination from '@/hooks/usePagination';
 
 // Movement type display config
 const MOVEMENT_TYPES = [
@@ -101,15 +101,14 @@ export default function StockMovementLog() {
   }, [pg.page]);
 
   return (
-    <div className="px-8 py-6" data-testid="stock-movements-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="stock-movements-page">
       <PageHeader
         title="Inventory"
-        subtitle={pg.totalItems > 0 ? `${pg.totalItems} movements total` : 'All inventory in/out activity'}
         actions={
-          <Button variant="outline" onClick={() => fetchData(1)} disabled={loading}>
+          <AppButton variant="outline" onClick={() => fetchData(1)} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
-          </Button>
+          </AppButton>
         }
       />
       <PageTabs
@@ -127,22 +126,12 @@ export default function StockMovementLog() {
           className="w-52"
         />
 
-        <div className="flex items-center gap-1 flex-wrap">
-          {MOVEMENT_TYPES.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTypeFilter(key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                typeFilter === key
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              data-testid={`filter-${key}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <FilterPills
+          options={MOVEMENT_TYPES}
+          active={typeFilter}
+          onChange={setTypeFilter}
+          className="flex-wrap"
+        />
       </div>
 
       {/* Table */}

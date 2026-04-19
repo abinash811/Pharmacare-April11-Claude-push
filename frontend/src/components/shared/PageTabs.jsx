@@ -49,16 +49,6 @@ export function PageTabs({ tabs = [], activeTab, onChange, noBleed = false, clas
           >
             {Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
             {label}
-            {count !== undefined && (
-              <span
-                className={[
-                  'text-xs px-1.5 py-0.5 rounded-full font-medium',
-                  active ? 'bg-brand-subtle text-brand' : 'bg-gray-100 text-gray-500',
-                ].join(' ')}
-              >
-                {count}
-              </span>
-            )}
           </button>
         );
       })}

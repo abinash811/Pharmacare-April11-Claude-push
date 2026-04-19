@@ -41,6 +41,7 @@ import {
   DataCard,
   DateRangePicker,
   TableActions,
+  FilterPills,
 } from '@/components/shared';
 ```
 
@@ -835,6 +836,36 @@ export function YourComponent({ propA, propB }) {
   );
 }
 ```
+
+---
+
+---
+
+## FilterPills
+
+Toggle group for filter states (All / Cash / Credit / etc.). **The only way to render filter pills — never inline a `.map()` pill pattern.**
+
+```jsx
+import { FilterPills } from '@/components/shared';
+
+const FILTERS = [
+  { key: 'all',    label: 'All'    },
+  { key: 'cash',   label: 'Cash'   },
+  { key: 'credit', label: 'Credit' },
+];
+
+<FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
+```
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `Array<{ key: string, label: string }>` | ✅ | Pill options |
+| `active` | `string` | ✅ | Currently active key |
+| `onChange` | `(key: string) => void` | ✅ | Called when a pill is clicked |
+| `className` | `string` | — | Extra classes on the wrapper (layout only) |
+
+**Visual:** Active = `bg-gray-900 text-white`. Inactive = `bg-gray-100 text-gray-600`.
+**Do NOT use AppButton for pills** — pills are toggle controls, not actions.
 
 ---
 

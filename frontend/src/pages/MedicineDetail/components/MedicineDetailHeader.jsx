@@ -71,12 +71,8 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
             >
               Edit
             </AppButton>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-              <Bell className="w-5 h-5" />
-            </button>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-              <Clock className="w-5 h-5" />
-            </button>
+            <AppButton variant="ghost" iconOnly icon={<Bell className="w-4 h-4" />} aria-label="Alerts" />
+            <AppButton variant="ghost" iconOnly icon={<Clock className="w-4 h-4" />} aria-label="History" />
           </div>
         </div>
 

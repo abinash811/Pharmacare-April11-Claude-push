@@ -8,10 +8,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { toast } from 'sonner';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
   PageHeader, DataCard, SearchInput,
   TableSkeleton, PaginationBar, StatusBadge,
+  FilterPills, AppButton,
 } from '@/components/shared';
 import { AuthContext } from '@/App';
 import api from '@/lib/axios';
@@ -60,8 +60,15 @@ const ENTITY_LABELS = {
 };
 
 const ENTITY_TYPES = [
-  'all', 'bill', 'purchase', 'purchase_return', 'sales_return',
-  'product', 'stock_batch', 'user', 'settings',
+  { key: 'all',             label: 'All'             },
+  { key: 'bill',            label: 'Bill'            },
+  { key: 'purchase',        label: 'Purchase'        },
+  { key: 'purchase_return', label: 'Purchase Return' },
+  { key: 'sales_return',    label: 'Sales Return'    },
+  { key: 'product',         label: 'Product'         },
+  { key: 'stock_batch',     label: 'Stock Batch'     },
+  { key: 'user',            label: 'User'            },
+  { key: 'settings',        label: 'Settings'        },
 ];
 
 export default function AuditLog() {
@@ -135,15 +142,14 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="px-8 py-6" data-testid="audit-log-page">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="audit-log-page">
       <PageHeader
         title="Audit Log"
-        subtitle={pg.totalItems > 0 ? `${pg.totalItems} total events` : 'System activity history'}
         actions={
-          <Button variant="outline" onClick={() => fetchData(1)} disabled={loading}>
+          <AppButton variant="outline" onClick={() => fetchData(1)} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
-          </Button>
+          </AppButton>
         }
       />
 
@@ -156,21 +162,12 @@ export default function AuditLog() {
           className="w-64"
         />
 
-        <div className="flex items-center gap-1 flex-wrap">
-          {ENTITY_TYPES.map((t) => (
-            <button
-              key={t}
-              onClick={() => setEntityTypeFilter(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
-                entityTypeFilter === t
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {t === 'all' ? 'All' : (ENTITY_LABELS[t] || t)}
-            </button>
-          ))}
-        </div>
+        <FilterPills
+          options={ENTITY_TYPES}
+          active={entityTypeFilter}
+          onChange={setEntityTypeFilter}
+          className="flex-wrap"
+        />
       </div>
 
       {/* Table */}
@@ -230,12 +227,13 @@ export default function AuditLog() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {(log.old_value || log.new_value) && (
-                          <button
-                            className="text-xs text-blue-600 hover:underline"
+                          <AppButton
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => { e.stopPropagation(); toggleExpand(log.id); }}
                           >
                             {expandedRow === log.id ? 'Hide' : 'Show'}
-                          </button>
+                          </AppButton>
                         )}
                       </td>
                     </tr>

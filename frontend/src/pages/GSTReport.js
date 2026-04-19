@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { DataCard, InlineLoader, PageHeader, PageTabs } from '../components/shared';
+import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton } from '../components/shared';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { formatCurrency } from '@/utils/currency';
 
 const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
   { key: 'gst',     label: 'GST Report' },
 ];
-import api from '@/lib/axios';
-import { apiUrl } from '@/constants/api';
-import { formatCurrency } from '@/utils/currency';
 
 export default function GSTReport() {
   const navigate = useNavigate();
@@ -61,10 +60,9 @@ export default function GSTReport() {
   };
 
   return (
-    <div className="px-8 py-6">
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
       <PageHeader
         title="Reports"
-        subtitle="View GST collected and paid for compliance"
       />
       <PageTabs
         tabs={REPORTS_TABS}
@@ -96,10 +94,10 @@ export default function GSTReport() {
               />
             </div>
 
-            <Button onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
+            <AppButton onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
               <Calendar className="w-4 h-4 mr-2" />
               {loading ? 'Generating...' : 'Generate Report'}
-            </Button>
+            </AppButton>
           </div>
         </div>
       </DataCard>
@@ -116,10 +114,10 @@ export default function GSTReport() {
           <DataCard className="mb-6">
             <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-base font-semibold text-gray-900">Sales GST (Output Tax)</h2>
-              <Button variant="outline" size="sm" onClick={exportToCSV}>
+              <AppButton variant="outline" size="sm" onClick={exportToCSV}>
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
-              </Button>
+              </AppButton>
             </div>
 
             <div className="overflow-x-auto">

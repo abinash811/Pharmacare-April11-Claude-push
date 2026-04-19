@@ -54,10 +54,9 @@ export default function Settings() {
   const makeUpdater = (section) => (key, value) => updateSetting(section, key, value);
 
   return (
-    <div className="min-h-screen bg-gray-50 px-8 py-6">
+    <div className="min-h-screen bg-[#F8FAFB] px-8 py-6">
       <PageHeader
         title="Settings"
-        subtitle="Configure pharmacy management system preferences"
       />
       <PageTabs
         tabs={SETTINGS_TABS}

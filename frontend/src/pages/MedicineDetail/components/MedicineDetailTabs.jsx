@@ -5,6 +5,7 @@
  *   onChange   {(tabId: string) => void}
  */
 import React from 'react';
+import { PageTabs } from '@/components/shared';
 
 const TABS = [
   { id: 'batches',      label: 'Batches' },
@@ -17,23 +18,11 @@ const TABS = [
 
 export default function MedicineDetailTabs({ activeTab, onChange }) {
   return (
-    <div className="bg-white border-b border-gray-100 px-6">
-      <div className="flex items-center gap-6">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-brand text-brand'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-            data-testid={`tab-${tab.id}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-    </div>
+    <PageTabs
+      tabs={TABS.map(t => ({ key: t.id, label: t.label }))}
+      activeTab={activeTab}
+      onChange={onChange}
+      noBleed
+    />
   );
 }

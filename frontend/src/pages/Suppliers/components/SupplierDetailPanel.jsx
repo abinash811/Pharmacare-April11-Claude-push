@@ -11,8 +11,8 @@
  *   onTabChange         {(tab) => void}
  */
 import React from 'react';
-import { Edit, X, Building2, Phone, Mail, MapPin, CreditCard, FileText, Banknote } from 'lucide-react';
-import { InlineLoader } from '@/components/shared';
+import { Edit2, X, Building2, Phone, Mail, MapPin, CreditCard, FileText, Banknote } from 'lucide-react';
+import { InlineLoader, AppButton } from '@/components/shared';
 import { formatDate } from '@/utils/dates';
 
 function Field({ icon: Icon, label, value }) {
@@ -43,12 +43,8 @@ export default function SupplierDetailPanel({
           {supplier.gstin && <div className="text-sm text-gray-500 font-mono mt-1">GSTIN: {supplier.gstin}</div>}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onEdit} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Edit">
-            <Edit className="w-4 h-4" />
-          </button>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
-            <X className="w-4 h-4" />
-          </button>
+          <AppButton variant="ghost" iconOnly icon={<Edit2 className="w-4 h-4" />} aria-label="Edit" onClick={onEdit} />
+          <AppButton variant="ghost" iconOnly icon={<X className="w-4 h-4" />} aria-label="Close" onClick={onClose} />
         </div>
       </div>
 
@@ -56,11 +52,11 @@ export default function SupplierDetailPanel({
       <div className="px-6 border-b border-gray-200">
         <div className="flex gap-6">
           {[['overview','Overview'],['history','Purchase History'],['outstanding','Outstanding']].map(([id, label]) => (
-            <button key={id} onClick={() => onTabChange(id)}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === id ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            <AppButton key={id} variant="ghost" onClick={() => onTabChange(id)}
+              className={`py-3 text-sm font-medium border-b-2 rounded-none transition-colors ${activeTab === id ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               data-testid={`detail-tab-${id}`}>
               {label}
-            </button>
+            </AppButton>
           ))}
         </div>
       </div>
@@ -123,11 +119,10 @@ export default function SupplierDetailPanel({
                   ₹{outstanding.toFixed(2)}
                 </div>
               </div>
-              <button onClick={onRecordPayment} disabled={outstanding <= 0}
-                className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-brand hover:bg-brand-dark transition-colors" data-testid="record-payment-btn">
-                <Banknote className="w-4 h-4" />
+              <AppButton onClick={onRecordPayment} disabled={outstanding <= 0} data-testid="record-payment-btn">
+                <Banknote className="w-4 h-4 mr-2" />
                 Record Payment
-              </button>
+              </AppButton>
             </div>
 
             <div>

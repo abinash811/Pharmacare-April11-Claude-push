@@ -5,8 +5,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, AlertCircle, Clock, Package } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { InlineLoader, PageHeader, PageTabs } from '@/components/shared';
+import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 
 import { useReports }  from './hooks/useReports';
@@ -19,10 +18,10 @@ const REPORTS_TABS = [
 ];
 
 const REPORT_TYPES = [
-  { id: 'sales',     label: 'Sales',     icon: TrendingUp  },
-  { id: 'low-stock', label: 'Low Stock', icon: AlertCircle },
-  { id: 'expiry',    label: 'Expiry',    icon: Clock       },
-  { id: 'inventory', label: 'Stock',     icon: Package     },
+  { key: 'sales',     label: 'Sales'     },
+  { key: 'low-stock', label: 'Low Stock' },
+  { key: 'expiry',    label: 'Expiry'    },
+  { key: 'inventory', label: 'Stock'     },
 ];
 
 const REPORT_TITLES = {
@@ -59,75 +58,50 @@ export default function Reports() {
     handleRefresh(activeReport, { from: dateRange.from, to: dateRange.to, days: expiryDays });
 
   return (
-    <div className="px-8 py-6">
-      <PageHeader
-        title="Reports"
-        subtitle="Generate and export business reports"
-      />
-      <PageTabs
-        tabs={REPORTS_TABS}
-        activeTab="reports"
-        onChange={() => navigate('/reports/gst')}
-      />
+    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+      <PageHeader title="Reports" />
+      <PageTabs tabs={REPORTS_TABS} activeTab="reports" onChange={() => navigate('/reports/gst')} />
 
-      {/* Report type selector — pill buttons, consistent with rest of app */}
-      <div className="flex items-center gap-1 mb-4">
-        {REPORT_TYPES.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveReport(id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-              activeReport === id
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            data-testid={`report-type-${id}`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <ReportFilters
-        activeReport={activeReport}
-        dateRange={dateRange}
-        expiryDays={expiryDays}
-        hasData={!!reportData?.data?.length}
-        onDateChange={setDateRange}
-        onExpiryChange={setExpiryDays}
-        onRefresh={handleRefreshCurrent}
-        onExportCSV={() => handleExportCSV(activeReport)}
-        onExportExcel={() => handleExportExcel(activeReport)}
-      />
-
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <InlineLoader text="Generating report…" />
+      <div className="bg-white rounded-xl border border-gray-200">
+        {/* Filter bar */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-4 flex-wrap">
+          <FilterPills options={REPORT_TYPES} active={activeReport} onChange={setActiveReport} />
+          <ReportFilters
+            activeReport={activeReport}
+            dateRange={dateRange}
+            expiryDays={expiryDays}
+            hasData={!!reportData?.data?.length}
+            onDateChange={setDateRange}
+            onExpiryChange={setExpiryDays}
+            onRefresh={handleRefreshCurrent}
+            onExportCSV={() => handleExportCSV(activeReport)}
+            onExportExcel={() => handleExportExcel(activeReport)}
+          />
         </div>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {REPORT_ICONS[activeReport]}
-              {REPORT_TITLES[activeReport]}
-            </CardTitle>
-            <CardDescription>
-              {reportData?.summary && (
-                <div className="flex gap-6 mt-2">
-                  {reportData.summary.total_items  !== undefined && <span>Total Items: <strong>{reportData.summary.total_items}</strong></span>}
-                  {reportData.summary.total_value  !== undefined && <span>Total Value: <strong>{formatCurrency(reportData.summary.total_value)}</strong></span>}
-                  {reportData.summary.total_sales  !== undefined && <span>Total Sales: <strong>{formatCurrency(reportData.summary.total_sales)}</strong></span>}
-                  {reportData.summary.total_bills  !== undefined && <span>Total Bills: <strong>{reportData.summary.total_bills}</strong></span>}
-                </div>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ReportTables activeReport={activeReport} reportData={reportData} expiryDays={expiryDays} />
-          </CardContent>
-        </Card>
-      )}
+
+        {/* Report header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+          {REPORT_ICONS[activeReport]}
+          <span className="text-base font-semibold text-gray-900">{REPORT_TITLES[activeReport]}</span>
+          {reportData?.summary && (
+            <div className="flex gap-6 ml-4 text-sm text-gray-600">
+              {reportData.summary.total_items !== undefined && <span>Total Items: <strong>{reportData.summary.total_items}</strong></span>}
+              {reportData.summary.total_value !== undefined && <span>Total Value: <strong>{formatCurrency(reportData.summary.total_value)}</strong></span>}
+              {reportData.summary.total_sales !== undefined && <span>Total Sales: <strong>{formatCurrency(reportData.summary.total_sales)}</strong></span>}
+              {reportData.summary.total_bills !== undefined && <span>Total Bills: <strong>{reportData.summary.total_bills}</strong></span>}
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <InlineLoader text="Generating report…" />
+          </div>
+        ) : (
+          <ReportTables activeReport={activeReport} reportData={reportData} expiryDays={expiryDays} />
+        )}
+      </div>
     </div>
   );
 }

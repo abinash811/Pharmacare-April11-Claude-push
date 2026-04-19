@@ -6,7 +6,6 @@
  */
 import React from 'react';
 import { Package, Users } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 function RankedRow({ rank, name, sub, value, rankColor, valueColor }) {
   return (
@@ -29,17 +28,17 @@ export default function InsightsList({ topProducts, topCustomers }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
       {/* Top Products */}
-      <Card data-testid="top-products-card">
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="top-products-card">
+        <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">Top Selling Products</CardTitle>
-              <CardDescription>By revenue this month</CardDescription>
+              <p className="text-base font-semibold text-gray-900">Top Selling Products</p>
+              <p className="text-sm text-gray-500">By revenue this month</p>
             </div>
             <Package className="w-5 h-5 text-blue-500" />
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {topProducts && topProducts.length > 0 ? (
             <div className="space-y-3">
               {topProducts.map((product, idx) => (
@@ -57,21 +56,21 @@ export default function InsightsList({ topProducts, topCustomers }) {
           ) : (
             <p className="text-center text-gray-400 py-8">No sales data yet</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Top Customers */}
-      <Card data-testid="top-customers-card">
-        <CardHeader className="pb-2">
+      <div className="bg-white rounded-xl border border-gray-200" data-testid="top-customers-card">
+        <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base font-semibold">Top Customers</CardTitle>
-              <CardDescription>By purchase value</CardDescription>
+              <p className="text-base font-semibold text-gray-900">Top Customers</p>
+              <p className="text-sm text-gray-500">By purchase value</p>
             </div>
             <Users className="w-5 h-5 text-purple-500" />
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="p-4">
           {topCustomers && topCustomers.length > 0 ? (
             <div className="space-y-3">
               {topCustomers.map((customer, idx) => (
@@ -89,8 +88,8 @@ export default function InsightsList({ topProducts, topCustomers }) {
           ) : (
             <p className="text-center text-gray-400 py-8">No customer data yet</p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

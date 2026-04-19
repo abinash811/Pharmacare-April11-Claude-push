@@ -11,7 +11,7 @@
  */
 import React from 'react';
 import { Edit, Trash2, Eye, Phone, Mail } from 'lucide-react';
-import { CustomersEmptyState } from '@/components/shared';
+import { CustomersEmptyState, AppButton } from '@/components/shared';
 
 function CustomerTypeBadge({ type }) {
   const safeType = type && typeof type === 'string' && type.trim() ? type.toLowerCase() : 'regular';
@@ -83,28 +83,31 @@ export default function CustomersTable({ customers, searchQuery, onAdd, onEdit, 
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => onView(customer)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-brand hover:bg-blue-50 transition-colors"
-                      title="View details"
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
+                      icon={<Eye className="w-3.5 h-3.5" />}
+                      aria-label="View details"
                       data-testid={`view-customer-${customer.id}`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                      className="h-7 w-7 text-gray-400 hover:text-brand hover:bg-blue-50"
+                      onClick={() => onView(customer)}
+                    />
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
+                      icon={<Edit className="w-3.5 h-3.5" />}
+                      aria-label="Edit"
+                      className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                       onClick={() => onEdit(customer)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                      title="Edit"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    />
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
+                      icon={<Trash2 className="w-3.5 h-3.5" />}
+                      aria-label="Delete"
+                      className="h-7 w-7 text-gray-400 hover:text-red-600 hover:bg-red-50"
                       onClick={() => onDelete(customer)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

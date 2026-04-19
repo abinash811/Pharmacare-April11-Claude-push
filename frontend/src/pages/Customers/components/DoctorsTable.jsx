@@ -10,7 +10,7 @@
  */
 import React from 'react';
 import { Edit, Trash2, Phone, Stethoscope } from 'lucide-react';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { EmptyState, AppButton } from '@/components/shared';
 
 export default function DoctorsTable({ doctors, searchQuery, onAdd, onEdit, onDelete }) {
   return (
@@ -65,20 +65,22 @@ export default function DoctorsTable({ doctors, searchQuery, onAdd, onEdit, onDe
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
+                      icon={<Edit className="w-3.5 h-3.5" />}
+                      aria-label="Edit"
+                      className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                       onClick={() => onEdit(doctor)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                      title="Edit"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    />
+                    <AppButton
+                      variant="ghost"
+                      iconOnly
+                      icon={<Trash2 className="w-3.5 h-3.5" />}
+                      aria-label="Delete"
+                      className="h-7 w-7 text-gray-400 hover:text-red-600 hover:bg-red-50"
                       onClick={() => onDelete(doctor)}
-                      className="h-7 w-7 rounded flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

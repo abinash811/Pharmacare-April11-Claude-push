@@ -31,15 +31,16 @@ import { ChevronDown, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { FilterPills } from '@/components/shared';
 import DoctorDropdown from './DoctorDropdown';
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
 const PAYMENT_TYPES = [
-  { value: 'cash',     label: 'Cash' },
-  { value: 'upi',      label: 'UPI' },
-  { value: 'credit',   label: 'Credit' },
-  { value: 'card',     label: 'Card' },
-  { value: 'multiple', label: 'Multi' },
+  { key: 'cash',     label: 'Cash'   },
+  { key: 'upi',      label: 'UPI'    },
+  { key: 'credit',   label: 'Credit' },
+  { key: 'card',     label: 'Card'   },
+  { key: 'multiple', label: 'Multi'  },
 ];
 
 function ColDivider() {
@@ -208,22 +209,7 @@ export default function BillingSubbar({
           {isView ? (
             <span className="text-sm font-medium text-gray-900 capitalize">{paymentType || '–'}</span>
           ) : (
-            <div className="flex items-center gap-1">
-              {PAYMENT_TYPES.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => onPaymentTypeChange(value)}
-                  className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-all ${
-                    paymentType === value
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  data-testid={`payment-${value}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <FilterPills options={PAYMENT_TYPES} active={paymentType} onChange={onPaymentTypeChange} />
           )}
         </div>
 

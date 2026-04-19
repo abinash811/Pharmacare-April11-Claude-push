@@ -7,12 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Upload } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
+import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
 
 const INVENTORY_TABS = [
   { key: 'products',        label: 'Products'        },
   { key: 'stock-movements', label: 'Stock Movements' },
 ];
-import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
 
 import { useInventorySearch }  from './hooks/useInventorySearch';
 import InventorySearchBar      from './components/InventorySearchBar';

@@ -202,3 +202,6 @@ These rules exist because adding uninstalled packages and wrong env values have 
 
 ### Stale docs (do not update, do not trust)
 `PHARMACARE_RULES.md` · `PHARMACARE_DESIGN_SKILL.md` · `PHARMACARE_DESIGN_BRIEF.md` · `CONTEXT.md` · `PROGRESS.md` · `DECISIONS.md` · `TECH_SPEC.md` · `PHARMACARE_DATABASE_SCHEMA.md`
+
+### Deleted files (do not recreate)
+- `memory/PRD.md` — mentioned MongoDB (replaced by PostgreSQL) and teal as primary colour (replaced by brand blue #4682B4). Deleted April 19, 2026. Source of truth is `docs/` folder.

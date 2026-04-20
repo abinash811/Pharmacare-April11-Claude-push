@@ -184,11 +184,11 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen bg-[#f8f9fa] overflow-hidden">
+    <div className="flex h-screen bg-page overflow-hidden">
 
       {/* ── Desktop sidebar ────────────────────────────────────────────── */}
       <aside
-        className="hidden md:flex w-[200px] bg-[#1a2332] flex-col flex-shrink-0"
+        className="hidden md:flex w-[200px] bg-sidebar flex-col flex-shrink-0"
         data-testid="sidebar"
       >
         <SidebarContent />
@@ -206,7 +206,7 @@ export default function Layout() {
       {/* ── Mobile drawer ──────────────────────────────────────────────── */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-[200px] bg-[#1a2332] flex flex-col flex-shrink-0
+          fixed inset-y-0 left-0 z-50 w-[200px] bg-sidebar flex flex-col flex-shrink-0
           transform transition-transform duration-200 ease-in-out md:hidden
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -220,7 +220,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Mobile top bar */}
-        <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-[#1a2332] border-b border-white/10 flex-shrink-0">
+        <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-sidebar border-b border-white/10 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="text-gray-400 hover:text-white transition-colors"

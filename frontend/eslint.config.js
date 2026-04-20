@@ -79,14 +79,34 @@ module.exports = [
         },
         // Ban raw <button> for primary actions — prefer AppButton from @/components/shared
         // (warn only — catches new code without breaking existing patterns immediately)
-      ],
-      // Ban hardcoded hex Steel Blue strings — use brand tokens from tailwind.config.js
-      'no-restricted-properties': [
-        'warn',
+
+        // ── Hardcoded hex color enforcement (design system) ───────────────
+        // These three rules together eliminate all three vectors for hex creep:
+        //   1. Tailwind arbitrary values:  bg-[#F8FAFB]
+        //   2. Inline style props:         style={{ color: '#4682B4' }}
+        //   3. SVG / Recharts attributes:  stroke="#9ca3af"
+        //
+        // Add tokens to tailwind.config.js or import from @/utils/chartColors.
+        // Use `eslint-disable-next-line no-restricted-syntax` with a reason comment
+        // for genuine third-party brand colors (e.g. Google logo).
+
+        // 1. Tailwind arbitrary hex: bg-[#xxx], text-[#xxx], border-[#xxx] …
         {
-          object:   'undefined',
-          property: '4682B4',
-          message:  "Use `bg-brand` / `text-brand` Tailwind tokens instead of hardcoded #4682B4.",
+          selector: "Literal[value=/[a-z]+-\\[#[0-9a-fA-F]{3,8}\\]/]",
+          message:
+            "Hardcoded hex in Tailwind class (e.g. bg-[#F8FAFB]). Add a token to tailwind.config.js and use it instead.",
+        },
+        // 2. Hex in style={} JSX props
+        {
+          selector: "JSXAttribute[name.name='style'] Literal[value=/^#[0-9a-fA-F]{3,8}$/i]",
+          message:
+            "Hardcoded hex color in style prop. Use a Tailwind class with a design token instead.",
+        },
+        // 3. Hex in SVG / Recharts JSX attributes (stroke=, fill=, stopColor=)
+        {
+          selector: "JSXAttribute[name.name=/^(stroke|fill|stopColor)$/] Literal[value=/^#[0-9a-fA-F]{3,8}$/i]",
+          message:
+            "Hardcoded hex in SVG/chart attribute. Import from '@/utils/chartColors' instead.",
         },
       ],
     },

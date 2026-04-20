@@ -73,7 +73,7 @@ export default function MedicineDetail() {
   if (!product) return null;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFB]">
+    <div className="min-h-screen bg-page">
       <MedicineDetailHeader
         product={product}
         totalStock={totalStock}

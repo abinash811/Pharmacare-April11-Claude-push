@@ -14,6 +14,7 @@
  */
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { SPARK_STROKE } from '@/utils/chartColors';
 
 const ACCENT = {
   green:  'bg-green-500',
@@ -29,12 +30,6 @@ const ICON_BG = {
   indigo: 'bg-indigo-50 text-indigo-600',
 };
 
-const SPARK_STROKE = {
-  green:  '#22c55e',
-  blue:   '#3b82f6',
-  purple: '#a855f7',
-  indigo: '#6366f1',
-};
 
 function Sparkline({ data, color }) {
   if (!data || data.length < 2) return null;
@@ -54,7 +49,7 @@ function Sparkline({ data, color }) {
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none" className="opacity-80">
       <polyline
         points={points}
-        stroke={SPARK_STROKE[color] || '#6366f1'}
+        stroke={SPARK_STROKE[color] || SPARK_STROKE.indigo}
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -13,8 +13,8 @@
  *   onSettings  {() => void}
  */
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { ArrowLeft, Settings, CheckCircle, FileText } from 'lucide-react';
+import { PageBreadcrumb } from '@/components/shared';
 
 export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm, onSettings }) {
   return (
@@ -31,12 +31,10 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-0.5">
-              <Link to="/purchases" className="hover:text-brand transition-colors">
-                Purchases
-              </Link>
-              <span>/</span>
-            </div>
+            <PageBreadcrumb crumbs={[
+              { label: 'Purchases', to: '/purchases' },
+              { label: isEditMode ? 'Edit Draft' : 'New Purchase' },
+            ]} />
             <h1 className="text-lg font-bold text-gray-900">
               {isEditMode ? 'Edit Draft' : 'New Purchase'}
             </h1>

@@ -58,7 +58,7 @@ export default function Reports() {
     handleRefresh(activeReport, { from: dateRange.from, to: dateRange.to, days: expiryDays });
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader title="Reports" />
       <PageTabs tabs={REPORTS_TABS} activeTab="reports" onChange={() => navigate('/reports/gst')} />
 

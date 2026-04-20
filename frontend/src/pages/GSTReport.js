@@ -60,7 +60,7 @@ export default function GSTReport() {
   };
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader
         title="Reports"
       />

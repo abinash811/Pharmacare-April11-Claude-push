@@ -95,10 +95,10 @@ export default function BillPreview({ print, general }: Props) {
             ))}
 
             <div className="border-t border-dashed border-gray-400 my-2" />
-            <div className="flex justify-between"><span>Total Disc</span><span style={{ color: '#15803d' }}>-{paise(totalDisc)}</span></div>
+            <div className="flex justify-between"><span>Total Disc</span><span className="text-green-700">-{paise(totalDisc)}</span></div>
             <div className="flex justify-between"><span>GST</span><span>{paise(totalTax)}</span></div>
             <div className="flex justify-between font-bold text-[12px] border-t border-gray-400 mt-1 pt-1">
-              <span>TOTAL</span><span style={{ color: '#4682B4' }}>{paise(grandTotal)}</span>
+              <span>TOTAL</span><span className="text-brand">{paise(grandTotal)}</span>
             </div>
 
             {(print.print_signature || print.bill_footer) && (
@@ -126,30 +126,30 @@ export default function BillPreview({ print, general }: Props) {
         <div className="bg-white shadow-lg rounded border border-gray-200 text-[11px]" style={{ fontFamily: "'IBM Plex Sans', sans-serif", maxWidth: print.paper_size === 'a5' ? 500 : 700 }}>
 
           {/* Dark header */}
-          <div className="flex justify-between items-start px-6 py-4" style={{ background: '#1a2332', color: '#fff' }}>
+          <div className="flex justify-between items-start px-6 py-4 bg-sidebar text-white">
             <div className="flex items-center gap-2.5">
               {print.print_logo && general.logo_url
                 ? <img src={general.logo_url} alt="logo" className="w-8 h-8 object-contain rounded-lg bg-white/10 p-1" />
-                : <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#4682B4' }}>
-                    <svg width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                : <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand">
+                    <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2" viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
                   </div>
               }
               <div>
                 <p className="font-bold text-[14px]">{name}</p>
                 {print.bill_header
-                  ? <p className="text-[9px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>{print.bill_header}</p>
-                  : <p className="text-[9px] mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>Pharmacy Management System</p>
+                  ? <p className="text-[9px] mt-0.5 text-white/50">{print.bill_header}</p>
+                  : <p className="text-[9px] mt-0.5 text-white/50">Pharmacy Management System</p>
                 }
               </div>
             </div>
             <div className="text-right">
               <p className="font-bold text-[16px] tracking-wide">TAX INVOICE</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>INV-000123</p>
+              <p className="text-[11px] mt-0.5 text-white/60">INV-000123</p>
             </div>
           </div>
 
           {/* Meta row */}
-          <div className="grid grid-cols-3 border-b border-gray-200" style={{ background: '#f9fafb' }}>
+          <div className="grid grid-cols-3 border-b border-gray-200 bg-gray-50">
             {[
               { label: 'Bill Date',       value: '19 Apr 2026',  sub: ''       },
               { label: 'Payment',         value: 'Cash',         sub: 'Paid'   },
@@ -192,7 +192,7 @@ export default function BillPreview({ print, general }: Props) {
           {/* Items table */}
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-t border-b border-gray-200" style={{ background: '#f9fafb' }}>
+              <tr className="border-t border-b border-gray-200 bg-gray-50">
                 {['#','Medicine','Batch / Expiry','Qty','GST%','MRP','Disc%','Amount'].map((h, i) => (
                   <th key={i} className="px-2 py-2 text-[8px] font-bold uppercase tracking-wide text-gray-400 text-left last:text-right">{h}</th>
                 ))}
@@ -222,18 +222,18 @@ export default function BillPreview({ print, general }: Props) {
           <div className="flex justify-end border-t border-gray-200">
             <div className="w-64 px-5 py-3 space-y-1">
               {[
-                { label: 'MRP Total',     value: paise(mrpTotal),   color: '' },
-                { label: 'Discount',      value: `-${paise(totalDisc)}`, color: '#15803d' },
-                { label: 'GST',           value: paise(totalTax),   color: '' },
+                { label: 'MRP Total',     value: paise(mrpTotal),         cls: 'text-gray-700' },
+                { label: 'Discount',      value: `-${paise(totalDisc)}`,  cls: 'text-green-700' },
+                { label: 'GST',           value: paise(totalTax),         cls: 'text-gray-700' },
               ].map((row, i) => (
                 <div key={i} className="flex justify-between text-[10px]">
                   <span className="text-gray-500">{row.label}</span>
-                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', color: row.color || '#374151' }}>{row.value}</span>
+                  <span style={{ fontFamily: 'IBM Plex Mono, monospace' }} className={row.cls}>{row.value}</span>
                 </div>
               ))}
               <div className="border-t border-gray-200 pt-2 flex justify-between">
                 <span className="font-bold text-gray-900 text-[13px]">Grand Total</span>
-                <span className="font-bold text-[15px]" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#4682B4' }}>{paise(grandTotal)}</span>
+                <span className="font-bold text-[15px] text-brand" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{paise(grandTotal)}</span>
               </div>
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function BillPreview({ print, general }: Props) {
           <div className="flex justify-between items-end px-5 py-3 border-t border-gray-200">
             <div className="text-[9px] text-gray-500 max-w-xs leading-relaxed">
               {print.bill_footer || 'Thank you for your purchase!'}
-              <br /><span style={{ fontSize: 8, color: '#9ca3af' }}>This is a computer-generated invoice.</span>
+              <br /><span className="text-[8px] text-gray-400">This is a computer-generated invoice.</span>
             </div>
             {print.print_signature && (
               <div className="text-right">

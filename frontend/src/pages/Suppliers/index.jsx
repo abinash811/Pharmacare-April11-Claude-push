@@ -89,7 +89,7 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="suppliers-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="suppliers-page">
       <PageHeader
         title="Suppliers"
         actions={

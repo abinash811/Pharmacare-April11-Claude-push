@@ -113,7 +113,7 @@ export default function ScheduleH1Register() {
   }
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB] print:p-0 print:bg-white" data-testid="schedule-h1-page">
+    <div className="px-8 py-6 min-h-screen bg-page print:p-0 print:bg-white" data-testid="schedule-h1-page">
       <PageHeader
         title="Schedule H1 Drug Register"
         actions={

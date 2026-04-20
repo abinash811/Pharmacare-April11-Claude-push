@@ -1,21 +1,20 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 
-/**
- * PageHeader - Full-width white header bar with bottom border/shadow.
- * Breaks out of the standard px-8 py-6 page padding using negative margins
- * so it spans edge-to-edge inside the main content area.
- *
- * @param {string}      props.title     - Main page title
- * @param {string}      props.subtitle  - Muted count/description line
- * @param {ReactNode}   props.actions   - CTA buttons (right side)
- * @param {string}      props.className - Optional extra classes
- */
-export function PageHeader({ title, subtitle, actions, className = '' }) {
+export interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+  breadcrumb?: ReactNode;
+  className?: string;
+}
+
+export function PageHeader({ title, subtitle, actions, breadcrumb, className = '' }: PageHeaderProps) {
   return (
     <div
       className={`-mx-8 -mt-6 mb-6 px-8 py-4 bg-white border-b border-gray-200 shadow-sm ${className}`}
       data-testid="page-header"
     >
+      {breadcrumb && <div className="mb-2">{breadcrumb}</div>}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 leading-tight">{title}</h1>

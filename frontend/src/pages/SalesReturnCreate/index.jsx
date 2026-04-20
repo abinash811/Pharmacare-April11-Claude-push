@@ -6,7 +6,7 @@ import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Stethoscope, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AppButton } from '@/components/shared';
+import { AppButton, PageBreadcrumb } from '@/components/shared';
 import { format } from 'date-fns';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 
@@ -120,10 +120,11 @@ export default function SalesReturnCreate() {
         <div className="flex items-center gap-4">
           <AppButton variant="ghost" iconOnly icon={<ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="Back" onClick={() => navigate('/billing/returns')} data-testid="back-btn" />
           <div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-              <Link to="/billing" className="hover:text-brand">Sales</Link><span>/</span>
-              <Link to="/billing/returns" className="hover:text-brand">Sales Return Order</Link><span>/</span>
-            </div>
+            <PageBreadcrumb crumbs={[
+              { label: 'Billing', to: '/billing' },
+              { label: 'Returns', to: '/billing/returns' },
+              { label: 'New Sales Return' },
+            ]} />
             <h1 className="text-xl font-bold text-gray-900">Sales Return</h1>
           </div>
         </div>

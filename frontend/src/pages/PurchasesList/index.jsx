@@ -88,7 +88,7 @@ export default function PurchasesList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="purchases-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="purchases-page">
       <PageHeader
         title="Purchases"
         actions={<AppButton icon={<Plus className="h-4 w-4" strokeWidth={1.5} />} onClick={() => navigate('/purchases/create?type=purchase')} data-testid="new-purchase-btn">New Purchase</AppButton>}

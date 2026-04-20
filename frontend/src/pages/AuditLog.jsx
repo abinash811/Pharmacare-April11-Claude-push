@@ -142,7 +142,7 @@ export default function AuditLog() {
   }
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="audit-log-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="audit-log-page">
       <PageHeader
         title="Audit Log"
         actions={

@@ -11,8 +11,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { formatDateShort } from '@/utils/dates';
+import { CHART_PALETTE, BRAND_BLUE, CHART_GRID_COLOR, CHART_AXIS_COLOR } from '@/utils/chartColors';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = CHART_PALETTE;
 
 export default function SalesCharts({ dailyTrend, categorySales }) {
   return (
@@ -29,23 +30,23 @@ export default function SalesCharts({ dailyTrend, categorySales }) {
               <AreaChart data={dailyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%" stopColor={BRAND_BLUE} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={BRAND_BLUE} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_COLOR} />
+                <XAxis dataKey="date" tickFormatter={formatDateShort} tick={{ fontSize: 11 }} stroke={CHART_AXIS_COLOR} />
                 <YAxis
                   tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v}`}
                   tick={{ fontSize: 11 }}
-                  stroke="#9ca3af"
+                  stroke={CHART_AXIS_COLOR}
                 />
                 <Tooltip
                   formatter={(value) => [`₹${value.toLocaleString()}`, 'Sales']}
                   labelFormatter={formatDateShort}
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
                 />
-                <Area type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} fill="url(#salesGradient)" />
+                <Area type="monotone" dataKey="sales" stroke={BRAND_BLUE} strokeWidth={2} fill="url(#salesGradient)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

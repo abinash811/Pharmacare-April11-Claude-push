@@ -1,27 +1,21 @@
-/**
- * PageTabs — standard underline tab bar for PharmaCare pages.
- *
- * Designed to sit directly below <PageHeader> inside a px-8 py-6 page wrapper.
- * Uses negative margins to bleed edge-to-edge just like PageHeader does.
- *
- * Usage:
- *   const TABS = [
- *     { key: 'bills',   label: 'Bills',   count: 42 },
- *     { key: 'returns', label: 'Returns', count: 3  },
- *   ];
- *
- *   <PageTabs tabs={TABS} activeTab={tab} onChange={setTab} />
- *
- * Props:
- *   tabs      {Array<{ key, label, icon?, count? }>}
- *   activeTab {string}
- *   onChange  {(key: string) => void}
- *   noBleed   {boolean}  — set true for sticky/h-full layouts that don't use px-8 py-6 wrapper
- *   className {string}   — optional extra classes on the container
- */
-import React from 'react';
+import React, { ElementType } from 'react';
 
-export function PageTabs({ tabs = [], activeTab, onChange, noBleed = false, className = '' }) {
+export interface Tab {
+  key: string;
+  label: string;
+  icon?: ElementType;
+  count?: number;
+}
+
+export interface PageTabsProps {
+  tabs: Tab[];
+  activeTab: string;
+  onChange: (key: string) => void;
+  noBleed?: boolean;
+  className?: string;
+}
+
+export function PageTabs({ tabs = [], activeTab, onChange, noBleed = false, className = '' }: PageTabsProps) {
   const bleedClasses = noBleed
     ? 'flex-shrink-0 px-8'
     : '-mx-8 -mt-6 mb-6 px-8';
@@ -49,6 +43,11 @@ export function PageTabs({ tabs = [], activeTab, onChange, noBleed = false, clas
           >
             {Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
             {label}
+            {count !== undefined && (
+              <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${active ? 'bg-brand/10' : 'bg-gray-100'}`}>
+                {count}
+              </span>
+            )}
           </button>
         );
       })}

@@ -95,7 +95,7 @@ export default function Users() {
 
   if (currentUser?.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-[#F8FAFB] flex items-center justify-center">
+      <div className="min-h-screen bg-page flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" strokeWidth={1.5} />
           <p className="text-sm font-medium text-gray-900">Access Denied</p>
@@ -106,7 +106,7 @@ export default function Users() {
   }
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader
         title="User Management"
         actions={

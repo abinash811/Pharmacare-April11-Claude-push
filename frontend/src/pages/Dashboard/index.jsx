@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+      <div className="px-8 py-6 min-h-screen bg-page">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -4,7 +4,7 @@ import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { ArrowLeft, MoreVertical, Printer, Edit2, RotateCcw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { InlineLoader, AppButton } from '@/components/shared';
+import { InlineLoader, AppButton, PageBreadcrumb } from '@/components/shared';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 
@@ -93,10 +93,10 @@ export default function PurchaseDetail() {
           <div className="flex items-center gap-4">
             <AppButton variant="ghost" iconOnly icon={<ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="Back to purchases" onClick={() => navigate('/purchases')} data-testid="back-btn" />
             <div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/purchases" className="hover:text-brand transition-colors">Purchases</Link>
-                <span>/</span>
-              </div>
+              <PageBreadcrumb crumbs={[
+                { label: 'Purchases', to: '/purchases' },
+                { label: purchase.purchase_number },
+              ]} />
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-gray-900">{purchase.purchase_number}</h1>
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">{purchase.status?.toUpperCase() || 'CONFIRMED'}</span>

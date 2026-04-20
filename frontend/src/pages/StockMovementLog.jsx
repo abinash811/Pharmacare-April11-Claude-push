@@ -101,7 +101,7 @@ export default function StockMovementLog() {
   }, [pg.page]);
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="stock-movements-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="stock-movements-page">
       <PageHeader
         title="Inventory"
         actions={

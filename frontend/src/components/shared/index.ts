@@ -3,6 +3,7 @@
 
 export { DateRangePicker, getFinancialYearRange } from './DateRangePicker';
 export { PageHeader } from './PageHeader';
+export { PageBreadcrumb } from './PageBreadcrumb';
 export { DataCard } from './DataCard';
 export { TableActions } from './TableActions';
 export { SearchInput } from './SearchInput';

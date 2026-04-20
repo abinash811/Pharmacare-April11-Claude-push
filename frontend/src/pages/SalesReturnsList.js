@@ -103,7 +103,7 @@ export default function SalesReturnsList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="sales-returns-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="sales-returns-page">
       <PageHeader
         title="Billing"
         actions={

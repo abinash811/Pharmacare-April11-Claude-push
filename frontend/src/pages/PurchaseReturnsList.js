@@ -79,7 +79,7 @@ export default function PurchaseReturnsList() {
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="purchase-returns-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="purchase-returns-page">
       <PageHeader
         title="Purchases"
         actions={

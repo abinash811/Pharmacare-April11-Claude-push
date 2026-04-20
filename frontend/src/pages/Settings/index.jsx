@@ -61,7 +61,7 @@ export default function Settings() {
   const makeUpdater = (section) => (key, value) => updateSetting(section, key, value);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFB] px-8 py-6">
+    <div className="min-h-screen bg-page px-8 py-6">
       <PageHeader
         title="Settings"
       />

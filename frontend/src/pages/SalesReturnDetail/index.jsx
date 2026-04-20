@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { AppButton, InlineLoader } from '@/components/shared';
+import { AppButton, InlineLoader, PageBreadcrumb } from '@/components/shared';
 import SalesReturnEditModal from './components/SalesReturnEditModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -74,12 +74,11 @@ export default function SalesReturnDetail() {
           <div className="flex items-center gap-4">
             <AppButton variant="ghost" iconOnly icon={<ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="Back" onClick={() => navigate('/billing/returns')} data-testid="back-btn" />
             <div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-                <Link to="/billing" className="hover:text-brand">Sales</Link>
-                <span>/</span>
-                <Link to="/billing/returns" className="hover:text-brand">Returns</Link>
-                <span>/</span>
-              </div>
+              <PageBreadcrumb crumbs={[
+                { label: 'Billing', to: '/billing' },
+                { label: 'Returns', to: '/billing/returns' },
+                { label: `#${returnData.return_no}` },
+              ]} />
               <h1 className="text-xl font-bold text-gray-900">#{returnData.return_no}</h1>
             </div>
           </div>

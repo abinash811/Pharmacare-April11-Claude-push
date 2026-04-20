@@ -7,12 +7,11 @@
  *   onEdit       {() => void}
  */
 import React from 'react';
-import { Link } from 'react-router-dom';
 import {
   Edit2, Bell, Clock, Package, Percent, Hash,
-  CreditCard, Calendar, FileText, ChevronRight,
+  CreditCard, Calendar, FileText,
 } from 'lucide-react';
-import { AppButton } from '@/components/shared';
+import { AppButton, PageBreadcrumb } from '@/components/shared';
 
 function StatCard({ icon: Icon, label, value, className = '' }) {
   return (
@@ -33,14 +32,11 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
     <div className="bg-white border-b border-gray-100">
       <div className="px-6 py-4">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm mb-4">
-          <Link to="/inventory" className="text-brand hover:underline font-medium">
-            INVENTORY
-          </Link>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-          <span className="text-brand font-medium uppercase">
-            {product.category || 'GENERAL'}
-          </span>
+        <div className="mb-4">
+          <PageBreadcrumb crumbs={[
+            { label: 'Inventory', to: '/inventory' },
+            { label: product.category || 'General' },
+          ]} />
         </div>
 
         {/* Product info + actions */}

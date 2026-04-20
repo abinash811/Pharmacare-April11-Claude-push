@@ -86,7 +86,7 @@ export default function Customers() {
   const isCustomers = activeSection === 'customers';
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]" data-testid="customers-page">
+    <div className="px-8 py-6 min-h-screen bg-page" data-testid="customers-page">
 
       <PageHeader
         title="Customers & Doctors"

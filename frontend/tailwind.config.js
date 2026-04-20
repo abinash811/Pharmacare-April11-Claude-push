@@ -25,6 +25,11 @@ module.exports = {
 			tint:     '#f0f7ff',
 			subtle:   'rgba(70,130,180,0.10)',
 		},
+		// ── Surface tokens ─────────────────────────────────────────────────────
+		// bg-page    → #F8FAFB  (every page root background — replaces bg-[#F8FAFB])
+		// bg-sidebar → #1a2332  (dark sidebar shell — replaces bg-[#1a2332])
+		'page':    '#F8FAFB',
+		'sidebar': '#1a2332',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

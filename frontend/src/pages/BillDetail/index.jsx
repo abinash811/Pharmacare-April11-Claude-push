@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, Printer, Edit, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { AppButton, PageSkeleton } from '@/components/shared';
+import { AppButton, PageSkeleton, PageBreadcrumb } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatDateShort, formatTime } from '@/utils/dates';
@@ -78,7 +78,13 @@ export default function BillDetail() {
 
   return (
     <div className="px-8 py-6 print:p-0" data-testid="bill-detail-page">
-      {/* Toolbar */}
+      {/* Breadcrumb + Toolbar */}
+      <div className="max-w-4xl mx-auto mb-4 print:hidden">
+        <PageBreadcrumb crumbs={[
+          { label: 'Billing', to: '/billing' },
+          { label: bill.bill_number ? `#${bill.bill_number.replace(/^#/, '')}` : 'Bill Detail' },
+        ]} />
+      </div>
       <div className="max-w-4xl mx-auto mb-4 flex items-center justify-between print:hidden">
         <AppButton variant="ghost" icon={<ArrowLeft className="w-4 h-4" strokeWidth={1.5} />} onClick={() => navigate('/billing')}>
           Back to Bills

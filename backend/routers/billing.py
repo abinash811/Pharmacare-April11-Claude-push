@@ -611,6 +611,7 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
 @router.get("/bills")
 async def get_bills(
     invoice_type: Optional[str] = None, status: Optional[str] = None,
+    payment_method: Optional[str] = None,
     search: Optional[str] = None, from_date: Optional[str] = None, to_date: Optional[str] = None,
     page: int = 1, page_size: int = 50,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
@@ -624,6 +625,8 @@ async def get_bills(
         query = query.where(BillORM.invoice_type == invoice_type)
     if status:
         query = query.where(BillORM.status == status)
+    if payment_method:
+        query = query.where(BillORM.payment_method.ilike(payment_method))
     if search:
         p = f"%{search}%"
         query = query.where(or_(

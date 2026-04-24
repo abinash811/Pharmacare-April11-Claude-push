@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import '@/App.css';
+import api from '@/lib/axios';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 
@@ -36,9 +36,7 @@ import ScheduleH1Register from '@/pages/ScheduleH1Register';
 import AuditLog from '@/pages/AuditLog';
 import StockMovementLog from '@/pages/StockMovementLog';
 import Layout from '@/components/Layout';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Auth Context
 export const AuthContext = React.createContext(null);
@@ -52,19 +50,11 @@ function App() {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
+    if (!localStorage.getItem('token')) { setLoading(false); return; }
     try {
-      const response = await axios.get(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/auth/me');
       setUser(response.data);
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch {
       localStorage.removeItem('token');
     }
     setLoading(false);
@@ -76,13 +66,7 @@ function App() {
   };
 
   const logout = async () => {
-    try {
-      await axios.post(`${API}/auth/logout`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    try { await api.post('/auth/logout'); } catch { /* silent */ }
     setUser(null);
     localStorage.removeItem('token');
   };
@@ -119,9 +103,7 @@ function AppRoutes({ user }) {
         const sessionId = hash.split('session_id=')[1].split('&')[0];
         
         try {
-          const response = await axios.post(`${API}/auth/session`, {}, {
-            headers: { 'X-Session-ID': sessionId }
-          });
+          const response = await api.post('/auth/session', {}, { headers: { 'X-Session-ID': sessionId } });
           
           const userData = response.data.user;
           const token = response.data.session_token || 'emergent-session';
@@ -150,7 +132,7 @@ function AppRoutes({ user }) {
 
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="billing" element={<BillingOperations />} />

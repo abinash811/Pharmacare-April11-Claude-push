@@ -18,6 +18,7 @@ import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
 import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
+import { PageSkeleton } from '@/components/shared';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
@@ -43,8 +44,9 @@ export default function BillingWorkspace() {
   const [billDiscountType, setBillDiscountType] = useState('%');
 
   // ── Users ────────────────────────────────────────────────────────────────
-  const [users,       setUsers]       = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [users,          setUsers]          = useState([]);
+  const [currentUser,    setCurrentUser]    = useState(null);
+  const [isInitialising, setIsInitialising] = useState(true);
 
   // ── Modal flags ──────────────────────────────────────────────────────────
   const [showFinalise,      setShowFinalise]      = useState(false);
@@ -120,7 +122,7 @@ export default function BillingWorkspace() {
         setUsers(ur.data || []);
         setCurrentUser(mr.data);
         setBilledBy(mr.data?.name || mr.data?.email || '');
-      } catch { /* silent */ }
+      } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
     const draftId = searchParams.get('draft');
@@ -213,6 +215,8 @@ export default function BillingWorkspace() {
   }, [viewMode]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (isInitialising) return <PageSkeleton />;
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <BillingHeader

@@ -1,45 +1,56 @@
-/**
- * SupplierFormModal — add / edit supplier.
- * Props:
- *   open            {boolean}
- *   editingSupplier {object|null}
- *   onClose         {() => void}
- *   onSave          {(form, editingId) => Promise<boolean>}
- */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
 
-const INIT = { name: '', contact_person: '', phone: '', email: '', address: '', gstin: '', credit_days: 0, notes: '' };
+const supplierFormSchema = z.object({
+  name:           z.string().min(1, 'Supplier name is required'),
+  contact_person: z.string().optional().default(''),
+  phone:          z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit Indian mobile number').or(z.literal('')),
+  email:          z.string().email('Enter a valid email').or(z.literal('')),
+  gstin:          z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Enter a valid GSTIN').or(z.literal('')),
+  credit_days:    z.coerce.number().min(0).max(365).default(30),
+  address:        z.string().optional().default(''),
+  notes:          z.string().optional().default(''),
+});
+
+const DEFAULTS = { name: '', contact_person: '', phone: '', email: '', gstin: '', credit_days: 30, address: '', notes: '' };
+
+const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm';
 
 export default function SupplierFormModal({ open, editingSupplier, onClose, onSave }) {
-  const [form, setForm] = useState(INIT);
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(supplierFormSchema),
+    defaultValues: DEFAULTS,
+  });
 
   useEffect(() => {
-    if (editingSupplier) {
-      setForm({
-        name:           editingSupplier.name                                                  || '',
-        contact_person: editingSupplier.contact_person || editingSupplier.contact_name        || '',
-        phone:          editingSupplier.phone                                                 || '',
-        email:          editingSupplier.email                                                 || '',
-        address:        editingSupplier.address                                               || '',
-        gstin:          editingSupplier.gstin                                                 || '',
-        credit_days:    editingSupplier.credit_days || editingSupplier.payment_terms_days     || 0,
-        notes:          editingSupplier.notes                                                 || '',
-      });
-    } else {
-      setForm(INIT);
-    }
-  }, [editingSupplier, open]);
+    reset(editingSupplier ? {
+      name:           editingSupplier.name                                              || '',
+      contact_person: editingSupplier.contact_person || editingSupplier.contact_name   || '',
+      phone:          editingSupplier.phone                                             || '',
+      email:          editingSupplier.email                                             || '',
+      gstin:          editingSupplier.gstin                                             || '',
+      credit_days:    editingSupplier.credit_days || editingSupplier.payment_terms_days || 30,
+      address:        editingSupplier.address                                           || '',
+      notes:          editingSupplier.notes                                             || '',
+    } : DEFAULTS);
+  }, [editingSupplier, open, reset]);
 
-  const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
-  const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const ok = await onSave(form, editingSupplier?.id);
+  const onSubmit = async (data) => {
+    const ok = await onSave(data, editingSupplier?.id);
     if (ok) onClose();
   };
+
+  const err = (field) => errors[field]?.message
+    ? <p className="text-xs text-red-500 mt-1">{errors[field].message}</p>
+    : null;
+
+  const label = (text) => (
+    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{text}</label>
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -48,45 +59,50 @@ export default function SupplierFormModal({ open, editingSupplier, onClose, onSa
           <DialogTitle>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Supplier Name *</label>
-              <input type="text" required value={form.name} onChange={set('name')} className={cls} data-testid="supplier-name-input" />
+              {label('Supplier Name *')}
+              <input {...register('name')} className={cls} data-testid="supplier-name-input" />
+              {err('name')}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Contact Person</label>
-              <input type="text" value={form.contact_person} onChange={set('contact_person')} className={cls} />
+              {label('Contact Person')}
+              <input {...register('contact_person')} className={cls} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Phone</label>
-              <input type="text" value={form.phone} onChange={set('phone')} className={cls} />
+              {label('Phone')}
+              <input {...register('phone')} className={cls} />
+              {err('phone')}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Email</label>
-              <input type="email" value={form.email} onChange={set('email')} className={cls} />
+              {label('Email')}
+              <input type="email" {...register('email')} className={cls} />
+              {err('email')}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">GSTIN</label>
-              <input type="text" value={form.gstin} onChange={(e) => setForm(p => ({ ...p, gstin: e.target.value.toUpperCase() }))} className={`${cls} font-mono`} />
+              {label('GSTIN')}
+              <input {...register('gstin')} className={`${cls} font-mono uppercase`} />
+              {err('gstin')}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Credit Days</label>
-              <input type="number" value={form.credit_days} onChange={(e) => setForm(p => ({ ...p, credit_days: parseInt(e.target.value) || 0 }))} className={cls} />
+              {label('Credit Days')}
+              <input type="number" {...register('credit_days')} className={cls} />
+              {err('credit_days')}
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Address</label>
-              <textarea value={form.address} onChange={set('address')} rows={2} className={`${cls} resize-none`} />
+              {label('Address')}
+              <textarea {...register('address')} rows={2} className={`${cls} resize-none`} />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Notes</label>
-              <textarea value={form.notes} onChange={set('notes')} rows={2} className={`${cls} resize-none`} />
+              {label('Notes')}
+              <textarea {...register('notes')} rows={2} className={`${cls} resize-none`} />
             </div>
           </div>
 
           <DialogFooter className="mt-6">
-            <AppButton type="button" variant="secondary" onClick={onClose}>Cancel</AppButton>
-            <AppButton type="submit" data-testid="submit-supplier-btn">
+            <AppButton type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>Cancel</AppButton>
+            <AppButton type="submit" loading={isSubmitting} data-testid="submit-supplier-btn">
               {editingSupplier ? 'Update' : 'Create'}
             </AppButton>
           </DialogFooter>

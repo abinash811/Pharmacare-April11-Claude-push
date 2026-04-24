@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { FilterPills } from '@/components/shared';
 import DoctorDropdown from './DoctorDropdown';
+import PatientCombobox from './PatientCombobox';
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
 const PAYMENT_TYPES = [
@@ -52,7 +53,8 @@ export default function BillingSubbar({
   billDate,
   onBillDateChange,
   customerName,
-  onPatientChipClick,
+  customerPhone,
+  onPatientSelect,
   doctorName,
   onDoctorChange,
   billingFor,
@@ -113,16 +115,12 @@ export default function BillingSubbar({
               {customerName || 'Walk-in'}
             </span>
           ) : (
-            <button
-              onClick={onPatientChipClick}
-              className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors truncate max-w-full"
-              data-testid="patient-chip"
-            >
-              <span className={`truncate ${!customerName ? 'text-gray-400' : ''}`}>
-                {customerName || 'Walk-in patient'}
-              </span>
-              <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
-            </button>
+            <PatientCombobox
+              value={customerName}
+              phone={customerPhone}
+              onSelect={onPatientSelect}
+              readOnly={isView}
+            />
           )}
         </div>
 

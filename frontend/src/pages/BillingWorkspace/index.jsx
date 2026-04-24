@@ -235,7 +235,8 @@ export default function BillingWorkspace() {
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         <BillingSubbar
           viewMode={viewMode} billDate={billDate} onBillDateChange={setBillDate}
-          customerName={customerName} onPatientChipClick={() => setShowPatientModal(true)}
+          customerName={customerName} customerPhone={customerPhone}
+          onPatientSelect={({ name, phone }) => { setCustomerName(name); setCustomerPhone(phone || ''); saveDraft(); }}
           doctorName={doctorName} onDoctorChange={setDoctorName}
           billingFor={billingFor} onBillingForChange={setBillingFor}
           billedBy={billedBy} onBilledByChange={setBilledBy}
@@ -262,7 +263,6 @@ export default function BillingWorkspace() {
         />
       </main>
 
-      <PatientSearchModal open={showPatientModal} onClose={() => setShowPatientModal(false)} onSelect={handlePatientSelect} />
       <ScheduleHWarning  open={showScheduleH}   onCancel={() => setShowScheduleH(false)}
         onConfirm={() => { setShowScheduleH(false); setShowFinalise(true); }} />
       <FinaliseModal

@@ -21,9 +21,14 @@ from utils import excel
 
 app = FastAPI(title="PharmaCare API", version="2.0.0")
 
+_raw_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+_origins = [o.strip() for o in _raw_origins.split(",") if o.strip() and o.strip() != "*"]
+if not _origins:
+    raise RuntimeError("CORS_ORIGINS must be set to an explicit origin list — '*' is not allowed with credentials.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -36,7 +36,8 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
     if (!debouncedQ.trim()) { setResults([]); return; }
     let cancelled = false;
     setLoading(true);
-    api.get(apiUrl.patients({ search: debouncedQ, page_size: 8 }))
+    // No /patients endpoint exists — /customers is the correct source
+    api.get(apiUrl.customers({ search: debouncedQ, page_size: 8 }))
       .then(res => { if (!cancelled) setResults(res.data.data || res.data || []); })
       .catch(() => { if (!cancelled) setResults([]); })
       .finally(() => { if (!cancelled) setLoading(false); });

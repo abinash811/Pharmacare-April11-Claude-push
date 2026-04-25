@@ -624,7 +624,12 @@ async def get_bills(
     if invoice_type:
         query = query.where(BillORM.invoice_type == invoice_type)
     if status:
-        query = query.where(BillORM.status == status)
+        # 'parked' is stored as 'draft' in the DB (park saves a draft).
+        # Match both so the Parked filter chip works correctly.
+        if status == 'parked':
+            query = query.where(BillORM.status.in_(['draft', 'parked']))
+        else:
+            query = query.where(BillORM.status == status)
     if payment_method:
         query = query.where(BillORM.payment_method.ilike(payment_method))
     if search:

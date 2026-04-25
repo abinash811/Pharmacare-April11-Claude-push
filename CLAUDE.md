@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Last updated: April 19, 2026
+# Last updated: April 25, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -113,32 +113,53 @@ These rules exist because adding uninstalled packages and wrong env values have 
 
 > This section is the handoff note. Updated after every session. A new Claude must read this before touching any code.
 
-### App status (April 19, 2026)
+### App status (April 25, 2026)
 - ✅ App runs locally — backend on port 8000, frontend on port 3001
 - ✅ All Settings tabs built: Pharmacy Profile, Receipt & Print, Tax & GST, Notifications, Inventory, Billing, Bill Sequence, Returns
 - ✅ Dashboard dynamic thresholds + drug license expiry banner
 - ✅ Team page: Members + Roles with permissions matrix
+- ✅ Billing list filter chips fixed — parked, cash, upi, due all work correctly
+- ✅ PatientCombobox — inline typeahead, uses /customers endpoint, walk-in + add new customer
+- ✅ DoctorDropdown — rebuilt, same UX as PatientCombobox (click → inline input → suggestions)
+- ✅ Billing footer — CTAs removed, header-only CTAs
+- ✅ Print formats — Thermal (80mm/58mm) + A4/A5, default set in Settings → Receipt & Print
+- ✅ domainConstants.js — single source of truth for all status/enum values
 - ✅ All commits pushed to main
 
 ### 🔴 Production blockers — fix before any deployment
-1. **Missing Alembic migration** — New `PharmacySettings` columns (GST, print, notifications fields) exist on local DB via raw SQL but are NOT in any Alembic migration. Production DB will crash on first settings API call. Fix: `alembic revision --autogenerate -m "add_pharmacy_settings_gst_print_notification_fields"` then `alembic upgrade head`.
-2. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True` is invalid. Browsers reject it. Fix: set `CORS_ORIGINS` env var to the actual production frontend URL. Default `"*"` must be changed to explicit origin.
+1. **Alembic migrations pending** — Run `alembic upgrade head` before deploying. Three migrations exist:
+   - `95d13d1508dc` — initial schema
+   - `a3f8c2d14e90` — add pharmacy_settings GST/print/notification fields
+   - `b1e4f7a29c03` — add paper_size to pharmacy_settings
+2. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True` is invalid. Fix: set `CORS_ORIGINS` env var to the production frontend URL. Already fixed in code — just needs the env var set on the server.
 
 ### 🟡 Infrastructure gaps (do before adding features)
-3. **Sentry not wired** — `frontend/src/lib/sentry.ts` committed but never initialized. Backend has no Sentry. Owner has not yet created a Sentry account. Wait for DSN from owner, then wire both.
-4. **CI/CD is placeholder** — `.github/workflows/staging.yml` exists but deploy steps are `echo` only. Needs real deploy commands for the chosen hosting provider.
+3. **Sentry not wired** — `frontend/src/lib/sentry.ts` committed but never initialized. Wait for DSN from owner.
+4. **CI/CD is placeholder** — `.github/workflows/staging.yml` exists but deploy steps are `echo` only.
 5. **No rate limiting** — API has no protection against abuse.
-6. **TypeScript errors in test files** — `@types/jest` and `@testing-library/react` not installed. `npm test` fails. Fix: `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`.
+6. **TypeScript errors in test files** — Fix: `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`.
+
+### 🟠 Billing flow — in progress (next session continues here)
+The billing UX is being improved. Current state:
+- ✅ Filter chips fixed
+- ✅ Patient search: inline combobox, /customers endpoint, add new customer mini-form
+- ✅ Doctor search: inline input, freetext + DB suggestions
+- ⚠️ Patient/Doctor UX needs one more improvement: when user types a name with no DB match, show typed text + "Add [name]" option inline (same as PatientCombobox already has for patients). Doctor needs same "Add doctor" flow.
+- ⚠️ Batch selection UX in medicine row — not discoverable, needs visual cue (chip with chevron)
+- ⚠️ WhatsApp button — "Add custom number" flow incomplete
+- 🔲 Print: Thermal/A4 built, needs testing after `alembic upgrade head`
 
 ### Next feature priorities (after infra is solid)
-1. Alembic migration (blocker above)
-2. Sheets — replace all centered modals with `<Sheet side="right">` 480px
-3. Zod + react-hook-form — all forms
-4. Error retry states — every page that fetches data
-5. Bill PDF download — endpoint exists, template WIP
-6. Split payment on one bill (cash + UPI)
-7. Day-end closing / Z-report
-8. Command Palette — `Cmd+K`
+1. **Run alembic upgrade head** — activate the 3 pending migrations (BLOCKER)
+2. **Doctor "Add new" flow** — same as PatientCombobox add-new mini-form
+3. **Batch selection UX** — show batch as chip with chevron in medicine row
+4. **WhatsApp custom number** — inline popover, single number field
+5. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
+6. **Zod + react-hook-form** — all forms
+7. **Error retry states** — every page that fetches data
+8. **Split payment** — cash + UPI on one bill
+9. **Day-end closing / Z-report**
+10. **Command Palette** — `Cmd+K`
 
 ### Terminal tabs (local dev)
 - **Tab 1 (backend):** `cd backend && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
@@ -197,16 +218,17 @@ Never write a frontend filter, API call, or status check before completing steps
 ### What's next (build in this order)
 > Infrastructure first. Features on a broken foundation collapse.
 
-1. **Alembic migration** — `add_pharmacy_settings_gst_print_notification_fields` (PRODUCTION BLOCKER)
-2. **CORS fix** — explicit origin list, not `"*"` (PRODUCTION BLOCKER)
-3. **Sentry** — wire DSN into frontend + backend once owner creates account
-4. **Fix TypeScript test errors** — install `@types/jest` + `@testing-library/react`
-5. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
-6. **Zod + react-hook-form** — all forms
-7. **Error retry states** — every page that fetches data
-8. **Bill PDF** — template WIP, finish and wire download button
-9. **Split payment** — cash + UPI on one bill
-10. **Command Palette** — `Cmd+K`
+1. **`alembic upgrade head`** — 3 migrations pending, run before any deployment (BLOCKER)
+2. **Doctor "Add new" flow** — same mini-form as PatientCombobox
+3. **Batch selection UX** — chip with chevron in medicine row so users know it's clickable
+4. **WhatsApp custom number** — inline popover, no modal
+5. **Sentry** — wire DSN into frontend + backend once owner creates account
+6. **Fix TypeScript test errors** — `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`
+7. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
+8. **Zod + react-hook-form** — all forms
+9. **Error retry states** — every page that fetches data
+10. **Split payment** — cash + UPI on one bill
+11. **Command Palette** — `Cmd+K`
 
 ### Dead files (already deleted)
 - `frontend/src/pages/InventorySearch/components/InventoryHeader.jsx`

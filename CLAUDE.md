@@ -15,6 +15,7 @@
 6. **Soft deletes only.** Pharmacy data is compliance data. Hard delete is never acceptable.
 7. **International standard or nothing.** If it wouldn't ship in Linear, Notion, or Stripe — don't ship it here.
 8. **Zero cognitive load.** Every feature must be completable in the fewest possible clicks. No unnecessary steps, no confirmation modals for reversible actions, no forms asking for data we can infer. If the user has to think — we've failed. Smart defaults, inline edits, auto-save where possible.
+9. **No magic strings. No unverified routes. Ever.** Every status value (`'draft'`, `'paid'`, `'parked'`) comes from `constants/domainConstants.js`. Every API call targets a route you have confirmed exists in the backend routers. Writing a raw string like `status='parked'` or calling `/patients` without checking — that is the bug. Fix the root, not the symptom.
 
 ---
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye } from 'lucide-react';
+import { BILL_STATUS, PAYMENT_METHOD } from '@/constants/domainConstants';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
@@ -48,11 +49,11 @@ export default function BillingOperations() {
         page:         pageOverride ?? pg.page,
         page_size:    pg.pageSize,
       };
-      if (debouncedSearch)          params.search    = debouncedSearch;
-      if (activeFilter === 'due')   params.status    = 'due';
-      if (activeFilter === 'parked') params.status   = 'parked';
-      if (activeFilter === 'cash')  params.payment_method = 'cash';
-      if (activeFilter === 'upi')   params.payment_method = 'upi';
+      if (debouncedSearch)               params.search         = debouncedSearch;
+      if (activeFilter === 'due')        params.status         = BILL_STATUS.DUE;
+      if (activeFilter === 'parked')     params.status         = 'parked'; // backend maps to ['draft','parked']
+      if (activeFilter === 'cash')       params.payment_method = PAYMENT_METHOD.CASH;
+      if (activeFilter === 'upi')        params.payment_method = PAYMENT_METHOD.UPI;
       if (dateRange.start)          params.from_date = dateRange.start.toISOString().split('T')[0];
       if (dateRange.end)            params.to_date   = dateRange.end.toISOString().split('T')[0];
 
@@ -180,10 +181,10 @@ export default function BillingOperations() {
               ) : (
                 bills.map((bill) => {
                   const isParked =
+                    bill.status === BILL_STATUS.DRAFT ||
                     bill.status === 'parked' ||
-                    bill.status === 'draft' ||
                     bill.bill_number?.toLowerCase().includes('draft');
-                  const isDue = bill.status === 'due';
+                  const isDue = bill.status === BILL_STATUS.DUE;
 
                   return (
                     <tr

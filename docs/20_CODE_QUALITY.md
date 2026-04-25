@@ -5,6 +5,58 @@
 
 ---
 
+## THE ROOT-CAUSE RULE
+
+> Fix the structure, not the symptom. Patching a bug with a checklist creates the next bug.
+> Every recurring bug class gets a structural fix that makes it impossible to reintroduce.
+
+### What this means in practice
+
+| Bug class | Patch (wrong) | Structural fix (right) |
+|-----------|--------------|----------------------|
+| Filter sends `'parked'`, DB stores `'draft'` | Add if/else in backend | Define `BILL_STATUS.DRAFT = 'draft'` in `constants/domainConstants.js`, use it everywhere |
+| Frontend calls `/patients` which doesn't exist | Fix the URL | Before writing `api.get(url)`, grep backend routers to confirm the route exists. Document verified routes. |
+| Magic number `gst_rate = 5` in 6 files | Find and fix 6 files | Define `DEFAULT_GST_RATE` in `domainConstants.js` |
+| Status badge shows wrong color | Add another case | StatusBadge reads from constants — add to constants, badge fixes itself |
+
+---
+
+## DOMAIN CONSTANTS — MANDATORY
+
+**File:** `frontend/src/constants/domainConstants.js`
+
+This file is the **single source of truth** for every status value, enum, and domain string.
+
+### Rules
+
+1. **Never write a status value as a raw string anywhere in the app.** Always import from `domainConstants.js`.
+2. **Before any `api.get(url)` call**, grep `backend/routers/` to confirm the route exists. If it doesn't exist, create it — don't call a 404.
+3. **If a domain value changes** (e.g., DB column renames `draft` to `parked`) — change `domainConstants.js`. The entire app updates. That is the point.
+
+```js
+// ❌ Magic string — wrong
+if (bill.status === 'draft') { ... }
+params.status = 'parked';
+
+// ✅ Constant — right
+import { BILL_STATUS, BILL_STATUS_FILTER_MAP } from '@/constants/domainConstants';
+if (bill.status === BILL_STATUS.DRAFT) { ... }
+params.status = 'parked'; // backend maps this via BILL_STATUS_FILTER_MAP
+```
+
+### What lives in domainConstants.js
+
+- `BILL_STATUS` — all bill status values as stored in DB
+- `BILL_STATUS_FILTER_MAP` — maps UI filter keys to DB values (e.g. `parked` → `['draft', 'parked']`)
+- `PAYMENT_METHOD` — cash, upi, card, credit, multiple
+- `INVOICE_TYPE` — SALE, PURCHASE, SALES_RETURN, PURCHASE_RETURN
+- `DRUG_SCHEDULE` — H, H1, X, G
+- `SCHEDULE_REQUIRES_DOCTOR` — schedules that require doctor name
+- `CUSTOMER_TYPE` — regular, wholesale, institution
+- `STOCK_MOVEMENT_TYPE` — sale, purchase, return, expiry, damage, adjustment
+
+---
+
 ## ENGINEERING PRINCIPLES
 
 These apply to every line written in PharmaCare.
@@ -267,6 +319,11 @@ export function isExpired(expiryDate) {
 
 ## CHECKLIST (before every PR)
 
+**Domain constants (mandatory — these prevent entire bug classes):**
+- [ ] Zero raw status strings (`'draft'`, `'paid'`, `'parked'`, etc.) in any new code — all from `domainConstants.js`
+- [ ] Every `api.get(url)` call targets a route confirmed to exist in `backend/routers/` — grep to verify
+
+**Code quality:**
 - [ ] ESLint passes with zero errors (`npm run lint`)
 - [ ] Prettier formatting applied (`npm run format`)
 - [ ] No file over 300 lines

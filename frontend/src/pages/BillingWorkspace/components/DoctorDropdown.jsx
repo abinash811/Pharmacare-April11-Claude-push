@@ -125,7 +125,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
               >
                 <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
                 <div className="text-xs text-gray-400">
-                  {doctor.registration_no || doctor.specialization || ''}
+                  {doctor.registration_number || doctor.specialization || ''}
                 </div>
               </button>
             ))}

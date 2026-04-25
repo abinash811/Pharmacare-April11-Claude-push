@@ -167,6 +167,19 @@ These rules exist because adding uninstalled packages and wrong env values have 
 | Inventory | `/inventory` | `/inventory/stock-movements` |
 | Reports | `/reports` | `/reports/gst` |
 
+### HOW TO BUILD — mandatory order, every single feature
+
+> Skipping this order is what caused every filter bug, every 404, every patched fix.
+
+1. **Read the DB model first.** What columns exist? What values are actually stored? (`backend/models/` or grep the ORM)
+2. **Read the backend router.** Does the route exist? What params does it accept? What does it return?
+3. **Read domainConstants.js.** Are the status values you need already defined? If not, add them there first.
+4. **Then write the frontend.** Connected to reality — not assumptions.
+
+Never write a frontend filter, API call, or status check before completing steps 1–3.
+
+---
+
 ### Component audit (check before every PR)
 - [ ] Zero raw `<button>` tags
 - [ ] Zero hardcoded hex in className

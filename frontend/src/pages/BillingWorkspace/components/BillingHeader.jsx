@@ -24,16 +24,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Printer, RotateCcw, History, CreditCard,
-  PauseCircle, ChevronDown, CheckCircle, HelpCircle,
+  PauseCircle, ChevronDown, CheckCircle, HelpCircle, FileText,
 } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+const FORMAT_OPTIONS = [
+  { value: '80mm', label: 'Thermal' },
+  { value: 'a4',   label: 'A4'      },
+];
 
 export default function BillingHeader({
   viewMode,
   loadedBill,
   draftNumber,
   isSaving,
+  printFormat = '80mm',
+  onPrintFormatChange,
   onBack,
   onParkBill,
   onSavePrint,
@@ -241,6 +248,24 @@ export default function BillingHeader({
                 Return
               </AppButton>
             )}
+
+            {/* Format toggle — Thermal / A4 */}
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden text-xs">
+              {FORMAT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => onPrintFormatChange?.(opt.value)}
+                  className={`px-2.5 py-1.5 transition-colors font-medium ${
+                    printFormat === opt.value
+                      ? 'bg-brand text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                  title={`Print as ${opt.label}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
 
             <AppButton
               variant="outline"

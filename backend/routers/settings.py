@@ -119,6 +119,7 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "print_gst_summary":      ps.print_gst_summary           if ps else True,
         },
         "print": {
+            "paper_size":         ps.paper_size          if ps else "80mm",
             "print_logo":         ps.print_logo          if ps else True,
             "print_drug_license": ps.print_drug_license  if ps else True,
             "print_patient_name": ps.print_patient_name  if ps else True,
@@ -161,6 +162,8 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         ps.near_expiry_threshold_days = notif["near_expiry_days"]
 
     printing = settings_data.get("print", {})
+    if "paper_size" in printing:
+        ps.paper_size = printing["paper_size"]
     if "print_logo" in printing:
         ps.print_logo = printing["print_logo"]
     if "print_drug_license" in printing:

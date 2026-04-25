@@ -55,7 +55,8 @@ export default function BillingWorkspace() {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
-  const [savedBillData, setSavedBillData] = useState(null);
+  const [savedBillData,  setSavedBillData]  = useState(null);
+  const [printFormat,    setPrintFormat]    = useState('80mm'); // default until settings load
 
   // ── Items + totals hook ──────────────────────────────────────────────────
   const {
@@ -118,10 +119,15 @@ export default function BillingWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const [ur, mr] = await Promise.all([api.get(apiUrl.users()), api.get(apiUrl.authMe())]);
+        const [ur, mr, sr] = await Promise.all([
+          api.get(apiUrl.users()),
+          api.get(apiUrl.authMe()),
+          api.get(apiUrl.settings()),
+        ]);
         setUsers(ur.data || []);
         setCurrentUser(mr.data);
         setBilledBy(mr.data?.name || mr.data?.email || '');
+        setPrintFormat(sr.data?.print?.paper_size || '80mm');
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
@@ -222,6 +228,7 @@ export default function BillingWorkspace() {
       <BillingHeader
         viewMode={viewMode} loadedBill={loadedBill} draftNumber={draftNumber}
         isSaving={isSaving}
+        printFormat={printFormat} onPrintFormatChange={setPrintFormat}
         onBack={() => navigate('/billing')}
         onParkBill={parkBill}
         onSavePrint={saveBillAndPrint}
@@ -273,7 +280,7 @@ export default function BillingWorkspace() {
         isSaving={isSaving}
         onConfirm={(notes) => confirmAndSaveBill(notes).then(() => setShowFinalise(false))}
       />
-      <PrintReceipt billData={savedBillData} />
+      <PrintReceipt billData={savedBillData} format={printFormat} />
       <BarcodeScannerModal
         isOpen={showBarcodeScanner}
         onClose={() => setShowBarcodeScanner(false)}

@@ -63,6 +63,7 @@ class PharmacySettings(Base):
     round_off_amount: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_gst_summary: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Print
+    paper_size: Mapped[str] = mapped_column(String(10), default="80mm", nullable=False)
     print_logo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_drug_license: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_patient_name: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -33,6 +33,12 @@ export const BILL_STATUS_FILTER_MAP = {
   paid:   [BILL_STATUS.PAID],
 };
 
+// Statuses that mean a bill is NOT yet settled.
+// Payment method filters (cash, upi) must EXCLUDE these —
+// a parked bill is not a completed sale regardless of which
+// payment method was pre-selected.
+export const UNSETTLED_STATUSES = [BILL_STATUS.DRAFT, 'parked'];
+
 // ─── Payment Methods ──────────────────────────────────────────────────────────
 export const PAYMENT_METHOD = {
   CASH:     'cash',

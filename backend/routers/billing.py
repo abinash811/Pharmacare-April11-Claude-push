@@ -631,7 +631,12 @@ async def get_bills(
         else:
             query = query.where(BillORM.status == status)
     if payment_method:
-        query = query.where(BillORM.payment_method.ilike(payment_method))
+        # Payment method filters must exclude drafts — a parked bill is not
+        # a completed cash/upi sale. Only settled bills (paid/due) are shown.
+        query = query.where(
+            BillORM.payment_method.ilike(payment_method),
+            BillORM.status.notin_(['draft', 'parked']),
+        )
     if search:
         p = f"%{search}%"
         query = query.where(or_(

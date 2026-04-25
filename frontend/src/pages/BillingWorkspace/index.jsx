@@ -259,7 +259,6 @@ export default function BillingWorkspace() {
           grandTotal={grandTotal} margin={margin}
           billDiscount={billDiscount} billDiscountType={billDiscountType}
           onBillDiscountChange={setBillDiscount} onBillDiscountTypeChange={setBillDiscountType}
-          customerPhone={customerPhone} onPrint={handlePrintCurrentBill} onFinalise={openFinaliseModal}
         />
       </main>
 

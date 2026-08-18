@@ -25,7 +25,7 @@ echo ""
 # ── Rule 1: No raw <button> tags in pages (AppButton only) ───────────────
 # Excludes: dropdown menu items inside popovers (known exceptions in BillingHeader)
 # Excludes: WelcomeCard navigational tiles (intentional exception, documented)
-RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" \
+RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
   | grep -v "data-testid=\"save-print-menu-btn\"" \
   | grep -v "WelcomeCard" \
   | grep -v "// raw button" \
@@ -33,7 +33,7 @@ RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" 
 
 if [ "$RAW_BUTTONS" -gt "0" ]; then
   red "Rule 1 FAIL: $RAW_BUTTONS raw <button> tag(s) found in pages/"
-  grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" \
+  grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
     | grep -v "data-testid=\"save-print-menu-btn\"" \
     | grep -v "WelcomeCard" \
     | grep -v "// raw button" \
@@ -45,14 +45,14 @@ fi
 
 # ── Rule 2: No hardcoded hex colors in className ────────────────────────
 HEX_COLORS=$(grep -rn "className=.*#[0-9a-fA-F]\{3,6\}" "$FRONTEND" "$SHARED" \
-  --include="*.jsx" --include="*.js" \
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
   | grep -v "AuthPage" \
   | wc -l | tr -d ' ')
 
 if [ "$HEX_COLORS" -gt "0" ]; then
   red "Rule 2 FAIL: $HEX_COLORS hardcoded hex color(s) in className"
   grep -rn "className=.*#[0-9a-fA-F]\{3,6\}" "$FRONTEND" "$SHARED" \
-    --include="*.jsx" --include="*.js" \
+    --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
     | grep -v "AuthPage" \
     | while read -r line; do warn "$line"; done
   ERRORS=$((ERRORS + 1))
@@ -62,11 +62,11 @@ fi
 
 # ── Rule 3: No hover:bg-[#...] patterns ─────────────────────────────────
 HOVER_HEX=$(grep -rn "hover:bg-\[#" "$FRONTEND" "$SHARED" \
-  --include="*.jsx" --include="*.js" | wc -l | tr -d ' ')
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ')
 
 if [ "$HOVER_HEX" -gt "0" ]; then
   red "Rule 3 FAIL: $HOVER_HEX hover:bg-[#...] pattern(s) found"
-  grep -rn "hover:bg-\[#" "$FRONTEND" "$SHARED" --include="*.jsx" --include="*.js" \
+  grep -rn "hover:bg-\[#" "$FRONTEND" "$SHARED" --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
     | while read -r line; do warn "$line"; done
   ERRORS=$((ERRORS + 1))
 else
@@ -81,7 +81,7 @@ while IFS= read -r -d '' file; do
     red "Rule 4 FAIL: $file has $lines lines (max 300)"
     LONG_FILES=$((LONG_FILES + 1))
   fi
-done < <(find "$FRONTEND" -name "*.jsx" -o -name "*.js" | grep -v node_modules | tr '\n' '\0')
+done < <(find "$FRONTEND" \( -name "*.jsx" -o -name "*.js" -o -name "*.tsx" -o -name "*.ts" \) | grep -v node_modules | tr '\n' '\0')
 
 if [ "$LONG_FILES" -eq "0" ]; then
   green "Rule 4 PASS: All files under 300 lines"
@@ -91,12 +91,12 @@ fi
 
 # ── Rule 5: No Shadcn <Button> imported in pages ─────────────────────────
 SHADCN_BUTTON=$(grep -rn "from '@/components/ui/button'" "$FRONTEND" \
-  --include="*.jsx" --include="*.js" | wc -l | tr -d ' ')
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ')
 
 if [ "$SHADCN_BUTTON" -gt "0" ]; then
   red "Rule 5 FAIL: $SHADCN_BUTTON page(s) import directly from ui/button — use AppButton from shared"
   grep -rn "from '@/components/ui/button'" "$FRONTEND" \
-    --include="*.jsx" --include="*.js" \
+    --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
     | while read -r line; do warn "$line"; done
   ERRORS=$((ERRORS + 1))
 else

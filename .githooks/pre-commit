@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# PharmaCare pre-commit checks.
+# Checks ONLY the files staged in this commit — pre-existing issues elsewhere
+# in the repo never block an unrelated commit. The full-repo audit still runs
+# in CI via scripts/design-guard.sh + flake8 + eslint before merge to main
+# (see CLAUDE.md "Component audit" and docs/20_CODE_QUALITY.md).
+#
+# Every block below prints WHY it's blocking, with the source rule, so a
+# blocked commit is never a mystery.
+#
+# One-time setup (per machine): git config core.hooksPath .githooks
+# Emergency bypass (skips ALL checks — use sparingly): git commit --no-verify
+
+set -uo pipefail
+ERRORS=0
+
+red()    { echo -e "\033[0;31m✗ $*\033[0m"; }
+green()  { echo -e "\033[0;32m✓ $*\033[0m"; }
+file()   { echo -e "\033[0;33m    $*\033[0m"; }
+reason() { echo -e "\033[0;36m    → $*\033[0m"; }
+
+STAGED=$(git diff --name-only --cached --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+FRONTEND_FILES=$(echo "$STAGED" | grep -E '^frontend/src/(pages|components)/.*\.(js|jsx|ts|tsx)$' || true)
+BACKEND_FILES=$(echo "$STAGED" | grep -E '^backend/.*\.py$' | grep -v -E '(^backend/venv/|/alembic/versions/)' || true)
+
+echo ""
+echo "PharmaCare pre-commit checks (staged files only)"
+echo "─────────────────────────────────────────────────"
+
+if [ -n "$FRONTEND_FILES" ]; then
+  RAW=$(echo "$FRONTEND_FILES" | xargs grep -ln "<button" 2>/dev/null | grep -v "WelcomeCard" || true)
+  if [ -n "$RAW" ]; then
+    red "BLOCKED: raw <button> tag(s) found"
+    echo "$RAW" | while read -r f; do file "$f"; done
+    reason "CLAUDE.md Manifesto rule #1: every button must be <AppButton>, imported from '@/components/shared'. No raw <button> tags."
+    ERRORS=$((ERRORS+1))
+  fi
+
+  HEX=$(echo "$FRONTEND_FILES" | xargs grep -ln "className=.*#[0-9a-fA-F]\{3,6\}" 2>/dev/null | grep -v "AuthPage" || true)
+  if [ -n "$HEX" ]; then
+    red "BLOCKED: hardcoded hex color(s) in className"
+    echo "$HEX" | while read -r f; do file "$f"; done
+    reason "CLAUDE.md Manifesto rule #2: use design tokens (bg-brand, text-brand, etc.), never a raw hex value like #4682B4."
+    ERRORS=$((ERRORS+1))
+  fi
+
+  HOVERHEX=$(echo "$FRONTEND_FILES" | xargs grep -ln "hover:bg-\[#" 2>/dev/null || true)
+  if [ -n "$HOVERHEX" ]; then
+    red "BLOCKED: hover:bg-[#...] pattern found"
+    echo "$HOVERHEX" | while read -r f; do file "$f"; done
+    reason "Same token rule as above — hover states must use hover:bg-brand-dark, not a raw hex hover color."
+    ERRORS=$((ERRORS+1))
+  fi
+
+  LONG=$(for f in $FRONTEND_FILES; do
+    [ -f "$f" ] || continue
+    lines=$(wc -l < "$f")
+    [ "$lines" -gt 300 ] && echo "$f ($lines lines)"
+  done)
+  if [ -n "$LONG" ]; then
+    red "BLOCKED: file(s) over the 300-line limit"
+    echo "$LONG" | while read -r f; do file "$f"; done
+    reason "CLAUDE.md Manifesto rule #4: no file over 300 lines. Split it — orchestrators import components, they don't contain the JSX logic."
+    ERRORS=$((ERRORS+1))
+  fi
+
+  SHADCN=$(echo "$FRONTEND_FILES" | xargs grep -ln "from '@/components/ui/button'" 2>/dev/null || true)
+  if [ -n "$SHADCN" ]; then
+    red "BLOCKED: direct Shadcn ui/button import"
+    echo "$SHADCN" | while read -r f; do file "$f"; done
+    reason "Use AppButton from '@/components/shared' — it wraps Shadcn's button with the design system's variants baked in."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
+NEWJSX=$(echo "$STAGED" | grep '\.jsx$' | grep -v node_modules || true)
+if [ -n "$NEWJSX" ]; then
+  red "BLOCKED: new .jsx file(s) staged"
+  echo "$NEWJSX" | while read -r f; do file "$f"; done
+  reason "CLAUDE.md: new files must use .tsx, not .jsx."
+  ERRORS=$((ERRORS+1))
+fi
+
+if [ -n "$FRONTEND_FILES" ] && [ -x frontend/node_modules/.bin/eslint ]; then
+  echo ""
+  echo "Running ESLint on staged frontend file(s)..."
+  RELATIVE=$(echo "$FRONTEND_FILES" | sed 's|^frontend/||')
+  if ! (cd frontend && ./node_modules/.bin/eslint $RELATIVE --max-warnings 0); then
+    red "BLOCKED: ESLint found error(s)/warning(s) above"
+    reason "docs/20_CODE_QUALITY.md + CI: ESLint must pass with 0 warnings before a commit is allowed."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
+if [ -n "$BACKEND_FILES" ] && [ -x backend/venv/bin/flake8 ]; then
+  echo ""
+  echo "Running flake8 on staged backend file(s)..."
+  if ! backend/venv/bin/flake8 $BACKEND_FILES --max-line-length=100 --exclude=venv,alembic/versions,__pycache__; then
+    red "BLOCKED: flake8 found issue(s) above"
+    reason "docs/20_CODE_QUALITY.md + CI: backend must pass flake8 (max-line-length=100) before a commit is allowed."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
+echo ""
+if [ "$ERRORS" -eq 0 ]; then
+  green "All pre-commit checks passed."
+  exit 0
+else
+  red "$ERRORS check(s) failed — commit blocked until fixed."
+  echo "Fix the issue(s) above, 'git add' the fix, and commit again."
+  exit 1
+fi

@@ -4,6 +4,8 @@ const js            = require('@eslint/js');
 const globals       = require('globals');
 const reactPlugin   = require('eslint-plugin-react');
 const reactHooks    = require('eslint-plugin-react-hooks');
+const tsParser      = require('@typescript-eslint/parser');
+const tsPlugin      = require('@typescript-eslint/eslint-plugin');
 
 module.exports = [
   // Base JS rules
@@ -18,6 +20,11 @@ module.exports = [
     },
 
     languageOptions: {
+      // @typescript-eslint/parser handles .ts/.tsx AND plain .js/.jsx (it's a
+      // superset of the default parser), so one parser covers all four extensions.
+      // Without this, .ts/.tsx files failed to parse at all (e.g. "Unexpected
+      // token interface") and were silently skipped by lint.
+      parser: tsParser,
       ecmaVersion: 'latest',
       sourceType:  'module',
       globals: {
@@ -43,6 +50,9 @@ module.exports = [
       // React
       'react/jsx-uses-react':   'off',   // not needed with React 17+ JSX transform
       'react/react-in-jsx-scope': 'off',
+      // Without this, no-unused-vars can't see that <AppButton /> "uses" the
+      // AppButton import — every JSX-only import was flagged as unused.
+      'react/jsx-uses-vars': 'error',
 
       // General — turn off noisy rules that CRA normally ignores
       'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
@@ -109,6 +119,29 @@ module.exports = [
             "Hardcoded hex in SVG/chart attribute. Import from '@/utils/chartColors' instead.",
         },
       ],
+    },
+  },
+
+  // TypeScript files: the core no-unused-vars rule doesn't understand TS-only
+  // syntax (interface properties, type-only imports) and misreads them as
+  // unused variables (e.g. flagging `value: string;` inside an interface).
+  // Swap in the TS-aware version, same options, for .ts/.tsx only.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { '@typescript-eslint': tsPlugin },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
+    },
+  },
+
+  // Test files also need Jest's globals (describe/it/expect/beforeEach/…),
+  // which aren't part of globals.browser — without this every test file
+  // failed lint with "'describe' is not defined" etc.
+  {
+    files: ['src/**/*.test.{js,jsx,ts,tsx}', 'src/setupTests.js'],
+    languageOptions: {
+      globals: { ...globals.jest },
     },
   },
 

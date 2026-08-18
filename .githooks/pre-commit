@@ -75,7 +75,7 @@ if [ -n "$FRONTEND_FILES" ]; then
   fi
 fi
 
-NEWJSX=$(echo "$STAGED" | grep '\.jsx$' | grep -v node_modules || true)
+NEWJSX=$(git diff --name-only --cached --diff-filter=A | grep '\.jsx$' | grep -v node_modules || true)
 if [ -n "$NEWJSX" ]; then
   red "BLOCKED: new .jsx file(s) staged"
   echo "$NEWJSX" | while read -r f; do file "$f"; done

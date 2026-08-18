@@ -104,11 +104,11 @@ else
 fi
 
 # ── Rule 6: No new .jsx files — use .tsx ─────────────────────────────────
-NEW_JSX=$(git diff --name-only --cached 2>/dev/null | grep "\.jsx$" | grep -v node_modules | wc -l | tr -d ' ')
+NEW_JSX=$(git diff --name-only --cached --diff-filter=A 2>/dev/null | grep "\.jsx$" | grep -v node_modules | wc -l | tr -d ' ')
 
 if [ "$NEW_JSX" -gt "0" ]; then
   red "Rule 6 FAIL: $NEW_JSX new .jsx file(s) staged — use .tsx instead"
-  git diff --name-only --cached 2>/dev/null | grep "\.jsx$" | while read -r line; do warn "$line"; done
+  git diff --name-only --cached --diff-filter=A 2>/dev/null | grep "\.jsx$" | while read -r line; do warn "$line"; done
   ERRORS=$((ERRORS + 1))
 else
   green "Rule 6 PASS: No new .jsx files staged"

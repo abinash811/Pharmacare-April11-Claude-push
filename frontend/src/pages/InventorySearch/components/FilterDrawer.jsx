@@ -26,9 +26,7 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
       {/* Header */}
       <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
         <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg" aria-label="Close">
-          <X className="w-5 h-5 text-gray-500" />
-        </button>
+        <AppButton variant="ghost" iconOnly icon={<X className="w-5 h-5 text-gray-500" />} onClick={onClose} aria-label="Close" />
       </div>
 
       {/* Fields */}

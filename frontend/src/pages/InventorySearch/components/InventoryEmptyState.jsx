@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { Search, Package, AlertTriangle, Clock } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 export default function InventoryEmptyState({ summary = {}, onFocusSearch, onViewLowStock }) {
   const { total = 0, low_stock = 0, expiring_soon = 0 } = summary;
@@ -36,19 +37,12 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
         </p>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={onFocusSearch}
-            className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-          >
+          <AppButton variant="secondary" onClick={onFocusSearch}>
             Recent Searches
-          </button>
-          <button
-            onClick={onViewLowStock}
-            className="px-5 py-2.5 bg-brand text-white font-semibold rounded-lg hover:bg-brand-dark transition-colors"
-            data-testid="view-low-stock-btn"
-          >
+          </AppButton>
+          <AppButton onClick={onViewLowStock} data-testid="view-low-stock-btn">
             View Low Stock
-          </button>
+          </AppButton>
         </div>
       </div>
 

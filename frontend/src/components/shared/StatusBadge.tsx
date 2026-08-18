@@ -24,13 +24,31 @@ const STATUS_STYLES: Record<string, string> = {
   regular: 'bg-blue-50 text-blue-700',
   wholesale: 'bg-purple-50 text-purple-700',
   institution: 'bg-green-50 text-green-700',
+  // Inventory stock-health statuses (see docs/06_COMPONENTS.md)
+  healthy: 'bg-green-50 text-green-700',
+  low_stock: 'bg-amber-50 text-amber-700',
+  near_expiry: 'bg-amber-50 text-amber-700',
+  out_of_stock: 'bg-red-50 text-red-700',
+  expired: 'bg-red-50 text-red-700',
   default: 'bg-gray-100 text-gray-700',
+};
+
+// Dot indicator colors, only used when <StatusBadge dot /> is passed.
+const DOT_COLORS: Record<string, string> = {
+  healthy: 'bg-green-500',
+  low_stock: 'bg-amber-500',
+  near_expiry: 'bg-amber-500',
+  out_of_stock: 'bg-red-500',
+  expired: 'bg-red-500',
 };
 
 const LABEL_MAPPINGS: Record<string, string> = {
   same_as_original: 'Same as Original',
   credit_to_account: 'Credit to Account',
   adjust_outstanding: 'Adjusted',
+  low_stock: 'Low Stock',
+  near_expiry: 'Near Expiry',
+  out_of_stock: 'Out of Stock',
 };
 
 export interface StatusBadgeProps {
@@ -38,9 +56,11 @@ export interface StatusBadgeProps {
   label?: string;
   fallback?: string;
   className?: string;
+  /** Show a small colored dot before the label (used by stock-health badges). */
+  dot?: boolean;
 }
 
-export function StatusBadge({ status, label, fallback = '-', className = '' }: StatusBadgeProps) {
+export function StatusBadge({ status, label, fallback = '-', className = '', dot = false }: StatusBadgeProps) {
   if (!status || status === 'NaN' || !status.trim()) {
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_STYLES.default} ${className}`}>
@@ -51,15 +71,17 @@ export function StatusBadge({ status, label, fallback = '-', className = '' }: S
 
   const normalizedStatus = status.toLowerCase().trim();
   const styleClass = STATUS_STYLES[normalizedStatus] ?? STATUS_STYLES.default;
+  const dotColor = DOT_COLORS[normalizedStatus];
   const displayLabel = label
     ?? LABEL_MAPPINGS[normalizedStatus]
     ?? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase());
 
   return (
     <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${styleClass} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${styleClass} ${className}`}
       data-testid={`status-badge-${normalizedStatus}`}
     >
+      {dot && dotColor && <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />}
       {displayLabel}
     </span>
   );

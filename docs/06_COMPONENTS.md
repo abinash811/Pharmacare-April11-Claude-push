@@ -366,9 +366,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 ## 4. SearchInput
 
-**File:** `frontend/src/components/shared/SearchInput.jsx`
+**File:** `frontend/src/components/shared/SearchInput.tsx`
 
 Search input with embedded search icon. Use for all search fields in filter bars.
+
+**Props:** `value`, `onChange(value: string)`, `placeholder?`, `className?`, `inputRef?` (forward a ref to focus the input programmatically), `data-testid?` (defaults to `"search-input"`).
 
 ### Props
 
@@ -400,7 +402,7 @@ const [search, setSearch] = useState('');
 
 ## 5. StatusBadge / PaymentStatusBadge / CustomerTypeBadge
 
-**File:** `frontend/src/components/shared/StatusBadge.jsx`
+**File:** `frontend/src/components/shared/StatusBadge.tsx`
 
 Colored pill badges for status values. All status-to-color mappings live here.
 
@@ -415,6 +417,14 @@ Colored pill badges for status values. All status-to-color mappings live here.
 <StatusBadge status="pending" />        // amber "Pending"
 <StatusBadge status="active" />         // green "Active"
 <StatusBadge status="inactive" />       // red "Inactive"
+
+// Inventory stock-health statuses (used by Inventory table)
+<StatusBadge status="healthy" dot />       // green dot + "Healthy"
+<StatusBadge status="low_stock" dot />     // amber dot + "Low Stock"
+<StatusBadge status="near_expiry" dot />   // amber dot + "Near Expiry"
+<StatusBadge status="out_of_stock" dot />  // red dot + "Out of Stock"
+<StatusBadge status="expired" dot />       // red dot + "Expired"
+// dot?: boolean — shows a small colored dot before the label
 
 // Custom label
 <StatusBadge status="draft" label="Parked" />   // amber "Parked"

@@ -17,25 +17,9 @@
 import React from 'react';
 import { Edit2, Scale, Package } from 'lucide-react';
 import { formatDate } from '@/utils/dates';
-import { AppButton } from '@/components/shared';
+import { AppButton, StatusBadge, PaginationBar } from '@/components/shared';
 
-const STATUS_CONFIG = {
-  expired:      { label: 'Expired',      color: 'bg-red-50 text-red-700 border-red-200',       dot: 'bg-red-500' },
-  out_of_stock: { label: 'Out of Stock', color: 'bg-red-50 text-red-700 border-red-200',       dot: 'bg-red-500' },
-  near_expiry:  { label: 'Near Expiry',  color: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-500' },
-  low_stock:    { label: 'Low Stock',    color: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-500' },
-  healthy:      { label: 'Healthy',      color: 'bg-green-50 text-green-700 border-green-200',  dot: 'bg-green-500' },
-};
-
-function StatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.healthy;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${cfg.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  );
-}
+const PAGE_SIZE = 20;
 
 export default function InventoryTable({
   inventory = [],
@@ -51,16 +35,15 @@ export default function InventoryTable({
   totalItems,
   onPageChange,
 }) {
-  const pageSize = 20;
-  const from = Math.min((currentPage - 1) * pageSize + 1, totalItems);
-  const to   = Math.min(currentPage * pageSize, totalItems);
+  const from = Math.min((currentPage - 1) * PAGE_SIZE + 1, totalItems);
+  const to   = Math.min(currentPage * PAGE_SIZE, totalItems);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Bulk action bar */}
       {selectedItems.size > 0 && (
-        <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-green-700">
+        <div className="bg-brand-tint border-b border-brand/20 px-6 py-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-brand">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </span>
           <AppButton onClick={onBulkUpdate} size="sm" data-testid="bulk-update-btn">
@@ -130,16 +113,12 @@ export default function InventoryTable({
                 </span>
               </td>
 
-              <td className="px-4 py-4 text-center"><StatusBadge status={item.status} /></td>
+              <td className="px-4 py-4 text-center"><StatusBadge status={item.status || 'healthy'} dot /></td>
 
               <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-2">
-                  <button onClick={(e) => onEdit(item, e)} className="p-2 text-gray-400 hover:text-brand hover:bg-green-50 rounded-lg transition-colors" title="Edit" data-testid={`edit-${item.product.sku}`}>
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={(e) => onAdjust(item, e)} className="p-2 text-gray-400 hover:text-brand hover:bg-green-50 rounded-lg transition-colors" title="Adjust Stock" data-testid={`adjust-${item.product.sku}`}>
-                    <Scale className="w-4 h-4" />
-                  </button>
+                  <AppButton variant="ghost" iconOnly icon={<Edit2 className="w-4 h-4" />} onClick={(e) => onEdit(item, e)} title="Edit" data-testid={`edit-${item.product.sku}`} />
+                  <AppButton variant="ghost" iconOnly icon={<Scale className="w-4 h-4" />} onClick={(e) => onAdjust(item, e)} title="Adjust Stock" data-testid={`adjust-${item.product.sku}`} />
                 </div>
               </td>
             </tr>
@@ -148,20 +127,17 @@ export default function InventoryTable({
       </table>
 
       {/* Pagination */}
-      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-        <p className="text-sm text-gray-500">Showing {from}–{to} of {totalItems} medicines</p>
-        <div className="flex items-center gap-2">
-          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-tint" data-testid="prev-page">
-            Previous
-          </button>
-          <span className="text-sm text-gray-600 px-3">Page {currentPage} of {totalPages}</span>
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-tint" data-testid="next-page">
-            Next
-          </button>
-        </div>
-      </div>
+      <PaginationBar
+        page={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        showingText={`Showing ${from}–${to} of ${totalItems} medicines`}
+        prevPage={() => onPageChange(currentPage - 1)}
+        nextPage={() => onPageChange(currentPage + 1)}
+        setPage={onPageChange}
+        isFirstPage={currentPage === 1}
+        isLastPage={currentPage === totalPages}
+      />
     </div>
   );
 }

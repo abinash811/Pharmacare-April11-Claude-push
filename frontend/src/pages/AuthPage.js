@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '@/App';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/shared';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,9 +36,13 @@ const Divider = () => (
 
 const TRUST_ITEMS = ['GST-ready billing in seconds', 'Schedule H1 compliance built-in', 'Works on desktop and iPad'];
 
+const REGISTER_STEP = { ACCOUNT: 1, PHARMACY: 2 };
+
 export default function AuthPage() {
   const { login } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [registerStep, setRegisterStep] = useState(REGISTER_STEP.ACCOUNT);
+  const [accountInfo, setAccountInfo] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -55,11 +59,31 @@ export default function AuthPage() {
     setLoading(false);
   };
 
+  const handleAccountStepNext = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    setAccountInfo({
+      name: formData.get('name'),
+      email: formData.get('email'),
+      password: formData.get('password'),
+      phone: formData.get('phone'),
+    });
+    setRegisterStep(REGISTER_STEP.PHARMACY);
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.target);
-    const userData = { name: formData.get('name'), email: formData.get('email'), password: formData.get('password'), role: formData.get('role') || 'cashier' };
+    const userData = {
+      ...accountInfo,
+      pharmacy_name: formData.get('pharmacy_name'),
+      address: formData.get('address'),
+      city: formData.get('city'),
+      state: formData.get('state'),
+      pincode: formData.get('pincode'),
+      drug_license_number: formData.get('drug_license_number') || null,
+    };
     try {
       const response = await api.post('/auth/register', userData);
       login(response.data.user, response.data.token);
@@ -142,45 +166,94 @@ export default function AuthPage() {
                     <Label htmlFor="login-password">Password</Label>
                     <Input id="login-password" name="password" type="password" required className="h-12 md:h-9" data-testid="login-password-input" />
                   </div>
-                  <Button type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="login-submit-btn">
+                  <AppButton type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="login-submit-btn">
                     {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
+                  </AppButton>
                 </form>
                 <Divider />
-                <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} data-testid="google-login-btn">
+                <AppButton type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} data-testid="google-login-btn">
                   <GoogleIcon />Sign in with Google
-                </Button>
+                </AppButton>
               </TabsContent>
 
               <TabsContent value="register" data-testid="register-form">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div>
-                    <Label htmlFor="register-name">Full Name</Label>
-                    <Input id="register-name" name="name" type="text" placeholder="John Doe" required className="h-12 md:h-9" data-testid="register-name-input" />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input id="register-email" name="email" type="email" placeholder="john@pharmacy.com" required className="h-12 md:h-9" data-testid="register-email-input" />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-password">Password</Label>
-                    <Input id="register-password" name="password" type="password" required className="h-12 md:h-9" data-testid="register-password-input" />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-role">Role</Label>
-                    <select id="register-role" name="role" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" data-testid="register-role-select">
-                      <option value="cashier">Cashier</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <Button type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="register-submit-btn">
-                    {loading ? 'Creating account...' : 'Create Account'}
-                  </Button>
-                </form>
-                <Divider />
-                <Button type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} data-testid="google-register-btn">
-                  <GoogleIcon />Sign up with Google
-                </Button>
+                <div className="flex items-center gap-2 mb-4 text-xs font-medium text-gray-500">
+                  <span className={registerStep === REGISTER_STEP.ACCOUNT ? 'text-brand' : ''}>1. Your account</span>
+                  <span className="flex-1 h-px bg-gray-200" />
+                  <span className={registerStep === REGISTER_STEP.PHARMACY ? 'text-brand' : ''}>2. Your pharmacy</span>
+                </div>
+
+                {registerStep === REGISTER_STEP.ACCOUNT ? (
+                  <form onSubmit={handleAccountStepNext} className="space-y-4" data-testid="register-step-account">
+                    <div>
+                      <Label htmlFor="register-name">Full Name</Label>
+                      <Input id="register-name" name="name" type="text" placeholder="John Doe" required defaultValue={accountInfo?.name} className="h-12 md:h-9" data-testid="register-name-input" />
+                    </div>
+                    <div>
+                      <Label htmlFor="register-email">Email</Label>
+                      <Input id="register-email" name="email" type="email" placeholder="john@pharmacy.com" required defaultValue={accountInfo?.email} className="h-12 md:h-9" data-testid="register-email-input" />
+                    </div>
+                    <div>
+                      <Label htmlFor="register-password">Password</Label>
+                      <Input id="register-password" name="password" type="password" required defaultValue={accountInfo?.password} className="h-12 md:h-9" data-testid="register-password-input" />
+                    </div>
+                    <div>
+                      <Label htmlFor="register-phone">Phone</Label>
+                      <Input id="register-phone" name="phone" type="tel" placeholder="9876543210" required defaultValue={accountInfo?.phone} className="h-12 md:h-9" data-testid="register-phone-input" />
+                    </div>
+                    <AppButton type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" data-testid="register-next-btn">
+                      Continue
+                    </AppButton>
+                  </form>
+                ) : (
+                  <form onSubmit={handleRegister} className="space-y-4" data-testid="register-step-pharmacy">
+                    <div>
+                      <Label htmlFor="register-pharmacy-name">Pharmacy Name</Label>
+                      <Input id="register-pharmacy-name" name="pharmacy_name" type="text" placeholder="City Medical Store" required className="h-12 md:h-9" data-testid="register-pharmacy-name-input" />
+                    </div>
+                    <div>
+                      <Label htmlFor="register-address">Address</Label>
+                      <Input id="register-address" name="address" type="text" placeholder="123 Main Street" required className="h-12 md:h-9" data-testid="register-address-input" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="register-city">City</Label>
+                        <Input id="register-city" name="city" type="text" placeholder="Bengaluru" required className="h-12 md:h-9" data-testid="register-city-input" />
+                      </div>
+                      <div>
+                        <Label htmlFor="register-state">State</Label>
+                        <Input id="register-state" name="state" type="text" placeholder="Karnataka" required className="h-12 md:h-9" data-testid="register-state-input" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="register-pincode">Pincode</Label>
+                        <Input id="register-pincode" name="pincode" type="text" placeholder="560001" required pattern="\d{6}" className="h-12 md:h-9" data-testid="register-pincode-input" />
+                      </div>
+                      <div>
+                        <Label htmlFor="register-dl">Drug License No.</Label>
+                        <Input id="register-dl" name="drug_license_number" type="text" placeholder="KA-BLR-12345" className="h-12 md:h-9" data-testid="register-dl-input" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <AppButton type="button" variant="outline" className="h-12 md:h-9" onClick={() => setRegisterStep(REGISTER_STEP.ACCOUNT)} data-testid="register-back-btn">
+                        Back
+                      </AppButton>
+                      <AppButton type="submit" className="flex-1 h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="register-submit-btn">
+                        {loading ? 'Creating account...' : 'Create Account'}
+                      </AppButton>
+                    </div>
+                  </form>
+                )}
+
+                {registerStep === REGISTER_STEP.ACCOUNT && (
+                  <>
+                    <Divider />
+                    <AppButton type="button" variant="outline" className="w-full" onClick={handleGoogleLogin} data-testid="google-register-btn">
+                      <GoogleIcon />Sign up with Google
+                    </AppButton>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

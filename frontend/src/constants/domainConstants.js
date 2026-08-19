@@ -98,3 +98,14 @@ export const BILLING_FOR = {
   SELF:  'self',
   OTHER: 'other',
 };
+
+// ─── User Roles ───────────────────────────────────────────────────────────────
+// Mirrors backend/constants.py::DEFAULT_ROLES names exactly. A new pharmacy
+// (created at signup — see routers/auth.py) always gets all four; the
+// signing-up user is always ROLE.ADMIN for their own pharmacy.
+export const USER_ROLE = {
+  ADMIN:           'admin',
+  MANAGER:         'manager',
+  CASHIER:         'cashier',
+  INVENTORY_STAFF: 'inventory_staff',
+};

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import re
 import uuid
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +38,86 @@ class BillSequenceSettings(BaseModel):
     starting_number: int = 1
     sequence_length: int = 6
     allow_prefix_change: bool = True
+
+
+GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
+PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
+PHONE_RE = re.compile(r"^[6-9]\d{9}$")
+PINCODE_RE = re.compile(r"^\d{6}$")
+
+
+class PharmacyGeneralUpdate(BaseModel):
+    """Validates the pharmacy-profile section of PUT /settings.
+
+    The frontend (PharmacyProfileTab.tsx) already checks these formats, but
+    that alone never stopped a direct API call from saving garbage — this is
+    the actual enforcement.
+    """
+    name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gstin: Optional[str] = None
+    drug_license_number: Optional[str] = None
+    drug_license_expiry: Optional[date] = None
+    fssai_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    logo_url: Optional[str] = None
+
+    @field_validator("name", "address", "city", "state")
+    @classmethod
+    def not_blank(cls, v: Optional[str], info) -> Optional[str]:
+        if v is not None and not v.strip():
+            raise ValueError(f"{info.field_name.replace('_', ' ').title()} cannot be blank")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def valid_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("Phone cannot be blank")
+            if not PHONE_RE.match(v):
+                raise ValueError("Phone must be a valid 10-digit Indian mobile number")
+        return v
+
+    @field_validator("pincode")
+    @classmethod
+    def valid_pincode(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("Pincode cannot be blank")
+            if not PINCODE_RE.match(v):
+                raise ValueError("Pincode must be 6 digits")
+        return v
+
+    @field_validator("gstin")
+    @classmethod
+    def valid_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not GSTIN_RE.match(v):
+                raise ValueError("Invalid GSTIN format")
+        return v
+
+    @field_validator("pan_number")
+    @classmethod
+    def valid_pan(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not PAN_RE.match(v):
+                raise ValueError("Invalid PAN format (e.g. ABCDE1234F)")
+        return v
+
+    @field_validator("drug_license_expiry", mode="before")
+    @classmethod
+    def blank_expiry_to_none(cls, v):
+        # The date <input> sends "" when cleared — treat that as "no date",
+        # not a parse error.
+        return None if v == "" else v
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -191,14 +273,22 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
     # ── Pharmacy profile ──────────────────────────────────────────────────────
     general = settings_data.get("general", {})
     if general:
+        try:
+            validated = PharmacyGeneralUpdate(**general)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=[
+                {"field": err["loc"][-1], "message": err["msg"]} for err in e.errors()
+            ])
+
         pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
         pharmacy = pharm_result.scalar_one_or_none()
         if pharmacy:
             for field in ["name", "address", "city", "state", "pincode", "phone", "email",
                           "gstin", "drug_license_number", "drug_license_expiry",
                           "fssai_number", "pan_number", "logo_url"]:
-                if field in general and general[field] is not None:
-                    setattr(pharmacy, field, general[field])
+                value = getattr(validated, field)
+                if field in general and value is not None:
+                    setattr(pharmacy, field, value)
 
     await db.flush()
     return {"message": "Settings updated successfully"}

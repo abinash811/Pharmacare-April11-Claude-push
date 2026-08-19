@@ -8,6 +8,7 @@ import { Building2, Phone, MapPin, ShieldCheck, AlertTriangle } from 'lucide-rea
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LogoUpload from './LogoUpload';
+import ProfileCompletionPanel from './ProfileCompletionPanel';
 
 interface Props {
   general: Record<string, string>;
@@ -69,6 +70,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
   const dlWarning = drugLicenseExpiryWarning(general.drug_license_expiry);
 
   return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">
     <div className="max-w-2xl">
 
       {/* Logo */}
@@ -163,6 +165,9 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
             onChange={e => onUpdate('drug_license_number', e.target.value)}
             placeholder="DL No. 20 / DL No. 21"
           />
+          {!general.drug_license_number?.trim() && (
+            <p className="text-xs text-amber-600 mt-1">Required to create bills — not required to save this page.</p>
+          )}
         </Field>
         <Field label="Drug License Expiry">
           <Input
@@ -187,6 +192,8 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
         </Field>
       </div>
 
+    </div>
+    <ProfileCompletionPanel general={general} />
     </div>
   );
 }

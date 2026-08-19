@@ -40,6 +40,27 @@ class BillSequenceSettings(BaseModel):
     allow_prefix_change: bool = True
 
 
+class DigitalReceiptUpdate(BaseModel):
+    """Validates the 'digital' section of PUT /settings — the shareable,
+    screen-viewed receipt template (WhatsApp/email/download). Always one
+    fixed A4-style layout; unlike Print, there is no paper-size choice here.
+    """
+    use_default_header: Optional[bool] = None
+    header_image_url: Optional[str] = None
+    footer_image_url: Optional[str] = None
+    header_height_px: Optional[int] = None
+    footer_height_px: Optional[int] = None
+    header_text: Optional[str] = None
+    footer_text: Optional[str] = None
+
+    @field_validator("header_height_px", "footer_height_px")
+    @classmethod
+    def height_in_range(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and not (20 <= v <= 400):
+            raise ValueError("Height must be between 20 and 400 pixels")
+        return v
+
+
 GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
 PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
 PHONE_RE = re.compile(r"^[6-9]\d{9}$")
@@ -196,7 +217,6 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "default_hsn_medicines":  ps.default_hsn_medicines       if ps else "3004",
             "default_hsn_surgical":   ps.default_hsn_surgical        if ps else "9018",
             "auto_apply_hsn":         ps.auto_apply_hsn              if ps else True,
-            "gst_type":               ps.gst_type                    if ps else "intrastate",
             "round_off_amount":       ps.round_off_amount            if ps else True,
             "print_gst_summary":      ps.print_gst_summary           if ps else True,
         },
@@ -208,8 +228,18 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "print_gstin":        ps.print_gstin         if ps else True,
             "print_fssai":        ps.print_fssai         if ps else False,
             "print_signature":    ps.print_signature     if ps else False,
+            "print_pan": ps.print_pan if ps else False,
             "bill_header":        ps.bill_header         if ps else "",
             "bill_footer":        ps.bill_footer         if ps else "Thank you for your purchase!",
+        },
+        "digital": {
+            "use_default_header": ps.digital_use_default_header if ps else True,
+            "header_image_url": ps.digital_header_image_url if ps else "",
+            "footer_image_url": ps.digital_footer_image_url if ps else "",
+            "header_height_px": ps.digital_header_height_px if ps else 100,
+            "footer_height_px": ps.digital_footer_height_px if ps else 60,
+            "header_text": ps.digital_bill_header if ps else "",
+            "footer_text": ps.digital_bill_footer if ps else "",
         },
     }
 
@@ -262,10 +292,34 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         ps.print_gstin = printing["print_gstin"]
     if "print_fssai" in printing:
         ps.print_fssai = printing["print_fssai"]
+    if "print_pan" in printing:
+        ps.print_pan = printing["print_pan"]
+
+    digital = settings_data.get("digital", {})
+    if digital:
+        try:
+            digital_validated = DigitalReceiptUpdate(**digital)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=[
+                {"field": err["loc"][-1], "message": err["msg"]} for err in e.errors()
+            ])
+        field_map = {
+            "use_default_header": "digital_use_default_header",
+            "header_image_url": "digital_header_image_url",
+            "footer_image_url": "digital_footer_image_url",
+            "header_height_px": "digital_header_height_px",
+            "footer_height_px": "digital_footer_height_px",
+            "header_text": "digital_bill_header",
+            "footer_text": "digital_bill_footer",
+        }
+        for api_field, model_field in field_map.items():
+            value = getattr(digital_validated, api_field)
+            if api_field in digital and value is not None:
+                setattr(ps, model_field, value)
 
     gst = settings_data.get("gst", {})
     for field in ["default_gst_rate", "is_composition_scheme", "default_hsn_medicines",
-                  "default_hsn_surgical", "auto_apply_hsn", "gst_type",
+                  "default_hsn_surgical", "auto_apply_hsn",
                   "round_off_amount", "print_gst_summary"]:
         if field in gst:
             setattr(ps, field, gst[field])

@@ -9,6 +9,7 @@ interface PrintSettings {
   print_gstin?:        boolean;
   print_drug_license?: boolean;
   print_fssai?:        boolean;
+  print_pan?:          boolean;
   print_patient_name?: boolean;
   print_signature?:    boolean;
   bill_header?:        string;
@@ -26,6 +27,7 @@ interface GeneralSettings {
   gstin?:              string;
   drug_license_number?:string;
   fssai_number?:       string;
+  pan_number?:         string;
   logo_url?:           string;
 }
 
@@ -35,19 +37,20 @@ interface Props {
 }
 
 const MOCK_ITEMS = [
-  { name: 'Amoxicillin 500mg Tab', mfr: 'Cipla Ltd', batch: 'B24-1122', expiry: 'Nov 2026', qty: 2, mrp: 1400, disc: 5,  gst: 12, schedH: true  },
-  { name: 'Paracetamol 650mg Tab', mfr: 'GSK',       batch: 'B24-0891', expiry: 'Dec 2026', qty: 3, mrp:  500, disc: 0,  gst: 5,  schedH: false },
-  { name: 'Vitamin D3 60K IU Cap', mfr: 'Sun Pharma',batch: 'B24-1034', expiry: 'Mar 2027', qty: 2, mrp: 4200, disc: 10, gst: 5,  schedH: false },
+  { name: 'Amoxicillin 500mg Tab', mfr: 'Cipla Ltd',  hsn: '3004', sch: 'H',   pack: '10 tab', batch: 'B24-1122', expiry: 'Nov 2026', qty: 2, mrp: 1400, disc: 5,  gst: 12 },
+  { name: 'Paracetamol 650mg Tab', mfr: 'GSK',        hsn: '3004', sch: 'OTC', pack: '15 tab', batch: 'B24-0891', expiry: 'Dec 2026', qty: 3, mrp:  500, disc: 0,  gst: 5  },
+  { name: 'Vitamin D3 60K IU Cap', mfr: 'Sun Pharma',  hsn: '3004', sch: 'OTC', pack: '4 cap',  batch: 'B24-1034', expiry: 'Mar 2027', qty: 2, mrp: 4200, disc: 10, gst: 5  },
 ];
 
 function paise(p: number) { return `₹${(p / 100).toFixed(2)}`; }
 
 function calcItem(item: typeof MOCK_ITEMS[0]) {
-  const gross   = item.mrp * item.qty;
-  const disc    = Math.round(gross * item.disc / 100);
-  const taxable = gross - disc;
-  const gst     = Math.round(taxable * item.gst / (100 + item.gst));
-  return { gross, disc, taxable, gst, amount: taxable };
+  const gross    = item.mrp * item.qty;
+  const disc     = Math.round(gross * item.disc / 100);
+  const taxable  = gross - disc;
+  const gst      = Math.round(taxable * item.gst / (100 + item.gst));
+  const dPrice   = Math.round((item.mrp * (100 - item.disc)) / 100);
+  return { gross, disc, taxable, gst, amount: taxable, dPrice };
 }
 
 export default function BillPreview({ print, general }: Props) {
@@ -78,10 +81,13 @@ export default function BillPreview({ print, general }: Props) {
             {print.print_gstin && general.gstin && <p className="text-center text-[9px]">GSTIN: {general.gstin}</p>}
             {print.print_drug_license && general.drug_license_number && <p className="text-center text-[9px]">DL: {general.drug_license_number}</p>}
             {print.print_fssai && general.fssai_number && <p className="text-center text-[9px]">FSSAI: {general.fssai_number}</p>}
+            {print.print_pan && general.pan_number && <p className="text-center text-[9px]">PAN: {general.pan_number}</p>}
 
             <div className="border-t border-dashed border-gray-400 my-2" />
             <div className="flex justify-between text-[9px]"><span>Bill: INV-000123</span><span>19 Apr 2026</span></div>
+            <div className="flex justify-between text-[9px]"><span>Payment: Cash</span></div>
             {print.print_patient_name && <p className="text-[9px] mt-0.5">Patient: Ravi Shankar</p>}
+            <p className="text-[9px]">Ref. By: Dr. Susmita Sarkar</p>
             <div className="border-t border-dashed border-gray-400 my-2" />
 
             {MOCK_ITEMS.map((item, i) => (
@@ -179,6 +185,9 @@ export default function BillPreview({ print, general }: Props) {
               {print.print_fssai && general.fssai_number && (
                 <p className="text-[10px] text-gray-500 mt-0.5">FSSAI: {general.fssai_number}</p>
               )}
+              {print.print_pan && general.pan_number && (
+                <p className="text-[10px] text-gray-500 mt-0.5">PAN: {general.pan_number}</p>
+              )}
             </div>
             <div className="px-5 py-3">
               <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Patient / Customer</p>
@@ -186,6 +195,7 @@ export default function BillPreview({ print, general }: Props) {
                 ? <><p className="font-bold text-gray-900 text-[12px] mb-0.5">Ravi Shankar</p><p className="text-[10px] text-gray-500">Ph: +91 98400 12345</p></>
                 : <p className="text-[10px] text-gray-400 italic">Patient name hidden</p>
               }
+              <p className="text-[10px] text-gray-500 mt-1">Ref. By: Dr. Susmita Sarkar</p>
             </div>
           </div>
 
@@ -193,7 +203,7 @@ export default function BillPreview({ print, general }: Props) {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-t border-b border-gray-200 bg-gray-50">
-                {['#','Medicine','Batch / Expiry','Qty','GST%','MRP','Disc%','Amount'].map((h, i) => (
+                {['#','Medicine (Mfr / HSN / Sch / Pack)','Batch / Expiry','MRP','Qty','Disc%','D.Price','GST%','Amount'].map((h, i) => (
                   <th key={i} className="px-2 py-2 text-[8px] font-bold uppercase tracking-wide text-gray-400 text-left last:text-right">{h}</th>
                 ))}
               </tr>
@@ -204,14 +214,16 @@ export default function BillPreview({ print, general }: Props) {
                   <td className="px-2 py-2 text-gray-400">{i + 1}</td>
                   <td className="px-2 py-2">
                     <p className="font-semibold text-gray-900">{item.name}</p>
-                    <p className="text-[9px] text-gray-400" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{item.mfr}</p>
-                    {item.schedH && <p className="text-[8px] font-semibold text-red-600">⚠ Schedule H</p>}
+                    <p className="text-[9px] text-gray-400" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
+                      {item.mfr} · HSN {item.hsn} · Sch {item.sch} · {item.pack}
+                    </p>
                   </td>
                   <td className="px-2 py-2 text-[9px] text-gray-400" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{item.batch}<br/>{item.expiry}</td>
-                  <td className="px-2 py-2 text-center">{item.qty}</td>
-                  <td className="px-2 py-2 text-center">{item.gst}%</td>
                   <td className="px-2 py-2">{paise(item.mrp)}</td>
+                  <td className="px-2 py-2 text-center">{item.qty}</td>
                   <td className="px-2 py-2 text-center">{item.disc}%</td>
+                  <td className="px-2 py-2">{paise(calcs[i].dPrice)}</td>
+                  <td className="px-2 py-2 text-center">{item.gst}%</td>
                   <td className="px-2 py-2 text-right font-semibold">{paise(calcs[i].amount)}</td>
                 </tr>
               ))}

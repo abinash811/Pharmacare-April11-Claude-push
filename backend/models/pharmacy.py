@@ -70,8 +70,20 @@ class PharmacySettings(Base):
     print_gstin: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_fssai: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     print_signature: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    print_pan: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     bill_header: Mapped[Optional[str]] = mapped_column(Text)
     bill_footer: Mapped[Optional[str]] = mapped_column(Text, default="Thank you for your purchase!")
+    # Digital receipt (shareable, screen-viewed — always A4-style, no paper size
+    # choice; separate from the Print settings above, which stay printer-driven).
+    # "Show on Bill" toggles (print_gstin etc. above) and the item table are
+    # shared with Print — both formats show the same billing information.
+    digital_use_default_header: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    digital_header_image_url: Mapped[Optional[str]] = mapped_column(Text)
+    digital_footer_image_url: Mapped[Optional[str]] = mapped_column(Text)
+    digital_header_height_px: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    digital_footer_height_px: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    digital_bill_header: Mapped[Optional[str]] = mapped_column(Text)
+    digital_bill_footer: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

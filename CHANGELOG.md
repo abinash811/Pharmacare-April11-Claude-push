@@ -11,6 +11,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Bill format split into Print vs Digital, and both now carry real billing
+  detail.** Print keeps all 4 paper sizes (thermal 58/80mm, A4, A5) with
+  free-text header/footer, unchanged. Digital is a new, separate always-A4
+  format for WhatsApp/email/download — image header/footer with height
+  control, *and* free-text header/footer, plus its own "Show on Bill"
+  toggles (shared setting with Print: GSTIN, DL, FSSAI, PAN, Patient Name,
+  Signature). New `print_pan` toggle and `digital_bill_header` /
+  `digital_bill_footer` columns on `pharmacy_settings`. Both the Settings
+  preview and the real `GET /bills/{id}/pdf` output now include payment
+  method, "Ref. By" doctor, and a full item table (manufacturer, HSN,
+  schedule, pack size, MRP, discount %, discounted price, GST %, amount) —
+  previously only name/batch/price/total were shown, well short of what a
+  real pharmacy bill needs. QR "Scan to Reorder" and dual License 20/21
+  numbers (seen on a competitor's bill) are intentionally not built — both
+  need real new backend features, not a formatting fix.
 - **Drug License now required to create bills, not to sign up.** Following
   Stripe's "restricted mode" pattern — the account works everywhere else,
   only billing itself is blocked until a valid, non-expired Drug License

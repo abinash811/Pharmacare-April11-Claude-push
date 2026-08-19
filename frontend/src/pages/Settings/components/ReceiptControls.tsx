@@ -7,6 +7,7 @@ import React from 'react';
 import { Eye, AlignLeft, Layout } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch.jsx';
+import { AppButton } from '@/components/shared';
 import LogoUpload from './LogoUpload';
 
 interface Props {
@@ -56,19 +57,22 @@ export default function ReceiptControls({ print, general, onUpdatePrint, onUpdat
       <SectionHeading icon={<Layout className="w-3 h-3" />} title="Paper Size" />
       <div className="grid grid-cols-2 gap-2">
         {PAPER_SIZES.map(ps => (
-          <button
+          <AppButton
             key={ps.value}
             type="button"
+            variant="ghost"
             onClick={() => onUpdatePrint('paper_size', ps.value)}
-            className={`rounded-lg border px-3 py-2 text-left transition-colors
+            className={`h-auto rounded-lg border px-3 py-2 justify-start text-left transition-colors
               ${(print.paper_size || 'a4') === ps.value
-                ? 'border-brand bg-brand/5 text-brand'
+                ? 'border-brand bg-brand/5 text-brand hover:bg-brand/5'
                 : 'border-gray-200 hover:border-gray-300 text-gray-700'
               }`}
           >
-            <p className="text-sm font-semibold">{ps.label}</p>
-            <p className="text-[10px] text-gray-400">{ps.sub}</p>
-          </button>
+            <span>
+              <p className="text-sm font-semibold">{ps.label}</p>
+              <p className="text-[10px] text-gray-400">{ps.sub}</p>
+            </span>
+          </AppButton>
         ))}
       </div>
 
@@ -86,6 +90,7 @@ export default function ReceiptControls({ print, general, onUpdatePrint, onUpdat
         <ToggleRow label="GSTIN" description="" checked={!!print.print_gstin} onChange={v => onUpdatePrint('print_gstin', v)} />
         <ToggleRow label="Drug License No." description="" checked={!!print.print_drug_license} onChange={v => onUpdatePrint('print_drug_license', v)} />
         <ToggleRow label="FSSAI Number" description="" checked={!!print.print_fssai} onChange={v => onUpdatePrint('print_fssai', v)} />
+        <ToggleRow label="PAN" description="" checked={!!print.print_pan} onChange={v => onUpdatePrint('print_pan', v)} />
         <ToggleRow label="Patient Name" description="" checked={!!print.print_patient_name} onChange={v => onUpdatePrint('print_patient_name', v)} />
         <ToggleRow label="Signature Line" description="'Authorised Signatory' at bottom" checked={!!print.print_signature} onChange={v => onUpdatePrint('print_signature', v)} />
       </div>

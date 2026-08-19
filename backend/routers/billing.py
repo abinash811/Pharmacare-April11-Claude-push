@@ -698,7 +698,14 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
 
-    result = await db.execute(select(BillORM).where(BillORM.id == uuid.UUID(bill_id)))
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+
+    # Scoped by pharmacy_id — without this, any logged-in user from any
+    # pharmacy could download any other pharmacy's bill PDF just by knowing
+    # (or guessing) a bill_id. This was a real cross-tenant data leak.
+    result = await db.execute(
+        select(BillORM).where(BillORM.id == uuid.UUID(bill_id), BillORM.pharmacy_id == pharmacy_id)
+    )
     bill = result.scalar_one_or_none()
     if not bill:
         raise HTTPException(status_code=404, detail="Bill not found")
@@ -706,54 +713,165 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
     items = items_result.scalars().all()
 
+    product_ids = [item.product_id for item in items]
+    product_info: Dict[Any, Dict[str, str]] = {}
+    if product_ids:
+        prod_result = await db.execute(
+            select(ProductORM.id, ProductORM.manufacturer, ProductORM.pack_size)
+            .where(ProductORM.id.in_(product_ids))
+        )
+        product_info = {
+            pid: {"manufacturer": manufacturer or "", "pack_size": pack_size or ""}
+            for pid, manufacturer, pack_size in prod_result.all()
+        }
+
+    pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
+    pharmacy = pharm_result.scalar_one_or_none()
+    ps_result = await db.execute(
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id)
+    )
+    ps = ps_result.scalar_one_or_none()
+
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    pdf.setFont("Helvetica-Bold", 24)
-    pdf.drawString(50, height - 50, "PharmaCare")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(50, height - 70, "Pharmacy Management System")
-    pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawString(50, height - 110, bill.invoice_type or "SALE")
-    pdf.setFont("Helvetica", 10)
-    pdf.drawString(50, height - 130, f"Invoice No: {bill.bill_number}")
-    pdf.drawString(50, height - 145, f"Date: {bill.bill_date.isoformat() if bill.bill_date else ''}")
-    pdf.drawString(50, height - 175, f"Customer: {bill.customer_name or 'Counter Sale'}")
-    if bill.customer_phone:
-        pdf.drawString(50, height - 190, f"Mobile: {bill.customer_phone}")
-    if bill.doctor_name:
-        pdf.drawString(50, height - 205, f"Doctor: {bill.doctor_name}")
+    pharmacy_name = pharmacy.name if pharmacy else "PharmaCare"
+    pdf.setFont("Helvetica-Bold", 20)
+    pdf.drawString(50, height - 50, pharmacy_name)
 
-    y = height - 250
-    pdf.setFont("Helvetica-Bold", 10)
-    for col, label in [(50, "Item"), (250, "Batch"), (350, "Qty"), (400, "Price"), (480, "Total")]:
-        pdf.drawString(col, y, label)
     pdf.setFont("Helvetica", 9)
-    y -= 20
-    for item in items:
-        pdf.drawString(50, y, (item.product_name or "Item")[:25])
-        pdf.drawString(250, y, (item.batch_number or "")[:15])
-        pdf.drawString(350, y, str(item.quantity))
-        pdf.drawString(400, y, f"₹{item.sale_price_paise / 100:.2f}")
-        pdf.drawString(480, y, f"₹{item.line_total_paise / 100:.2f}")
-        y -= 15
-        if y < 100:
-            pdf.showPage()
-            y = height - 50
+    detail_y = height - 68
+    address_line = pharmacy.address if pharmacy else ""
+    if pharmacy and pharmacy.city:
+        address_line = f"{address_line}, {pharmacy.city}"
+    pdf.drawString(50, detail_y, address_line or "Pharmacy Management System")
+    detail_y -= 13
+    if pharmacy and pharmacy.phone:
+        pdf.drawString(50, detail_y, f"Mobile: {pharmacy.phone}")
+        detail_y -= 13
 
-    y -= 20
-    pdf.setFont("Helvetica-Bold", 10)
-    subtotal = bill.subtotal_paise / 100
+    license_bits = []
+    if ps and ps.print_gstin and pharmacy and pharmacy.gstin:
+        license_bits.append(f"GSTIN: {pharmacy.gstin}")
+    if ps and ps.print_drug_license and pharmacy and pharmacy.drug_license_number:
+        license_bits.append(f"DL: {pharmacy.drug_license_number}")
+    if ps and ps.print_fssai and pharmacy and pharmacy.fssai_number:
+        license_bits.append(f"FSSAI: {pharmacy.fssai_number}")
+    if ps and ps.print_pan and pharmacy and pharmacy.pan_number:
+        license_bits.append(f"PAN: {pharmacy.pan_number}")
+    if license_bits:
+        pdf.drawString(50, detail_y, "   |   ".join(license_bits))
+        detail_y -= 13
+    if ps and ps.bill_header:
+        pdf.drawString(50, detail_y, ps.bill_header)
+        detail_y -= 13
+
+    # Invoice meta — right-aligned block, drawn independently so it lines up
+    # with the pharmacy header regardless of how many detail lines print.
+    meta_y = height - 68
+    pdf.setFont("Helvetica-Bold", 12)
+    pdf.drawRightString(545, meta_y, (bill.invoice_type or "SALE").upper())
+    pdf.setFont("Helvetica", 9)
+    meta_y -= 15
+    pdf.drawRightString(545, meta_y, f"Invoice No: {bill.bill_number}")
+    meta_y -= 13
+    bill_date_str = bill.bill_date.isoformat() if bill.bill_date else ""
+    pdf.drawRightString(545, meta_y, f"Date: {bill_date_str}")
+    meta_y -= 13
+    if bill.payment_method:
+        pdf.drawRightString(545, meta_y, f"Payment: {bill.payment_method.title()}")
+        meta_y -= 13
+
+    detail_y = min(detail_y, meta_y) - 10
+
+    show_patient_name = not ps or ps.print_patient_name
+    if show_patient_name:
+        patient_line = f"Patient: {bill.customer_name or 'Counter Sale'}"
+        if bill.customer_phone:
+            patient_line += f"   Ph: {bill.customer_phone}"
+        pdf.drawString(50, detail_y, patient_line)
+        detail_y -= 13
+    if bill.doctor_name:
+        pdf.drawString(50, detail_y, f"Ref. By: Dr. {bill.doctor_name}")
+        detail_y -= 13
+
+    # ── Item table ── two lines per item: name on top, then manufacturer /
+    # HSN / schedule / pack / batch / expiry / MRP / qty / disc / price / GST.
+    col_sr, col_name, col_batch, col_mrp, col_qty, col_disc, col_dprice, col_gst, col_amount = (
+        50, 68, 245, 305, 342, 368, 400, 440, 545,
+    )
+    table_top = detail_y - 10
+    pdf.setFont("Helvetica-Bold", 7)
+    for x, label in [
+        (col_sr, "Sr"), (col_name, "Medicine (Mfr / HSN / Sch / Pack)"),
+        (col_batch, "Batch / Exp"), (col_mrp, "MRP"), (col_qty, "Qty"),
+        (col_disc, "Disc%"), (col_dprice, "D.Price"), (col_gst, "GST%"),
+    ]:
+        pdf.drawString(x, table_top, label)
+    pdf.drawRightString(col_amount, table_top, "Amount")
+    pdf.line(50, table_top - 4, 545, table_top - 4)
+
+    y = table_top - 16
+    pdf.setFont("Helvetica", 8)
+    for idx, item in enumerate(items, start=1):
+        if y < 110:
+            pdf.showPage()
+            width, height = A4
+            y = height - 50
+            pdf.setFont("Helvetica", 8)
+
+        info = product_info.get(item.product_id, {})
+        pdf.drawString(col_sr, y, str(idx))
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(col_name, y, (item.product_name or "Item")[:38])
+        pdf.setFont("Helvetica", 6.5)
+        sub_bits = [b for b in [
+            info.get("manufacturer"),
+            f"HSN {item.hsn_code}" if item.hsn_code else None,
+            f"Sch {item.drug_schedule}" if item.drug_schedule else None,
+            info.get("pack_size"),
+        ] if b]
+        if sub_bits:
+            pdf.drawString(col_name, y - 9, "  |  ".join(sub_bits)[:70])
+
+        pdf.drawString(col_batch, y, (item.batch_number or "")[:12])
+        expiry_str = item.expiry_date.strftime("%m/%y") if item.expiry_date else ""
+        pdf.drawString(col_batch, y - 9, expiry_str)
+
+        pdf.drawString(col_mrp, y, f"₹{item.mrp_paise / 100:.2f}")
+        pdf.drawString(col_qty, y, str(item.quantity))
+        pdf.drawString(col_disc, y, f"{float(item.discount_percent):.0f}%")
+        pdf.drawString(col_dprice, y, f"₹{item.sale_price_paise / 100:.2f}")
+        pdf.drawString(col_gst, y, f"{float(item.gst_rate):.0f}%")
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawRightString(col_amount, y, f"₹{item.line_total_paise / 100:.2f}")
+
+        pdf.setFont("Helvetica", 8)
+        y -= 24
+
+    y -= 8
+    pdf.line(350, y + 14, 545, y + 14)
+    pdf.setFont("Helvetica-Bold", 9)
+    mrp_total = bill.mrp_total_paise / 100
     discount = bill.total_discount_paise / 100
     gst = bill.total_gst_paise / 100
-    for label, val in [("Subtotal", subtotal), ("Discount", -discount), ("GST", gst)]:
-        pdf.drawString(400, y, f"{label}: ₹{val:.2f}")
-        y -= 15
+    for label, val in [("MRP Total", mrp_total), ("Discount", -discount), ("GST", gst)]:
+        pdf.drawRightString(470, y, label)
+        pdf.drawRightString(col_amount, y, f"₹{val:.2f}")
+        y -= 14
     pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(400, y, f"TOTAL: ₹{bill.grand_total_paise / 100:.2f}")
+    pdf.drawRightString(470, y, "TOTAL")
+    pdf.drawRightString(col_amount, y, f"₹{bill.grand_total_paise / 100:.2f}")
+
+    if not ps or ps.print_signature:
+        pdf.setFont("Helvetica", 9)
+        pdf.drawString(400, 90, "_________________________")
+        pdf.drawString(400, 75, "Authorised Signatory")
+
     pdf.setFont("Helvetica", 8)
-    pdf.drawString(50, 50, "Thank you for your business!")
+    footer_text = (ps.bill_footer if ps else None) or "Thank you for your business!"
+    pdf.drawString(50, 50, footer_text)
     pdf.save()
     buffer.seek(0)
 

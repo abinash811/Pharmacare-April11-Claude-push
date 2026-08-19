@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import ALL_PERMISSIONS, DEFAULT_ROLES  # noqa: F401 — DEFAULT_ROLES re-exported for main.py
 from deps import get_db
-from models.billing import Bill
+from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import Role as RoleORM, User as UserORM
 from routers.auth_helpers import User, get_current_user
@@ -34,10 +34,27 @@ class RoleUpdate(BaseModel):
 
 
 class BillSequenceSettings(BaseModel):
+    # "sales_invoice" | "sales_return" — see SEQUENCE_DOCUMENT_TYPE in
+    # domainConstants.js. Each is its own gapless number series (GST Rule 46).
+    document_type: str = "sales_invoice"
     prefix: str = "INV"
     starting_number: int = 1
     sequence_length: int = 6
     allow_prefix_change: bool = True
+
+
+# document_type -> (PharmacySettings prefix/seq/length attrs,
+# doc model, doc number column, human label)
+_SEQUENCE_TYPES = {
+    "sales_invoice": (
+        "bill_prefix", "bill_sequence_number", "bill_number_length",
+        Bill, "bill_number", "Sales Invoice",
+    ),
+    "sales_return": (
+        "return_prefix", "return_sequence_number", "return_number_length",
+        SalesReturn, "return_number", "Sales Return",
+    ),
+}
 
 
 class DigitalReceiptUpdate(BaseModel):
@@ -453,52 +470,90 @@ async def delete_role(role_id: str, current_user: User = Depends(get_current_use
 
 # ── /settings/bill-sequence ───────────────────────────────────────────────────
 
+def _sequence_response(ps: Optional[PharmacySettings], document_type: str) -> dict:
+    prefix_attr, seq_attr, length_attr, _model, _col, label = _SEQUENCE_TYPES[document_type]
+    default_prefix = "INV" if document_type == "sales_invoice" else "CN"
+    default_length = 6 if document_type == "sales_invoice" else 5
+    prefix = getattr(ps, prefix_attr) if ps else default_prefix
+    seq = getattr(ps, seq_attr) if ps else 1
+    length = getattr(ps, length_attr) if ps else default_length
+    return {
+        "document_type": document_type,
+        "label": label,
+        "prefix": prefix,
+        "current_sequence": seq - 1,
+        "sequence_length": length,
+        "allow_prefix_change": True,
+        "next_number": seq,
+    }
+
+
 @router.get("/settings/bill-sequence")
-async def get_bill_sequence_settings(prefix: str = "INV", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_bill_sequence_settings(
+    document_type: str = "sales_invoice",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if document_type not in _SEQUENCE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown document_type '{document_type}'")
     result = await db.execute(
         select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
-    ps = result.scalar_one_or_none()
-    if not ps:
-        return {"prefix": prefix, "current_sequence": 0, "sequence_length": 6, "allow_prefix_change": True, "next_number": 1}
-    return {
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }
+    return _sequence_response(result.scalar_one_or_none(), document_type)
 
 
 @router.put("/settings/bill-sequence")
 async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+    if seq_settings.document_type not in _SEQUENCE_TYPES:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown document_type '{seq_settings.document_type}'"
+        )
+
+    prefix_attr, seq_attr, length_attr, doc_model, doc_col, label = (
+        _SEQUENCE_TYPES[seq_settings.document_type]
+    )
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
 
-    if ps and ps.bill_sequence_number >= seq_settings.starting_number:
+    # current_seq is the NEXT number that would be assigned, not the last used
+    # one — keeping it unchanged (starting_number == current_seq) or moving it
+    # forward is always safe. Only moving it backward risks reusing a number
+    # that's already been issued.
+    current_seq = getattr(ps, seq_attr) if ps else 1
+    if ps and current_seq > seq_settings.starting_number:
         raise HTTPException(
             status_code=400,
-            detail=f"Starting number must be greater than last used number ({ps.bill_sequence_number}) for prefix '{seq_settings.prefix}'",
+            detail=(
+                f"Starting number must be at least the next number ({current_seq}) "
+                f"for {label} prefix '{seq_settings.prefix}'"
+            ),
         )
 
+    doc_number_column = getattr(doc_model, doc_col)
     highest = await db.execute(
-        select(Bill.bill_number)
-        .where(Bill.pharmacy_id == pharmacy_id, Bill.bill_number.like(f"{seq_settings.prefix}-%"))
-        .order_by(Bill.bill_number.desc())
+        select(doc_number_column)
+        .where(
+            doc_model.pharmacy_id == pharmacy_id,
+            doc_number_column.like(f"{seq_settings.prefix}-%"),
+        )
+        .order_by(doc_number_column.desc())
         .limit(1)
     )
-    highest_bill = highest.scalar_one_or_none()
-    if highest_bill:
+    highest_number = highest.scalar_one_or_none()
+    if highest_number:
         try:
-            parts = highest_bill.split("-")
+            parts = highest_number.split("-")
             if len(parts) >= 2 and int(parts[-1]) >= seq_settings.starting_number:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Starting number must be greater than highest existing bill number ({int(parts[-1])}) for prefix '{seq_settings.prefix}'",
+                    detail=(
+                        f"Starting number must be greater than highest existing "
+                        f"{label} number ({int(parts[-1])}) for prefix '{seq_settings.prefix}'"
+                    ),
                 )
         except (ValueError, IndexError):
             pass
@@ -507,18 +562,12 @@ async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, curr
         ps = PharmacySettings(pharmacy_id=pharmacy_id)
         db.add(ps)
 
-    ps.bill_prefix = seq_settings.prefix
-    ps.bill_sequence_number = seq_settings.starting_number
-    ps.bill_number_length = seq_settings.sequence_length
+    setattr(ps, prefix_attr, seq_settings.prefix)
+    setattr(ps, seq_attr, seq_settings.starting_number)
+    setattr(ps, length_attr, seq_settings.sequence_length)
     await db.flush()
 
-    return {
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }
+    return _sequence_response(ps, seq_settings.document_type)
 
 
 @router.get("/settings/bill-sequence/all")
@@ -527,12 +576,4 @@ async def get_all_bill_sequences(current_user: User = Depends(get_current_user),
         select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
     ps = result.scalar_one_or_none()
-    if not ps:
-        return []
-    return [{
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }]
+    return [_sequence_response(ps, document_type) for document_type in _SEQUENCE_TYPES]

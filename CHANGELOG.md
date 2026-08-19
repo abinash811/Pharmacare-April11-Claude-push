@@ -10,6 +10,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **Sales Invoice and Sales Return now have separate, configurable number
+  sequences.** GST requires each document type to be its own gapless series
+  (Rule 46) — sharing one counter would create phantom gaps in the invoice
+  series every time a return was issued. New `return_prefix` /
+  `return_sequence_number` / `return_number_length` on `PharmacySettings`,
+  migrated with a backfill from existing "CN-" return numbers so the new
+  atomic counter picks up where the old query-then-increment logic left off.
+  `Settings > Bill Sequence` now shows and configures both series for real
+  (the "Document Type" column previously showed nothing — see Fixed).
+  Removed a dead, unreachable `SALES_RETURN` code path in
+  `billing.py::_generate_bill_number` (real returns go through
+  `/sales-returns`, never `/bills`).
+
+### Fixed
+- **Bill Sequence tab was silently empty.** Two stacked pre-existing bugs:
+  `apiUrl.billSequences()` pointed at a URL with no matching backend route
+  (404), and `fetchBillSequences` expected `{ sequences: [...] }` when the
+  endpoint actually returns a bare array. Removed the dead, broken
+  `BILL_SEQUENCES` constant.
+- **Saving a sequence's prefix without changing its starting number always
+  failed.** The check compared against the *next* number to assign, not the
+  *last used* one, so `1 >= 1` blocked a same-number save on any sequence
+  that had never been used yet — exactly the case you hit configuring a
+  fresh sequence. Now only blocks moving the number backward.
+- Bill and receipt labels now say "Bill No." instead of "Invoice No." (real
+  PDF and the print-receipt component), matching how pharmacies actually
+  label these on paper.
+
 ### Changed
 - **Print (A4/A5) and Digital bill previews unified.** Pharmacy details,
   compliance numbers, and invoice number/date/payment now live only in the

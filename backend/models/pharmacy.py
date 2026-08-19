@@ -41,10 +41,17 @@ class PharmacySettings(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    # Bill sequence
+    # Bill sequence — Sales Invoice
     bill_prefix: Mapped[str] = mapped_column(String(10), default="INV", nullable=False)
     bill_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     bill_number_length: Mapped[int] = mapped_column(Integer, default=6, nullable=False)
+    # Bill sequence — Sales Return (credit note). Separate from the Invoice
+    # sequence above: GST requires each to be its own gapless series. Defaults
+    # match the number format returns already used before this was
+    # configurable ("CN-00001"), so existing data doesn't jump on upgrade.
+    return_prefix: Mapped[str] = mapped_column(String(10), default="CN", nullable=False)
+    return_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    return_number_length: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     # Inventory
     low_stock_threshold_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     near_expiry_threshold_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)

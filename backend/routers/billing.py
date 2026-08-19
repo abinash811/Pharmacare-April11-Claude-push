@@ -63,21 +63,14 @@ class RefundCreate(BaseModel):
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-async def _generate_bill_number(pharmacy_id: uuid.UUID, invoice_type: str, db: AsyncSession) -> str:
+async def _generate_bill_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+    # This generates Sales Invoice numbers only. Sales Returns (credit notes)
+    # never go through this function — they're their own resource at
+    # POST /sales-returns with their own sequence (sales_returns.py's
+    # _generate_credit_note_number), because GST requires the two to be
+    # separate, gapless number series.
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
-
-    if invoice_type == "SALES_RETURN":
-        prefix = "RTN"
-        # For returns, derive sequence from existing return bills
-        last_result = await db.execute(
-            select(BillORM.bill_number)
-            .where(BillORM.pharmacy_id == pharmacy_id, BillORM.bill_number.like(f"{prefix}-%"))
-            .order_by(BillORM.bill_number.desc()).limit(1)
-        )
-        last = last_result.scalar_one_or_none()
-        new_num = int(last.split("-")[-1]) + 1 if last else 1
-        return f"{prefix}-{str(new_num).zfill(6)}"
 
     prefix = ps.bill_prefix if ps else "INV"
     length = ps.bill_number_length if ps else 6
@@ -317,7 +310,10 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     # Drafts use a per-bill unique placeholder so concurrent/repeated drafts don't
     # collide on the UNIQUE(pharmacy_id, bill_number) constraint. Finalized bills
     # get a real sequential number via _generate_bill_number.
-    bill_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}" if is_draft else await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+    if is_draft:
+        bill_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}"
+    else:
+        bill_number = await _generate_bill_number(pharmacy_id, db)
 
     # A valid, non-expired Drug License is required to finalize a real sale —
     # mirrors the check the frontend does proactively before showing the
@@ -576,7 +572,7 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
 
     # Generate bill number on finalize
     if is_finalizing and (bill.bill_number == "Draft" or bill.bill_number.startswith("DRAFT-")):
-        bill.bill_number = await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+        bill.bill_number = await _generate_bill_number(pharmacy_id, db)
 
     paid_paise = 0
     if is_finalizing and bill_data.payments:
@@ -774,7 +770,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
     pdf.drawRightString(545, meta_y, (bill.invoice_type or "SALE").upper())
     pdf.setFont("Helvetica", 9)
     meta_y -= 15
-    pdf.drawRightString(545, meta_y, f"Invoice No: {bill.bill_number}")
+    pdf.drawRightString(545, meta_y, f"Bill No: {bill.bill_number}")
     meta_y -= 13
     bill_date_str = bill.bill_date.isoformat() if bill.bill_date else ""
     pdf.drawRightString(545, meta_y, f"Date: {bill_date_str}")

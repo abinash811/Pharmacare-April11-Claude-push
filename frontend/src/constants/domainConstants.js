@@ -56,6 +56,14 @@ export const INVOICE_TYPE = {
   PURCHASE_RETURN:'PURCHASE_RETURN',
 };
 
+// ─── Bill Sequence — document types with their own number series ─────────────
+// GST requires Sales Invoices and Sales Return credit notes to be numbered as
+// separate, gapless sequences — see docs/07_BUSINESS_LOGIC.md.
+export const SEQUENCE_DOCUMENT_TYPE = {
+  SALES_INVOICE: 'sales_invoice',
+  SALES_RETURN:  'sales_return',
+};
+
 // ─── Purchase Status ──────────────────────────────────────────────────────────
 export const PURCHASE_STATUS = {
   DRAFT:    'draft',

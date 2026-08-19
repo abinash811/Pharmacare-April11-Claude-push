@@ -53,7 +53,8 @@ export function useSettings() {
     setSequenceLoading(true);
     try {
       const res = await api.get(apiUrl.billSequences());
-      setBillSequences(res.data.sequences || []);
+      // GET /settings/bill-sequence/all returns a bare array, not { sequences: [...] }
+      setBillSequences(res.data || []);
     } catch {
       console.error('Failed to load bill sequences');
     } finally {

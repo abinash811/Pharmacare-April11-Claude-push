@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.billing import Bill, BillItem, SalesReturn as SalesReturnORM, SalesReturnItem as SalesReturnItemORM
+from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
 from models.users import Role as RoleORM
@@ -63,15 +64,28 @@ class SalesReturnUpdate(BaseModel):
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 async def _generate_credit_note_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+    # Configurable prefix/length via Settings > Bill Sequence (Sales Return),
+    # stored as an atomic counter on PharmacySettings — same pattern as
+    # billing.py's _generate_bill_number, and for the same reason: deriving
+    # the next number from MAX(return_number) races under concurrent inserts.
     result = await db.execute(
-        select(SalesReturnORM.return_number)
-        .where(SalesReturnORM.pharmacy_id == pharmacy_id, SalesReturnORM.return_number.like("CN-%"))
-        .order_by(SalesReturnORM.return_number.desc())
-        .limit(1)
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id)
     )
-    last = result.scalar_one_or_none()
-    new_num = int(last.split("-")[-1]) + 1 if last else 1
-    return f"CN-{str(new_num).zfill(5)}"
+    ps = result.scalar_one_or_none()
+
+    prefix = ps.return_prefix if ps else "CN"
+    length = ps.return_number_length if ps else 5
+    seq = ps.return_sequence_number if ps else 1
+
+    return_number = f"{prefix}-{str(seq).zfill(length)}"
+
+    if ps:
+        ps.return_sequence_number = seq + 1
+    else:
+        ps = PharmacySettings(pharmacy_id=pharmacy_id, return_sequence_number=2)
+        db.add(ps)
+
+    return return_number
 
 
 def _return_response(r: SalesReturnORM, items: list[SalesReturnItemORM], bill: Bill | None = None) -> dict:

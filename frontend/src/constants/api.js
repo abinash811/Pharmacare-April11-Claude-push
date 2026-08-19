@@ -172,7 +172,6 @@ export const API_ENDPOINTS = {
     GET:               'settings',
     UPDATE:            'settings',
     BILL_SEQUENCE:     'settings/bill-sequence',
-    BILL_SEQUENCES:    'settings/bill-sequences',
     ALL_BILL_SEQUENCES:'settings/bill-sequence/all',
   },
 
@@ -291,7 +290,7 @@ export const apiUrl = {
   // Settings
   settings:         () => API_ENDPOINTS.SETTINGS.GET,
   billSequence:     () => API_ENDPOINTS.SETTINGS.BILL_SEQUENCE,
-  billSequences:    () => API_ENDPOINTS.SETTINGS.BILL_SEQUENCES,
+  billSequences:    () => API_ENDPOINTS.SETTINGS.ALL_BILL_SEQUENCES,
 
   // Backup
   backupExport:     () => API_ENDPOINTS.BACKUP.EXPORT,

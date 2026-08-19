@@ -40,7 +40,7 @@ function ThermalReceipt({ billData, format }) {
       </div>
 
       <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '4px 0', margin: '4px 0' }}>
-        <div><strong>Invoice:</strong> {bill_number}</div>
+        <div><strong>Bill No:</strong> {bill_number}</div>
         <div><strong>Date:</strong> {formatDateTime(new Date())}</div>
         <div><strong>Patient:</strong> {customer_name || 'Walk-in'}</div>
         {customer_phone && <div><strong>Phone:</strong> {customer_phone}</div>}
@@ -126,7 +126,7 @@ function A4Invoice({ billData, format }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Tax Invoice</div>
-          <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>Invoice No: <strong>{bill_number}</strong></div>
+          <div className="text-gray-600" style={{ fontSize: '10px', marginTop: '2px' }}>Bill No: <strong>{bill_number}</strong></div>
           <div style={{ fontSize: '10px', color: '#555' }}>Date: <strong>{formatDateTime(new Date())}</strong></div>
           <div style={{ fontSize: '10px', color: '#555' }}>Payment: <strong style={{ textTransform: 'capitalize' }}>{payment_method}</strong></div>
         </div>

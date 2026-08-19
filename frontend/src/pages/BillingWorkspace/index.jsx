@@ -19,6 +19,8 @@ import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
 import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
 import { PageSkeleton } from '@/components/shared';
+import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
+import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
@@ -57,6 +59,7 @@ export default function BillingWorkspace() {
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData,  setSavedBillData]  = useState(null);
   const [printFormat,    setPrintFormat]    = useState('80mm'); // default until settings load
+  const [pharmacyGeneral, setPharmacyGeneral] = useState(null);
 
   // ── Items + totals hook ──────────────────────────────────────────────────
   const {
@@ -128,6 +131,7 @@ export default function BillingWorkspace() {
         setCurrentUser(mr.data);
         setBilledBy(mr.data?.name || mr.data?.email || '');
         setPrintFormat(sr.data?.print?.paper_size || '80mm');
+        setPharmacyGeneral(sr.data?.general || null);
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
@@ -222,6 +226,10 @@ export default function BillingWorkspace() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (isInitialising) return <PageSkeleton />;
+
+  if (viewMode !== 'view' && !isDrugLicenseValid(pharmacyGeneral)) {
+    return <DrugLicenseRequiredState expired={isDrugLicenseExpired(pharmacyGeneral)} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

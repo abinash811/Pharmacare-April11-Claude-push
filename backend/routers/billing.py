@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register, SalesReturn as SalesReturnORM
 from models.customers import Doctor as DoctorORM
-from models.pharmacy import PharmacySettings
+from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user
@@ -318,6 +318,23 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
     # collide on the UNIQUE(pharmacy_id, bill_number) constraint. Finalized bills
     # get a real sequential number via _generate_bill_number.
     bill_number = f"DRAFT-{uuid.uuid4().hex[:8].upper()}" if is_draft else await _generate_bill_number(pharmacy_id, bill_data.invoice_type, db)
+
+    # A valid, non-expired Drug License is required to finalize a real sale —
+    # mirrors the check the frontend does proactively before showing the
+    # billing screen at all (see BillingWorkspace's DrugLicenseRequiredState).
+    # This is the defense-in-depth backstop, not the primary UX.
+    if not is_draft and is_sale:
+        pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
+        pharmacy = pharm_result.scalar_one_or_none()
+        if not pharmacy or not (pharmacy.drug_license_number or "").strip():
+            raise HTTPException(
+                status_code=400, detail="A Drug License Number is required to create bills."
+            )
+        if pharmacy.drug_license_expiry and pharmacy.drug_license_expiry < date.today():
+            raise HTTPException(
+                status_code=400,
+                detail="Your Drug License has expired. Renew it before creating bills.",
+            )
 
     # Pre-check H1 drugs require doctor
     if not is_draft and is_sale:

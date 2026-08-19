@@ -11,6 +11,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **Drug License now required to create bills, not to sign up.** Following
+  Stripe's "restricted mode" pattern — the account works everywhere else,
+  only billing itself is blocked until a valid, non-expired Drug License
+  Number is on file. Blocked at the point of use (BillingWorkspace), with a
+  backend backstop on `POST /bills`. `utils/drugLicense.js` is the shared
+  source of truth for what "valid" means.
+- **Pharmacy Profile now validates server-side and shows completion status.**
+  `PUT /settings` previously accepted an untyped dict with zero server-side
+  validation — GSTIN/PAN/phone/pincode format checks only existed in the
+  React form, so a direct API call could blank the pharmacy's name or save
+  garbage. New `PharmacyGeneralUpdate` Pydantic model enforces it for real.
+  The page is now two-column: form + a live "Profile Completeness" panel
+  distinguishing required-to-save fields from Drug License (required to
+  bill) and GSTIN (genuinely optional).
+- `scripts/flake8_changed_lines.py` and `scripts/eslint_changed_lines.py` —
+  the pre-commit hook's lint checks now only fail on lines actually
+  added/changed, not the whole file. Backend files in particular had
+  hundreds of pre-existing violations (flake8 was only just made runnable)
+  that were blocking unrelated, legitimate commits.
 - **Signup now creates a real, separate pharmacy per account (multi-tenancy fix).**
   `POST /auth/register` previously attached every new signup to whichever pharmacy
   was first in the database and let the public form self-select "Admin" as a role —

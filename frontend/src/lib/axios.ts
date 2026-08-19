@@ -58,9 +58,28 @@ api.interceptors.response.use(
   (error) => {
     const status  = error.response?.status;
     const detail  = error.response?.data?.detail;
-    const message = Array.isArray(detail)
-      ? detail.map((d) => d.msg ?? d).join('; ')   // FastAPI validation errors
-      : detail || error.message || 'Something went wrong';
+    let message: string;
+    if (Array.isArray(detail)) {
+      // FastAPI's own validation errors use `msg`; PharmaCare's field-level
+      // 422 handlers (e.g. Pharmacy Profile) use `{ field, message }` — read
+      // both, and name the field when we have one, so the toast says which
+      // field is wrong and why instead of just "validation failed".
+      message = detail
+        .map((d: any) => {
+          if (typeof d === 'string') return d;
+          const text = d.message ?? d.msg ?? '';
+          return d.field ? `${d.field}: ${text}` : text;
+        })
+        .filter(Boolean)
+        .join('; ');
+    } else if (detail) {
+      message = detail;
+    } else if (!error.response) {
+      // Request never got a response — server down, offline, CORS, timeout.
+      message = 'Could not reach the server. Check your connection and try again.';
+    } else {
+      message = error.message || 'Something went wrong';
+    }
 
     // 401 — token expired or invalid → clear storage and redirect to login
     if (status === 401) {

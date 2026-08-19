@@ -11,6 +11,11 @@
 2. **User-facing messages are human, not technical.** No stack traces, no "500 Internal Server Error" raw text.
 3. **Always offer a next action.** "Something went wrong" + Retry button beats "Something went wrong" alone.
 4. **Fail loud in dev, fail graceful in prod.** `console.error` in dev is fine. Raw errors in the UI are not.
+5. **Every error notification must say why.** A toast that only says "Failed to save" with no cause forces the
+   user to guess. Say what's wrong (which field, what value, what's missing) so they can fix it without asking
+   anyone. "Failed to save settings" is not acceptable on its own — "Phone must be a valid 10-digit Indian mobile
+   number" is. This applies to every `toast.error(...)` call, not just Settings — added after a real bug (Aug 19,
+   2026) where a generic fallback hid a real GSTIN/PAN format error from the user for this exact reason.
 
 ---
 
@@ -40,7 +45,7 @@ All errors return this exact shape:
 }
 ```
 
-For field-level validation errors (422), FastAPI returns:
+For field-level validation errors (422), FastAPI's own request-body validation returns:
 
 ```json
 {
@@ -53,6 +58,22 @@ For field-level validation errors (422), FastAPI returns:
   ]
 }
 ```
+
+PharmaCare's own routers that validate a raw `dict` body by hand (Settings does this —
+see `PharmacyGeneralUpdate` / `DigitalReceiptUpdate` in `backend/routers/settings.py`)
+catch Pydantic's `ValidationError` and re-raise as a 422 in this shape instead:
+
+```json
+{
+  "detail": [
+    { "field": "phone", "message": "Phone must be a valid 10-digit Indian mobile number" }
+  ]
+}
+```
+
+Both shapes name the field and the reason — that's the point. The shared axios
+interceptor (below) already reads both (`msg` or `message`), so callers never need to
+know which one a given endpoint used.
 
 ### Raising Errors in Routers
 
@@ -91,44 +112,37 @@ Never remove this handler. It prevents raw tracebacks from reaching the client.
 
 ## FRONTEND ERROR CONVENTIONS
 
-### The axios instance catches 401s globally
+### The axios instance normalises every error — use `error.message`
 
-`frontend/src/lib/axios.js` intercepts 401 responses and redirects to `/login`.
+`frontend/src/lib/axios.js` (and its `.ts` twin) intercepts every response. On success it's a
+pass-through; on error it redirects to `/` on 401, and — this is the important part — it
+rewrites `error.message` into one human-readable string before re-throwing, so every caller
+can do the same thing without re-parsing `error.response.data.detail` itself:
 
-```js
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-```
-
-You do NOT need to handle 401 in individual components. The interceptor handles it.
-
-### Reading error messages from API responses
+- A field-level 422 array (either FastAPI's own `{msg}` shape or PharmaCare's `{field, message}`
+  shape) becomes `"field: reason"`, joined with `; ` if there's more than one.
+- A plain string `detail` (most `raise HTTPException(...)` calls) passes through as-is.
+- No response at all (server down, offline, CORS, timeout) becomes
+  `"Could not reach the server. Check your connection and try again."`
+- Anything else falls back to `error.message` or `"Something went wrong"`.
 
 ```js
-// ✅ Correct — reads FastAPI's detail field
-const getErrorMessage = (error) => {
-  if (error.response?.data?.detail) {
-    const detail = error.response.data.detail;
-    // FastAPI validation errors return an array
-    if (Array.isArray(detail)) {
-      return detail.map(d => d.msg).join(', ');
-    }
-    return detail;
-  }
-  if (error.message === 'Network Error') {
-    return 'Cannot reach the server. Check your connection.';
-  }
-  return 'Something went wrong. Please try again.';
-};
+// ✅ Correct — the interceptor already did the work
+try {
+  await api.put(apiUrl.settings(), payload);
+  toast.success('Settings saved successfully');
+} catch (error) {
+  toast.error(error.message);
+}
 ```
+
+**Do not** write a per-file `getErrorMessage` that re-reads `error.response.data.detail` —
+that's how a real bug shipped (Aug 19, 2026): a one-off implementation in
+`useSettings.js` bypassed the interceptor, read the raw `detail` array directly, and since
+`toast.error()` can't render an array of objects it silently fell back to a hardcoded
+"Failed to save settings" — hiding an actual GSTIN/PAN validation error from the user. Use
+`error.message` everywhere; if you need custom fallback text, do
+`toast.error(error.message || 'your fallback')`.
 
 ---
 
@@ -144,16 +158,18 @@ import toast from 'react-hot-toast';
 // ✅ Success toast
 toast.success('Bill saved successfully.');
 
-// ✅ Error toast — show the API message
+// ✅ Error toast — error.message is already the normalised, human reason
+// (from the axios interceptor — see FRONTEND ERROR CONVENTIONS above)
 try {
   await api.post('/api/bills', payload);
   toast.success('Bill created.');
 } catch (error) {
-  toast.error(getErrorMessage(error));
+  toast.error(error.message);
 }
 
-// ❌ Never toast raw errors
-toast.error(error.message);           // "Request failed with status code 400"
+// ❌ Never toast a hardcoded generic string, or the raw error object —
+// both hide the actual reason and force the user to guess
+toast.error('Something went wrong');  // no cause, even though error.message had one
 toast.error(JSON.stringify(error));   // JSON blob
 ```
 
@@ -202,7 +218,7 @@ function BillingPage() {
       const res = await api.get('/api/invoices');
       setBills(res.data.data);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -235,7 +251,7 @@ const handleDelete = async (billId) => {
     toast.success('Bill deleted.');
     fetchBills(); // refresh
   } catch (err) {
-    toast.error(getErrorMessage(err));
+    toast.error(err.message);
   }
 };
 ```
@@ -256,7 +272,7 @@ const handleSave = async () => {
     await api.post('/api/invoices', payload);
     toast.success('Bill saved.');
   } catch (err) {
-    toast.error(getErrorMessage(err));
+    toast.error(err.message);
   } finally {
     setSaving(false);
   }
@@ -288,7 +304,7 @@ raise HTTPException(400, detail=f"Insufficient stock in batch {batch.batch_numbe
 
 ```jsx
 // Frontend: toast the message — it's already human-readable
-toast.error(getErrorMessage(error));
+toast.error(error.message);
 ```
 
 ### Schedule H1 without doctor
@@ -310,13 +326,14 @@ raise HTTPException(409, detail="A bill with this number already exists. Please 
 
 ### Session expired
 
-Handled by the axios interceptor — automatic redirect to `/login`. No component-level code needed.
+Handled by the axios interceptor — automatic redirect to `/` (the login page) on a 401. No
+component-level code needed.
 
 ### Network offline
 
 ```js
-// getErrorMessage() returns:
-"Cannot reach the server. Check your connection."
+// error.message (from the axios interceptor) is:
+"Could not reach the server. Check your connection and try again."
 ```
 
 Display as a toast. The retry button on the page-level error state handles reconnect.
@@ -386,8 +403,10 @@ try {
   // nothing here — user sees nothing, state is broken
 }
 
-// ❌ Raw error in UI
-<p>{error.message}</p>   // "Request failed with status code 400"
+// ❌ Raw error in UI — only safe if it went through the shared `api` client's
+// interceptor first; a native fetch() or a raw axios instance still gives you
+// "Request failed with status code 400" instead of a real reason
+<p>{error.message}</p>
 
 // ❌ Alert() for errors
 alert("Something went wrong");

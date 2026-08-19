@@ -88,31 +88,29 @@ class PharmacyGeneralUpdate(BaseModel):
     pan_number: Optional[str] = None
     logo_url: Optional[str] = None
 
-    @field_validator("name", "address", "city", "state")
+    @field_validator("name")
     @classmethod
-    def not_blank(cls, v: Optional[str], info) -> Optional[str]:
+    def not_blank(cls, v: Optional[str]) -> Optional[str]:
+        # Only Pharmacy Name is required to save this page. Phone and the
+        # full address (street/city/state/pincode) are recommended — shown
+        # on printed bills — but a pharmacy can save the page without them
+        # and fill them in later.
         if v is not None and not v.strip():
-            raise ValueError(f"{info.field_name.replace('_', ' ').title()} cannot be blank")
+            raise ValueError("Pharmacy Name cannot be blank")
         return v
 
     @field_validator("phone")
     @classmethod
     def valid_phone(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            if not v.strip():
-                raise ValueError("Phone cannot be blank")
-            if not PHONE_RE.match(v):
-                raise ValueError("Phone must be a valid 10-digit Indian mobile number")
+        if v and not PHONE_RE.match(v):
+            raise ValueError("Phone must be a valid 10-digit Indian mobile number")
         return v
 
     @field_validator("pincode")
     @classmethod
     def valid_pincode(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            if not v.strip():
-                raise ValueError("Pincode cannot be blank")
-            if not PINCODE_RE.match(v):
-                raise ValueError("Pincode must be 6 digits")
+        if v and not PINCODE_RE.match(v):
+            raise ValueError("Pincode must be 6 digits")
         return v
 
     @field_validator("gstin")
@@ -142,6 +140,21 @@ class PharmacyGeneralUpdate(BaseModel):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def _validation_errors(e: ValidationError) -> list:
+    """Turn a Pydantic ValidationError into [{field, message}, ...] for a 422
+    response. Pydantic v2 prefixes a raised ValueError's text with "Value
+    error, " — strip that; it's implementation detail, not something a
+    pharmacist reading a toast needs to see.
+    """
+    errors = []
+    for err in e.errors():
+        msg = err["msg"]
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        errors.append({"field": err["loc"][-1], "message": msg})
+    return errors
+
 
 def _role_response(role: RoleORM) -> dict:
     perms = role.permissions if isinstance(role.permissions, list) else []
@@ -300,9 +313,7 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         try:
             digital_validated = DigitalReceiptUpdate(**digital)
         except ValidationError as e:
-            raise HTTPException(status_code=422, detail=[
-                {"field": err["loc"][-1], "message": err["msg"]} for err in e.errors()
-            ])
+            raise HTTPException(status_code=422, detail=_validation_errors(e))
         field_map = {
             "use_default_header": "digital_use_default_header",
             "header_image_url": "digital_header_image_url",
@@ -330,9 +341,7 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         try:
             validated = PharmacyGeneralUpdate(**general)
         except ValidationError as e:
-            raise HTTPException(status_code=422, detail=[
-                {"field": err["loc"][-1], "message": err["msg"]} for err in e.errors()
-            ])
+            raise HTTPException(status_code=422, detail=_validation_errors(e))
 
         pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
         pharmacy = pharm_result.scalar_one_or_none()

@@ -131,7 +131,10 @@ export default function BillPreview({ print, general }: Props) {
       <div className="overflow-auto">
         <div className="bg-white shadow-lg rounded border border-gray-200 text-[11px]" style={{ fontFamily: "'IBM Plex Sans', sans-serif", maxWidth: print.paper_size === 'a5' ? 500 : 700 }}>
 
-          {/* Dark header */}
+          {/* Dark header — pharmacy identity + compliance numbers (left),
+              invoice number/date/payment (right). This is the only place
+              pharmacy details appear; a separate "Sold By" block below would
+              just repeat it and cost vertical space. */}
           <div className="flex justify-between items-start px-6 py-4 bg-sidebar text-white">
             <div className="flex items-center gap-2.5">
               {print.print_logo && general.logo_url
@@ -142,61 +145,35 @@ export default function BillPreview({ print, general }: Props) {
               }
               <div>
                 <p className="font-bold text-[14px]">{name}</p>
-                {print.bill_header
-                  ? <p className="text-[9px] mt-0.5 text-white/50">{print.bill_header}</p>
-                  : <p className="text-[9px] mt-0.5 text-white/50">Pharmacy Management System</p>
-                }
+                {print.bill_header && <p className="text-[9px] mt-0.5 text-white/50">{print.bill_header}</p>}
+                {address && <p className="text-[9px] mt-0.5 text-white/50">{address}</p>}
+                {general.phone && <p className="text-[9px] text-white/50">Ph: {general.phone}</p>}
+                <p className="text-[9px] mt-0.5 text-white/50">
+                  {[
+                    print.print_gstin && general.gstin && `GSTIN: ${general.gstin}`,
+                    print.print_drug_license && general.drug_license_number && `DL: ${general.drug_license_number}`,
+                    print.print_fssai && general.fssai_number && `FSSAI: ${general.fssai_number}`,
+                    print.print_pan && general.pan_number && `PAN: ${general.pan_number}`,
+                  ].filter(Boolean).join('  |  ')}
+                </p>
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <p className="font-bold text-[16px] tracking-wide">TAX INVOICE</p>
-              <p className="text-[11px] mt-0.5 text-white/60">INV-000123</p>
+              <p className="text-[10px] mt-1 text-white/70">INV-000123 &middot; 19 Apr 2026</p>
+              <p className="text-[10px] text-white/70">Payment: Cash</p>
             </div>
           </div>
 
-          {/* Meta row */}
-          <div className="grid grid-cols-3 border-b border-gray-200 bg-gray-50">
-            {[
-              { label: 'Bill Date',       value: '19 Apr 2026',  sub: ''       },
-              { label: 'Payment',         value: 'Cash',         sub: 'Paid'   },
-              { label: 'Billed By',       value: 'Rajan Kumar',  sub: 'Cashier'},
-            ].map((cell, i) => (
-              <div key={i} className="px-5 py-3 border-r border-gray-200 last:border-r-0">
-                <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1">{cell.label}</p>
-                <p className="font-semibold text-gray-900 text-[11px]">{cell.value}</p>
-                {cell.sub && <p className="text-[9px] text-gray-500 mt-0.5">{cell.sub}</p>}
-              </div>
-            ))}
-          </div>
-
-          {/* Parties */}
-          <div className="grid grid-cols-2 border-b border-gray-200">
-            <div className="px-5 py-3 border-r border-gray-200">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Sold By</p>
-              <p className="font-bold text-gray-900 text-[12px] mb-0.5">{name}</p>
-              {address && <p className="text-[10px] text-gray-500">{address}</p>}
-              {general.phone && <p className="text-[10px] text-gray-500">Ph: {general.phone}</p>}
-              {print.print_gstin && general.gstin && (
-                <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>GSTIN: {general.gstin}</span>
-              )}
-              {print.print_drug_license && general.drug_license_number && (
-                <p className="text-[10px] text-gray-500 mt-1">Drug Lic: {general.drug_license_number}</p>
-              )}
-              {print.print_fssai && general.fssai_number && (
-                <p className="text-[10px] text-gray-500 mt-0.5">FSSAI: {general.fssai_number}</p>
-              )}
-              {print.print_pan && general.pan_number && (
-                <p className="text-[10px] text-gray-500 mt-0.5">PAN: {general.pan_number}</p>
-              )}
-            </div>
-            <div className="px-5 py-3">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Patient / Customer</p>
+          {/* Single line — patient + billing, no separate multi-row blocks */}
+          <div className="flex items-center justify-between gap-4 px-5 py-2.5 border-b border-gray-200 bg-gray-50 text-[10px]">
+            <div className="text-gray-700 truncate">
               {print.print_patient_name
-                ? <><p className="font-bold text-gray-900 text-[12px] mb-0.5">Ravi Shankar</p><p className="text-[10px] text-gray-500">Ph: +91 98400 12345</p></>
-                : <p className="text-[10px] text-gray-400 italic">Patient name hidden</p>
+                ? <>Patient: <span className="font-semibold text-gray-900">Ravi Shankar</span> &middot; Ph: +91 98400 12345 &middot; Ref. By: Dr. Susmita Sarkar</>
+                : <span className="text-gray-400 italic">Patient name hidden &middot; Ref. By: Dr. Susmita Sarkar</span>
               }
-              <p className="text-[10px] text-gray-500 mt-1">Ref. By: Dr. Susmita Sarkar</p>
             </div>
+            <div className="text-gray-500 shrink-0">Billed By: Rajan Kumar</div>
           </div>
 
           {/* Items table */}

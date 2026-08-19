@@ -10,6 +10,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Changed
+- **Print (A4/A5) and Digital bill previews unified.** Pharmacy details,
+  compliance numbers, and invoice number/date/payment now live only in the
+  header (no more duplicate "Sold By" block). Patient name, phone, and
+  referring doctor collapsed into a single line instead of separate
+  multi-row blocks — saves vertical space, and Print/Digital now match
+  structurally. Same consolidation applied to the real bill PDF.
+
+### Fixed
+- **Error toasts now say why, not just "failed."** `useSettings.js` read the
+  raw 422 `detail` array directly and, since `toast.error()` can't render an
+  array of objects, silently fell back to a hardcoded "Failed to save
+  settings" — hiding the actual cause (e.g. an invalid GSTIN) from the user.
+  Fixed at the root: the shared axios interceptor (`lib/axios.js`/`.ts`) now
+  correctly formats both FastAPI's own validation shape and PharmaCare's
+  `{field, message}` shape into one readable string on `error.message`, and
+  every caller should read that instead of re-parsing the response itself.
+  Also strips Pydantic v2's "Value error, " prefix server-side
+  (`settings.py::_validation_errors`) so the message reads naturally — e.g.
+  "gstin: Invalid GSTIN format" instead of "gstin: Value error, Invalid
+  GSTIN format". New standing rule in `CLAUDE.md` (Manifesto #10) and
+  `docs/12_ERROR_HANDLING.md`.
+- **Phone and Address are no longer required to save Pharmacy Profile.**
+  Only Pharmacy Name is required now — Phone and the full address (street/
+  city/state/pincode) are recommended (they print on bills) but a pharmacy
+  can save the page without them, matching how Drug License and GSTIN
+  already worked. `ProfileCompletionPanel` reflects this — both show as
+  optional-with-hint, not blocking.
+
 ### Added
 - **Bill format split into Print vs Digital, and both now carry real billing
   detail.** Print keeps all 4 paper sizes (thermal 58/80mm, A4, A5) with

@@ -785,15 +785,18 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
 
     detail_y = min(detail_y, meta_y) - 10
 
+    # Single line — patient + referring doctor, not separate blocks.
     show_patient_name = not ps or ps.print_patient_name
+    line_bits = []
     if show_patient_name:
-        patient_line = f"Patient: {bill.customer_name or 'Counter Sale'}"
+        patient_bit = f"Patient: {bill.customer_name or 'Counter Sale'}"
         if bill.customer_phone:
-            patient_line += f"   Ph: {bill.customer_phone}"
-        pdf.drawString(50, detail_y, patient_line)
-        detail_y -= 13
+            patient_bit += f"   Ph: {bill.customer_phone}"
+        line_bits.append(patient_bit)
     if bill.doctor_name:
-        pdf.drawString(50, detail_y, f"Ref. By: Dr. {bill.doctor_name}")
+        line_bits.append(f"Ref. By: Dr. {bill.doctor_name}")
+    if line_bits:
+        pdf.drawString(50, detail_y, "     ".join(line_bits))
         detail_y -= 13
 
     # ── Item table ── two lines per item: name on top, then manufacturer /

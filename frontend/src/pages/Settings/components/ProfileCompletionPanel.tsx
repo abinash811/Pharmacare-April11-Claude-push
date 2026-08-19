@@ -1,8 +1,9 @@
 /**
  * ProfileCompletionPanel — sticky side panel showing Pharmacy Profile
- * completeness. Distinguishes fields required to save the page (Name,
- * Phone, Address) from fields only required to actually create bills
- * (Drug License) or optional compliance numbers (GSTIN).
+ * completeness. Pharmacy Name is the only field required to save the page.
+ * Phone and Address are recommended (they print on bills) but optional;
+ * Drug License is only required to actually create bills; GSTIN is a
+ * genuinely optional compliance number.
  * Props:
  *   general {Record<string, string>} — same object PharmacyProfileTab edits
  */
@@ -25,12 +26,19 @@ interface ChecklistItem {
 export default function ProfileCompletionPanel({ general }: Props) {
   const items: ChecklistItem[] = [
     { key: 'name', label: 'Pharmacy Name', done: !!general.name?.trim(), required: true },
-    { key: 'phone', label: 'Phone', done: !!general.phone?.trim(), required: true },
+    {
+      key: 'phone',
+      label: 'Phone',
+      done: !!general.phone?.trim(),
+      required: false,
+      hint: 'Shown on printed bills',
+    },
     {
       key: 'address',
       label: 'Address',
       done: !!(general.address?.trim() && general.city?.trim() && general.state?.trim() && general.pincode?.trim()),
-      required: true,
+      required: false,
+      hint: 'Shown on printed bills',
     },
     {
       key: 'dl',

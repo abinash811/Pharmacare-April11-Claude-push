@@ -94,7 +94,11 @@ export default function DigitalReceiptPreview({ digital, print, general }: Props
                   </p>
                 </div>
               </div>
-              <p className="font-bold text-[16px] tracking-wide">INVOICE</p>
+              <div className="text-right shrink-0">
+                <p className="font-bold text-[16px] tracking-wide">INVOICE</p>
+                <p className="text-[10px] mt-1 text-white/70">INV-000123 &middot; 19 Apr 2026</p>
+                <p className="text-[10px] text-white/70">Payment: Cash</p>
+              </div>
             </div>
           ) : digital.header_image_url ? (
             <img
@@ -115,22 +119,19 @@ export default function DigitalReceiptPreview({ digital, print, general }: Props
             <p className="px-6 py-1 text-[9px] text-gray-500 border-b border-gray-100">{digital.header_text}</p>
           )}
 
-          {/* Invoice meta + parties */}
-          <div className="grid grid-cols-2 border-b border-gray-200 px-6 py-3 gap-4">
-            <div>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1">Invoice</p>
-              <p className="text-[10px] text-gray-700">Bill No: INV-000123</p>
-              <p className="text-[10px] text-gray-700">Date: 19 Apr 2026</p>
-              <p className="text-[10px] text-gray-700">Payment: Cash</p>
-            </div>
-            <div>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-400 mb-1">Patient</p>
+          {/* Single line — patient + billing. Invoice number/date/payment
+              live in the header when it's the default banner (like Print);
+              a custom image header has no room for them, so they fold into
+              this line instead — either way, one line, not separate blocks. */}
+          <div className="flex items-center justify-between gap-4 px-5 py-2.5 border-b border-gray-200 bg-gray-50 text-[10px]">
+            <div className="text-gray-700 truncate">
+              {!useDefault && <>INV-000123 &middot; 19 Apr 2026 &middot; Cash &middot; &nbsp;</>}
               {print.print_patient_name
-                ? <p className="text-[10px] text-gray-700">Ravi Shankar &middot; Ph: +91 98400 12345</p>
-                : <p className="text-[10px] text-gray-400 italic">Patient name hidden</p>
+                ? <>Patient: <span className="font-semibold text-gray-900">Ravi Shankar</span> &middot; Ph: +91 98400 12345 &middot; Ref. By: Dr. Susmita Sarkar</>
+                : <span className="text-gray-400 italic">Patient name hidden &middot; Ref. By: Dr. Susmita Sarkar</span>
               }
-              <p className="text-[10px] text-gray-700 mt-0.5">Ref. By: Dr. Susmita Sarkar</p>
             </div>
+            <div className="text-gray-500 shrink-0">Billed By: Rajan Kumar</div>
           </div>
 
           <table className="w-full border-collapse">

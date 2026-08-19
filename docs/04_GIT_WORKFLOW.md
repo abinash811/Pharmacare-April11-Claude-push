@@ -16,8 +16,12 @@ Ship small, ship often, keep main always deployable.
 ## BRANCH STRATEGY
 
 ### For Claude (AI sessions)
-Work directly on `main` for all changes.
-Claude does not create feature branches — changes are small, focused, and committed immediately.
+Claude works on a feature branch (named by the session, e.g. `claude/...`), never
+directly on `main`. As each change is finished and verified, Claude commits and
+pushes it to that branch immediately — these are checkpoints, not final approval.
+`main` only changes when the owner explicitly reviews and merges the PR. This
+gives the owner one clear moment (the merge) to confirm a batch of work, while
+every commit is still safely backed up to GitHub as it happens.
 
 ### For Human Developers (future team)
 Short-lived feature branches only. Max 1–2 days before merging.
@@ -132,12 +136,20 @@ refactor(purchases): split PurchaseNew into 6 sub-components under 300 lines
 
 ## DAILY WORKFLOW
 
-### Starting work (Claude or developer)
+### Starting work — human developer
 
 ```bash
 # Always start from latest main
 git checkout main
 git pull origin main
+```
+
+### Starting work — Claude (AI sessions)
+
+```bash
+# Work on the session's feature branch, never main directly
+git checkout <branch>       # e.g. claude/github-app-view-97npu3
+git pull origin <branch>
 ```
 
 ### Making changes
@@ -158,7 +170,11 @@ git commit -m "feat(billing): add PageTabs to billing and sales returns pages"
 ### Pushing
 
 ```bash
+# Human developer, on main
 git push origin main
+
+# Claude, on the session's feature branch — after every finished, verified change
+git push origin <branch>
 ```
 
 ---
@@ -183,10 +199,12 @@ feat: add billing sheet, fix login bug, update glossary
 
 ---
 
-## PULL REQUESTS (for human developers)
+## PULL REQUESTS
 
-Claude does not open PRs — commits directly to main.
-Human developers open a PR for every branch.
+Every branch — Claude's or a human developer's — merges into `main` through a PR.
+For Claude's sessions, the PR (or the branch itself, pre-merge) is the review point:
+the owner looks at what changed and decides whether to merge. Nothing lands on
+`main` without that explicit decision.
 
 ### PR title format
 Same as commit format: `feat(billing): add right-side sheet for new bill creation`

@@ -82,6 +82,32 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 
 ---
 
+## HOW CLAUDE WORKS WITH ABINASH — WORKFLOW AGREEMENT
+
+> Added April 26, 2026, after a session working through local setup, a pre-commit
+> enforcement system, and an Inventory design-consistency fix together.
+
+- **Branch, not main.** Claude works on the session's feature branch (see
+  `docs/04_GIT_WORKFLOW.md`), never commits straight to `main`.
+- **Commit + push automatically as checkpoints.** After each finished, verified
+  change, Claude commits and pushes to that branch without waiting to be asked —
+  these are cheap, reversible checkpoints, not a final decision.
+- **The confirmation moment is the PR merge into `main`.** Abinash reviews and
+  decides there. That's the one point that actually matters — everything before
+  it is safe to move fast on.
+- **Enforcement is real, not aspirational.** `.githooks/pre-commit` (set up once
+  per machine via `git config core.hooksPath .githooks`) blocks a commit that
+  breaks a rule in this file, and says which rule and why. `scripts/design-guard.sh`
+  runs the same checks across the whole repo in CI.
+- **Doc-worthy decisions get written down.** A rule, preference, or workflow
+  change stated in conversation only exists in that conversation — it does NOT
+  persist to a new session or a teammate's Claude unless it's written into this
+  file or the relevant `docs/*.md`. When something said in chat should become a
+  standing rule, Claude flags it and asks before/after updating the doc — silence
+  is not consent to skip it, but Claude also doesn't rewrite policy on a guess.
+
+---
+
 ## DEPENDENCY & ENV SAFETY RULES — NEVER BREAK THE APP
 
 These rules exist because adding uninstalled packages and wrong env values have crashed the app multiple times.

@@ -10,6 +10,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Fixed
+- **Inventory search failed with a generic "Failed to load inventory" on
+  every request.** Root cause: `pharmacy_settings.return_prefix` (added by
+  an earlier migration) didn't exist on this dev DB — `alembic upgrade head`
+  had never actually been run here, so every `/inventory` call 500'd before
+  it could return anything. Applied the pending migrations. Also fixed the
+  symptom that hid the real cause: `useInventorySearch.js` swallowed every
+  fetch error behind a hardcoded toast instead of `error.message` (Manifesto
+  rule #10) — a real backend error now surfaces as its actual reason.
+- **A medicine could be added with an expiry date already in the past.**
+  `POST /stock/batches` (and editing a batch's expiry via `PUT`) accepted
+  any date with no validation — an almost-certain typo (wrong year) on a
+  brand-new medicine, now rejected with "Expiry date has already passed."
+
 ### Added
 - **Rebuilt "Add Medicine" (replaces Add Stock) with a Category-driven fixed
   HSN, fixed GST slabs, and name autocomplete.** Previously HSN and GST were

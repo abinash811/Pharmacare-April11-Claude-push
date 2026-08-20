@@ -10,6 +10,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **Rebuilt "Add Medicine" (replaces Add Stock) with a Category-driven fixed
+  HSN, fixed GST slabs, and name autocomplete.** Previously HSN and GST were
+  free-typed per product, so the same medicine could end up coded two
+  different ways depending on who added it. Now: Category (Medicine /
+  Surgical / First Aid & Contraceptive / Medical Device) is the only thing a
+  pharmacist picks, and HSN is derived server-side from it (never
+  client-settable) — the form shows the code plus what it covers so it's not
+  a black box. GST is a fixed 0/5/12/18% dropdown. Dosage Form drives whether
+  a medicine can be sold loose (tablet/capsule) or only as a whole pack
+  (syrup/injection/ointment/drops/powder/inhaler). Medicine Name and
+  Manufacturer are autocomplete against a static seed list of ~72 common
+  Indian medicines and ~30 manufacturers (`constants/medicineSeedList.js`,
+  names only — no pricing or paid data source), picking a match auto-fills
+  Category/Dosage Form/Generic Name without overwriting anything the user
+  already typed. SKU is auto-generated, never entered manually. Opening
+  stock (batch/expiry/qty/MRP) stays optional in the same form, matching how
+  the previous `AddStockModal.jsx` already combined the two steps. New
+  backend endpoint `GET /products/meta` is the single source of truth for
+  the form's Category/GST/Dosage-Form options, so frontend and backend can't
+  drift apart on what's valid.
+- New `frontend/src/lib/axios.js`/`.ts` `formatValidationError()` helper
+  turns FastAPI's native `[{loc, msg}]` 422 body into a clean
+  `"field: message"` toast, stripping Pydantic's `"Value error, "` prefix —
+  applied globally, not just to this form.
+
 ### Fixed
 - **The real printed receipt (`PrintReceipt.jsx`) never showed real pharmacy
   details.** It was fetched into `BillingWorkspace` state but only

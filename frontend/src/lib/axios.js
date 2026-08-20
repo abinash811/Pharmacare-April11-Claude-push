@@ -50,6 +50,19 @@ api.interceptors.request.use(
 
 // ── Response Interceptor ──────────────────────────────────────────────────────
 
+// One item from a 422 `detail` array — either FastAPI's own validation shape
+// ({ loc, msg }) or PharmaCare's field-level shape ({ field, message }).
+// Strips Pydantic v2's "Value error, " prefix and names the field, so a toast
+// says e.g. "category: Category must be one of: ..." instead of a bare,
+// unattributed message.
+function formatValidationError(d) {
+  if (typeof d === 'string') return d;
+  let text = d.message ?? d.msg ?? '';
+  if (text.startsWith('Value error, ')) text = text.slice('Value error, '.length);
+  const field = d.field ?? (Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : undefined);
+  return field ? `${field}: ${text}` : text;
+}
+
 api.interceptors.response.use(
   // Success — pass through unchanged
   (response) => response,
@@ -64,14 +77,7 @@ api.interceptors.response.use(
       // 422 handlers (e.g. Pharmacy Profile) use `{ field, message }` — read
       // both, and name the field when we have one, so the toast says which
       // field is wrong and why instead of just "validation failed".
-      message = detail
-        .map((d) => {
-          if (typeof d === 'string') return d;
-          const text = d.message ?? d.msg ?? '';
-          return d.field ? `${d.field}: ${text}` : text;
-        })
-        .filter(Boolean)
-        .join('; ');
+      message = detail.map(formatValidationError).filter(Boolean).join('; ');
     } else if (detail) {
       message = detail;
     } else if (!error.response) {

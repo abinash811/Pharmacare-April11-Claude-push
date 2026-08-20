@@ -38,6 +38,7 @@ export const API_ENDPOINTS = {
     CREATE:             'products',
     DETAIL:             'products/:id',          // use apiUrl.product(id)
     UPDATE:             'products/:sku',          // use apiUrl.productBySku(sku)
+    META:               'products/meta',
     BULK_UPDATE:        'products/bulk-update',
     SEARCH_WITH_BATCHES:'products/search-with-batches',
     TRANSACTIONS:       'products/:sku/transactions',
@@ -215,6 +216,7 @@ export const apiUrl: Record<string, (...args: any[]) => string> = {
   productBySku:     (sku)    => `products/${sku}`,
   productTransactions:(sku)  => `products/${sku}/transactions`,
   productBarcode:   (barcode)=> `products/barcode/${barcode}`,
+  productMeta:      ()       => API_ENDPOINTS.PRODUCTS.META,
   productsBulkUpdate:()      => API_ENDPOINTS.PRODUCTS.BULK_UPDATE,
   productsSearchWithBatches: (q, params) =>
     `products/search-with-batches${qs({ q, ...params })}`,

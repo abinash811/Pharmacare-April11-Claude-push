@@ -11,6 +11,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Fixed
+- **"Could not reach the server" on every Inventory add/search, even though
+  the backend was healthy.** Root cause: the frontend called
+  `REACT_APP_BACKEND_URL` (`http://localhost:8000`) directly from the
+  browser. In a hosted/remote dev environment only the frontend's port is
+  typically reachable from the actual browser — the backend port isn't, so
+  every direct call failed before it even left the browser (nothing showed
+  up in the backend's own access log). Fixed by proxying `/api/*` through
+  the frontend's own dev server (`craco.config.js` `devServer.proxy`) and
+  making every backend-URL call (`lib/axios.js`/`.ts`, and the handful of
+  older pages still building their own `${REACT_APP_BACKEND_URL}/api`
+  string) fall back to a same-origin relative path when the env var isn't
+  set. Works identically for local dev on one machine and for a remote
+  environment where only one port is exposed to the browser.
 - **Inventory search failed with a generic "Failed to load inventory" on
   every request.** Root cause: `pharmacy_settings.return_prefix` (added by
   an earlier migration) didn't exist on this dev DB — `alembic upgrade head`

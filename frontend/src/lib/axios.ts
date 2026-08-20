@@ -26,7 +26,7 @@ import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axio
 // ── Instance ──────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
+  baseURL: `${process.env.REACT_APP_BACKEND_URL || ''}/api`,
   timeout: 30_000,                       // 30s — enough for report generation
   headers: { 'Content-Type': 'application/json' },
 });
@@ -111,4 +111,4 @@ export default api;
  *   window.open(url);
  */
 export const apiBase = (path = ''): string =>
-  `${process.env.REACT_APP_BACKEND_URL}/api${path.startsWith('/') ? path : `/${path}`}`;
+  `${process.env.REACT_APP_BACKEND_URL || ''}/api${path.startsWith('/') ? path : `/${path}`}`;

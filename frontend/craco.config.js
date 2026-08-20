@@ -92,33 +92,41 @@ if (config.enableVisualEdits) {
   };
 }
 
-// Setup dev server with visual edits and/or health check
-if (config.enableVisualEdits || config.enableHealthCheck) {
-  webpackConfig.devServer = (devServerConfig) => {
-    // Apply visual edits dev server setup if enabled
-    if (config.enableVisualEdits && setupDevServer) {
-      devServerConfig = setupDevServer(devServerConfig);
-    }
+// Proxy /api to the backend from the dev server itself (not the browser
+// directly) — remote/hosted dev environments often only forward the
+// frontend's port to the browser, not the backend's, so a browser-side
+// call straight to REACT_APP_BACKEND_URL fails with "could not reach the
+// server" there even though the backend is fine. Routing through the same
+// origin the browser already has access to works in every environment.
+const backendTarget = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+webpackConfig.devServer = (devServerConfig) => {
+  devServerConfig.proxy = [
+    { context: ['/api'], target: backendTarget, changeOrigin: true },
+  ];
 
-    // Add health check endpoints if enabled
-    if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-      const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
+  // Apply visual edits dev server setup if enabled
+  if (config.enableVisualEdits && setupDevServer) {
+    devServerConfig = setupDevServer(devServerConfig);
+  }
 
-      devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-        // Call original setup if exists
-        if (originalSetupMiddlewares) {
-          middlewares = originalSetupMiddlewares(middlewares, devServer);
-        }
+  // Add health check endpoints if enabled
+  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
+    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
 
-        // Setup health endpoints
-        setupHealthEndpoints(devServer, healthPluginInstance);
+    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
+      // Call original setup if exists
+      if (originalSetupMiddlewares) {
+        middlewares = originalSetupMiddlewares(middlewares, devServer);
+      }
 
-        return middlewares;
-      };
-    }
+      // Setup health endpoints
+      setupHealthEndpoints(devServer, healthPluginInstance);
 
-    return devServerConfig;
-  };
-}
+      return middlewares;
+    };
+  }
+
+  return devServerConfig;
+};
 
 module.exports = webpackConfig;

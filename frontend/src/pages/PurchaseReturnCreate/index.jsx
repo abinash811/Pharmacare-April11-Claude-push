@@ -10,7 +10,7 @@ import { AppButton } from '@/components/shared';
 import { format } from 'date-fns';
 import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function PurchaseReturnCreate() {
   const navigate = useNavigate();

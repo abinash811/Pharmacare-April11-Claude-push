@@ -10,7 +10,7 @@ import ColumnMapping from './ColumnMapping';
 import ValidationPreview from './ValidationPreview';
 import ImportProgress from './ImportProgress';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplete }) {
   const [currentStep, setCurrentStep]         = useState(0);

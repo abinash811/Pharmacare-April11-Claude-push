@@ -101,7 +101,19 @@ if (config.enableVisualEdits) {
 const backendTarget = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 webpackConfig.devServer = (devServerConfig) => {
   devServerConfig.proxy = [
-    { context: ['/api'], target: backendTarget, changeOrigin: true },
+    {
+      context: ['/api'],
+      target: backendTarget,
+      // logged, not silently swallowed into a bare 500 — a proxy-layer
+      // failure (as opposed to the backend itself erroring) should say so.
+      onError: (err, req, res) => {
+        console.error('[proxy] /api request failed:', req.method, req.url, err.message);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+        }
+        res.end(JSON.stringify({ detail: `Proxy error reaching backend: ${err.message}` }));
+      },
+    },
   ];
 
   // Apply visual edits dev server setup if enabled

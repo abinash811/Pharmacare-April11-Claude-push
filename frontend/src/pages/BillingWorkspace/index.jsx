@@ -9,6 +9,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useBillItems }       from './hooks/useBillItems';
 import { useBillActions }     from './hooks/useBillActions';
+import { useBarcodeScan }     from './hooks/useBarcodeScan';
 import BillingHeader          from './components/BillingHeader';
 import BillingSubbar          from './components/BillingSubbar';
 import BillingTable           from './components/BillingTable';
@@ -17,10 +18,11 @@ import FinaliseModal          from './components/FinaliseModal';
 import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
-import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
+import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
 import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
+import { buildPrintPharmacyInfo } from './utils/buildPrintPharmacyInfo';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
@@ -54,12 +56,12 @@ export default function BillingWorkspace() {
   const [showFinalise,      setShowFinalise]      = useState(false);
   const [showScheduleH,     setShowScheduleH]     = useState(false);
   const [showPatientModal,  setShowPatientModal]  = useState(false);
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData,  setSavedBillData]  = useState(null);
   const [printFormat,    setPrintFormat]    = useState('80mm'); // default until settings load
   const [pharmacyGeneral, setPharmacyGeneral] = useState(null);
+  const [printSettings,  setPrintSettings]  = useState(null); // full settings.print — toggles, header/footer text
 
   // ── Items + totals hook ──────────────────────────────────────────────────
   const {
@@ -132,6 +134,7 @@ export default function BillingWorkspace() {
         setBilledBy(mr.data?.name || mr.data?.email || '');
         setPrintFormat(sr.data?.print?.paper_size || '80mm');
         setPharmacyGeneral(sr.data?.general || null);
+        setPrintSettings(sr.data?.print || null);
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
@@ -176,8 +179,12 @@ export default function BillingWorkspace() {
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
   };
 
+  // Real pharmacy identity for the printed receipt — previously fetched but
+  // never passed to print, so real receipts only showed a hardcoded fallback.
+  const printPharmacyInfo = buildPrintPharmacyInfo(pharmacyGeneral, printSettings);
+
   const { saveBill, saveBillAndPrint, parkBill, saveBillAndDeliver, confirmAndSaveBill, handlePrintCurrentBill, isSaving } =
-    useBillActions(billSnapshot, clearBill, setSavedBillData);
+    useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo);
 
   const handlePatientSelect = (patient) => {
     if (patient === 'counter') { setCustomerName('Counter Sale'); setCustomerPhone(''); }
@@ -186,43 +193,8 @@ export default function BillingWorkspace() {
   };
 
   // ── Barcode scanner ───────────────────────────────────────────────────────
-  const handleBarcodeScan = useCallback(async (barcode) => {
-    if (viewMode === 'view' || !barcode?.trim()) return;
-    const code = barcode.trim();
-    try {
-      const res = await api.get(apiUrl.productBarcode(code));
-      if (!res.data.found) {
-        toast.error(`No product found for barcode: ${code}`);
-        return;
-      }
-      if (!res.data.has_stock) {
-        toast.warning(`${res.data.product?.name || code} — out of stock`);
-        return;
-      }
-      const product = res.data.product;
-      const batch   = res.data.suggested_batch;
-      addItem(product, batch);
-      saveDraft();
-      toast.success(`Added: ${product.name}`);
-    } catch {
-      toast.error('Barcode lookup failed');
-    }
-  }, [viewMode, addItem, saveDraft]);
-
-  // Passive USB barcode scanner — active in new/edit mode
-  useUSBBarcodeScanner(handleBarcodeScan, viewMode !== 'view');
-
-  // ── Keyboard shortcut: Ctrl+B → open scanner modal ───────────────────────
-  useEffect(() => {
-    const h = (e) => {
-      if (e.ctrlKey && e.key === 'b' && viewMode !== 'view') {
-        e.preventDefault();
-        setShowBarcodeScanner(true);
-      }
-    };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [viewMode]);
+  const { showBarcodeScanner, setShowBarcodeScanner, handleBarcodeScan } =
+    useBarcodeScan(viewMode, addItem, saveDraft);
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (isInitialising) return <PageSkeleton />;

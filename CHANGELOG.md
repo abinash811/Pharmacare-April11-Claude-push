@@ -10,6 +10,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Fixed
+- **The real printed receipt (`PrintReceipt.jsx`) never showed real pharmacy
+  details.** It was fetched into `BillingWorkspace` state but only
+  `paper_size` was ever extracted from it — name, address, phone, GSTIN,
+  Drug License, FSSAI, PAN, header/footer text, and the signature/patient-name
+  toggles all silently fell back to a hardcoded "PharmaCare" placeholder (or
+  nothing). Every real print a pharmacist made was missing this. Wired the
+  full Settings > Receipt & Print data through `useBillActions` into both
+  print paths (`Save & Print` and `Print Current Bill`), respecting every
+  Show-on-Bill toggle exactly like the backend PDF and the Settings preview
+  do.
+- **Dev-server ESLint overlay blocked the whole app behind a full-screen
+  error screen.** It checks the entire codebase, not changed lines, so any
+  pre-existing warning anywhere (there are many — see
+  `scripts/eslint_changed_lines.py`) made the app unusable in dev. Previously
+  patched with `DISABLE_ESLINT_PLUGIN=true` in `.env.local`, which is
+  gitignored by design and so never survives a fresh clone or container.
+  Fixed for real this time: removes `ESLintWebpackPlugin` directly in
+  `craco.config.js`, which is committed — no per-machine setup needed.
+  Real enforcement is unaffected — it already happens at the pre-commit hook
+  and in CI, both changed-lines only.
+
+---
+
+## [Unreleased]
+
 ### Added
 - **Sales Invoice and Sales Return now have separate, configurable number
   sequences.** GST requires each document type to be its own gapless series

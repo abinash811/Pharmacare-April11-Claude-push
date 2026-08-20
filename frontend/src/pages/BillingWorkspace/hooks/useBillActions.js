@@ -24,8 +24,11 @@ import { apiUrl } from '@/constants/api';
  *   .grandTotal, .subtotal, .margin, .draftNumber, .editingDraftId
  * @param {Function} onSaveSuccess   — called after any successful save
  * @param {Function} onPrintReady    — called with billData to trigger window.print()
+ * @param {object}   printPharmacyInfo — pharmacy_name/address/phone/gstin/
+ *   drug_license/fssai/pan/bill_header/bill_footer/print_signature/
+ *   print_patient_name, already filtered by the Show-on-Bill toggles
  */
-export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady) {
+export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printPharmacyInfo = {}) {
   const navigate  = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -94,6 +97,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady) {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
       toast.success(`Bill #${res.data.bill_number} created!`);
       onPrintReady?.({
+        ...printPharmacyInfo,
         bill_number:    res.data.bill_number,
         items:          billItems,
         customer_name:  customerName || 'Walk-in Customer',
@@ -110,7 +114,10 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady) {
     } catch (err) {
       toast.error('Failed to save bill');
     }
-  }, [billSnapshot]);
+    // Every callback in this hook intentionally tracks only billSnapshot (and
+    // now printPharmacyInfo) — helpers/onPrintReady are stable closures, not state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billSnapshot, printPharmacyInfo]);
 
   // ── parkBill ─────────────────────────────────────────────────────────────
   const parkBill = useCallback(async () => {
@@ -193,6 +200,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady) {
     const { billItems, customerName, customerPhone, doctorName, paymentType, draftNumber, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
     if (billItems.length === 0) { toast.error('Add items to bill first'); return; }
     onPrintReady?.({
+      ...printPharmacyInfo,
       bill_number:    draftNumber ? `DRAFT-${draftNumber}` : 'PREVIEW',
       items:          billItems,
       customer_name:  customerName || 'Walk-in Customer',
@@ -205,7 +213,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady) {
       grand_total:    grandTotal,
     });
     setTimeout(() => window.print(), 100);
-  }, [billSnapshot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see saveBillAndPrint above
+  }, [billSnapshot, printPharmacyInfo]);
 
   return { saveBill, saveBillAndPrint, parkBill, saveBillAndDeliver, confirmAndSaveBill, handlePrintCurrentBill, isSaving };
 }

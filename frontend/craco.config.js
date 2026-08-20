@@ -36,6 +36,18 @@ const webpackConfig = {
     },
     configure: (webpackConfig) => {
 
+      // The dev-server's live ESLint overlay checks the whole app, not just
+      // changed lines — with the repo's pre-existing lint debt (see
+      // scripts/eslint_changed_lines.py and docs/20_CODE_QUALITY.md), that
+      // means an unrelated pre-existing warning anywhere blocks the entire
+      // page behind a full-screen overlay. Real enforcement already happens
+      // at the pre-commit hook and in CI (changed-lines only); this plugin
+      // only duplicates that check, badly. Remove it unconditionally so a
+      // fresh clone or container never needs a local .env.local to work.
+      webpackConfig.plugins = webpackConfig.plugins.filter(plugin => {
+        return plugin.constructor.name !== 'ESLintWebpackPlugin';
+      });
+
       // Disable hot reload completely if environment variable is set
       if (config.disableHotReload) {
         // Remove hot reload related plugins

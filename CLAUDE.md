@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 21, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -29,11 +29,12 @@
 
 | File | What it governs |
 |------|----------------|
+| `colors_and_type.css`                   | All brand color + typography + spacing + motion tokens — single file, not split into `tokens/colors.css`/`tokens/typography.css` (those don't exist; this table listed them for a while, a live example of the doc-drift problem) |
 | `preview/design-auth.html`              | Auth page — split layout, both breakpoints |
 | `preview/design-billing-shortcuts.html` | Billing header — shortcut badges, legend popover |
 | `preview/design-dashboard-zero.html`    | Dashboard — zero state for new pharmacies |
-| `tokens/colors.css`                     | All brand color tokens |
-| `tokens/typography.css`                 | Font scale, weights |
+| `preview/motion.html`                   | Duration/easing scale — same tokens as `colors_and_type.css`, rendered as chips |
+| ...35 more `preview/*.html` files        | One per pattern (buttons, modals, forms, tables, empty states, dark mode, etc.) — this table is a sample, not the full index; browse the folder |
 
 **Rule:** If a design preview exists for what you're building, match it exactly. If none exists, follow CLAUDE.md patterns and create a preview after shipping.
 
@@ -139,81 +140,23 @@ These rules exist because adding uninstalled packages and wrong env values have 
 
 ## CURRENT STATE — READ THIS FIRST EVERY SESSION
 
-> This section is the handoff note. Updated after every session. A new Claude must read this before touching any code.
+> Moved to where it can't silently drift out of sync with the code (August
+> 2026) — this section used to hold ~80 lines of status/blockers/diary
+> directly in this always-loaded file; several of those lines went stale
+> and sat wrong for months before anyone caught it. That content still
+> exists, just relocated to where an update to it is a normal part of
+> shipping the feature it describes, not a second thing to remember:
 
-### App status (April 25, 2026)
-- ✅ App runs locally — backend on port 8000, frontend on port 3000 (CRA/craco default — `npm start` sets no `PORT`, so this is whatever craco defaults to, not a fixed 3001)
-- ✅ All Settings tabs built: Pharmacy Profile, Receipt & Print, Tax & GST, Notifications, Inventory, Billing, Bill Sequence, Returns
-- ✅ Dashboard dynamic thresholds + drug license expiry banner
-- ✅ Team page: Members + Roles with permissions matrix
-- ✅ Billing list filter chips fixed — parked, cash, upi, due all work correctly
-- ✅ PatientCombobox — inline typeahead, uses /customers endpoint, walk-in + add new customer
-- ✅ DoctorDropdown — rebuilt, same UX as PatientCombobox (click → inline input → suggestions)
-- ✅ Billing footer — CTAs removed, header-only CTAs
-- ✅ Print formats — Thermal (80mm/58mm) + A4/A5, default set in Settings → Receipt & Print
-- ✅ domainConstants.js — single source of truth for all status/enum values
-- ✅ All commits pushed to main
+- **Feature status** (what's built, in progress, planned per domain) →
+  `docs/15_ROADMAP.md` status tables.
+- **Pre-launch blockers** (data-loss/security gaps, deploy checklist) →
+  `docs/13_DEPLOYMENT.md` → PRE-LAUNCH BLOCKERS.
+- **Local dev setup** (terminal commands, ports, env) →
+  `docs/13_DEPLOYMENT.md` → LOCAL SETUP.
+- **Known issues / tech debt** → `docs/15_ROADMAP.md` → KNOWN ISSUES / TECH DEBT.
 
-### 🚦 PRE-LAUNCH PLAN — agreed April 26, 2026
-Order of work: **(1) finish building product features module-by-module** (starting
-with signup/auth — see below), **then (2) work this list top to bottom** before
-any real pharmacy uses this in production. Don't start (2) early — a half-fixed
-production checklist on top of half-built features is worse than either alone.
-
-### 🔴 Launch blockers — data-loss or security risk, fix first
-1. ~~Signup doesn't create a new pharmacy (multi-tenancy bug).~~ **Fixed** —
-   verified in code: `POST /auth/register` now calls
-   `create_pharmacy_with_defaults(...)` to create a real, isolated pharmacy
-   per signup, and `UserCreate` has no client-supplied role field at all (the
-   signing-up user is always that new pharmacy's Admin, server-side, not a
-   public role picker). This item sat here listed as broken for a while after
-   the fix actually shipped — a live example of exactly the doc-staleness
-   problem this file has had generally.
-2. **Multi-tenancy isolation needs a full audit, not just the signup fix.** The
-   old register bug proved the *pattern* — "forgot to scope by `pharmacy_id`"
-   — exists in this codebase. Before trusting 100 pharmacies' data stays
-   separated, audit every query, not just auth.
-3. **No automated backups.** This is real pharmacy business + compliance data
-   (H1 register, bills). Losing it isn't acceptable.
-4. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True`
-   is invalid. Fix: set `CORS_ORIGINS` env var to the production frontend URL.
-   Already fixed in code — just needs the env var set on the server.
-5. **Nothing is actually deployed anywhere.** Runs on localhost/dev containers
-   only. Needs a real hosted backend + Postgres + frontend before "launch" means
-   anything.
-
-### 🟡 Should fix before real users — not data-loss risk, but real gaps
-6. **No rate limiting** — login/register and the rest of the API have no
-   protection against brute-force or abuse.
-7. **No error monitoring** — `frontend/src/lib/sentry.ts` is committed but never
-   initialized. At real-user scale, bugs will happen with zero visibility unless
-   a user reports them. Wait for DSN from owner.
-8. **No CI/CD** — `.github/workflows/staging.yml` exists but deploy steps are
-   `echo` only. Deploys are manual today.
-9. **Alembic migrations must run on the real deploy target.** Six exist as of
-   this writing (`95d13d1508dc` initial schema, `a3f8c2d14e90` pharmacy_settings
-   GST/print/notification fields, `b1e4f7a29c03` paper_size, `7c33d8eec679`
-   digital receipt template fields, `9a4e7f1c2b56` PAN toggle + digital bill
-   text, `b2f6a9d31e77` configurable Sales Return sequence) — check
-   `backend/migrations/versions/` for the current count, don't trust this
-   number without verifying, it has already gone stale once. Run
-   `alembic upgrade head` on whatever server actually hosts this.
-10. **TypeScript errors in test files** — `npm install --save-dev @types/jest
-    @testing-library/react @testing-library/jest-dom`.
-
-### 🟠 Billing flow — in progress (next session continues here)
-The billing UX is being improved. Current state:
-- ✅ Filter chips fixed
-- ✅ Patient search: inline combobox, /customers endpoint, add new customer mini-form
-- ✅ Doctor search: inline input, freetext + DB suggestions
-- ⚠️ Patient/Doctor UX needs one more improvement: when user types a name with no DB match, show typed text + "Add [name]" option inline (same as PatientCombobox already has for patients). Doctor needs same "Add doctor" flow.
-- ⚠️ Batch selection UX in medicine row — not discoverable, needs visual cue (chip with chevron)
-- ⚠️ WhatsApp button — "Add custom number" flow incomplete
-- 🔲 Print: Thermal/A4 built, needs testing after `alembic upgrade head`
-
-### Terminal tabs (local dev)
-- **Tab 1 (backend):** `cd backend && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
-- **Tab 2 (frontend):** `cd frontend && npm start` → defaults to port 3000
+Read those before assuming a feature isn't built or a bug isn't already
+known — don't trust a stale memory of this section from an old session.
 
 ---
 
@@ -276,21 +219,14 @@ Never write a frontend filter, API call, or status check before completing steps
 - [ ] `npx tsc --noEmit` passes with zero errors **(manual — not yet wired into design-guard.sh)**
 - [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
-### What's next (build in this order)
-> Infrastructure first. Features on a broken foundation collapse.
-> Infra items (Sentry, rate limiting, CI/CD, TS test errors) live in the
-> 🔴/🟡 launch-blocker list above — not repeated here to avoid two lists
-> disagreeing about the same item (this list used to duplicate that one).
-
-1. **Doctor "Add new" flow** — same mini-form as PatientCombobox
-2. **Batch selection UX** — chip with chevron in medicine row so users know it's clickable
-3. **WhatsApp custom number** — inline popover, no modal
-4. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
-5. **Zod + react-hook-form** — all forms
-6. **Error retry states** — every page that fetches data
-7. **Split payment** — cash + UPI on one bill
-8. **Day-end closing / Z-report**
-9. **Command Palette** — `Cmd+K`
+### What's next
+> Moved to `docs/15_ROADMAP.md` (August 2026) — this list fully duplicated
+> two other lists (the launch-blocker list above it, and `docs/15`'s own
+> "MANIFESTO ITEMS NOT YET BUILT" section, which already covered Sheets/
+> Zod/Error retry/Command Palette in far more detail: What/Where/Why/Rule
+> per item, not a one-liner). See `docs/15_ROADMAP.md`'s Billing table and
+> "MANIFESTO ITEMS NOT YET BUILT" section for the current, single copy of
+> this list.
 
 ### Dead files (already deleted)
 - `frontend/src/pages/InventorySearch/components/InventoryHeader.jsx`

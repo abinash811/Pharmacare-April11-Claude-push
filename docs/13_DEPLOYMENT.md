@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
 
@@ -14,6 +14,43 @@
 | `production` | Live pharmacies | TBD — not yet provisioned |
 
 Phase 1 is single-instance. All pharmacies share one database, separated by `pharmacy_id`.
+
+---
+
+## PRE-LAUNCH BLOCKERS
+> Moved here from CLAUDE.md (August 2026) — this is where a pre-deploy gate
+> list belongs, not the always-loaded root file. Update the status inline
+> when one of these is actually resolved; don't let this go stale like it
+> did living in CLAUDE.md (item 1 sat here listed as broken for a while
+> after the fix had already shipped).
+
+### 🔴 Data-loss or security risk — fix before any deployment
+1. ~~Signup doesn't create a new pharmacy (multi-tenancy bug).~~ **Fixed** —
+   verified in code: `POST /auth/register` calls
+   `create_pharmacy_with_defaults(...)`, and `UserCreate` has no
+   client-supplied role field (signing-up user is always that new
+   pharmacy's Admin, server-side).
+2. **Multi-tenancy isolation needs a full audit, not just the signup fix.**
+   The old register bug proved the *pattern* — "forgot to scope by
+   `pharmacy_id`" — exists in this codebase. Before trusting 100 pharmacies'
+   data stays separated, audit every query, not just auth.
+3. **No automated backups.** Real pharmacy business + compliance data (H1
+   register, bills). Losing it isn't acceptable.
+4. **CORS misconfiguration** — `allow_origins=["*"]` with
+   `allow_credentials=True` is invalid. Already fixed in code — needs
+   `CORS_ORIGINS` env var set to the production frontend URL on deploy.
+5. **Nothing is actually deployed anywhere.** Runs on localhost/dev
+   containers only. Needs a real hosted backend + Postgres + frontend
+   before "launch" means anything.
+
+### 🟡 Should fix before real users — not data-loss risk, real gaps
+6. **No rate limiting** — login/register and the rest of the API have no
+   protection against brute-force or abuse.
+7. **TypeScript errors in test files** — `npm install --save-dev @types/jest
+   @testing-library/react @testing-library/jest-dom`.
+
+See "WHAT DOES NOT EXIST YET" below for infra gaps (Sentry, CI/CD, staging) —
+not repeated here to avoid two lists disagreeing about the same item.
 
 ---
 

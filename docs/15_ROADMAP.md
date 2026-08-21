@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -25,15 +25,15 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | JWT authentication | ✅ | Login, register, token refresh |
-| Multi-tenancy (pharmacy_id isolation) | ✅ | Every table, every query |
+| Multi-tenancy (pharmacy_id isolation) | 🔄 | Enforced on the paths that have been audited; a real signup-flow bug (fixed) proved the pattern "forgot to scope by pharmacy_id" exists — full query audit not yet done. See `13_DEPLOYMENT.md` PRE-LAUNCH BLOCKERS #2. |
 | Soft deletes | ✅ | `is_deleted` + `deleted_at` on all tables |
 | Audit logging | ✅ | All state changes logged |
 | PostgreSQL + SQLAlchemy async | ✅ | Migrated from MongoDB |
 | Alembic migrations | ✅ | Schema version controlled |
 | Design system (tokens, shared components) | ✅ | AppButton, PageHeader, PageTabs, FilterPills, etc. |
 | 300-line file rule enforced | ✅ | All oversized pages split into folder/index.jsx + components/ |
-| Zero raw `<button>` tags | ✅ | All pages use AppButton exclusively |
-| Zero Shadcn `<Button>` / `<Card>` in pages | ✅ | Replaced with AppButton and plain divs |
+| Zero raw `<button>` tags | 🔄 | Not actually true — `scripts/design-guard.sh` Rule 1 currently finds 38 violations across the app. Rule enforced on new/changed code via pre-commit; existing violations are unfixed tech debt. |
+| Zero Shadcn `<Button>` in pages | 🔄 | Not actually true — Rule 5 currently finds 2 (`ScheduleHWarning.jsx`, `FinaliseModal.jsx`). Same as above — enforced going forward, not yet cleaned up. |
 | Consistent page layout | ✅ | All list pages use `px-8 py-6 min-h-screen bg-page` + PageHeader |
 | Consistent filter pills | ✅ | All pages use shared FilterPills component |
 | Subtitles removed from all PageHeaders | ✅ | April 19, 2026 |
@@ -53,9 +53,15 @@
 | Credit / due bills | ✅ | balance_paise tracking |
 | Record payment on due bill | ✅ | `POST /api/payments` |
 | Bill PDF download | 🔄 | Endpoint exists, PDF template WIP |
-| Bill print (browser) | 📋 | Print-optimized layout |
+| Bill print (browser) | ✅ | Thermal (80mm/58mm) + A4/A5, default set in Settings → Receipt & Print — was listed 📋 here, already built; moved here from the stale CLAUDE.md status list |
 | Discount at bill level | ✅ | Bill-level discount_paise |
 | Discount at line item level | ✅ | Per-item disc_percent |
+| Patient search — add-new inline | ✅ | PatientCombobox: typeahead, /customers endpoint, walk-in + add-new mini-form |
+| Doctor search — add-new inline | 🔄 | DoctorDropdown has typeahead + DB suggestions; needs the same "type a name with no match → Add [name]" inline flow PatientCombobox already has |
+| Batch selection UX in medicine row | 📋 | Not discoverable today — needs a visual cue (chip with chevron) |
+| WhatsApp — add custom number | 🔄 | Button exists; "Add custom number" flow incomplete |
+| Split payment (cash + UPI on one bill) | 📋 | |
+| Day-end closing / Z-report | 📋 | |
 
 ### Inventory
 

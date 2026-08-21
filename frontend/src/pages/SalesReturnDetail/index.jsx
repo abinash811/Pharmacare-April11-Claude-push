@@ -88,7 +88,7 @@ export default function SalesReturnDetail() {
             <div className="relative">
               <AppButton variant="secondary" size="sm" icon={<ChevronDown className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowMoreMenu(!showMoreMenu)}>More</AppButton>
               {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-48 py-1">
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-48 py-1 animate-in fade-in zoom-in-95 duration-fast">
                   {[
                     { icon: <Edit className="w-4 h-4" />, label: 'Edit', action: () => { setShowEditModal(true); setShowMoreMenu(false); } },
                     { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => { setShowMoreMenu(false); window.print(); } },

@@ -95,7 +95,7 @@ export default function PurchaseReturnDetail() {
           <div className="relative" ref={moreMenuRef}>
             <AppButton variant="ghost" iconOnly icon={<MoreVertical className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="More options" onClick={() => setShowMoreMenu(!showMoreMenu)} data-testid="more-menu-btn" />
             {showMoreMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-20">
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-20 animate-in fade-in zoom-in-95 duration-fast">
                 {[
                   { icon: <Edit className="w-4 h-4" />, label: 'Edit (Non-Financial)', action: () => { setEditType('non_financial'); setShowEditModal(true); setShowMoreMenu(false); } },
                   { icon: <Edit className="w-4 h-4" />, label: 'Edit (Financial)',      action: () => { setEditType('financial'); setShowEditModal(true); setShowMoreMenu(false); } },

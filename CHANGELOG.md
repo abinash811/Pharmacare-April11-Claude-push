@@ -10,7 +10,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **New shared `<MoreMenu>` component** — the "More options" dropdown used on
+  Purchase Detail, Sales Return Detail, and Purchase Return Detail. This
+  exact popover shape (a `top-full mt-1` / `shadow-xl` panel) had been
+  independently hand-rolled on each of those 3 pages; they'd drifted —
+  different backdrop handling, one page's version (`SalesReturnDetail`) had
+  no backdrop *and* no outside-click handler at all, so it could only be
+  closed by clicking a menu item. One definition now: closes on outside
+  click, closes on `Escape`, animates in consistently.
+- **New guardrail against this exact kind of drift.** `scripts/design-guard.sh`
+  Rule 7 and `.githooks/pre-commit` both now block a new hand-rolled
+  `top-full mt-1` dropdown outside of `MoreMenu.tsx` itself.
+- **Applied the project's own motion tokens** (`duration-fast/base/slow/slower`,
+  `ease-out-smooth`) for the first time — they were defined in
+  `tailwind.config.js` but used nowhere in the app. Now on `MoreMenu`'s
+  entrance animation and Inventory's Filter Drawer (fade backdrop + slide-in
+  panel), both previously instant with no transition.
+- **Wired up the design system's specified typography** — IBM Plex Sans
+  (body) and Manrope (page titles, via `PageHeader`) were always specified
+  in `PharmaCare Design System/colors_and_type.css` but never connected;
+  every page silently fell back to the generic system font.
+
 ### Fixed
+- **`scripts/design-guard.sh` silently stopped running partway through.**
+  `set -euo pipefail` combined with `grep | grep -v | wc -l` pipelines meant
+  that any rule finding **zero** violations (the good case) made `grep`
+  exit 1, which `pipefail` propagated, which `set -e` treated as a script
+  failure — aborting before later rules ever ran. Added `|| true` to every
+  such pipeline, matching the pattern `.githooks/pre-commit` already used
+  correctly. The script now actually reaches every rule on every run.
 - **"Could not reach the server" on every Inventory add/search, even though
   the backend was healthy.** Root cause: the frontend called
   `REACT_APP_BACKEND_URL` (`http://localhost:8000`) directly from the

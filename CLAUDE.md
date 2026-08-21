@@ -7,7 +7,7 @@
 
 ## THE PHARMACARE MANIFESTO
 
-1. **One component, one way.** Every button is `<AppButton>`. Every page header is `<PageHeader>`. Every tab bar is `<PageTabs>`. No raw `<button>` tags, no inline title `<div>`, no custom tab UI anywhere.
+1. **One component, one way.** Every button is `<AppButton>`. Every page header is `<PageHeader>`. Every tab bar is `<PageTabs>`. Every "More options" dropdown is `<MoreMenu>`. No raw `<button>` tags, no inline title `<div>`, no custom tab UI, no hand-rolled `top-full mt-1` popover anywhere.
 2. **Design tokens, not hex.** `bg-brand`, `hover:bg-brand-dark`, `text-brand`, `border-brand`. Never `#4682B4`, never `#3a6fa0`, never `bg-[#anything]` in component code.
 3. **Every page looks like the same product.** Same header height, same tab underline, same button weights.
 4. **No file over 300 lines.** If it grows past 300, split it. Orchestrators import components — they don't contain JSX logic.
@@ -266,6 +266,7 @@ Never write a frontend filter, API call, or status check before completing steps
 - [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-[#F8FAFB]` — never `flex flex-col h-full`
 - [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else
 - [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared
+- [ ] Zero hand-rolled "More options" dropdowns — always `<MoreMenu>` from shared
 - [ ] Zero `import` statements after `const` declarations
 - [ ] New files use `.tsx` extension, not `.jsx`
 - [ ] `npx tsc --noEmit` passes with zero errors

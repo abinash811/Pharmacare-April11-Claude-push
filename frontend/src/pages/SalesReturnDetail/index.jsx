@@ -3,9 +3,9 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, Printer, Edit, History, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Printer, Edit, History, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { AppButton, InlineLoader, PageBreadcrumb } from '@/components/shared';
+import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import SalesReturnEditModal from './components/SalesReturnEditModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
@@ -23,7 +23,6 @@ export default function SalesReturnDetail() {
   const { user } = useContext(AuthContext);
   const [returnData, setReturnData]         = useState(null);
   const [loading, setLoading]               = useState(true);
-  const [showMoreMenu, setShowMoreMenu]     = useState(false);
   const [showEditModal, setShowEditModal]   = useState(false);
   const [allowFinancialEdit, setAllowFinancialEdit] = useState(false);
   const [editForm, setEditForm]             = useState({ billing_for: '', doctor: '', billed_by: '', note: '' });
@@ -85,23 +84,15 @@ export default function SalesReturnDetail() {
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${paymentBadge.bg} ${paymentBadge.text}`}>{paymentBadge.label}</span>
             <span className="text-sm text-gray-500">{formatDate(returnData.return_date)}</span>
-            <div className="relative">
-              <AppButton variant="secondary" size="sm" icon={<ChevronDown className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowMoreMenu(!showMoreMenu)}>More</AppButton>
-              {showMoreMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-48 py-1 animate-in fade-in zoom-in-95 duration-fast">
-                  {[
-                    { icon: <Edit className="w-4 h-4" />, label: 'Edit', action: () => { setShowEditModal(true); setShowMoreMenu(false); } },
-                    { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => { setShowMoreMenu(false); window.print(); } },
-                    ...(returnData.original_bill_id ? [{ icon: <History className="w-4 h-4" />, label: 'Sales History', action: () => { navigate(`/billing/${returnData.original_bill_id}`); setShowMoreMenu(false); } }] : []),
-                    { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => { toast.info('Audit logs coming soon'); setShowMoreMenu(false); } },
-                  ].map((item) => (
-                    <AppButton key={item.label} variant="ghost" onClick={item.action} className="w-full justify-start px-4 py-2 text-sm hover:bg-gray-50" icon={item.icon}>
-                      {item.label}
-                    </AppButton>
-                  ))}
-                </div>
-              )}
-            </div>
+            <MoreMenu
+              label="More"
+              items={[
+                { icon: <Edit className="w-4 h-4" />, label: 'Edit', action: () => setShowEditModal(true) },
+                { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => window.print() },
+                returnData.original_bill_id && { icon: <History className="w-4 h-4" />, label: 'Sales History', action: () => navigate(`/billing/${returnData.original_bill_id}`) },
+                { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => toast.info('Audit logs coming soon') },
+              ]}
+            />
           </div>
         </div>
       </header>

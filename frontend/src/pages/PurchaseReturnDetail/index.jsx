@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, Printer, MoreVertical, Edit, FileText } from 'lucide-react';
-import { AppButton, InlineLoader, PageBreadcrumb } from '@/components/shared';
+import { ArrowLeft, Printer, Edit, FileText } from 'lucide-react';
+import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
@@ -15,8 +15,6 @@ export default function PurchaseReturnDetail() {
   const { id } = useParams();
   const [purchaseReturn, setPurchaseReturn] = useState(null);
   const [loading, setLoading]               = useState(true);
-  const [showMoreMenu, setShowMoreMenu]     = useState(false);
-  const moreMenuRef = useRef(null);
   const [showEditModal, setShowEditModal]   = useState(false);
   const [editType, setEditType]             = useState(null);
   const [editNote, setEditNote]             = useState('');
@@ -25,12 +23,6 @@ export default function PurchaseReturnDetail() {
   const [users, setUsers]                   = useState([]);
 
   useEffect(() => { fetchPurchaseReturn(); fetchUsers(); }, [id]); // eslint-disable-line
-
-  useEffect(() => {
-    const handleClickOutside = (e) => { if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setShowMoreMenu(false); };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const fetchPurchaseReturn = async () => {
     try {
@@ -92,23 +84,15 @@ export default function PurchaseReturnDetail() {
               </div>
             </div>
           </div>
-          <div className="relative" ref={moreMenuRef}>
-            <AppButton variant="ghost" iconOnly icon={<MoreVertical className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="More options" onClick={() => setShowMoreMenu(!showMoreMenu)} data-testid="more-menu-btn" />
-            {showMoreMenu && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-20 animate-in fade-in zoom-in-95 duration-fast">
-                {[
-                  { icon: <Edit className="w-4 h-4" />, label: 'Edit (Non-Financial)', action: () => { setEditType('non_financial'); setShowEditModal(true); setShowMoreMenu(false); } },
-                  { icon: <Edit className="w-4 h-4" />, label: 'Edit (Financial)',      action: () => { setEditType('financial'); setShowEditModal(true); setShowMoreMenu(false); } },
-                  { icon: <Printer className="w-4 h-4" />, label: 'Print',             action: () => { window.print(); setShowMoreMenu(false); } },
-                  { icon: <FileText className="w-4 h-4" />, label: 'Logs',             action: () => { toast.info('Logs coming soon'); setShowMoreMenu(false); } },
-                ].map((item) => (
-                  <AppButton key={item.label} variant="ghost" onClick={item.action} className="w-full justify-start px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-tint" icon={item.icon}>
-                    {item.label}
-                  </AppButton>
-                ))}
-              </div>
-            )}
-          </div>
+          <MoreMenu
+            testId="more-menu-btn"
+            items={[
+              { icon: <Edit className="w-4 h-4" />, label: 'Edit (Non-Financial)', action: () => { setEditType('non_financial'); setShowEditModal(true); } },
+              { icon: <Edit className="w-4 h-4" />, label: 'Edit (Financial)',      action: () => { setEditType('financial'); setShowEditModal(true); } },
+              { icon: <Printer className="w-4 h-4" />, label: 'Print',             action: () => window.print() },
+              { icon: <FileText className="w-4 h-4" />, label: 'Logs',             action: () => toast.info('Logs coming soon') },
+            ]}
+          />
         </div>
       </header>
 

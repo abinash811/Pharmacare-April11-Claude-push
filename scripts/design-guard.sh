@@ -29,7 +29,7 @@ RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" 
   | grep -v "data-testid=\"save-print-menu-btn\"" \
   | grep -v "WelcomeCard" \
   | grep -v "// raw button" \
-  | wc -l | tr -d ' ')
+  | wc -l | tr -d ' ' || true)
 
 if [ "$RAW_BUTTONS" -gt "0" ]; then
   red "Rule 1 FAIL: $RAW_BUTTONS raw <button> tag(s) found in pages/"
@@ -47,7 +47,7 @@ fi
 HEX_COLORS=$(grep -rn "className=.*#[0-9a-fA-F]\{3,6\}" "$FRONTEND" "$SHARED" \
   --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
   | grep -v "AuthPage" \
-  | wc -l | tr -d ' ')
+  | wc -l | tr -d ' ' || true)
 
 if [ "$HEX_COLORS" -gt "0" ]; then
   red "Rule 2 FAIL: $HEX_COLORS hardcoded hex color(s) in className"
@@ -62,7 +62,7 @@ fi
 
 # ── Rule 3: No hover:bg-[#...] patterns ─────────────────────────────────
 HOVER_HEX=$(grep -rn "hover:bg-\[#" "$FRONTEND" "$SHARED" \
-  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ')
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ' || true)
 
 if [ "$HOVER_HEX" -gt "0" ]; then
   red "Rule 3 FAIL: $HOVER_HEX hover:bg-[#...] pattern(s) found"
@@ -91,7 +91,7 @@ fi
 
 # ── Rule 5: No Shadcn <Button> imported in pages ─────────────────────────
 SHADCN_BUTTON=$(grep -rn "from '@/components/ui/button'" "$FRONTEND" \
-  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ')
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" | wc -l | tr -d ' ' || true)
 
 if [ "$SHADCN_BUTTON" -gt "0" ]; then
   red "Rule 5 FAIL: $SHADCN_BUTTON page(s) import directly from ui/button — use AppButton from shared"
@@ -104,7 +104,7 @@ else
 fi
 
 # ── Rule 6: No new .jsx files — use .tsx ─────────────────────────────────
-NEW_JSX=$(git diff --name-only --cached --diff-filter=A 2>/dev/null | grep "\.jsx$" | grep -v node_modules | wc -l | tr -d ' ')
+NEW_JSX=$(git diff --name-only --cached --diff-filter=A 2>/dev/null | grep "\.jsx$" | grep -v node_modules | wc -l | tr -d ' ' || true)
 
 if [ "$NEW_JSX" -gt "0" ]; then
   red "Rule 6 FAIL: $NEW_JSX new .jsx file(s) staged — use .tsx instead"
@@ -112,6 +112,24 @@ if [ "$NEW_JSX" -gt "0" ]; then
   ERRORS=$((ERRORS + 1))
 else
   green "Rule 6 PASS: No new .jsx files staged"
+fi
+
+# ── Rule 7: No hand-rolled "More menu" dropdowns — use <MoreMenu> ───────
+# This exact pattern (top-full mt-1 + shadow-xl popover) was independently
+# duplicated across 3 pages before being extracted into components/shared/
+# MoreMenu.tsx — one page even shipped without a working close-on-outside-
+# click. Catch the next duplicate before it's written, not after.
+MOREMENU_DUPES=$(grep -rln "top-full mt-1" "$FRONTEND" "$SHARED" \
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
+  | grep -v "MoreMenu.tsx" || true)
+
+if [ -n "$MOREMENU_DUPES" ]; then
+  COUNT=$(echo "$MOREMENU_DUPES" | wc -l | tr -d ' ')
+  red "Rule 7 FAIL: $COUNT file(s) hand-roll a 'More menu'-shaped dropdown"
+  echo "$MOREMENU_DUPES" | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+else
+  green "Rule 7 PASS: No duplicated More-menu dropdowns"
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────

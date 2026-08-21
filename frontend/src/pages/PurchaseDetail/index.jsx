@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { ArrowLeft, MoreVertical, Printer, Edit2, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Printer, Edit2, RotateCcw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { InlineLoader, AppButton, PageBreadcrumb } from '@/components/shared';
+import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 
@@ -15,7 +15,6 @@ export default function PurchaseDetail() {
   const navigate = useNavigate();
   const [purchase, setPurchase]   = useState(null);
   const [loading, setLoading]     = useState(true);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [paymentData, setPaymentData]   = useState({
     amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
@@ -105,26 +104,15 @@ export default function PurchaseDetail() {
               </div>
             </div>
           </div>
-          <div className="relative">
-            <AppButton variant="ghost" iconOnly icon={<MoreVertical className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="More options" onClick={() => setShowMoreMenu(!showMoreMenu)} data-testid="more-btn" />
-            {showMoreMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-fast">
-                  {[
-                    { icon: <Edit2 className="w-4 h-4" />, label: 'Edit', action: () => { setShowMoreMenu(false); navigate(`/purchases/edit/${id}?type=purchase`); } },
-                    { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => { setShowMoreMenu(false); window.print(); } },
-                    { icon: <RotateCcw className="w-4 h-4" />, label: 'Purchase Return', action: () => { setShowMoreMenu(false); navigate(`/purchases/returns/create?purchase_id=${id}`); } },
-                    { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => { setShowMoreMenu(false); toast.info('Logs coming soon'); } },
-                  ].map((item) => (
-                    <AppButton key={item.label} variant="ghost" onClick={item.action} className="w-full justify-start px-4 py-2.5 text-sm text-gray-700 hover:bg-brand-tint" icon={item.icon}>
-                      {item.label}
-                    </AppButton>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <MoreMenu
+            testId="more-btn"
+            items={[
+              { icon: <Edit2 className="w-4 h-4" />, label: 'Edit', action: () => navigate(`/purchases/edit/${id}?type=purchase`) },
+              { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => window.print() },
+              { icon: <RotateCcw className="w-4 h-4" />, label: 'Purchase Return', action: () => navigate(`/purchases/returns/create?purchase_id=${id}`) },
+              { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => toast.info('Logs coming soon') },
+            ]}
+          />
         </div>
       </header>
 

@@ -74,6 +74,14 @@ if [ -n "$FRONTEND_FILES" ]; then
     reason "Use AppButton from '@/components/shared' — it wraps Shadcn's button with the design system's variants baked in."
     ERRORS=$((ERRORS+1))
   fi
+
+  MOREMENU=$(echo "$FRONTEND_FILES" | xargs grep -ln "top-full mt-1" 2>/dev/null | grep -v "MoreMenu.tsx" || true)
+  if [ -n "$MOREMENU" ]; then
+    red "BLOCKED: hand-rolled 'More menu' dropdown found"
+    echo "$MOREMENU" | while read -r f; do file "$f"; done
+    reason "This exact popover shape was independently duplicated across 3 pages before being extracted into <MoreMenu> (components/shared/MoreMenu.tsx) — one copy even shipped without a working close-on-outside-click. Use <MoreMenu items={[...]} /> instead."
+    ERRORS=$((ERRORS+1))
+  fi
 fi
 
 NEWJSX=$(git diff --name-only --cached --diff-filter=A | grep '\.jsx$' | grep -v node_modules || true)

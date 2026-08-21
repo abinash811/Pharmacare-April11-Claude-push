@@ -42,6 +42,7 @@ import {
   DateRangePicker,
   TableActions,
   FilterPills,
+  MoreMenu,
 } from '@/components/shared';
 ```
 
@@ -77,6 +78,7 @@ import { AppButton } from '@/components/shared';
 | `DataCard` | Metric/KPI card wrapper | Raw divs with inconsistent card styling |
 | `DateRangePicker` | Date range selection | Custom date inputs |
 | `TableActions` | Row action buttons (view/edit/delete) | Inline action buttons with wrong sizing |
+| `MoreMenu` | "More options" dropdown on detail pages | Hand-rolled `top-full mt-1` popover, no close-on-outside-click |
 
 ---
 
@@ -876,6 +878,58 @@ const FILTERS = [
 
 **Visual:** Active = `bg-gray-900 text-white`. Inactive = `bg-gray-100 text-gray-600`.
 **Do NOT use AppButton for pills** — pills are toggle controls, not actions.
+
+---
+
+## MoreMenu
+
+**File:** `frontend/src/components/shared/MoreMenu.tsx`
+
+The "More options" dropdown used on detail pages (Purchase Detail, Sales
+Return Detail, Purchase Return Detail, ...). **The only way to render this
+pattern — never hand-roll a `top-full mt-1` / `shadow-xl` popover again.**
+This exact shape was independently duplicated across 3 pages before being
+extracted here; one copy shipped without a working close-on-outside-click.
+`scripts/design-guard.sh` (Rule 7) and `.githooks/pre-commit` both block a
+new hand-rolled duplicate of this pattern.
+
+```jsx
+import { MoreMenu } from '@/components/shared';
+import { Edit, Printer, FileText } from 'lucide-react';
+
+<MoreMenu
+  items={[
+    { icon: <Edit className="w-4 h-4" />, label: 'Edit', action: () => setShowEditModal(true) },
+    { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => window.print() },
+    // falsy entries are filtered — build conditional items inline
+    hasOriginalBill && { icon: <FileText className="w-4 h-4" />, label: 'View Original', action: () => navigate(`/billing/${id}`) },
+  ]}
+/>
+
+// Text-label trigger ("More" + chevron) instead of the default icon-only button
+<MoreMenu label="More" items={[...]} testId="more-btn" />
+```
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `items` | `Array<{icon, label, action} \| false \| null \| undefined>` | ✅ | Menu items — falsy entries are filtered, so conditional items can be written inline (`condition && {...}`) |
+| `label` | `string` | — | If set, renders a text button ("More" + chevron) instead of the default icon-only `MoreVertical` trigger |
+| `testId` | `string` | — | `data-testid` on the trigger button |
+
+**Built in, so callers never re-implement it:** closes on outside click, closes on `Escape`, closes automatically after an item's action fires, entrance animation (`animate-in fade-in zoom-in-95 duration-fast`).
+
+**Anti-pattern:**
+```jsx
+// ❌ Wrong — hand-rolled dropdown, will be blocked by the pre-commit hook
+const [showMoreMenu, setShowMoreMenu] = useState(false);
+<div className="relative">
+  <AppButton onClick={() => setShowMoreMenu(!showMoreMenu)} ... />
+  {showMoreMenu && <div className="absolute ... top-full mt-1 shadow-xl">...</div>}
+</div>
+
+// ✅ Correct
+<MoreMenu items={[...]} />
+```
 
 ---
 

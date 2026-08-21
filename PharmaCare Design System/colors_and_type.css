@@ -23,7 +23,7 @@
   --sidebar-active-bg: rgba(37, 99, 235, 0.20); /* blue-600/20             */
 
   /* ── App Surfaces ─────────────────────────────────────────────────────── */
-  --bg-app:        #f8f9fa;   /* Main content area background               */
+  --bg-app:        #F8FAFB;   /* Main content area background               */
   --bg-surface:    #ffffff;   /* Card / panel background                    */
   --bg-muted:      #f3f4f6;   /* Secondary bg, muted areas (gray-100)       */
 

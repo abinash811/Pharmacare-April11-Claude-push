@@ -10,7 +10,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Added
+- **New guardrail: `scripts/design_token_sync_check.py`.** Motion tokens
+  (and, found while building this, the `page`/`--bg-app` background color)
+  disagreed between `tailwind.config.js` and the design system reference
+  for months before being caught by chance in conversation, not by any
+  check. This diffs the real token values between the two files and fails
+  CI/pre-commit if any disagree — the class of bug, not just the one
+  instance, is now structurally caught. Wired into `scripts/design-guard.sh`
+  (Rule 8) and `.githooks/pre-commit` (runs whenever either file is
+  staged). Verified against a deliberately-introduced mismatch before
+  trusting it.
+
 ### Fixed
+- **`page` background disagreed too** — `tailwind.config.js` (`#F8FAFB`,
+  the real value, matches CLAUDE.md's documented page-root pattern) vs
+  `colors_and_type.css`'s `--bg-app` (`#f8f9fa`) — same drift class as the
+  motion tokens, caught immediately by the new sync check.
 - **Motion tokens had three disagreeing sources of truth.**
   `PharmaCare Design System/colors_and_type.css` (and its `motion.html`
   preview) specified a 7-duration/5-easing scale that was never actually

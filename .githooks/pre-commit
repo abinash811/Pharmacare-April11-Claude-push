@@ -92,6 +92,17 @@ if [ -n "$NEWJSX" ]; then
   ERRORS=$((ERRORS+1))
 fi
 
+TOKEN_FILES_TOUCHED=$(echo "$STAGED" | grep -E "^(frontend/tailwind\.config\.js|PharmaCare Design System/colors_and_type\.css)$" || true)
+if [ -n "$TOKEN_FILES_TOUCHED" ]; then
+  TOKEN_SYNC_OUTPUT=$(python3 scripts/design_token_sync_check.py 2>&1) || true
+  if ! echo "$TOKEN_SYNC_OUTPUT" | grep -q "^Design token sync check: OK"; then
+    red "BLOCKED: design tokens disagree between tailwind.config.js and colors_and_type.css"
+    echo "$TOKEN_SYNC_OUTPUT" | while read -r l; do file "$l"; done
+    reason "Motion tokens disagreed between these two files for months before being caught by chance, not by any check. tailwind.config.js is the source of truth (it's what actually ships) — update colors_and_type.css to match."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
 if [ -n "$FRONTEND_ALL_FILES" ] && [ -x frontend/node_modules/.bin/eslint ]; then
   echo ""
   echo "Running ESLint on staged frontend file(s) (new/changed lines only)..."

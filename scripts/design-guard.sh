@@ -132,6 +132,19 @@ else
   green "Rule 7 PASS: No duplicated More-menu dropdowns"
 fi
 
+# ── Rule 8: Design tokens must agree between tailwind.config.js and the
+# design system reference (colors_and_type.css) ──────────────────────────
+# Motion tokens disagreed between these two files for months before being
+# caught by chance, not by any automated check — this is what would have
+# caught it on day one instead.
+if python3 scripts/design_token_sync_check.py > /tmp/token_sync_output 2>&1; then
+  green "Rule 8 PASS: Design tokens in sync"
+else
+  red "Rule 8 FAIL: design tokens disagree between tailwind.config.js and colors_and_type.css"
+  cat /tmp/token_sync_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -447,6 +447,11 @@ alembic downgrade -1
 **Decision:** No Redux, Zustand, or similar. State lives in components and hooks.
 **Reason:** At current scale, prop drilling + context is sufficient. Adding a state manager adds complexity without solving a real problem we have today. Revisit at Phase 2 (multi-store).
 
+### ADR-009: Modular monolith — one folder per domain, no microservices yet
+**Date:** August 2026
+**Decision:** Stay a single deployable app (one FastAPI process, one React app, one database). Inside it, every domain gets its own file/folder on both sides — `backend/routers/billing.py` + `backend/models/billing.py`, `backend/routers/inventory.py` + `backend/models/products.py`, `frontend/src/pages/Billing/`, `frontend/src/pages/InventorySearch/`, and so on. A new domain (e.g. a future EMR or Labs module) gets its own router/model file and its own page folder — never bolted onto an existing domain's files, never sharing one giant router or one giant page component.
+**Reason:** Microservices cost real overhead (separate deployments, network calls between services, distributed debugging, DevOps work) that only pays off once a module needs to be sold, scaled, released, or staffed independently — none of which is true yet. Keeping domains cleanly separated by folder now is free and costs nothing, but it's what makes a future split cheap: extracting a service later becomes "move this folder," not "untangle years of tangled cross-domain code." Split a domain into its own service only when there's a real business reason (separate product, separate team, separate scaling need) — not preemptively.
+
 ---
 
 ## SECURITY RULES

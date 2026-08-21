@@ -79,6 +79,7 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 | 19 | `docs/19_PERFORMANCE.md` | Lighthouse targets, lazy loading, pagination, N+1 rules |
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 | 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
+| 22 | `docs/22_TECH_RADAR.md`   | What's modern/cost-efficient per stack layer, sourced externally — check before adopting new infra |
 
 ---
 

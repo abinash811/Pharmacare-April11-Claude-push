@@ -154,8 +154,8 @@ export default function InventorySearch() {
       {/* ── Filter Drawer ─────────────────────────────────────────────────── */}
       {showFilterDrawer && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setShowFilterDrawer(false)} />
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl">
+          <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-base" onClick={() => setShowFilterDrawer(false)} />
+          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl animate-in slide-in-from-right duration-slower ease-out-smooth">
             <FilterDrawer filterOptions={filterOptions} activeFilters={activeFilters} onApply={handleApplyFilters} onClose={() => setShowFilterDrawer(false)} />
           </div>
         </div>

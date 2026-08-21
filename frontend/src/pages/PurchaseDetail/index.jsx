@@ -110,7 +110,7 @@ export default function PurchaseDetail() {
             {showMoreMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1">
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50 py-1 animate-in fade-in zoom-in-95 duration-fast">
                   {[
                     { icon: <Edit2 className="w-4 h-4" />, label: 'Edit', action: () => { setShowMoreMenu(false); navigate(`/purchases/edit/${id}?type=purchase`); } },
                     { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => { setShowMoreMenu(false); window.print(); } },

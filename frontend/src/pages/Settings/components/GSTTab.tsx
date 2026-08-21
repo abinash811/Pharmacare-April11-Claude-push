@@ -9,6 +9,7 @@ import { Receipt, Hash, FileText, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch.jsx';
+import { AppButton } from '@/components/shared';
 
 interface Props {
   gst: Record<string, unknown>;
@@ -48,12 +49,12 @@ export default function GSTTab({ gst, onUpdate }: Props) {
   return (
     <div className="max-w-2xl">
 
-      {/* Composition scheme alert */}
+      {/* Composition scheme — honest "not yet implemented" notice */}
       {isComposition && (
         <div className="flex items-start gap-3 p-4 mb-6 bg-amber-50 border border-amber-200 rounded-xl">
           <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700">
-            Composition scheme enabled. GST will be calculated at a flat rate. CGST/SGST split and HSN codes are not applicable.
+            This needs to be researched better and implemented properly.
           </p>
         </div>
       )}
@@ -67,12 +68,6 @@ export default function GSTTab({ gst, onUpdate }: Props) {
           checked={isComposition}
           onChange={v => onUpdate('is_composition_scheme', v)}
         />
-        <ToggleRow
-          label="Interstate Sales (IGST)"
-          description="Enable for interstate billing — uses IGST instead of CGST+SGST"
-          checked={(gst.gst_type as string) === 'interstate'}
-          onChange={v => onUpdate('gst_type', v ? 'interstate' : 'intrastate')}
-        />
       </div>
 
       {/* Default rates */}
@@ -81,18 +76,19 @@ export default function GSTTab({ gst, onUpdate }: Props) {
         <p className="text-xs text-gray-500">Applied automatically when adding a new product without a specified rate</p>
         <div className="flex gap-2">
           {GST_RATES.map(rate => (
-            <button
+            <AppButton
               key={rate}
               type="button"
+              variant="ghost"
               onClick={() => onUpdate('default_gst_rate', rate)}
               className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-colors
                 ${Number(gst.default_gst_rate) === rate
-                  ? 'border-brand bg-brand text-white'
+                  ? 'border-brand bg-brand text-white hover:bg-brand'
                   : 'border-gray-200 text-gray-700 hover:border-brand/40'
                 }`}
             >
               {rate}%
-            </button>
+            </AppButton>
           ))}
         </div>
       </div>

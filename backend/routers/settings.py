@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import re
 import uuid
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import ALL_PERMISSIONS, DEFAULT_ROLES  # noqa: F401 — DEFAULT_ROLES re-exported for main.py
 from deps import get_db
-from models.billing import Bill
+from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import Role as RoleORM, User as UserORM
 from routers.auth_helpers import User, get_current_user
@@ -32,13 +34,144 @@ class RoleUpdate(BaseModel):
 
 
 class BillSequenceSettings(BaseModel):
+    # "sales_invoice" | "sales_return" — see SEQUENCE_DOCUMENT_TYPE in
+    # domainConstants.js. Each is its own gapless number series (GST Rule 46).
+    document_type: str = "sales_invoice"
     prefix: str = "INV"
     starting_number: int = 1
     sequence_length: int = 6
     allow_prefix_change: bool = True
 
 
+# document_type -> (PharmacySettings prefix/seq/length attrs,
+# doc model, doc number column, human label)
+_SEQUENCE_TYPES = {
+    "sales_invoice": (
+        "bill_prefix", "bill_sequence_number", "bill_number_length",
+        Bill, "bill_number", "Sales Invoice",
+    ),
+    "sales_return": (
+        "return_prefix", "return_sequence_number", "return_number_length",
+        SalesReturn, "return_number", "Sales Return",
+    ),
+}
+
+
+class DigitalReceiptUpdate(BaseModel):
+    """Validates the 'digital' section of PUT /settings — the shareable,
+    screen-viewed receipt template (WhatsApp/email/download). Always one
+    fixed A4-style layout; unlike Print, there is no paper-size choice here.
+    """
+    use_default_header: Optional[bool] = None
+    header_image_url: Optional[str] = None
+    footer_image_url: Optional[str] = None
+    header_height_px: Optional[int] = None
+    footer_height_px: Optional[int] = None
+    header_text: Optional[str] = None
+    footer_text: Optional[str] = None
+
+    @field_validator("header_height_px", "footer_height_px")
+    @classmethod
+    def height_in_range(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and not (20 <= v <= 400):
+            raise ValueError("Height must be between 20 and 400 pixels")
+        return v
+
+
+GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")
+PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
+PHONE_RE = re.compile(r"^[6-9]\d{9}$")
+PINCODE_RE = re.compile(r"^\d{6}$")
+
+
+class PharmacyGeneralUpdate(BaseModel):
+    """Validates the pharmacy-profile section of PUT /settings.
+
+    The frontend (PharmacyProfileTab.tsx) already checks these formats, but
+    that alone never stopped a direct API call from saving garbage — this is
+    the actual enforcement.
+    """
+    name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gstin: Optional[str] = None
+    drug_license_number: Optional[str] = None
+    drug_license_expiry: Optional[date] = None
+    fssai_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    logo_url: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def not_blank(cls, v: Optional[str]) -> Optional[str]:
+        # Only Pharmacy Name is required to save this page. Phone and the
+        # full address (street/city/state/pincode) are recommended — shown
+        # on printed bills — but a pharmacy can save the page without them
+        # and fill them in later.
+        if v is not None and not v.strip():
+            raise ValueError("Pharmacy Name cannot be blank")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def valid_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v and not PHONE_RE.match(v):
+            raise ValueError("Phone must be a valid 10-digit Indian mobile number")
+        return v
+
+    @field_validator("pincode")
+    @classmethod
+    def valid_pincode(cls, v: Optional[str]) -> Optional[str]:
+        if v and not PINCODE_RE.match(v):
+            raise ValueError("Pincode must be 6 digits")
+        return v
+
+    @field_validator("gstin")
+    @classmethod
+    def valid_gstin(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not GSTIN_RE.match(v):
+                raise ValueError("Invalid GSTIN format")
+        return v
+
+    @field_validator("pan_number")
+    @classmethod
+    def valid_pan(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            v = v.strip().upper()
+            if not PAN_RE.match(v):
+                raise ValueError("Invalid PAN format (e.g. ABCDE1234F)")
+        return v
+
+    @field_validator("drug_license_expiry", mode="before")
+    @classmethod
+    def blank_expiry_to_none(cls, v):
+        # The date <input> sends "" when cleared — treat that as "no date",
+        # not a parse error.
+        return None if v == "" else v
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def _validation_errors(e: ValidationError) -> list:
+    """Turn a Pydantic ValidationError into [{field, message}, ...] for a 422
+    response. Pydantic v2 prefixes a raised ValueError's text with "Value
+    error, " — strip that; it's implementation detail, not something a
+    pharmacist reading a toast needs to see.
+    """
+    errors = []
+    for err in e.errors():
+        msg = err["msg"]
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        errors.append({"field": err["loc"][-1], "message": msg})
+    return errors
+
 
 def _role_response(role: RoleORM) -> dict:
     perms = role.permissions if isinstance(role.permissions, list) else []
@@ -114,7 +247,6 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "default_hsn_medicines":  ps.default_hsn_medicines       if ps else "3004",
             "default_hsn_surgical":   ps.default_hsn_surgical        if ps else "9018",
             "auto_apply_hsn":         ps.auto_apply_hsn              if ps else True,
-            "gst_type":               ps.gst_type                    if ps else "intrastate",
             "round_off_amount":       ps.round_off_amount            if ps else True,
             "print_gst_summary":      ps.print_gst_summary           if ps else True,
         },
@@ -126,8 +258,18 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "print_gstin":        ps.print_gstin         if ps else True,
             "print_fssai":        ps.print_fssai         if ps else False,
             "print_signature":    ps.print_signature     if ps else False,
+            "print_pan": ps.print_pan if ps else False,
             "bill_header":        ps.bill_header         if ps else "",
             "bill_footer":        ps.bill_footer         if ps else "Thank you for your purchase!",
+        },
+        "digital": {
+            "use_default_header": ps.digital_use_default_header if ps else True,
+            "header_image_url": ps.digital_header_image_url if ps else "",
+            "footer_image_url": ps.digital_footer_image_url if ps else "",
+            "header_height_px": ps.digital_header_height_px if ps else 100,
+            "footer_height_px": ps.digital_footer_height_px if ps else 60,
+            "header_text": ps.digital_bill_header if ps else "",
+            "footer_text": ps.digital_bill_footer if ps else "",
         },
     }
 
@@ -180,10 +322,32 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         ps.print_gstin = printing["print_gstin"]
     if "print_fssai" in printing:
         ps.print_fssai = printing["print_fssai"]
+    if "print_pan" in printing:
+        ps.print_pan = printing["print_pan"]
+
+    digital = settings_data.get("digital", {})
+    if digital:
+        try:
+            digital_validated = DigitalReceiptUpdate(**digital)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=_validation_errors(e))
+        field_map = {
+            "use_default_header": "digital_use_default_header",
+            "header_image_url": "digital_header_image_url",
+            "footer_image_url": "digital_footer_image_url",
+            "header_height_px": "digital_header_height_px",
+            "footer_height_px": "digital_footer_height_px",
+            "header_text": "digital_bill_header",
+            "footer_text": "digital_bill_footer",
+        }
+        for api_field, model_field in field_map.items():
+            value = getattr(digital_validated, api_field)
+            if api_field in digital and value is not None:
+                setattr(ps, model_field, value)
 
     gst = settings_data.get("gst", {})
     for field in ["default_gst_rate", "is_composition_scheme", "default_hsn_medicines",
-                  "default_hsn_surgical", "auto_apply_hsn", "gst_type",
+                  "default_hsn_surgical", "auto_apply_hsn",
                   "round_off_amount", "print_gst_summary"]:
         if field in gst:
             setattr(ps, field, gst[field])
@@ -191,14 +355,20 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
     # ── Pharmacy profile ──────────────────────────────────────────────────────
     general = settings_data.get("general", {})
     if general:
+        try:
+            validated = PharmacyGeneralUpdate(**general)
+        except ValidationError as e:
+            raise HTTPException(status_code=422, detail=_validation_errors(e))
+
         pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
         pharmacy = pharm_result.scalar_one_or_none()
         if pharmacy:
             for field in ["name", "address", "city", "state", "pincode", "phone", "email",
                           "gstin", "drug_license_number", "drug_license_expiry",
                           "fssai_number", "pan_number", "logo_url"]:
-                if field in general and general[field] is not None:
-                    setattr(pharmacy, field, general[field])
+                value = getattr(validated, field)
+                if field in general and value is not None:
+                    setattr(pharmacy, field, value)
 
     await db.flush()
     return {"message": "Settings updated successfully"}
@@ -300,52 +470,90 @@ async def delete_role(role_id: str, current_user: User = Depends(get_current_use
 
 # ── /settings/bill-sequence ───────────────────────────────────────────────────
 
+def _sequence_response(ps: Optional[PharmacySettings], document_type: str) -> dict:
+    prefix_attr, seq_attr, length_attr, _model, _col, label = _SEQUENCE_TYPES[document_type]
+    default_prefix = "INV" if document_type == "sales_invoice" else "CN"
+    default_length = 6 if document_type == "sales_invoice" else 5
+    prefix = getattr(ps, prefix_attr) if ps else default_prefix
+    seq = getattr(ps, seq_attr) if ps else 1
+    length = getattr(ps, length_attr) if ps else default_length
+    return {
+        "document_type": document_type,
+        "label": label,
+        "prefix": prefix,
+        "current_sequence": seq - 1,
+        "sequence_length": length,
+        "allow_prefix_change": True,
+        "next_number": seq,
+    }
+
+
 @router.get("/settings/bill-sequence")
-async def get_bill_sequence_settings(prefix: str = "INV", current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_bill_sequence_settings(
+    document_type: str = "sales_invoice",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if document_type not in _SEQUENCE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown document_type '{document_type}'")
     result = await db.execute(
         select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
-    ps = result.scalar_one_or_none()
-    if not ps:
-        return {"prefix": prefix, "current_sequence": 0, "sequence_length": 6, "allow_prefix_change": True, "next_number": 1}
-    return {
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }
+    return _sequence_response(result.scalar_one_or_none(), document_type)
 
 
 @router.put("/settings/bill-sequence")
 async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
+    if seq_settings.document_type not in _SEQUENCE_TYPES:
+        raise HTTPException(
+            status_code=400, detail=f"Unknown document_type '{seq_settings.document_type}'"
+        )
+
+    prefix_attr, seq_attr, length_attr, doc_model, doc_col, label = (
+        _SEQUENCE_TYPES[seq_settings.document_type]
+    )
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
 
-    if ps and ps.bill_sequence_number >= seq_settings.starting_number:
+    # current_seq is the NEXT number that would be assigned, not the last used
+    # one — keeping it unchanged (starting_number == current_seq) or moving it
+    # forward is always safe. Only moving it backward risks reusing a number
+    # that's already been issued.
+    current_seq = getattr(ps, seq_attr) if ps else 1
+    if ps and current_seq > seq_settings.starting_number:
         raise HTTPException(
             status_code=400,
-            detail=f"Starting number must be greater than last used number ({ps.bill_sequence_number}) for prefix '{seq_settings.prefix}'",
+            detail=(
+                f"Starting number must be at least the next number ({current_seq}) "
+                f"for {label} prefix '{seq_settings.prefix}'"
+            ),
         )
 
+    doc_number_column = getattr(doc_model, doc_col)
     highest = await db.execute(
-        select(Bill.bill_number)
-        .where(Bill.pharmacy_id == pharmacy_id, Bill.bill_number.like(f"{seq_settings.prefix}-%"))
-        .order_by(Bill.bill_number.desc())
+        select(doc_number_column)
+        .where(
+            doc_model.pharmacy_id == pharmacy_id,
+            doc_number_column.like(f"{seq_settings.prefix}-%"),
+        )
+        .order_by(doc_number_column.desc())
         .limit(1)
     )
-    highest_bill = highest.scalar_one_or_none()
-    if highest_bill:
+    highest_number = highest.scalar_one_or_none()
+    if highest_number:
         try:
-            parts = highest_bill.split("-")
+            parts = highest_number.split("-")
             if len(parts) >= 2 and int(parts[-1]) >= seq_settings.starting_number:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Starting number must be greater than highest existing bill number ({int(parts[-1])}) for prefix '{seq_settings.prefix}'",
+                    detail=(
+                        f"Starting number must be greater than highest existing "
+                        f"{label} number ({int(parts[-1])}) for prefix '{seq_settings.prefix}'"
+                    ),
                 )
         except (ValueError, IndexError):
             pass
@@ -354,18 +562,12 @@ async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, curr
         ps = PharmacySettings(pharmacy_id=pharmacy_id)
         db.add(ps)
 
-    ps.bill_prefix = seq_settings.prefix
-    ps.bill_sequence_number = seq_settings.starting_number
-    ps.bill_number_length = seq_settings.sequence_length
+    setattr(ps, prefix_attr, seq_settings.prefix)
+    setattr(ps, seq_attr, seq_settings.starting_number)
+    setattr(ps, length_attr, seq_settings.sequence_length)
     await db.flush()
 
-    return {
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }
+    return _sequence_response(ps, seq_settings.document_type)
 
 
 @router.get("/settings/bill-sequence/all")
@@ -374,12 +576,4 @@ async def get_all_bill_sequences(current_user: User = Depends(get_current_user),
         select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
     ps = result.scalar_one_or_none()
-    if not ps:
-        return []
-    return [{
-        "prefix": ps.bill_prefix,
-        "current_sequence": ps.bill_sequence_number - 1,
-        "sequence_length": ps.bill_number_length,
-        "allow_prefix_change": True,
-        "next_number": ps.bill_sequence_number,
-    }]
+    return [_sequence_response(ps, document_type) for document_type in _SEQUENCE_TYPES]

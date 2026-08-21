@@ -92,8 +92,9 @@ export function useInventorySearch() {
       setInventory(res.data.items || []);
       setTotalPages(res.data.pagination?.total_pages || 1);
       setTotalItems(res.data.pagination?.total_items || 0);
-    } catch {
-      toast.error('Failed to load inventory');
+    } catch (err) {
+      toast.error(err.message || 'Failed to load inventory');
+      setInventory([]);
     } finally { setLoading(false); }
   }, [debouncedSearch, activeFilters, currentPage]);
 

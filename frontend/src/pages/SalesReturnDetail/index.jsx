@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { AppButton, InlineLoader, PageBreadcrumb } from '@/components/shared';
 import SalesReturnEditModal from './components/SalesReturnEditModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 const PAYMENT_BADGES = {
   cash:              { bg: 'bg-green-50',  text: 'text-green-700',  label: 'Cash' },

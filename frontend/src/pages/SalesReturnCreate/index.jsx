@@ -10,7 +10,7 @@ import { AppButton, PageBreadcrumb } from '@/components/shared';
 import { format } from 'date-fns';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function SalesReturnCreate() {
   const navigate = useNavigate();

@@ -97,3 +97,39 @@ ALL_PERMISSIONS = {
         {"id": "suppliers:edit", "name": "Edit Suppliers"}, {"id": "suppliers:deactivate", "name": "Deactivate Suppliers"},
     ]},
 }
+
+# ── Product category → HSN mapping ─────────────────────────────────────────────
+# HSN is government-fixed, not something a pharmacist should type per product —
+# a retail pharmacy only ever needs these four codes. Category picks the HSN
+# automatically so the same kind of product can never end up with two different
+# codes depending on who added it.
+PRODUCT_CATEGORIES = [
+    {"value": "medicine", "label": "Medicine", "hsn_code": "3004",
+     "hsn_description": "Tablets, capsules, syrups, injections, ointments, drops"},
+    {"value": "surgical", "label": "Surgical", "hsn_code": "3005",
+     "hsn_description": "Bandages, gauze, cotton, dressings"},
+    {"value": "first_aid", "label": "First Aid / Contraceptive", "hsn_code": "3006",
+     "hsn_description": "First-aid kits, contraceptives, diagnostic reagents"},
+    {"value": "device", "label": "Medical Device", "hsn_code": "9018",
+     "hsn_description": "Syringes, glucometers, BP monitors, thermometers"},
+]
+CATEGORY_HSN_MAP = {c["value"]: c["hsn_code"] for c in PRODUCT_CATEGORIES}
+VALID_CATEGORIES = set(CATEGORY_HSN_MAP)
+
+# GST slabs that actually apply to pharmacy products (28% doesn't).
+VALID_GST_RATES = {0, 5, 12, 18}
+
+# Dosage form decides whether a product can be sold loose (one tablet out of a
+# strip) or only as a whole pack (a syrup bottle can't be subdivided).
+DOSAGE_FORMS = [
+    {"value": "tablet",    "label": "Tablet",            "divisible": True},
+    {"value": "capsule",   "label": "Capsule",           "divisible": True},
+    {"value": "syrup",     "label": "Syrup / Liquid",    "divisible": False},
+    {"value": "injection", "label": "Injection",         "divisible": False},
+    {"value": "ointment",  "label": "Ointment / Cream",  "divisible": False},
+    {"value": "drops",     "label": "Drops",             "divisible": False},
+    {"value": "powder",    "label": "Powder / Sachet",   "divisible": False},
+    {"value": "inhaler",   "label": "Inhaler",           "divisible": False},
+    {"value": "other",     "label": "Other",             "divisible": False},
+]
+VALID_DOSAGE_FORMS = {d["value"] for d in DOSAGE_FORMS}

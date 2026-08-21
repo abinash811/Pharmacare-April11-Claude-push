@@ -20,7 +20,7 @@ import InventoryEmptyState     from './components/InventoryEmptyState';
 import InventoryTable          from './components/InventoryTable';
 import FilterDrawer            from './components/FilterDrawer';
 import BulkUpdateModal         from './components/BulkUpdateModal';
-import AddStockModal           from './components/AddStockModal';
+import AddMedicineModal        from './components/AddMedicineModal';
 import AdjustStockModal        from './components/AdjustStockModal';
 import EditProductModal        from './components/EditProductModal';
 import api from '@/lib/axios';
@@ -94,9 +94,9 @@ export default function InventorySearch() {
             <AppButton
               icon={<Plus className="w-4 h-4" />}
               onClick={() => setShowAddModal(true)}
-              data-testid="add-stock-btn"
+              data-testid="add-medicine-btn"
             >
-              Add Stock
+              Add Medicine
             </AppButton>
           </>
         }
@@ -172,7 +172,7 @@ export default function InventorySearch() {
       )}
 
       {showAddModal && (
-        <AddStockModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); refetch(); }} />
+        <AddMedicineModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); refetch(); }} />
       )}
 
       {editProduct && (

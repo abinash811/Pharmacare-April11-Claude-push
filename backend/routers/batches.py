@@ -163,6 +163,8 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
         raise HTTPException(status_code=400, detail="Batch with this number already exists for this product at this location")
 
     expiry = date.fromisoformat(batch_data.expiry_date[:10])
+    if expiry < date.today():
+        raise HTTPException(status_code=400, detail="Expiry date has already passed")
     mfg = date.fromisoformat(batch_data.manufacture_date[:10]) if batch_data.manufacture_date else None
 
     batch = BatchORM(
@@ -250,7 +252,10 @@ async def update_stock_batch(batch_id: str, batch_data: StockBatchUpdate, curren
         elif key == "mrp_per_unit":
             batch.mrp_paise = int(value * 100)
         elif key == "expiry_date":
-            batch.expiry_date = date.fromisoformat(value[:10])
+            new_expiry = date.fromisoformat(value[:10])
+            if new_expiry < date.today():
+                raise HTTPException(status_code=400, detail="Expiry date has already passed")
+            batch.expiry_date = new_expiry
         elif key == "manufacture_date":
             batch.manufacture_date = date.fromisoformat(value[:10])
         else:

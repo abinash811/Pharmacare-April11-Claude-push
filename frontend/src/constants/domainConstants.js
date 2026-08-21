@@ -56,6 +56,14 @@ export const INVOICE_TYPE = {
   PURCHASE_RETURN:'PURCHASE_RETURN',
 };
 
+// ─── Bill Sequence — document types with their own number series ─────────────
+// GST requires Sales Invoices and Sales Return credit notes to be numbered as
+// separate, gapless sequences — see docs/07_BUSINESS_LOGIC.md.
+export const SEQUENCE_DOCUMENT_TYPE = {
+  SALES_INVOICE: 'sales_invoice',
+  SALES_RETURN:  'sales_return',
+};
+
 // ─── Purchase Status ──────────────────────────────────────────────────────────
 export const PURCHASE_STATUS = {
   DRAFT:    'draft',
@@ -97,4 +105,15 @@ export const STOCK_MOVEMENT_TYPE = {
 export const BILLING_FOR = {
   SELF:  'self',
   OTHER: 'other',
+};
+
+// ─── User Roles ───────────────────────────────────────────────────────────────
+// Mirrors backend/constants.py::DEFAULT_ROLES names exactly. A new pharmacy
+// (created at signup — see routers/auth.py) always gets all four; the
+// signing-up user is always ROLE.ADMIN for their own pharmacy.
+export const USER_ROLE = {
+  ADMIN:           'admin',
+  MANAGER:         'manager',
+  CASHIER:         'cashier',
+  INVENTORY_STAFF: 'inventory_staff',
 };

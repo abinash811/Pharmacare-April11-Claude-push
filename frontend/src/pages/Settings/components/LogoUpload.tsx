@@ -4,7 +4,8 @@
  * No backend required — stored in pharmacy profile.
  */
 import React, { useRef, useState } from 'react';
-import { Upload, X, ImageIcon } from 'lucide-react';
+import { X, ImageIcon } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 interface Props {
   value: string;           // current logo URL or base64
@@ -47,20 +48,24 @@ export default function LogoUpload({ value, onChange, label = 'Pharmacy Logo' }:
             alt="Logo"
             className="h-20 w-auto max-w-[200px] object-contain rounded-lg border border-gray-200 bg-gray-50 p-2"
           />
-          <button
+          <AppButton
             type="button"
+            variant="danger"
+            iconOnly
+            icon={<X className="w-3 h-3" />}
             onClick={() => onChange('')}
-            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
-          >
-            <X className="w-3 h-3" />
-          </button>
-          <button
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full p-0"
+            aria-label="Remove image"
+          />
+          <AppButton
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => inputRef.current?.click()}
-            className="mt-2 block text-xs text-brand hover:underline"
+            className="mt-2 !h-auto !p-0 text-xs text-brand hover:underline"
           >
-            Change logo
-          </button>
+            Change
+          </AppButton>
         </div>
       ) : (
         /* Drop zone */

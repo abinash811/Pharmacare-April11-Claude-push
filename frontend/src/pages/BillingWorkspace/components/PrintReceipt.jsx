@@ -23,9 +23,9 @@ function ThermalReceipt({ billData, format }) {
   const {
     bill_number, customer_name, customer_phone, doctor_name,
     payment_method, pharmacy_name, pharmacy_address, pharmacy_phone,
-    gstin, drug_license, items = [],
+    gstin, drug_license, fssai, pan, items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
-    bill_footer,
+    bill_footer, print_patient_name = true,
   } = billData;
 
   return (
@@ -37,13 +37,15 @@ function ThermalReceipt({ billData, format }) {
         {pharmacy_phone && <div style={{ fontSize: '9px' }}>Tel: {pharmacy_phone}</div>}
         {gstin && <div style={{ fontSize: '9px' }}>GSTIN: {gstin}</div>}
         {drug_license && <div style={{ fontSize: '9px' }}>DL: {drug_license}</div>}
+        {fssai && <div style={{ fontSize: '9px' }}>FSSAI: {fssai}</div>}
+        {pan && <div style={{ fontSize: '9px' }}>PAN: {pan}</div>}
       </div>
 
       <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '4px 0', margin: '4px 0' }}>
-        <div><strong>Invoice:</strong> {bill_number}</div>
+        <div><strong>Bill No:</strong> {bill_number}</div>
         <div><strong>Date:</strong> {formatDateTime(new Date())}</div>
-        <div><strong>Patient:</strong> {customer_name || 'Walk-in'}</div>
-        {customer_phone && <div><strong>Phone:</strong> {customer_phone}</div>}
+        {print_patient_name && <div><strong>Patient:</strong> {customer_name || 'Walk-in'}</div>}
+        {print_patient_name && customer_phone && <div><strong>Phone:</strong> {customer_phone}</div>}
         {doctor_name && <div><strong>Doctor:</strong> {doctor_name}</div>}
       </div>
 
@@ -96,10 +98,10 @@ function A4Invoice({ billData, format }) {
   const {
     bill_number, customer_name, customer_phone, doctor_name,
     payment_method, pharmacy_name, pharmacy_address, pharmacy_phone,
-    gstin, drug_license, fssai,
+    gstin, drug_license, fssai, pan,
     items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
-    bill_header, bill_footer, print_signature,
+    bill_header, bill_footer, print_signature, print_patient_name = true,
   } = billData;
 
   const isA5 = format === 'a5';
@@ -119,6 +121,7 @@ function A4Invoice({ billData, format }) {
           {gstin && <div><strong>GSTIN:</strong> {gstin}</div>}
           {drug_license && <div><strong>DL No:</strong> {drug_license}</div>}
           {fssai && <div><strong>FSSAI:</strong> {fssai}</div>}
+          {pan && <div><strong>PAN:</strong> {pan}</div>}
         </div>
       </div>
 
@@ -126,15 +129,21 @@ function A4Invoice({ billData, format }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
         <div>
           <div style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Tax Invoice</div>
-          <div style={{ fontSize: '10px', color: '#555', marginTop: '2px' }}>Invoice No: <strong>{bill_number}</strong></div>
+          <div className="text-gray-600" style={{ fontSize: '10px', marginTop: '2px' }}>Bill No: <strong>{bill_number}</strong></div>
           <div style={{ fontSize: '10px', color: '#555' }}>Date: <strong>{formatDateTime(new Date())}</strong></div>
           <div style={{ fontSize: '10px', color: '#555' }}>Payment: <strong style={{ textTransform: 'capitalize' }}>{payment_method}</strong></div>
         </div>
         <div style={{ textAlign: 'right', fontSize: '10px' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Patient Details</div>
-          <div>{customer_name || 'Walk-in Customer'}</div>
-          {customer_phone && <div>{customer_phone}</div>}
-          {doctor_name && <div>Dr. {doctor_name}</div>}
+          {print_patient_name ? (
+            <>
+              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>Patient Details</div>
+              <div>{customer_name || 'Walk-in Customer'}</div>
+              {customer_phone && <div>{customer_phone}</div>}
+            </>
+          ) : (
+            <div className="text-gray-500" style={{ fontStyle: 'italic' }}>Patient name hidden</div>
+          )}
+          {doctor_name && <div>Ref. By: Dr. {doctor_name}</div>}
         </div>
       </div>
 

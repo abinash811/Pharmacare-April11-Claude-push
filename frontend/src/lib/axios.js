@@ -26,7 +26,7 @@ import axios from 'axios';
 // ── Instance ──────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`,
+  baseURL: `${process.env.REACT_APP_BACKEND_URL || ''}/api`,
   timeout: 30_000,                       // 30s — enough for report generation
   headers: { 'Content-Type': 'application/json' },
 });
@@ -50,6 +50,19 @@ api.interceptors.request.use(
 
 // ── Response Interceptor ──────────────────────────────────────────────────────
 
+// One item from a 422 `detail` array — either FastAPI's own validation shape
+// ({ loc, msg }) or PharmaCare's field-level shape ({ field, message }).
+// Strips Pydantic v2's "Value error, " prefix and names the field, so a toast
+// says e.g. "category: Category must be one of: ..." instead of a bare,
+// unattributed message.
+function formatValidationError(d) {
+  if (typeof d === 'string') return d;
+  let text = d.message ?? d.msg ?? '';
+  if (text.startsWith('Value error, ')) text = text.slice('Value error, '.length);
+  const field = d.field ?? (Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : undefined);
+  return field ? `${field}: ${text}` : text;
+}
+
 api.interceptors.response.use(
   // Success — pass through unchanged
   (response) => response,
@@ -58,9 +71,21 @@ api.interceptors.response.use(
   (error) => {
     const status  = error.response?.status;
     const detail  = error.response?.data?.detail;
-    const message = Array.isArray(detail)
-      ? detail.map((d) => d.msg ?? d).join('; ')   // FastAPI validation errors
-      : detail || error.message || 'Something went wrong';
+    let message;
+    if (Array.isArray(detail)) {
+      // FastAPI's own validation errors use `msg`; PharmaCare's field-level
+      // 422 handlers (e.g. Pharmacy Profile) use `{ field, message }` — read
+      // both, and name the field when we have one, so the toast says which
+      // field is wrong and why instead of just "validation failed".
+      message = detail.map(formatValidationError).filter(Boolean).join('; ');
+    } else if (detail) {
+      message = detail;
+    } else if (!error.response) {
+      // Request never got a response — server down, offline, CORS, timeout.
+      message = 'Could not reach the server. Check your connection and try again.';
+    } else {
+      message = error.message || 'Something went wrong';
+    }
 
     // 401 — token expired or invalid → clear storage and redirect to login
     if (status === 401) {
@@ -90,4 +115,4 @@ export default api;
  *   window.open(url);
  */
 export const apiBase = (path = '') =>
-  `${process.env.REACT_APP_BACKEND_URL}/api${path.startsWith('/') ? path : `/${path}`}`;
+  `${process.env.REACT_APP_BACKEND_URL || ''}/api${path.startsWith('/') ? path : `/${path}`}`;

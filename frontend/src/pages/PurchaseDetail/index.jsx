@@ -8,7 +8,7 @@ import { InlineLoader, AppButton, PageBreadcrumb } from '@/components/shared';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function PurchaseDetail() {
   const { id } = useParams();

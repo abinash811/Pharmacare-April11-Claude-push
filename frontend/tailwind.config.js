@@ -7,6 +7,13 @@ module.exports = {
   ],
   theme: {
   	extend: {
+  		// ── Typography ──────────────────────────────────────────────────────
+  		// font-sans (default body) → IBM Plex Sans. font-display → Manrope,
+  		// used for page titles/headings — see PharmaCare Design System/colors_and_type.css.
+  		fontFamily: {
+  			sans:    ['"IBM Plex Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+  			display: ['Manrope', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

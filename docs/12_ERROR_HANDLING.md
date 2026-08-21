@@ -1,5 +1,5 @@
 # PharmaCare — Error Handling
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 19, 2026
 # Audience: Claude, all developers
 # Rule: Every error must be catchable, displayable, and recoverable. No silent failures.
 

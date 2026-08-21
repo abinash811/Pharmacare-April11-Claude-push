@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
 #        Before making a structural change, read this file.

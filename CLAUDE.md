@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Last updated: April 25, 2026
+# Last updated: August 21, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 

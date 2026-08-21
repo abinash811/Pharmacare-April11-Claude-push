@@ -11,6 +11,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 ## [Unreleased]
 
 ### Added
+- **New guardrail: doc content can't change without its 'Last updated'
+  line changing too.** Audited every doc's header date against real edit
+  history and found the same silent-drift pattern as the token bug, three
+  times over: `CLAUDE.md`, `docs/06_COMPONENTS.md`, and
+  `docs/08_ARCHITECTURE.md` had genuine content added (some by this exact
+  session) with the header never bumped; `docs/12_ERROR_HANDLING.md` had
+  been edited on Aug 19 (self-dated in its own added text) with the same
+  miss. Fixed all four headers. Added a `.githooks/pre-commit` check that
+  blocks a commit touching `CLAUDE.md` or `docs/*.md` content unless the
+  "Last updated" line is part of the same diff — verified against both a
+  blocked case (content changed, date not) and a passing one (both
+  changed) before trusting it.
 - **New guardrail: `scripts/design_token_sync_check.py`.** Motion tokens
   (and, found while building this, the `page`/`--bg-app` background color)
   disagreed between `tailwind.config.js` and the design system reference

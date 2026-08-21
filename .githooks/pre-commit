@@ -92,6 +92,24 @@ if [ -n "$NEWJSX" ]; then
   ERRORS=$((ERRORS+1))
 fi
 
+DOC_FILES=$(echo "$STAGED" | grep -E '^(CLAUDE\.md|docs/.*\.md)$' || true)
+if [ -n "$DOC_FILES" ]; then
+  STALE_DOCS=""
+  for f in $DOC_FILES; do
+    [ -f "$f" ] || continue  # skip deleted files
+    if ! git diff --cached -- "$f" | grep -qE '^[+-].*Last updated'; then
+      STALE_DOCS="$STALE_DOCS$f
+"
+    fi
+  done
+  if [ -n "$STALE_DOCS" ]; then
+    red "BLOCKED: doc content changed without updating its 'Last updated' line"
+    echo "$STALE_DOCS" | while read -r f; do [ -n "$f" ] && file "$f"; done
+    reason "This exact thing already happened 3 times silently (CLAUDE.md, docs/06, docs/08, docs/12 all had real content changes with a stale header) before anyone noticed. Bump the 'Last updated' line in the same commit as the content change."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
 TOKEN_FILES_TOUCHED=$(echo "$STAGED" | grep -E "^(frontend/tailwind\.config\.js|PharmaCare Design System/colors_and_type\.css)$" || true)
 if [ -n "$TOKEN_FILES_TOUCHED" ]; then
   TOKEN_SYNC_OUTPUT=$(python3 scripts/design_token_sync_check.py 2>&1) || true

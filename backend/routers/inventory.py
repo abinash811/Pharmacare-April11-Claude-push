@@ -5,10 +5,14 @@ from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from constants import (
+    CATEGORY_HSN_MAP, DOSAGE_FORMS, PRODUCT_CATEGORIES,
+    VALID_CATEGORIES, VALID_DOSAGE_FORMS, VALID_GST_RATES,
+)
 from deps import get_db
 from models.billing import Bill, BillItem
 from models.pharmacy import PharmacySettings
@@ -21,36 +25,71 @@ router = APIRouter(prefix="/api", tags=["inventory"])
 
 # ── Pydantic request models ──────────────────────────────────────────────────
 
+def _validate_category(v: Optional[str]) -> Optional[str]:
+    if v is not None and v not in VALID_CATEGORIES:
+        raise ValueError(f"Category must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
+    return v
+
+
+def _validate_gst(v: Optional[float]) -> Optional[float]:
+    if v is not None and v not in VALID_GST_RATES:
+        allowed = ', '.join(str(r) for r in sorted(VALID_GST_RATES))
+        raise ValueError(f"GST% must be one of: {allowed}")
+    return v
+
+
+def _validate_dosage_form(v: Optional[str]) -> Optional[str]:
+    if v is not None and v not in VALID_DOSAGE_FORMS:
+        raise ValueError(f"Dosage form must be one of: {', '.join(sorted(VALID_DOSAGE_FORMS))}")
+    return v
+
+
 class ProductCreate(BaseModel):
-    sku: str
+    # SKU is optional — auto-generated server-side if not given. A pharmacist
+    # shouldn't have to invent a unique code.
+    sku: Optional[str] = None
     name: str
     manufacturer: Optional[str] = None
     brand: Optional[str] = None
+    generic_name: Optional[str] = None
+    dosage_form: Optional[str] = None
     pack_size: Optional[str] = None
     units_per_pack: int = 1
     category: Optional[str] = None
     barcode: Optional[str] = None
     gst_percent: float = 5.0
-    hsn_code: Optional[str] = None
     schedule: Optional[str] = "OTC"
     low_stock_threshold_units: Optional[int] = 10
+
+    _v_category = field_validator("category")(_validate_category)
+    _v_gst = field_validator("gst_percent")(_validate_gst)
+    _v_dosage = field_validator("dosage_form")(_validate_dosage_form)
 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     manufacturer: Optional[str] = None
     brand: Optional[str] = None
+    generic_name: Optional[str] = None
+    dosage_form: Optional[str] = None
     pack_size: Optional[str] = None
     units_per_pack: Optional[int] = None
     category: Optional[str] = None
     barcode: Optional[str] = None
     gst_percent: Optional[float] = None
-    hsn_code: Optional[str] = None
     schedule: Optional[str] = None
     low_stock_threshold_units: Optional[int] = None
 
+    _v_category = field_validator("category")(_validate_category)
+    _v_gst = field_validator("gst_percent")(_validate_gst)
+    _v_dosage = field_validator("dosage_form")(_validate_dosage_form)
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+# category/gst_percent/dosage_form validation errors reach the client via
+# FastAPI's own automatic Pydantic validation (data: ProductCreate below) —
+# its [{loc, msg}] shape is already handled by the shared axios interceptor
+# (frontend/src/lib/axios.js), "Value error, " prefix and all.
 
 def _product_response(p: ProductORM) -> dict:
     return {
@@ -59,6 +98,7 @@ def _product_response(p: ProductORM) -> dict:
         "units_per_pack": p.units_per_pack, "category": p.category,
         "gst_percent": float(p.gst_rate), "hsn_code": p.hsn_code,
         "schedule": p.drug_schedule, "generic_name": p.generic_name,
+        "dosage_form": p.dosage_form,
         "low_stock_threshold_units": p.reorder_level,
         "status": "active" if p.is_active else "inactive",
         "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -82,14 +122,26 @@ def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
 @router.post("/products")
 async def create_product(data: ProductCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    existing = await db.execute(select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == data.sku))
+
+    sku = data.sku or f"SKU-{uuid.uuid4().hex[:8].upper()}"
+    existing = await db.execute(
+        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == sku)
+    )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+
+    # HSN is derived from Category, never taken as free input — a retail
+    # pharmacy only needs the four codes in CATEGORY_HSN_MAP, and letting it
+    # be typed per product is how the same kind of item ends up miscoded
+    # differently depending on who added it.
+    hsn_code = CATEGORY_HSN_MAP.get(data.category, "3004")
+
     product = ProductORM(
-        pharmacy_id=pharmacy_id, sku=data.sku, name=data.name,
-        manufacturer=data.manufacturer, brand=data.brand, pack_size=data.pack_size,
+        pharmacy_id=pharmacy_id, sku=sku, name=data.name,
+        manufacturer=data.manufacturer, brand=data.brand, generic_name=data.generic_name,
+        dosage_form=data.dosage_form, pack_size=data.pack_size,
         units_per_pack=data.units_per_pack, category=data.category, barcode=data.barcode,
-        gst_rate=data.gst_percent, hsn_code=data.hsn_code or "3004",
+        gst_rate=data.gst_percent, hsn_code=hsn_code,
         drug_schedule=data.schedule or "OTC", reorder_level=data.low_stock_threshold_units or 10,
     )
     db.add(product)
@@ -120,6 +172,18 @@ async def get_products(
 
 
 # Static /products/* routes MUST be registered before /products/{product_id}
+
+@router.get("/products/meta")
+async def get_product_meta(current_user: User = Depends(get_current_user)):
+    """Categories (with their fixed HSN + what's covered), GST slabs, and
+    dosage forms — the Add Medicine form's dropdowns, from one source of
+    truth instead of being duplicated in frontend constants."""
+    return {
+        "categories": PRODUCT_CATEGORIES,
+        "gst_rates": sorted(VALID_GST_RATES),
+        "dosage_forms": DOSAGE_FORMS,
+    }
+
 
 @router.post("/products/bulk-update")
 async def bulk_update_products(data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -221,8 +285,11 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     field_map = {"gst_percent": "gst_rate", "schedule": "drug_schedule", "low_stock_threshold_units": "reorder_level"}
-    for key, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    for key, value in updates.items():
         setattr(product, field_map.get(key, key), value)
+    if "category" in updates:
+        product.hsn_code = CATEGORY_HSN_MAP.get(updates["category"], "3004")
     await db.flush()
     return {"message": "Product updated successfully"}
 

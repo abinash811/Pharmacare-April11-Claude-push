@@ -41,10 +41,17 @@ class PharmacySettings(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    # Bill sequence
+    # Bill sequence — Sales Invoice
     bill_prefix: Mapped[str] = mapped_column(String(10), default="INV", nullable=False)
     bill_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     bill_number_length: Mapped[int] = mapped_column(Integer, default=6, nullable=False)
+    # Bill sequence — Sales Return (credit note). Separate from the Invoice
+    # sequence above: GST requires each to be its own gapless series. Defaults
+    # match the number format returns already used before this was
+    # configurable ("CN-00001"), so existing data doesn't jump on upgrade.
+    return_prefix: Mapped[str] = mapped_column(String(10), default="CN", nullable=False)
+    return_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    return_number_length: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     # Inventory
     low_stock_threshold_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     near_expiry_threshold_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
@@ -70,8 +77,20 @@ class PharmacySettings(Base):
     print_gstin: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_fssai: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     print_signature: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    print_pan: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     bill_header: Mapped[Optional[str]] = mapped_column(Text)
     bill_footer: Mapped[Optional[str]] = mapped_column(Text, default="Thank you for your purchase!")
+    # Digital receipt (shareable, screen-viewed — always A4-style, no paper size
+    # choice; separate from the Print settings above, which stay printer-driven).
+    # "Show on Bill" toggles (print_gstin etc. above) and the item table are
+    # shared with Print — both formats show the same billing information.
+    digital_use_default_header: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    digital_header_image_url: Mapped[Optional[str]] = mapped_column(Text)
+    digital_footer_image_url: Mapped[Optional[str]] = mapped_column(Text)
+    digital_header_height_px: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
+    digital_footer_height_px: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
+    digital_bill_header: Mapped[Optional[str]] = mapped_column(Text)
+    digital_bill_footer: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

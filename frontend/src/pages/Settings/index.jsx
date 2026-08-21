@@ -79,7 +79,7 @@ export default function Settings() {
           ) : (
             <>
               {activeTab === 'profile'       && <PharmacyProfileTab general={settings.general || {}}  onUpdate={makeUpdater('general')} />}
-              {activeTab === 'receipt'       && <ReceiptTab         print={settings.print || {}}  general={settings.general || {}}  onUpdate={makeUpdater('print')}  onUpdateGeneral={makeUpdater('general')} />}
+              {activeTab === 'receipt'       && <ReceiptTab         print={settings.print || {}}  digital={settings.digital || {}}  general={settings.general || {}}  onUpdate={makeUpdater('print')}  onUpdateDigital={makeUpdater('digital')}  onUpdateGeneral={makeUpdater('general')} />}
               {activeTab === 'gst'           && <GSTTab           gst={settings.gst || {}}                       onUpdate={makeUpdater('gst')} />}
               {activeTab === 'notifications' && <NotificationsTab notifications={settings.notifications || {}} onUpdate={makeUpdater('notifications')} />}
               {activeTab === 'inventory'     && <InventoryTab     inventory={settings.inventory}  onUpdate={makeUpdater('inventory')} />}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr
@@ -17,15 +19,26 @@ from routers.auth_helpers import (
     hash_password,
     verify_password,
 )
+from services.provisioning import create_pharmacy_with_defaults
 
 router = APIRouter(prefix="/api", tags=["auth"])
 
 
 class UserCreate(BaseModel):
+    # Account
     email: EmailStr
     name: str
     password: str
-    role: str
+    phone: str
+    # New pharmacy — every signup creates its own pharmacy; the signing-up
+    # user is always that pharmacy's Admin. See CLAUDE.md "Signup / Auth
+    # Rebuild" note — there is no public role picker, on purpose.
+    pharmacy_name: str
+    address: str
+    city: str
+    state: str
+    pincode: str
+    drug_license_number: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -35,40 +48,53 @@ class UserLogin(BaseModel):
 
 @router.post("/auth/register")
 async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    # Email uniqueness is checked globally (not per-pharmacy) because login
+    # looks a user up by email alone — see routers/auth.py::login below.
     existing = await db.execute(select(UserORM).where(UserORM.email == user_data.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    pharm_result = await db.execute(select(Pharmacy).limit(1))
-    pharmacy = pharm_result.scalar_one_or_none()
-    if not pharmacy:
-        raise HTTPException(status_code=500, detail="No pharmacy configured. Run setup first.")
+    pharmacy = await create_pharmacy_with_defaults(
+        db,
+        name=user_data.pharmacy_name,
+        address=user_data.address,
+        city=user_data.city,
+        state=user_data.state,
+        pincode=user_data.pincode,
+        phone=user_data.phone,
+        email=user_data.email,
+        drug_license_number=user_data.drug_license_number,
+    )
 
     role_result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == user_data.role)
+        select(RoleORM).where(RoleORM.pharmacy_id == pharmacy.id, RoleORM.name == "admin")
     )
-    role = role_result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=400, detail=f"Role '{user_data.role}' not found")
+    role = role_result.scalar_one()  # created moments ago by create_pharmacy_with_defaults
 
     user = UserORM(
         pharmacy_id=pharmacy.id,
         role_id=role.id,
         name=user_data.name,
         email=user_data.email,
+        phone=user_data.phone,
         password_hash=hash_password(user_data.password),
     )
     db.add(user)
     await db.flush()
 
     token = create_access_token({"sub": str(user.id), "email": user.email})
-    return {"token": token, "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": user_data.role}}
+    return {
+        "token": token,
+        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": "admin"},
+    }
 
 
 @router.post("/auth/login")
 async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.email == credentials.email)
+        select(UserORM)
+        .options(joinedload(UserORM.role))
+        .where(UserORM.email == credentials.email)
     )
     user = result.scalar_one_or_none()
     if not user or not verify_password(credentials.password, user.password_hash):
@@ -79,7 +105,9 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
         "token": token,
-        "user": {"id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name},
+        "user": {
+            "id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name,
+        },
     }
 
 
@@ -101,7 +129,9 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
             raise HTTPException(status_code=400, detail=f"Failed to validate session: {str(e)}")
 
     result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.email == session_data["email"])
+        select(UserORM)
+        .options(joinedload(UserORM.role))
+        .where(UserORM.email == session_data["email"])
     )
     user = result.scalar_one_or_none()
 
@@ -139,7 +169,11 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
         key="session_token", value=token, httponly=True,
         secure=True, samesite="none", path="/", max_age=60 * 60 * 24 * 7,
     )
-    return {"user": {"id": str(user.id), "email": user.email, "name": user.name, "role": role_name_out}}
+    return {
+        "user": {
+            "id": str(user.id), "email": user.email, "name": user.name, "role": role_name_out,
+        },
+    }
 
 
 @router.post("/auth/logout")

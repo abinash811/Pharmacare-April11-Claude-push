@@ -38,6 +38,7 @@ export const API_ENDPOINTS = {
     CREATE:             'products',
     DETAIL:             'products/:id',          // use apiUrl.product(id)
     UPDATE:             'products/:sku',          // use apiUrl.productBySku(sku)
+    META:               'products/meta',
     BULK_UPDATE:        'products/bulk-update',
     SEARCH_WITH_BATCHES:'products/search-with-batches',
     TRANSACTIONS:       'products/:sku/transactions',
@@ -172,7 +173,6 @@ export const API_ENDPOINTS = {
     GET:               'settings',
     UPDATE:            'settings',
     BILL_SEQUENCE:     'settings/bill-sequence',
-    BILL_SEQUENCES:    'settings/bill-sequences',
     ALL_BILL_SEQUENCES:'settings/bill-sequence/all',
   },
 
@@ -216,6 +216,7 @@ export const apiUrl: Record<string, (...args: any[]) => string> = {
   productBySku:     (sku)    => `products/${sku}`,
   productTransactions:(sku)  => `products/${sku}/transactions`,
   productBarcode:   (barcode)=> `products/barcode/${barcode}`,
+  productMeta:      ()       => API_ENDPOINTS.PRODUCTS.META,
   productsBulkUpdate:()      => API_ENDPOINTS.PRODUCTS.BULK_UPDATE,
   productsSearchWithBatches: (q, params) =>
     `products/search-with-batches${qs({ q, ...params })}`,
@@ -291,7 +292,7 @@ export const apiUrl: Record<string, (...args: any[]) => string> = {
   // Settings
   settings:         () => API_ENDPOINTS.SETTINGS.GET,
   billSequence:     () => API_ENDPOINTS.SETTINGS.BILL_SEQUENCE,
-  billSequences:    () => API_ENDPOINTS.SETTINGS.BILL_SEQUENCES,
+  billSequences:    () => API_ENDPOINTS.SETTINGS.ALL_BILL_SEQUENCES,
 
   // Backup
   backupExport:     () => API_ENDPOINTS.BACKUP.EXPORT,

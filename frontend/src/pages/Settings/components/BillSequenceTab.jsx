@@ -9,8 +9,14 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Hash, AlertCircle, CheckCircle } from 'lucide-react';
 import { InlineLoader, AppButton } from '@/components/shared';
+import { SEQUENCE_DOCUMENT_TYPE } from '@/constants/domainConstants';
 
-const SEQ_INIT = { prefix: 'INV', starting_number: 1, sequence_length: 6, allow_prefix_change: true };
+const SEQ_INIT = { document_type: SEQUENCE_DOCUMENT_TYPE.SALES_INVOICE, prefix: 'INV', starting_number: 1, sequence_length: 6, allow_prefix_change: true };
+
+const DOCUMENT_TYPE_LABELS = {
+  [SEQUENCE_DOCUMENT_TYPE.SALES_INVOICE]: 'Sales Invoice',
+  [SEQUENCE_DOCUMENT_TYPE.SALES_RETURN]:  'Sales Return',
+};
 
 export default function BillSequenceTab({ billSequences, sequenceLoading, onSave, onRefresh }) {
   const [editingSequence, setEditingSequence] = useState(null);
@@ -23,8 +29,14 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
   }, [form]);
 
   const handleConfigure = (seq) => {
-    setEditingSequence(seq.prefix);
-    setForm({ prefix: seq.prefix, starting_number: seq.next_number, sequence_length: seq.sequence_length || 6, allow_prefix_change: seq.allow_prefix_change !== false });
+    setEditingSequence(seq.document_type);
+    setForm({
+      document_type: seq.document_type,
+      prefix: seq.prefix,
+      starting_number: seq.next_number,
+      sequence_length: seq.sequence_length || 6,
+      allow_prefix_change: seq.allow_prefix_change !== false,
+    });
   };
 
   const handleCancel = () => { setEditingSequence(null); setForm(SEQ_INIT); };
@@ -43,7 +55,8 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
       <div>
         <h3 className="text-lg font-semibold mb-2">Bill Number Sequence Configuration</h3>
         <p className="text-sm text-gray-600 mb-6">
-          Configure how bill numbers are auto-generated. Numbers are sequential and never reused.
+          Sales bills and sales returns each get their own number series — required for GST filing,
+          since returns shouldn't create gaps in your bill numbers. Numbers are sequential and never reused.
         </p>
 
         {/* Sequences Table */}
@@ -68,7 +81,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
                 ) : (
                   billSequences.map((seq, idx) => (
                     <tr key={idx} className="hover:bg-brand-tint">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{seq.document_type}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{seq.label || seq.document_type}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-800 text-sm font-mono rounded">{seq.prefix}</span>
                       </td>
@@ -84,11 +97,15 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
                         {seq.prefix}-{'0'.repeat(seq.sequence_length || 6)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button onClick={() => handleConfigure(seq)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          data-testid={`edit-sequence-${seq.prefix}`}>
+                        <AppButton
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleConfigure(seq)}
+                          className="text-blue-600 hover:text-blue-800"
+                          data-testid={`edit-sequence-${seq.document_type}`}
+                        >
                           Configure
-                        </button>
+                        </AppButton>
                       </td>
                     </tr>
                   ))
@@ -102,7 +119,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h4 className="font-medium text-gray-800 mb-4 flex items-center gap-2">
             <Hash className="w-5 h-5 text-blue-600" />
-            {editingSequence ? `Configure ${editingSequence} Sequence` : 'Create New Sequence'}
+            {editingSequence ? `Configure ${DOCUMENT_TYPE_LABELS[editingSequence] || editingSequence} Sequence` : 'Create New Sequence'}
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

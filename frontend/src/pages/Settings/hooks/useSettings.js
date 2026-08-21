@@ -40,7 +40,10 @@ export function useSettings() {
       await api.put(apiUrl.settings(), current);
       toast.success('Settings saved successfully');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to save settings');
+      // error.message is already normalised by the axios interceptor —
+      // it names the field and reason for a 422, or says the server was
+      // unreachable, rather than a generic "failed" with no cause.
+      toast.error(error.message || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -50,7 +53,8 @@ export function useSettings() {
     setSequenceLoading(true);
     try {
       const res = await api.get(apiUrl.billSequences());
-      setBillSequences(res.data.sequences || []);
+      // GET /settings/bill-sequence/all returns a bare array, not { sequences: [...] }
+      setBillSequences(res.data || []);
     } catch {
       console.error('Failed to load bill sequences');
     } finally {
@@ -64,7 +68,7 @@ export function useSettings() {
       toast.success('Bill sequence settings updated successfully');
       return true;
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update sequence');
+      toast.error(error.message || 'Failed to update sequence');
       return false;
     }
   }, []);

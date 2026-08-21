@@ -16,6 +16,7 @@
 7. **International standard or nothing.** If it wouldn't ship in Linear, Notion, or Stripe — don't ship it here.
 8. **Zero cognitive load.** Every feature must be completable in the fewest possible clicks. No unnecessary steps, no confirmation modals for reversible actions, no forms asking for data we can infer. If the user has to think — we've failed. Smart defaults, inline edits, auto-save where possible.
 9. **No magic strings. No unverified routes. Ever.** Every status value (`'draft'`, `'paid'`, `'parked'`) comes from `constants/domainConstants.js`. Every API call targets a route you have confirmed exists in the backend routers. Writing a raw string like `status='parked'` or calling `/patients` without checking — that is the bug. Fix the root, not the symptom.
+10. **Every error notification must say why.** "Failed to save settings" with no cause is a bug, not a valid error state — the user can't fix what they can't see. Every `toast.error(...)` must show the actual field/reason (`error.message`, already normalised by `frontend/src/lib/axios.js`'s interceptor — see `docs/12_ERROR_HANDLING.md`), never a hardcoded generic fallback alone.
 
 ---
 
@@ -153,18 +154,46 @@ These rules exist because adding uninstalled packages and wrong env values have 
 - ✅ domainConstants.js — single source of truth for all status/enum values
 - ✅ All commits pushed to main
 
-### 🔴 Production blockers — fix before any deployment
-1. **Alembic migrations pending** — Run `alembic upgrade head` before deploying. Three migrations exist:
-   - `95d13d1508dc` — initial schema
-   - `a3f8c2d14e90` — add pharmacy_settings GST/print/notification fields
-   - `b1e4f7a29c03` — add paper_size to pharmacy_settings
-2. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True` is invalid. Fix: set `CORS_ORIGINS` env var to the production frontend URL. Already fixed in code — just needs the env var set on the server.
+### 🚦 PRE-LAUNCH PLAN — agreed April 26, 2026
+Order of work: **(1) finish building product features module-by-module** (starting
+with signup/auth — see below), **then (2) work this list top to bottom** before
+any real pharmacy uses this in production. Don't start (2) early — a half-fixed
+production checklist on top of half-built features is worse than either alone.
 
-### 🟡 Infrastructure gaps (do before adding features)
-3. **Sentry not wired** — `frontend/src/lib/sentry.ts` committed but never initialized. Wait for DSN from owner.
-4. **CI/CD is placeholder** — `.github/workflows/staging.yml` exists but deploy steps are `echo` only.
-5. **No rate limiting** — API has no protection against abuse.
-6. **TypeScript errors in test files** — Fix: `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`.
+### 🔴 Launch blockers — data-loss or security risk, fix first
+1. **Signup doesn't create a new pharmacy (multi-tenancy bug).** `POST /auth/register`
+   attaches every new signup to whichever pharmacy is first in the DB
+   (`select(Pharmacy).limit(1)`) instead of creating a new tenant. The public
+   Register form also lets anyone self-select "Admin" as their role — a live
+   privilege-escalation hole. **Must be fixed as part of the signup/auth rebuild
+   (in progress) before any deployment.**
+2. **Multi-tenancy isolation needs a full audit, not just this one fix.** The
+   register bug proves the *pattern* — "forgot to scope by `pharmacy_id`" — exists
+   in this codebase. Before trusting 100 pharmacies' data stays separated, audit
+   every query, not just auth.
+3. **No automated backups.** This is real pharmacy business + compliance data
+   (H1 register, bills). Losing it isn't acceptable.
+4. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True`
+   is invalid. Fix: set `CORS_ORIGINS` env var to the production frontend URL.
+   Already fixed in code — just needs the env var set on the server.
+5. **Nothing is actually deployed anywhere.** Runs on localhost/dev containers
+   only. Needs a real hosted backend + Postgres + frontend before "launch" means
+   anything.
+
+### 🟡 Should fix before real users — not data-loss risk, but real gaps
+6. **No rate limiting** — login/register and the rest of the API have no
+   protection against brute-force or abuse.
+7. **No error monitoring** — `frontend/src/lib/sentry.ts` is committed but never
+   initialized. At real-user scale, bugs will happen with zero visibility unless
+   a user reports them. Wait for DSN from owner.
+8. **No CI/CD** — `.github/workflows/staging.yml` exists but deploy steps are
+   `echo` only. Deploys are manual today.
+9. **Alembic migrations must run on the real deploy target** — three migrations
+   exist (`95d13d1508dc` initial schema, `a3f8c2d14e90` pharmacy_settings GST/print/
+   notification fields, `b1e4f7a29c03` paper_size). Already applied to this dev DB;
+   still a required step on whatever server actually hosts this.
+10. **TypeScript errors in test files** — `npm install --save-dev @types/jest
+    @testing-library/react @testing-library/jest-dom`.
 
 ### 🟠 Billing flow — in progress (next session continues here)
 The billing UX is being improved. Current state:

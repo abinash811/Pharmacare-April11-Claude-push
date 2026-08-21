@@ -8,6 +8,7 @@ import { Building2, Phone, MapPin, ShieldCheck, AlertTriangle } from 'lucide-rea
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LogoUpload from './LogoUpload';
+import ProfileCompletionPanel from './ProfileCompletionPanel';
 
 interface Props {
   general: Record<string, string>;
@@ -69,6 +70,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
   const dlWarning = drugLicenseExpiryWarning(general.drug_license_expiry);
 
   return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">
     <div className="max-w-2xl">
 
       {/* Logo */}
@@ -90,7 +92,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
       {/* Contact */}
       <SectionHeading icon={<Phone className="w-3.5 h-3.5" />} title="Contact" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Phone *" error={validate('phone', general.phone)}>
+        <Field label="Phone" error={validate('phone', general.phone)}>
           <Input
             value={general.phone || ''}
             onChange={e => onUpdate('phone', e.target.value)}
@@ -111,7 +113,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
       {/* Address */}
       <SectionHeading icon={<MapPin className="w-3.5 h-3.5" />} title="Address" />
       <div className="space-y-4">
-        <Field label="Street Address *">
+        <Field label="Street Address">
           <Input
             value={general.address || ''}
             onChange={e => onUpdate('address', e.target.value)}
@@ -119,10 +121,10 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
           />
         </Field>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="City *">
+          <Field label="City">
             <Input value={general.city || ''} onChange={e => onUpdate('city', e.target.value)} placeholder="City" />
           </Field>
-          <Field label="State *">
+          <Field label="State">
             <select
               value={general.state || ''}
               onChange={e => onUpdate('state', e.target.value)}
@@ -132,7 +134,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
               {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="Pincode *" error={validate('pincode', general.pincode)}>
+          <Field label="Pincode" error={validate('pincode', general.pincode)}>
             <Input value={general.pincode || ''} onChange={e => onUpdate('pincode', e.target.value)} placeholder="6-digit" maxLength={6} />
           </Field>
         </div>
@@ -163,6 +165,9 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
             onChange={e => onUpdate('drug_license_number', e.target.value)}
             placeholder="DL No. 20 / DL No. 21"
           />
+          {!general.drug_license_number?.trim() && (
+            <p className="text-xs text-amber-600 mt-1">Required to create bills — not required to save this page.</p>
+          )}
         </Field>
         <Field label="Drug License Expiry">
           <Input
@@ -187,6 +192,8 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
         </Field>
       </div>
 
+    </div>
+    <ProfileCompletionPanel general={general} />
     </div>
   );
 }

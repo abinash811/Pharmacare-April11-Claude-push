@@ -7,7 +7,7 @@ import { ArrowLeft, Printer, MoreVertical, Edit, FileText } from 'lucide-react';
 import { AppButton, InlineLoader, PageBreadcrumb } from '@/components/shared';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
 
 export default function PurchaseReturnDetail() {
   const navigate = useNavigate();

@@ -169,33 +169,19 @@
   --shadow-lg:   var(--elevation-3);
 
   /* ── Motion Tokens ───────────────────────────────────────────────────── */
-  /* Duration */
-  --duration-instant:  0ms;
-  --duration-fast:     100ms;   /* micro-interactions: checkbox, toggle    */
-  --duration-base:     150ms;   /* buttons, badges, color switches         */
-  --duration-moderate: 200ms;   /* drawers sliding, tab switching          */
-  --duration-slow:     300ms;   /* page transitions, accordion open        */
-  --duration-enter:    250ms;   /* elements entering the screen            */
-  --duration-exit:     150ms;   /* elements leaving (should feel snappy)   */
+  /* Single source of truth: frontend/tailwind.config.js (transitionDuration /
+     transitionTimingFunction). This file must match it exactly — it drifted
+     out of sync once already (this file said duration-slow=300ms with a
+     duration-moderate/enter/exit set that was never actually wired into
+     Tailwind; the real app has always run on the 4-value scale below). */
+  --duration-fast:   100ms;   /* hover states, button press               */
+  --duration-base:   150ms;   /* default — most transitions                */
+  --duration-slow:   250ms;   /* modals opening, panels sliding            */
+  --duration-slower: 350ms;   /* page-level transitions, Sheet drawers     */
 
   /* Easing */
-  --ease-linear:      linear;
-  --ease-standard:    cubic-bezier(0.4, 0, 0.2, 1);   /* most transitions */
-  --ease-decelerate:  cubic-bezier(0.0, 0, 0.2, 1);   /* enter / slide-in */
-  --ease-accelerate:  cubic-bezier(0.4, 0, 1, 1);     /* exit / slide-out */
-  --ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1); /* bounce / pop  */
-  --ease-out:         cubic-bezier(0, 0, 0.2, 1);     /* hover lift       */
-
-  /* Semantic motion aliases (what the codebase actually uses) */
-  --transition-button:  var(--duration-base)    var(--ease-standard);
-  --transition-color:   var(--duration-base)    var(--ease-standard);
-  --transition-drawer:  var(--duration-moderate) var(--ease-decelerate);
-  --transition-fade:    var(--duration-slow)    var(--ease-standard);
-  --transition-expand:  var(--duration-slow)    var(--ease-decelerate);
-
-  /* Legacy aliases */
-  --transition-fast:   var(--duration-base)    var(--ease-standard);
-  --transition-base:   var(--duration-moderate) var(--ease-standard);
+  --ease-out-smooth: cubic-bezier(0.16, 1, 0.3, 1);   /* Sheet/drawer slide-in */
+  --ease-in-smooth:  cubic-bezier(0.4, 0, 1, 1);      /* dismiss/close         */
 
   /* ── Typography ──────────────────────────────────────────────────────── */
   --font-sans:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -279,7 +265,7 @@ code, pre {
   font-weight: var(--fw-semibold);
   font-size: var(--text-sm);
   padding: 0.5rem 1rem;
-  transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--duration-base), transform var(--duration-base), box-shadow var(--duration-base);
   cursor: pointer;
   border: none;
 }

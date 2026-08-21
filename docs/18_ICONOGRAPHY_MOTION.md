@@ -1,5 +1,5 @@
 # PharmaCare — Iconography & Motion
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: One icon library. Consistent sizes. Motion only when it communicates meaning.
 
@@ -104,22 +104,32 @@ Motion must communicate meaning — not decorate. Every animation should answer:
 
 ## ANIMATION DURATIONS
 
-| Type | Duration | Easing | Used for |
-|------|----------|--------|---------|
-| Micro-interaction | `150ms` | `ease-out` | Button press, checkbox, toggle |
-| Component transition | `200ms` | `ease-out` | Dropdown open, tooltip |
-| Panel / Sheet | `250ms` | `cubic-bezier(0.4, 0, 0.2, 1)` | Right-side sheet, modal |
-| Page transition | `300ms` | `ease-in-out` | Route changes (if animated) |
+Named Tailwind classes only — never an arbitrary value like `duration-[250ms]`.
+Defined once in `frontend/tailwind.config.js` (`transitionDuration` /
+`transitionTimingFunction`); `PharmaCare Design System/colors_and_type.css`
+mirrors the same values for the design previews. If the two ever disagree,
+`tailwind.config.js` is the source of truth — it's what's actually running.
+
+| Class | Duration | Used for |
+|------|----------|---------|
+| `duration-fast` | `100ms` | Hover states, button press |
+| `duration-base` | `150ms` | Default — most transitions |
+| `duration-slow` | `250ms` | Modals opening, panels sliding |
+| `duration-slower` | `350ms` | Page-level transitions, Sheet drawers |
+
+| Easing class | Curve | Used for |
+|------|----------|---------|
+| `ease-out-smooth` | `cubic-bezier(0.16, 1, 0.3, 1)` | Sheet/drawer slide-in |
+| `ease-in-smooth` | `cubic-bezier(0.4, 0, 1, 1)` | Dismiss / close |
 
 ```css
-/* ✅ Correct Tailwind duration classes */
-transition-all duration-150 ease-out    /* micro */
-transition-all duration-200 ease-out    /* component */
-transition-all duration-[250ms]         /* panel */
+/* ✅ Correct — named tokens */
+transition-colors duration-fast              /* hover */
+transition-transform duration-slower ease-out-smooth   /* drawer slide-in */
 
-/* ❌ Too slow — feels sluggish in a productivity tool */
+/* ❌ Wrong — arbitrary values, bypasses the token system */
+transition-all duration-[250ms]
 transition-all duration-500
-transition-all duration-700
 ```
 
 ---
@@ -134,7 +144,10 @@ transition-all duration-700
 <div className="animate-pulse bg-gray-200 rounded h-4 w-full" />
 
 // ✅ Fade in on mount
-<div className="animate-in fade-in duration-200">
+<div className="animate-in fade-in duration-base">
+
+// ✅ Panel/drawer sliding in (see InventorySearch's Filter Drawer, MoreMenu)
+<div className="animate-in slide-in-from-right duration-slower ease-out-smooth">
 
 // ✅ Sheet slides in from right (Shadcn Sheet handles this)
 // Don't override Shadcn Sheet animation — it's already correct

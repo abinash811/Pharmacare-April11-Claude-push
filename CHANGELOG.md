@@ -10,6 +10,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Each entry says
 
 ## [Unreleased]
 
+### Fixed
+- **Motion tokens had three disagreeing sources of truth.**
+  `PharmaCare Design System/colors_and_type.css` (and its `motion.html`
+  preview) specified a 7-duration/5-easing scale that was never actually
+  wired into `tailwind.config.js` — the real app has always run on a
+  different, simpler 4-duration scale. `docs/18_ICONOGRAPHY_MOTION.md`
+  disagreed with both, telling developers to use raw arbitrary values
+  (`duration-[250ms]`) instead of named tokens at all. Made
+  `tailwind.config.js` (already live, already used on the Filter Drawer and
+  `MoreMenu`) the single source of truth; updated the reference CSS,
+  preview, and doc to match it exactly instead of describing a system that
+  was never built.
+
 ### Added
 - **New shared `<MoreMenu>` component** — the "More options" dropdown used on
   Purchase Detail, Sales Return Detail, and Purchase Return Detail. This

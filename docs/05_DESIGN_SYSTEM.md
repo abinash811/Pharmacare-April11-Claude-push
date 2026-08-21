@@ -1,5 +1,5 @@
 # PharmaCare — Design System
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, developers, designers
 # Rule: Every visual decision in PharmaCare is defined here.
 #        If it's not in this file, ask before inventing it.
@@ -39,7 +39,7 @@ Defined in `frontend/tailwind.config.js`. Use class names, never hex.
 
 | Token | Tailwind class | Use |
 |-------|---------------|-----|
-| Page canvas | `bg-[#F8FAFB]` | Every page background wrapper |
+| Page canvas | `bg-page` | Every page background wrapper |
 | Surface | `bg-white` | Cards, tables, modals, headers |
 | Border | `border-gray-200` | All borders everywhere |
 | Sidebar | `#1a2332` (inline style) | Layout sidebar only |
@@ -606,7 +606,7 @@ Every page follows this exact structure. No deviations.
 ```jsx
 export default function BillingPage() {
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
 
       {/* 1. Header — always first */}
       <PageHeader
@@ -629,7 +629,7 @@ export default function BillingPage() {
 ```
 
 **Rules:**
-- Page wrapper: always `px-8 py-6 min-h-screen bg-[#F8FAFB]`
+- Page wrapper: always `px-8 py-6 min-h-screen bg-page`
 - Never add extra padding inside page wrapper — PageHeader and PageTabs handle their own spacing
 - Content card: `bg-white rounded-xl border border-gray-200`
 - Multiple cards: `space-y-6` between them

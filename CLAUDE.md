@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Last updated: August 21, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -47,7 +47,7 @@
 **Stack:** React + Tailwind CSS + Shadcn/UI · Python FastAPI + SQLAlchemy 2.0 async · PostgreSQL
 **Auth:** JWT
 **Backend port:** 8000 (`uvicorn main:app --host 0.0.0.0 --port 8000 --reload`)
-**Frontend env:** `REACT_APP_BACKEND_URL=http://localhost:8000`
+**Frontend env:** No `REACT_APP_BACKEND_URL` needed locally — `craco.config.js` proxies `/api/*` to `localhost:8000` automatically (works whether the browser and backend share a machine or not). Set the env var only when pointing at a different backend (staging, a different port).
 
 > `backend/server.py` = original MongoDB backup. Keep it. Never run it on port 8000.
 
@@ -142,7 +142,7 @@ These rules exist because adding uninstalled packages and wrong env values have 
 > This section is the handoff note. Updated after every session. A new Claude must read this before touching any code.
 
 ### App status (April 25, 2026)
-- ✅ App runs locally — backend on port 8000, frontend on port 3001
+- ✅ App runs locally — backend on port 8000, frontend on port 3000 (CRA/craco default — `npm start` sets no `PORT`, so this is whatever craco defaults to, not a fixed 3001)
 - ✅ All Settings tabs built: Pharmacy Profile, Receipt & Print, Tax & GST, Notifications, Inventory, Billing, Bill Sequence, Returns
 - ✅ Dashboard dynamic thresholds + drug license expiry banner
 - ✅ Team page: Members + Roles with permissions matrix
@@ -161,16 +161,18 @@ any real pharmacy uses this in production. Don't start (2) early — a half-fixe
 production checklist on top of half-built features is worse than either alone.
 
 ### 🔴 Launch blockers — data-loss or security risk, fix first
-1. **Signup doesn't create a new pharmacy (multi-tenancy bug).** `POST /auth/register`
-   attaches every new signup to whichever pharmacy is first in the DB
-   (`select(Pharmacy).limit(1)`) instead of creating a new tenant. The public
-   Register form also lets anyone self-select "Admin" as their role — a live
-   privilege-escalation hole. **Must be fixed as part of the signup/auth rebuild
-   (in progress) before any deployment.**
-2. **Multi-tenancy isolation needs a full audit, not just this one fix.** The
-   register bug proves the *pattern* — "forgot to scope by `pharmacy_id`" — exists
-   in this codebase. Before trusting 100 pharmacies' data stays separated, audit
-   every query, not just auth.
+1. ~~Signup doesn't create a new pharmacy (multi-tenancy bug).~~ **Fixed** —
+   verified in code: `POST /auth/register` now calls
+   `create_pharmacy_with_defaults(...)` to create a real, isolated pharmacy
+   per signup, and `UserCreate` has no client-supplied role field at all (the
+   signing-up user is always that new pharmacy's Admin, server-side, not a
+   public role picker). This item sat here listed as broken for a while after
+   the fix actually shipped — a live example of exactly the doc-staleness
+   problem this file has had generally.
+2. **Multi-tenancy isolation needs a full audit, not just the signup fix.** The
+   old register bug proved the *pattern* — "forgot to scope by `pharmacy_id`"
+   — exists in this codebase. Before trusting 100 pharmacies' data stays
+   separated, audit every query, not just auth.
 3. **No automated backups.** This is real pharmacy business + compliance data
    (H1 register, bills). Losing it isn't acceptable.
 4. **CORS misconfiguration** — `allow_origins=["*"]` with `allow_credentials=True`
@@ -188,10 +190,14 @@ production checklist on top of half-built features is worse than either alone.
    a user reports them. Wait for DSN from owner.
 8. **No CI/CD** — `.github/workflows/staging.yml` exists but deploy steps are
    `echo` only. Deploys are manual today.
-9. **Alembic migrations must run on the real deploy target** — three migrations
-   exist (`95d13d1508dc` initial schema, `a3f8c2d14e90` pharmacy_settings GST/print/
-   notification fields, `b1e4f7a29c03` paper_size). Already applied to this dev DB;
-   still a required step on whatever server actually hosts this.
+9. **Alembic migrations must run on the real deploy target.** Six exist as of
+   this writing (`95d13d1508dc` initial schema, `a3f8c2d14e90` pharmacy_settings
+   GST/print/notification fields, `b1e4f7a29c03` paper_size, `7c33d8eec679`
+   digital receipt template fields, `9a4e7f1c2b56` PAN toggle + digital bill
+   text, `b2f6a9d31e77` configurable Sales Return sequence) — check
+   `backend/migrations/versions/` for the current count, don't trust this
+   number without verifying, it has already gone stale once. Run
+   `alembic upgrade head` on whatever server actually hosts this.
 10. **TypeScript errors in test files** — `npm install --save-dev @types/jest
     @testing-library/react @testing-library/jest-dom`.
 
@@ -205,21 +211,9 @@ The billing UX is being improved. Current state:
 - ⚠️ WhatsApp button — "Add custom number" flow incomplete
 - 🔲 Print: Thermal/A4 built, needs testing after `alembic upgrade head`
 
-### Next feature priorities (after infra is solid)
-1. **Run alembic upgrade head** — activate the 3 pending migrations (BLOCKER)
-2. **Doctor "Add new" flow** — same as PatientCombobox add-new mini-form
-3. **Batch selection UX** — show batch as chip with chevron in medicine row
-4. **WhatsApp custom number** — inline popover, single number field
-5. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
-6. **Zod + react-hook-form** — all forms
-7. **Error retry states** — every page that fetches data
-8. **Split payment** — cash + UPI on one bill
-9. **Day-end closing / Z-report**
-10. **Command Palette** — `Cmd+K`
-
 ### Terminal tabs (local dev)
 - **Tab 1 (backend):** `cd backend && source venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8000 --reload`
-- **Tab 2 (frontend):** `cd frontend && npm start` → runs on port 3001
+- **Tab 2 (frontend):** `cd frontend && npm start` → defaults to port 3000
 
 ---
 
@@ -227,7 +221,7 @@ The billing UX is being improved. Current state:
 
 ### Page structure (every page, no exceptions)
 ```jsx
-<div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+<div className="px-8 py-6 min-h-screen bg-page">
   <PageHeader title="..." actions={...} />
   <PageTabs tabs={TABS} activeTab="..." onChange={...} />
   <div className="bg-white rounded-xl border border-gray-200">
@@ -258,34 +252,45 @@ Never write a frontend filter, API call, or status check before completing steps
 ---
 
 ### Component audit (check before every PR)
-- [ ] Zero raw `<button>` tags
-- [ ] Zero hardcoded hex in className
-- [ ] Zero `hover:bg-[#...]` patterns
-- [ ] Every page uses `<PageHeader>` — no inline `<h1>`, no subtitle
-- [ ] Every multi-view page uses `<PageTabs>`
-- [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-[#F8FAFB]` — never `flex flex-col h-full`
-- [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else
-- [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared
-- [ ] Zero hand-rolled "More options" dropdowns — always `<MoreMenu>` from shared
-- [ ] Zero `import` statements after `const` declarations
-- [ ] New files use `.tsx` extension, not `.jsx`
-- [ ] `npx tsc --noEmit` passes with zero errors
+> **(auto)** = a real `scripts/design-guard.sh` rule blocks this — checked on
+> every commit/PR whether or not anyone remembers to look. **(manual)** = no
+> guardrail exists yet; depends on someone actually checking. This distinction
+> matters — `MoreMenu` drifted for months specifically because it used to be
+> manual with nothing watching. Prefer adding an (auto) check over trusting
+> a new (manual) one.
+
+- [ ] Zero raw `<button>` tags **(auto — Rule 1)**
+- [ ] Zero hardcoded hex in className **(auto — Rule 2)**
+- [ ] Zero `hover:bg-[#...]` patterns **(auto — Rule 3)**
+- [ ] No file over 300 lines **(auto — Rule 4)**
+- [ ] Zero direct `@/components/ui/button` imports in pages **(auto — Rule 5)**
+- [ ] New files use `.tsx` extension, not `.jsx` **(auto — Rule 6)**
+- [ ] Zero hand-rolled "More options" dropdowns — always `<MoreMenu>` from shared **(auto — Rule 7)**
+- [ ] `tailwind.config.js` and `colors_and_type.css` design tokens agree **(auto — Rule 8)**
+- [ ] Every page uses `<PageHeader>` — no inline `<h1>`, no subtitle **(manual)**
+- [ ] Every multi-view page uses `<PageTabs>` **(manual)**
+- [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-page` — never `flex flex-col h-full` **(manual)**
+- [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else **(manual)**
+- [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared **(manual)**
+- [ ] Zero `import` statements after `const` declarations **(manual — ESLint may catch some cases)**
+- [ ] `npx tsc --noEmit` passes with zero errors **(manual — not yet wired into design-guard.sh)**
 - [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
 ### What's next (build in this order)
 > Infrastructure first. Features on a broken foundation collapse.
+> Infra items (Sentry, rate limiting, CI/CD, TS test errors) live in the
+> 🔴/🟡 launch-blocker list above — not repeated here to avoid two lists
+> disagreeing about the same item (this list used to duplicate that one).
 
-1. **`alembic upgrade head`** — 3 migrations pending, run before any deployment (BLOCKER)
-2. **Doctor "Add new" flow** — same mini-form as PatientCombobox
-3. **Batch selection UX** — chip with chevron in medicine row so users know it's clickable
-4. **WhatsApp custom number** — inline popover, no modal
-5. **Sentry** — wire DSN into frontend + backend once owner creates account
-6. **Fix TypeScript test errors** — `npm install --save-dev @types/jest @testing-library/react @testing-library/jest-dom`
-7. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
-8. **Zod + react-hook-form** — all forms
-9. **Error retry states** — every page that fetches data
-10. **Split payment** — cash + UPI on one bill
-11. **Command Palette** — `Cmd+K`
+1. **Doctor "Add new" flow** — same mini-form as PatientCombobox
+2. **Batch selection UX** — chip with chevron in medicine row so users know it's clickable
+3. **WhatsApp custom number** — inline popover, no modal
+4. **Sheets** — replace all centered modals with `<Sheet side="right">` 480px
+5. **Zod + react-hook-form** — all forms
+6. **Error retry states** — every page that fetches data
+7. **Split payment** — cash + UPI on one bill
+8. **Day-end closing / Z-report**
+9. **Command Palette** — `Cmd+K`
 
 ### Dead files (already deleted)
 - `frontend/src/pages/InventorySearch/components/InventoryHeader.jsx`

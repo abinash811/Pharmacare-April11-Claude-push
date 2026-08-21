@@ -1,5 +1,5 @@
 # PharmaCare — Code Quality
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Linting and formatting are not optional. CI blocks merges on violations.
 
@@ -277,7 +277,7 @@ export default function BillingPage() {
   const { activeTab, handleTabChange } = useBillingTabs();
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader title="Billing" actions={<BillingActions />} />
       <PageTabs tabs={BILLING_TABS} activeTab={activeTab} onChange={handleTabChange} />
       <BillsTable bills={bills} loading={loading} error={error} onRetry={fetchBills} />

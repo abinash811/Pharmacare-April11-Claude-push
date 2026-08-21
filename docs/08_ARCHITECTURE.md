@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
 #        Before making a structural change, read this file.
@@ -120,7 +120,7 @@ export default function BillingPage() {
   const [activeTab, setActiveTab] = useState('bills');
 
   return (
-    <div className="px-8 py-6 min-h-screen bg-[#F8FAFB]">
+    <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader title="Billing" actions={...} />
       <PageTabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
       <BillsTable bills={bills} loading={loading} />

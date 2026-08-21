@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 21, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -34,7 +34,7 @@
 | 300-line file rule enforced | ✅ | All oversized pages split into folder/index.jsx + components/ |
 | Zero raw `<button>` tags | ✅ | All pages use AppButton exclusively |
 | Zero Shadcn `<Button>` / `<Card>` in pages | ✅ | Replaced with AppButton and plain divs |
-| Consistent page layout | ✅ | All list pages use `px-8 py-6 min-h-screen bg-[#F8FAFB]` + PageHeader |
+| Consistent page layout | ✅ | All list pages use `px-8 py-6 min-h-screen bg-page` + PageHeader |
 | Consistent filter pills | ✅ | All pages use shared FilterPills component |
 | Subtitles removed from all PageHeaders | ✅ | April 19, 2026 |
 

@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.5 | Last updated: August 22, 2026
+# Version: 1.6 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -154,6 +154,21 @@ A product with `reorder_level = 50` can show "low stock" on the Inventory page w
 | As a pharmacist receiving a distributor's invoice, I want to import that purchase bill directly from Excel/CSV/email instead of retyping every line into a new Purchase. | ❌ **Not built** | Pharmasoft supports one-click purchase-bill import from Excel/CSV/email. PharmaCare's only Excel import is the product-catalog bulk-upload (section A) — it does not create a `Purchase` record from a supplier's invoice file. | Distinct feature from catalog bulk-upload — don't conflate the two when scoping this. |
 | As a pharmacist, I want to compare prices for the same medicine across my suppliers before ordering. | ❌ **Not built** | Not present in PharmaCare in any form — no per-supplier price history view. | — |
 
+**G. Live-verified findings** — found by actually running the app (backend + frontend, real login, real product created), not by reading code. This is exactly why "run it" is a different check than "read it": a bug can look correct in the source and still be wrong at runtime.
+
+| Finding | Severity | Detail |
+|---|---|---|
+| `GET /reports/dashboard` — the Dashboard's main stat cards — is **completely broken, silently, for every pharmacy, all the time** | 🔴 **Critical** | Every field it returns (`today_sales`, `total_sales`, `total_medicines`, `low_stock_count`, `expiring_soon_count`, `total_stock_value`) is hardcoded to `0` because the endpoint throws on *every* call — confirmed live: created 1 real active product, `total_medicines` still came back `0`. Root cause in `backend/uvicorn` log: `Dashboard stats error: Function.__init__() got an unexpected keyword argument 'else_'` — the code calls `func.case((...), else_=0)`, but `func.case` (the generic SQL-function proxy) doesn't accept `else_`; that's only valid on SQLAlchemy's real `case()` construct. A broad `except Exception` in the endpoint swallows this and returns an all-zero dict instead of erroring — so a pharmacist just sees "0 medicines, ₹0 stock value" on a pharmacy that has real stock, with no error shown anywhere. This directly contradicts this doc's own earlier claim (and CLAUDE.md's "Dashboard dynamic thresholds" ✅) — both were written from reading the code, not running it. |
+| `GET /analytics/summary` has the **exact same bug** | 🔴 **Critical** | Same `func.case(..., else_=...)` misuse, same silent-zero fallback — confirmed live via the same log line pattern (`Analytics summary error: Function.__init__() got an unexpected keyword argument 'else_'`). |
+| `GET /analytics/dashboard` (the *other* dashboard endpoint) does **not** have this bug | ✅ confirmed | Live-tested: correctly returned the test product in its `low_stock` list. This is the one this doc's earlier passes had verified correctly — that verification holds. |
+| Two more `func.case(..., else_=...)` call sites exist, not yet live-tested | ⚠️ **Unverified, likely broken** | Found by grep, not yet triggered live: one in `get_expiry_report` (`GET /reports/expiry` — but this one tested clean live, so either it's a different code path or the call isn't reached; re-check), one in `get_dashboard_stats`'s sibling logic. Any endpoint using this pattern should be treated as suspect until tested. |
+| A **fourth** low-stock definition exists: `GET /reports/low-stock` | ⚠️ New | Not in this doc's earlier 3-definitions writeup. Uses per-product `reorder_level` (agrees with `/inventory`, at least) — but it's still a separate, independent implementation, not a shared one. |
+| Search bar placeholder promises more than the backend delivers | 🟡 Minor, user-visible | Inventory search box reads "Search medicine by name, generic, strength…" — but `GET /products?search=` only matches `name`/`sku`/`brand`/`manufacturer` (confirmed both in code and via this doc's section A). A pharmacist searching by generic name or strength, exactly as the placeholder invites, gets nothing. |
+| Two Radix `DialogContent` accessibility warnings | 🟡 Minor | Add Medicine and Bulk Upload modals both throw "`DialogContent` requires a `DialogTitle`... to be accessible for screen reader users" in the browser console. Real, live, unaudited a11y gap — see `docs/17_ACCESSIBILITY.md`. |
+| Bulk Excel upload has an undocumented **5,000-row cap** | ℹ️ Info | Visible in the wizard's own UI copy ("Supported formats: .xlsx, .xls (Max 5,000 rows)") — not previously documented anywhere in this doc. Worth confirming this is a deliberate, communicated limit for a pharmacy with a larger catalog. |
+| Add Medicine → opening stock in one step | ✅ Positive finding | The modal combines product creation and first-batch entry into a single form (Category/GST/Schedule fields alongside Batch Number/Expiry/Quantity/MRP) — good UX, matches the "zero cognitive load" manifesto rule. Not a gap, noting it because static code reading undersold how well this flow is put together. |
+| End-to-end add-and-see-it-in-the-list loop works correctly | ✅ Confirmed | Created a real product with a 15-day-out expiry batch → `GET /inventory` correctly computed `status: "near_expiry"`, `severity: 2` (near-expiry correctly outranks low-stock in the severity order, as documented) → appeared correctly in the Inventory list UI. |
+
 ---
 
 ### Inventory's cross-cutting dependents
@@ -163,12 +178,10 @@ A product with `reorder_level = 50` can show "low stock" on the Inventory page w
 > checked against every row here in the same change, not after.
 
 **Dashboard / Analytics** (`GET /reports/dashboard`, `GET /analytics/dashboard`, `pages/Dashboard`)
-- Total active product count — ✅ (`reports.py::get_dashboard_stats`)
-- Total stock value (Σ `quantity_on_hand × cost_price_paise`) — ✅
-- Low stock count — 🔄 **uses the hardcoded-10 definition**, see gap above
-- Expiring-soon count — ✅ (30-day fixed window on this endpoint specifically — note this is a *third* expiry window, separate from the configurable `near_expiry_threshold_days` used elsewhere; worth reconciling in the same pass as the low-stock fix)
-- AlertsPanel (low stock + near expiry + drug license expiry) — ✅ data side; 🔄 verify frontend actually gates on `low_stock_enabled`/`near_expiry_enabled` flags
-- Sales charts / insights — ✅, not inventory-dependent, out of scope here
+- `GET /reports/dashboard` (total product count, total stock value, low-stock count, expiring-soon count, today/total sales) — ❌ **live-verified broken, not ✅ as this doc previously claimed**. Every field silently returns 0 due to a `func.case(..., else_=...)` SQLAlchemy misuse, swallowed by a broad try/except. See section G above. This doc's earlier "✅" on these was written from reading the code, not running it — correcting it now that it's been run.
+- `GET /analytics/dashboard`'s `low_stock`/`expiring_soon` lists — ✅ live-verified correct (this is the endpoint whose settings-driven logic was already documented correctly)
+- AlertsPanel (low stock + near expiry + drug license expiry) — 🔄 data side confirmed correct via `/analytics/dashboard`; still need to verify the frontend gates on `low_stock_enabled`/`near_expiry_enabled` flags, and note the AlertsPanel's actual data source needs re-confirming given the `/reports/dashboard` bug just found
+- Sales charts / insights — not inventory-dependent, out of scope here; also likely affected if they read `/reports/dashboard`, not yet checked
 
 **Settings** (`pages/Settings/components/InventoryTab.jsx`, `GeneralTab`, `GSTTab`)
 - Near-expiry day threshold — ✅ wired end-to-end

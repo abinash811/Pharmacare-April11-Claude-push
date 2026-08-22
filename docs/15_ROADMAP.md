@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.2 | Last updated: August 21, 2026
+# Version: 1.3 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -65,18 +65,115 @@
 
 ### Inventory
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Product catalog (CRUD) | ✅ | With drug schedule, GST rate, HSN |
-| Stock batches (CRUD) | ✅ | batch_number, expiry, MRP, cost |
-| FEFO batch selection | ✅ | Earliest expiry consumed first |
-| Stock movements log | ✅ | All changes traced (purchase/sale/adjustment) |
-| Low stock alerts | ✅ | Threshold from settings, shown in Dashboard AlertsPanel |
-| Expiry alerts | ✅ | Threshold from settings, shown in Dashboard AlertsPanel |
-| Manual stock adjustment | ✅ | With reason note, audit logged |
-| Bulk upload (Excel) | 🔄 | Backend done, frontend UX incomplete |
-| Inventory search | ✅ | By name, SKU, batch number |
-| Stock report (qty on hand) | ✅ | `/api/inventory` list |
+> Rewritten August 22, 2026 as a complete, code-verified use-case checklist
+> (not a sample) — every row below was checked against the real router/model
+> code, not assumed from memory. Work this list top to bottom, one row at a
+> time, so a change doesn't drift ahead of what's actually verified. The
+> previous version of this table claimed "Bulk upload (Excel) 🔄 backend
+> done" — that was false; no such endpoint exists anywhere in the codebase
+> (verified by grep, zero hits beyond Python's own `import` keyword). Doc
+> drift like that is exactly what this rewrite is meant to stop.
+
+**A. Product Catalog** — `backend/routers/inventory.py`, `models/products.py::Product`
+
+| Use case | Status | Where | Notes |
+|---|---|---|---|
+| Create product | ✅ | `POST /products` | SKU auto-generated if omitted |
+| Edit product | ✅ | `PUT /products/{id}` | Admin-only |
+| Soft-delete product | ✅ | `DELETE /products/{id}` | Blocked if any batch has `quantity_on_hand > 0` |
+| List / search products (name, SKU, brand, manufacturer) | ✅ | `GET /products` | |
+| Product detail page | ✅ | `pages/MedicineDetail` | |
+| Barcode / SKU lookup for billing | ✅ | `GET /products/barcode/{barcode}` | |
+| Typeahead search with live batch/stock data | ✅ | `GET /products/search-with-batches` | Powers the billing item search |
+| Categories / GST rates / dosage forms as one source of truth | ✅ | `GET /products/meta` | Frontend dropdowns read this, not a hardcoded local list |
+| HSN code auto-derived from category (not free-typed) | ✅ | `CATEGORY_HSN_MAP` in `constants.py` | |
+| Drug schedule (OTC/H/H1/X) | ✅ | `drug_schedule` column | Drives the H1 doctor-required billing check |
+| Reorder level (per product) | ✅ | `reorder_level` column | Drives `/inventory` health severity — see gap below on the *other* two low-stock definitions |
+| Reorder quantity (per product) | 🔄 | `reorder_quantity` column | Column exists and is set on create; nothing reads it yet — no "suggested purchase qty" feature consumes it |
+| Bulk field update (GST%, category, schedule, discount%, location) | ✅ | `POST /products/bulk-update` | Backend also allows `brand`; `BulkUpdateModal.jsx` doesn't expose it in the UI — minor, not a bug |
+| Bulk import via Excel/CSV | ❌ **Not built** | — | No endpoint, no parser, no UI anywhere in the repo. Correcting this table's previous false "🔄 backend done" claim |
+| Barcode/label printing | ❌ **Not built** | — | No print-label code found |
+| Multi-unit conversion (strip vs. box via `units_per_pack`) | ✅ | used in `billing.py`, `batches.py` | |
+| Storage "location" field | 🔄 | `storage_location` (free-text string) + `location_id` param (always `"default"`) | Not a real multi-location system — matches Phase 1's single-store scope, but the `location_id` param on 3 endpoints is vestigial and misleading; either wire it or remove it |
+
+**B. Batch & Stock Tracking** — `backend/routers/batches.py`, `models/products.py::StockBatch`
+
+| Use case | Status | Where | Notes |
+|---|---|---|---|
+| Create batch (manual entry) | ✅ | `POST /stock/batches` | Rejects duplicate batch number per product, rejects already-past expiry |
+| Create batch via Purchase/GRN confirm | ✅ | see Purchases section below | |
+| Edit batch | ✅ | `PUT /stock/batches/{id}` | Admin-only |
+| Soft-disable batch | ✅ | `DELETE /stock/batches/{id}` | Blocked if `quantity_on_hand > 0` |
+| FEFO batch selection at billing | ✅ | ordered by `expiry_date` | Earliest-expiring active batch offered first |
+| Batch list per product | ✅ | `MedicineDetail → BatchesTab` | |
+
+**C. Stock Movements & Adjustments**
+
+| Use case | Status | Where | Notes |
+|---|---|---|---|
+| Movement log on every stock change | ✅ | `StockMovement` model, `_record_movement()` helper | opening/sale/purchase/adjustment/writeoff/return all traced |
+| Movement history view | ✅ | `GET /stock-movements`, `MedicineDetail → LedgerTab` | Paginated |
+| Manual stock adjustment (add/remove + reason) | ✅ | `POST /batches/{id}/adjust` | Blocks a result below 0 |
+| Expired-batch write-off | ✅ | `POST /batches/{id}/writeoff-expiry` | Blocks writing off a batch that isn't actually expired yet |
+| Physical stock take / cycle count reconciliation | ❌ **Not built** | — | No code anywhere counts physical stock against system stock and reconciles the difference. Real gap for a compliance product — this is normally how shrinkage/theft/counting-error gets caught |
+
+**D. Inventory Health / Alerts** — `GET /inventory`, `GET /inventory/filters`
+
+| Use case | Status | Where | Notes |
+|---|---|---|---|
+| Health list: out_of_stock / expired / near_expiry / low_stock / healthy | ✅ | `inventory.py::get_inventory_with_health` | Severity-sorted, paginated |
+| Filter by category / brand / status | ✅ | `GET /inventory/filters` | |
+| Near-expiry threshold, configurable | ✅ | `PharmacySettings.near_expiry_threshold_days` | Same value read consistently by both `/inventory` and `/analytics/dashboard` — verified consistent |
+| ⚠ Low-stock threshold — **three different definitions, unreconciled** | ❌ **Real gap** | see below | Not one bug — three separate, disagreeing implementations live in the codebase right now |
+
+**Low-stock gap, in detail (found and verified this pass, not yet fixed):**
+1. `GET /inventory` (the Inventory list page) uses each **product's own** `reorder_level`.
+2. `GET /analytics/dashboard` (Dashboard alerts) uses the **pharmacy-wide** `PharmacySettings.low_stock_threshold_days` setting, checked **per batch**, not per product's summed stock.
+3. `GET /reports/dashboard` (Dashboard's top stat cards) **hardcodes `10`**, ignoring both the per-product `reorder_level` and the pharmacy-wide setting entirely.
+
+A pharmacist can set a product's reorder level to 50 and see it flagged "low stock" on the Inventory page, while the Dashboard stat card — same product, same moment — uses a hardcoded 10 and doesn't flag it at all. This wasn't visible until the three endpoints were read side by side. Needs a decision (which definition is *the* definition) before a fix, not just a patch to one endpoint.
+
+**E. Settings → Inventory tab enforcement** — `frontend/src/pages/Settings/components/InventoryTab.jsx`, `backend/routers/settings.py`
+
+| Use case | Status | Where | Notes |
+|---|---|---|---|
+| "Block expired stock from billing" toggle | ❌ **Not enforced, not even persisted** | `settings.py:207` | `GET /settings` returns this field **hardcoded to `True`** — there is no DB column backing it. Flipping the toggle in the UI does nothing; `billing.py` never checks a batch's `expiry_date` before allowing a sale |
+| "Allow near-expiry sale (with warning)" toggle | ❌ **Not enforced, not even persisted** | `settings.py:208` | Same as above — hardcoded `True` on GET, never read anywhere in `billing.py` |
+| "Enable low stock alerts on dashboard" toggle | ✅ | `alert_low_stock_enabled` column, read by `/analytics/dashboard` | Server returns both the data and the flag; the frontend is responsible for honoring the flag when rendering `AlertsPanel` — confirm this client-side check exists before treating the feature as fully done |
+| Near-expiry alert days | ✅ | `near_expiry_threshold_days` column | Persisted and read correctly, unlike the two toggles above |
+
+---
+
+### Inventory's cross-cutting dependents
+
+> Per Manifesto rule 11: these are the sections that read or are shaped by
+> Inventory data. Any change to Inventory's schema or business rules must be
+> checked against every row here in the same change, not after.
+
+**Dashboard / Analytics** (`GET /reports/dashboard`, `GET /analytics/dashboard`, `pages/Dashboard`)
+- Total active product count — ✅ (`reports.py::get_dashboard_stats`)
+- Total stock value (Σ `quantity_on_hand × cost_price_paise`) — ✅
+- Low stock count — 🔄 **uses the hardcoded-10 definition**, see gap above
+- Expiring-soon count — ✅ (30-day fixed window on this endpoint specifically — note this is a *third* expiry window, separate from the configurable `near_expiry_threshold_days` used elsewhere; worth reconciling in the same pass as the low-stock fix)
+- AlertsPanel (low stock + near expiry + drug license expiry) — ✅ data side; 🔄 verify frontend actually gates on `low_stock_enabled`/`near_expiry_enabled` flags
+- Sales charts / insights — ✅, not inventory-dependent, out of scope here
+
+**Settings** (`pages/Settings/components/InventoryTab.jsx`, `GeneralTab`, `GSTTab`)
+- Near-expiry day threshold — ✅ wired end-to-end
+- Low-stock day threshold — 🔄 wired to `/analytics/dashboard` only, not to `/inventory` or `/reports/dashboard` (see gap above)
+- Block-expired-stock / allow-near-expiry-sale toggles — ❌ UI-only, no backend column, no enforcement (see above)
+- Default GST rate / HSN mapping (Tax & GST tab) — ✅ applied at product-create time via `CATEGORY_HSN_MAP`
+
+**Billing** (already covered in depth in `docs/07_BUSINESS_LOGIC.md` and `docs/08_ARCHITECTURE.md`'s cross-cutting map — cross-referenced, not repeated here)
+- FEFO batch consumption, MRP-vs-batch check, H1 doctor-required check, stock-oversell guard — ✅ all built and verified this session
+- Expired-batch sale blocking — ❌ **not built**, ties directly to the Settings gap above: even if the toggle worked, nothing downstream would enforce it
+
+**Purchases** (`routers/purchases.py`, cross-referenced in the table below)
+- Confirming a purchase creates `StockBatch` rows and `StockMovement` entries — ✅
+
+**Reports** (`docs/07_BUSINESS_LOGIC.md`'s GST report section)
+- GST report reads `Product.gst_rate`/`hsn_code` at time of sale (frozen on the bill/purchase line item, not live-joined) — ✅, already documented
+- Schedule H1 register reads `Product.drug_schedule` — ✅, already documented
 
 ### Purchases
 

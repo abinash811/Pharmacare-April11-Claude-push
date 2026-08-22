@@ -119,11 +119,17 @@ frontend/node_modules/.cache/default-development/21.pack
 frontend/node_modules/.cache/default-development/27.pack
 frontend/node_modules/.cache/default-development/28.pack
 frontend/node_modules/.cache/default-development/26.pack
--e 
 # Environment and credential files
 .env
 .env.*
 *.env
+# Except real templates meant to be committed — no secrets, just var names.
+# .env.* above was silently blocking backend/.env.example and
+# frontend/.env.example from ever being added (verified via
+# `git check-ignore -v`) — that's the actual reason docs/13_DEPLOYMENT.md's
+# `cp .env.example .env` setup step never worked; the files could never be
+# committed even after being created. Fixed August 22, 2026.
+!.env.example
 credentials.json
 *.pem
 *.key

@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
 
@@ -49,8 +49,9 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
 7. **TypeScript errors in test files** — `npm install --save-dev @types/jest
    @testing-library/react @testing-library/jest-dom`.
 
-See "WHAT DOES NOT EXIST YET" below for infra gaps (Sentry, CI/CD, staging) —
-not repeated here to avoid two lists disagreeing about the same item.
+See "CI/CD — WHAT ACTUALLY EXISTS" below for infra gaps (Sentry, staging
+hosting) — not repeated here to avoid two lists disagreeing about the same
+item.
 
 ---
 
@@ -88,6 +89,8 @@ pip install -r requirements.txt
 # Set environment variables
 cp .env.example .env
 # Edit .env — see ENV VARIABLES section below
+# (backend/.env.example added August 22, 2026 — this file previously
+# didn't exist, so this exact step failed for anyone following it literally)
 
 # Run database migrations
 alembic upgrade head
@@ -107,6 +110,7 @@ npm install
 # Set environment variables
 cp .env.example .env
 # Edit .env — see ENV VARIABLES section below
+# (frontend/.env.example added August 22, 2026, same reason as backend's)
 
 # Start frontend
 npm start
@@ -120,25 +124,41 @@ Frontend starts at `http://localhost:3000`.
 
 ### Backend (`backend/.env`)
 
+> Corrected August 22, 2026 — verified against `backend/config.py`'s real
+> `Settings` class and `backend/main.py`'s CORS setup, not copied from an
+> assumption. Two real mismatches fixed:
+> - The JWT algorithm var is **`JWT_ALGORITHM`**, not `ALGORITHM`. Setting
+>   `ALGORITHM` (as `.github/workflows/ci.yml` currently does) is silently
+>   ignored by pydantic-settings — it "works" today only because
+>   `JWT_ALGORITHM`'s default already happens to be `HS256`. Don't copy
+>   that env var name into a real deployment; it will silently do nothing.
+> - `ENVIRONMENT` is **not a real setting** — `config.py`'s `Settings`
+>   class has no such field, so it's currently a no-op. `DEBUG` is real.
+> - CORS is **not** part of this `Settings` class at all — `main.py` reads
+>   `CORS_ORIGINS` directly via `os.environ`, a separate path. See below.
+
 ```env
 # Database
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/pharmacare
 
+# App
+APP_NAME=PharmaCare
+DEBUG=true
+
 # Auth
 SECRET_KEY=your-secret-key-min-32-chars-change-in-production
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=480
 
-# App
-ENVIRONMENT=development
-DEBUG=true
+# CORS — comma-separated allowed origins; see BACKEND NOTES > CORS below
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
 **Production overrides:**
 - `SECRET_KEY` must be a cryptographically random 64-char string
 - `DEBUG=false`
-- `ENVIRONMENT=production`
 - `DATABASE_URL` points to managed PostgreSQL (e.g., RDS, Supabase, Neon)
+- `CORS_ORIGINS` set to the exact production frontend origin(s) — never `*`
 
 ### Frontend (`frontend/.env`)
 
@@ -210,19 +230,32 @@ The active backend entry point is `backend/main.py`.
 
 ### CORS
 
-`backend/main.py` has CORS configured:
+`backend/main.py` reads `CORS_ORIGINS` from the environment (comma-separated,
+`"*"` stripped out if present) — corrected August 22, 2026, this section
+previously showed a hardcoded single-origin list that isn't what the real
+code does:
 
 ```python
+_raw_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+_origins = [o.strip() for o in _raw_origins.split(",") if o.strip() and o.strip() != "*"]
+if not _origins:
+    raise RuntimeError(
+        "CORS_ORIGINS must be set to an explicit origin list — '*' is not allowed with credentials."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],   # add production URL here
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 ```
 
-When deploying to production, update `allow_origins` to the production frontend URL. Never use `allow_origins=["*"]` in production.
+The app **fails to start** (a hard `RuntimeError`, not a silent fallback)
+if `CORS_ORIGINS` resolves to an empty list — e.g. if it's set to just
+`*`. Set `CORS_ORIGINS` to the exact production frontend origin(s) when
+deploying; never rely on the localhost default.
 
 ---
 
@@ -269,51 +302,80 @@ Before any deployment to staging or production:
 
 ---
 
-## WHAT DOES NOT EXIST YET
+## CI/CD — WHAT ACTUALLY EXISTS
 
-The following infra is planned but not yet set up:
+> Corrected August 22, 2026 — this section and the "Environments" table
+> below it used to contradict each other (one said CI/CD didn't exist, the
+> other showed a specific staging trigger as if live) and neither had been
+> checked against the real `.github/workflows/` files. Consolidated into
+> one honest section.
 
-- CI/CD pipeline (GitHub Actions)
-- Staging environment
-- Production environment
+**Real and working**, verified live many times this session via
+`workflow_dispatch`, not just by reading the YAML:
+- `ci.yml` — lint + test gate for both backend and frontend. Runs on push
+  to `main`, on PRs targeting `main`, and on-demand via `workflow_dispatch`
+  from any branch. This is the CI referenced throughout `docs/11_TESTING.md`.
+- `design-guard.yml` — runs `scripts/design-guard.sh` against the whole
+  repo; also runs Playwright E2E using `E2E_EMAIL`/`E2E_PASSWORD` secrets.
+
+**Exists but incomplete** — `staging.yml`:
+- Triggers on push to the `develop` branch (real, in the YAML).
+- Builds the frontend with `REACT_APP_BACKEND_URL`, `REACT_APP_ENV`,
+  `REACT_APP_VERSION` from `STAGING_BACKEND_URL`/`SENTRY_DSN` secrets —
+  real, but note `REACT_APP_SENTRY_DSN` isn't read by any code yet
+  (Sentry is committed but not initialized).
+  The actual deploy step is a placeholder comment
+  (`# Replace with your actual deploy step (Vercel / Netlify / S3)`) — the
+  workflow builds successfully but doesn't ship the build anywhere. The
+  staging/production **URLs below are the intended targets once that step
+  is filled in — they are not live today.**
+
+**Does not exist at all:**
+- Any actual hosting for staging or production (no live URL reachable)
 - Docker / docker-compose
-- Managed PostgreSQL
+- Managed PostgreSQL instance
 - S3 for PDF/document storage
-- Monitoring / alerting (Sentry, Datadog)
+- Monitoring / alerting (Sentry DSN wiring, Datadog)
 - Log aggregation
 
-When these are set up, this file must be updated with the actual URLs, credentials patterns, and deploy commands.
-
----
-
-*Owner: whoever sets up infra documents it here before it goes live.*
+When staging/production hosting is set up for real, update the table below
+with the URLs that actually resolve — until then, treat them as a plan,
+not a fact.
 
 ---
 
 ## Environments
 
-| Environment | Branch    | Frontend URL                        | Trigger          |
+| Environment | Branch    | Frontend URL (target, not live yet) | Trigger          |
 |-------------|-----------|-------------------------------------|------------------|
 | Local       | any       | http://localhost:3000               | manual           |
-| Staging     | `develop` | https://staging.pharmacare.app      | push to develop  |
-| Production  | `main`    | https://pharmacare.app              | manual / tag     |
+| Staging     | `develop` | https://staging.pharmacare.app      | push to develop (workflow runs; deploy step is a placeholder) |
+| Production  | `main`    | https://pharmacare.app              | manual / tag (no workflow wired up yet) |
 
 ### Environment variables
 
-Frontend env files:
-- `.env.local` — local dev overrides (git-ignored)
-- `.env.staging` — staging template (committed, no secrets)
-- `.env.production` — production template (committed, no secrets)
+Frontend env files that exist today: `.env.local` (git-ignored local
+override) and, as of August 22, 2026, a real `.env.example` (see LOCAL
+SETUP above). `.env.staging`/`.env.production` template files described
+here previously do not exist in the repo — `staging.yml` sets its env vars
+directly from GitHub Actions secrets at build time instead of reading a
+committed staging template file.
 
 Real secrets live in GitHub Actions secrets only — never in committed files.
 
-### Required secrets (GitHub Actions)
+### Required secrets (GitHub Actions) — verified against the real workflow files
 
 | Secret | Used by |
 |--------|---------|
-| `STAGING_BACKEND_URL` | Frontend staging build |
-| `STAGING_DATABASE_URL` | Backend staging |
-| `STAGING_SECRET_KEY` | Backend staging JWT |
-| `SENTRY_DSN` | Both frontend and backend |
-| `E2E_EMAIL` | Playwright CI |
-| `E2E_PASSWORD` | Playwright CI |
+| `STAGING_BACKEND_URL` | Frontend staging build (`staging.yml`) |
+| `STAGING_DATABASE_URL` | Backend staging (`staging.yml`) |
+| `STAGING_SECRET_KEY` | Backend staging JWT (`staging.yml`) |
+| `SENTRY_DSN` | Both frontend and backend build steps (`staging.yml`) — not yet read by any application code |
+| `E2E_EMAIL` | Playwright CI (`design-guard.yml`) |
+| `E2E_PASSWORD` | Playwright CI (`design-guard.yml`) |
+
+---
+
+*Owner: whoever sets up real staging/production hosting updates this file
+with the actual URLs, credentials patterns, and deploy commands before
+calling either environment live.*

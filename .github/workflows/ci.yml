@@ -32,13 +32,16 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Lint
-        # 71 is the real current backlog (see docs/11_TESTING.md), not an
+        # 57 is the real current backlog (see docs/11_TESTING.md), not an
         # aspirational number — CI had never once run this step before
         # (npm ci itself failed on every prior run), so this repo has never
         # actually been lint-checked. Ratchet this down as the backlog is
         # worked through; the goal is 0, this is where "0" would have
         # instantly failed on day one of turning the check on for real.
-        run: npm run lint -- --max-warnings 71
+        # Note: --max-warnings only gates warning-severity findings — any
+        # error-severity finding fails the step regardless of this number,
+        # so 0 real errors is a hard requirement, not a target.
+        run: npm run lint -- --max-warnings 57
 
       - name: Test
         run: npm test -- --watchAll=false --passWithNoTests
@@ -83,10 +86,32 @@ jobs:
       - name: Lint
         run: flake8 . --max-line-length=120 --exclude=venv,migrations/versions,__pycache__,server.py
 
-      - name: Test
-        run: pytest --tb=short -q
+      # Every file in tests/ is an HTTP integration test — it calls a real
+      # running backend over requests, not the app object directly. Until
+      # today, CI never started that backend or seeded the account those
+      # tests log in as, so `pytest` failed before a single test ran (see
+      # docs/11_TESTING.md CI STATUS). The two steps below are what a
+      # developer running these tests locally already has to do by hand.
+      - name: Seed test admin account
+        run: python seed_admin.py --email testadmin@pharmacy.com --password admin123 --name "Test Admin"
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+
+      - name: Start backend
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/docs -o /dev/null && exit 0
+            sleep 1
+          done
+          echo "Backend did not become ready in time"; cat /tmp/uvicorn.log; exit 1
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
           SECRET_KEY: ci-test-secret-key-not-for-production
           ALGORITHM: HS256
           ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+
+      - name: Test
+        run: pytest --tb=short -q
+        env:
+          REACT_APP_BACKEND_URL: http://localhost:8000

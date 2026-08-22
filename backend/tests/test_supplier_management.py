@@ -34,7 +34,7 @@ class TestSupplierManagement:
         response = self.session.get(f"{BASE_URL}/api/suppliers")
         assert response.status_code == 200, f"Failed: {response.text}"
 
-        suppliers = response.json()
+        suppliers = response.json()["data"]
         assert isinstance(suppliers, list), "Response should be a list"
         print(f"✓ GET /api/suppliers - Found {len(suppliers)} suppliers")
 
@@ -51,7 +51,7 @@ class TestSupplierManagement:
         response = self.session.get(f"{BASE_URL}/api/suppliers")
         assert response.status_code == 200
 
-        suppliers = response.json()
+        suppliers = response.json()["data"]
         for supplier in suppliers:
             assert "is_active" in supplier, f"Supplier {supplier.get('name')} missing is_active field"
         print(f"✓ All {len(suppliers)} suppliers have is_active status field")
@@ -61,7 +61,7 @@ class TestSupplierManagement:
         response = self.session.get(f"{BASE_URL}/api/suppliers?active_only=true")
         assert response.status_code == 200, f"Failed: {response.text}"
 
-        suppliers = response.json()
+        suppliers = response.json()["data"]
         for supplier in suppliers:
             assert supplier.get(
                 "is_active", True), f"Inactive supplier returned: {supplier.get('name')}"
@@ -73,14 +73,14 @@ class TestSupplierManagement:
         """Test search suppliers by name"""
         # First get all suppliers to find a name to search
         all_response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = all_response.json()
+        suppliers = all_response.json()["data"]
 
         if suppliers:
             search_name = suppliers[0].get("name", "")[:5]  # First 5 chars
             search_response = self.session.get(f"{BASE_URL}/api/suppliers?search={search_name}")
             assert search_response.status_code == 200
 
-            results = search_response.json()
+            results = search_response.json()["data"]
             # Check that results contain the search term
             found = any(search_name.lower() in s.get("name", "").lower() for s in results)
             assert found or len(results) > 0, f"Search for '{search_name}' should return results"
@@ -91,7 +91,7 @@ class TestSupplierManagement:
     def test_search_supplier_by_phone(self):
         """Test search suppliers by phone number"""
         all_response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = all_response.json()
+        suppliers = all_response.json()["data"]
 
         # Find a supplier with phone
         supplier_with_phone = next((s for s in suppliers if s.get("phone")), None)
@@ -153,7 +153,7 @@ class TestSupplierManagement:
         """Test editing existing supplier details"""
         # Get existing suppliers
         response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = response.json()
+        suppliers = response.json()["data"]
 
         if not suppliers:
             pytest.skip("No suppliers to edit")
@@ -184,7 +184,7 @@ class TestSupplierManagement:
     def test_get_supplier_summary(self):
         """Test GET /api/suppliers/{id}/summary returns purchase summary"""
         response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = response.json()
+        suppliers = response.json()["data"]
 
         if not suppliers:
             pytest.skip("No suppliers to get summary")
@@ -210,7 +210,7 @@ class TestSupplierManagement:
         """Test DELETE /api/suppliers/{id} blocked if purchases exist"""
         # Get suppliers
         response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = response.json()
+        suppliers = response.json()["data"]
 
         # Find supplier with purchases (Abinash Distributors or Test Supplier)
         supplier_with_purchases = None
@@ -241,7 +241,7 @@ class TestSupplierManagement:
     def test_toggle_supplier_status(self):
         """Test PATCH /api/suppliers/{id}/toggle-status"""
         response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = response.json()
+        suppliers = response.json()["data"]
 
         if not suppliers:
             pytest.skip("No suppliers to toggle")
@@ -273,7 +273,7 @@ class TestSupplierManagement:
     def test_deactivated_supplier_not_in_active_only(self):
         """Test that deactivated supplier is NOT returned with active_only=true"""
         response = self.session.get(f"{BASE_URL}/api/suppliers")
-        suppliers = response.json()
+        suppliers = response.json()["data"]
 
         if not suppliers:
             pytest.skip("No suppliers to test")
@@ -288,7 +288,7 @@ class TestSupplierManagement:
 
         # Check active_only=true doesn't include this supplier
         active_response = self.session.get(f"{BASE_URL}/api/suppliers?active_only=true")
-        active_suppliers = active_response.json()
+        active_suppliers = active_response.json()["data"]
 
         deactivated_in_list = any(s.get("id") == supplier_id for s in active_suppliers)
         assert not deactivated_in_list, "Deactivated supplier should NOT be in active_only list"
@@ -323,7 +323,7 @@ class TestPurchasePageSupplierDropdown:
         response = self.session.get(f"{BASE_URL}/api/suppliers?active_only=true")
         assert response.status_code == 200
 
-        suppliers = response.json()
+        suppliers = response.json()["data"]
         for supplier in suppliers:
             assert supplier.get("is_active", True), \
                 f"Inactive supplier '{supplier.get('name')}' should not be in active_only list"

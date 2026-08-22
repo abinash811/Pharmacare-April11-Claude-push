@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
 #        Never hard DELETE from any table. Soft deletes only.
@@ -191,7 +191,7 @@ RBAC roles. System roles are seeded on startup, custom roles can be created.
 | `permissions` | JSONB | Permission flags per module |
 | `is_active` | Boolean | — |
 
-**Default system roles:** `admin`, `manager`, `cashier`, `inventory`
+**Default system roles:** `admin`, `manager`, `cashier`, `inventory_staff` (`backend/constants.py::DEFAULT_ROLES` — full permission list per role documented in `docs/14_SECURITY.md`)
 
 ---
 

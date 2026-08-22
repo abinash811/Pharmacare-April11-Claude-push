@@ -24,19 +24,26 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
     hsn_code:            product.hsn_code                                       || '',
     schedule:            product.schedule                                       || '',
     composition:         product.composition || product.generic_name           || '',
+    strength:            product.strength                                      || '',
+    requires_refrigeration: product.requires_refrigeration                     || false,
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
     status:              product.status                                         || 'active',
   });
   const [loading, setLoading] = useState(false);
 
   const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
+  const setChecked = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.checked }));
   const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put(apiUrl.productBySku(product.sku), {
+      // Fixed August 22, 2026 — see the identical fix + full explanation in
+      // InventorySearch/components/EditProductModal.jsx (same bug, same
+      // root cause, this file is its near-duplicate reached from the
+      // Medicine Detail page instead of the Inventory list).
+      await api.put(apiUrl.product(product.id), {
         name:                      form.name,
         brand:                     form.brand               || null,
         manufacturer:              form.manufacturer        || null,
@@ -48,6 +55,8 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
         hsn_code:                  form.hsn_code            || null,
         schedule:                  form.schedule            || null,
         composition:               form.composition         || null,
+        strength:                  form.strength            || null,
+        requires_refrigeration:    form.requires_refrigeration,
         low_stock_threshold_units: parseInt(form.low_stock_threshold) || 10,
         status:                    form.status,
       });
@@ -91,8 +100,12 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
               <input type="number" value={form.units_per_pack} onChange={set('units_per_pack')} className={cls} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">MRP per Unit *</label>
-              <input type="number" step="0.01" value={form.mrp_per_unit} onChange={set('mrp_per_unit')} className={cls} required />
+              {/* Not `required` — see the identical note in
+                  InventorySearch/components/EditProductModal.jsx: MRP lives
+                  per-batch here, not per-product, so this field is always
+                  blank and unsaved. Was blocking every save. */}
+              <label className="block text-sm font-medium text-gray-700 mb-1">MRP per Unit</label>
+              <input type="number" step="0.01" value={form.mrp_per_unit} onChange={set('mrp_per_unit')} className={cls} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">GST %</label>
@@ -122,6 +135,16 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Strength (e.g. 500mg, 5ml)</label>
+              <input value={form.strength} onChange={set('strength')} className={cls} data-testid="edit-product-strength" />
+            </div>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" checked={form.requires_refrigeration} onChange={setChecked('requires_refrigeration')} className="w-4 h-4" data-testid="edit-product-refrigeration" />
+                Requires Refrigeration
+              </label>
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">Composition</label>

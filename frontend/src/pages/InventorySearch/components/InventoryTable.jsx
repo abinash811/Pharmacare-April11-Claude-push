@@ -15,7 +15,7 @@
  *   onPageChange   {(number) => void}
  */
 import React from 'react';
-import { Edit2, Scale, Package } from 'lucide-react';
+import { Edit2, Scale, Package, Snowflake } from 'lucide-react';
 import { formatDate } from '@/utils/dates';
 import { AppButton, StatusBadge, PaginationBar } from '@/components/shared';
 
@@ -91,7 +91,17 @@ export default function InventoryTable({
                     <Package className="w-6 h-6 text-gray-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{item.product.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-gray-900 truncate">{item.product.name}</p>
+                      {item.product.strength && (
+                        <span className="text-xs text-gray-500 shrink-0">{item.product.strength}</span>
+                      )}
+                      {item.product.requires_refrigeration && (
+                        <span title="Requires refrigeration" data-testid={`cold-chain-${item.product.sku}`}>
+                          <Snowflake className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 truncate">{item.product.manufacturer || item.product.brand || '–'}</p>
                     <p className="text-xs text-gray-400">{item.product.pack_info || `${item.product.units_per_pack || 1} units/pack`}</p>
                   </div>

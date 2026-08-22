@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.3 | Last updated: August 22, 2026
+# Version: 1.4 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
 #        Never hard DELETE from any table. Soft deletes only.
@@ -250,7 +250,7 @@ The product master. One row per unique medicine.
 | `category` | String(100) | Optional | e.g. "Antibiotics", "Analgesics" |
 | `drug_schedule` | String(20) | `"OTC"` | `OTC`, `H`, `H1`, `X` |
 | `dosage_form` | String(100) | Optional | `Tablet`, `Syrup`, `Injection`, etc. |
-| `strength` | String(100) | Optional | e.g. `"500mg"`, `"10mg/5ml"` |
+| `strength` | String(100) | Optional | e.g. `"500mg"`, `"10mg/5ml"`. Wired into `ProductCreate`/`ProductUpdate`, search, and the UI August 22, 2026 — was a real column with no way to set it before that. |
 | `pack_size` | String(100) | Optional | e.g. `"10 tablets"`, `"100ml"` |
 | `units_per_pack` | Integer | `1` | Tablets in a strip |
 | `hsn_code` | String(10) | `"3004"` | Determines GST rate |
@@ -258,7 +258,7 @@ The product master. One row per unique medicine.
 | `reorder_level` | Integer | `10` | Alert threshold in packs |
 | `reorder_quantity` | Integer | `100` | Default reorder quantity |
 | `storage_location` | String(100) | Optional | Shelf/rack reference |
-| `requires_refrigeration` | Boolean | `false` | Cold chain flag |
+| `requires_refrigeration` | Boolean | `false` | Cold chain flag. Wired into `ProductCreate`/`ProductUpdate`, the `cold_chain_only` Inventory filter, bulk-update, and the UI August 22, 2026 — same fix as `strength` above. |
 | `is_active` | Boolean | `true` | — |
 | `deleted_at` | TIMESTAMP | null | Soft delete |
 

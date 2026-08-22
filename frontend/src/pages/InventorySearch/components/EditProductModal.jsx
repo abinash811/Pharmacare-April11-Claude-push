@@ -26,6 +26,8 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
     hsn_code:            product.hsn_code          || '',
     schedule:            product.schedule          || '',
     composition:         product.composition       || '',
+    strength:            product.strength          || '',
+    requires_refrigeration: product.requires_refrigeration || false,
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
     status:              product.status            || 'active',
   });
@@ -36,7 +38,21 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put(apiUrl.productBySku(product.sku), {
+      // Fixed August 22, 2026: was PUT /products/{sku}, but the only real
+      // route is /products/{product_id} (a UUID) — uuid.UUID(sku) always
+      // raised, so this form's save button 500'd on every single field,
+      // always (verified live, not assumed). Fixed to the real id.
+      //
+      // hsn_code, default_mrp_per_unit/default_mrp, composition, and status
+      // below are NOT real ProductUpdate fields (MRP lives per-batch, not
+      // per-product, in this schema; HSN is server-derived from category,
+      // never typed; status changes go through DELETE /products/{id}, not
+      // this form; the real composition field is generic_name) — FastAPI
+      // silently drops unknown fields, so they were always no-ops and still
+      // are. Left as-is rather than silently redesigned while fixing an
+      // unrelated bug — a real rework of this form is separate, larger
+      // work, flagged in docs/15_ROADMAP.md RULE MISSES LOG.
+      await api.put(apiUrl.product(product.id), {
         name:                     form.name,
         brand:                    form.brand             || null,
         manufacturer:             form.manufacturer      || null,
@@ -48,6 +64,8 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
         hsn_code:                 form.hsn_code     || null,
         schedule:                 form.schedule     || null,
         composition:              form.composition  || null,
+        strength:                 form.strength     || null,
+        requires_refrigeration:   form.requires_refrigeration,
         low_stock_threshold_units:parseInt(form.low_stock_threshold) || 10,
         status:                   form.status,
       });
@@ -82,7 +100,13 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
             <F label="Manufacturer"><input value={form.manufacturer} onChange={(e) => set('manufacturer', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Category"><input value={form.category} onChange={(e) => set('category', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Units per Pack"><input type="number" value={form.units_per_pack} onChange={(e) => set('units_per_pack', e.target.value)} className={INPUT_CLS} /></F>
-            <F label="MRP per Unit *"><input type="number" step="0.01" value={form.mrp_per_unit} onChange={(e) => set('mrp_per_unit', e.target.value)} className={INPUT_CLS} required /></F>
+            {/* Not `required` — MRP lives per-batch, not per-product, in
+                this schema, so this field is never pre-filled and its value
+                isn't saved anywhere (see the note above handleSubmit).
+                Making it required blocked every single save on this
+                permanently-blank field until this fix (found live testing
+                the strength/refrigeration fix this same field sits next to). */}
+            <F label="MRP per Unit"><input type="number" step="0.01" value={form.mrp_per_unit} onChange={(e) => set('mrp_per_unit', e.target.value)} className={INPUT_CLS} /></F>
             <F label="GST %"><input type="number" step="0.01" value={form.gst_percent} onChange={(e) => set('gst_percent', e.target.value)} className={INPUT_CLS} /></F>
             <F label="HSN Code"><input value={form.hsn_code} onChange={(e) => set('hsn_code', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Schedule">
@@ -101,6 +125,13 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
                 <option value="inactive">Inactive</option>
               </select>
             </F>
+            <F label="Strength (e.g. 500mg, 5ml)"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="edit-product-strength" /></F>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" checked={form.requires_refrigeration} onChange={(e) => set('requires_refrigeration', e.target.checked)} className="w-4 h-4" data-testid="edit-product-refrigeration" />
+                Requires Refrigeration
+              </label>
+            </div>
             <F label="Composition" span2>
               <textarea value={form.composition} onChange={(e) => set('composition', e.target.value)} className={INPUT_CLS} rows="2" placeholder="e.g., Paracetamol 500mg + Caffeine 65mg" />
             </F>

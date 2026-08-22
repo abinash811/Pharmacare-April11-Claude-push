@@ -9,7 +9,7 @@
 import React from 'react';
 import {
   Edit2, Bell, Clock, Package, Percent, Hash,
-  CreditCard, Calendar, FileText,
+  CreditCard, Calendar, FileText, Snowflake,
 } from 'lucide-react';
 import { AppButton, PageBreadcrumb } from '@/components/shared';
 
@@ -50,9 +50,23 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                {product.name}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                  {product.name}
+                </h1>
+                {product.strength && (
+                  <span className="text-base font-medium text-gray-400">{product.strength}</span>
+                )}
+                {product.requires_refrigeration && (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-medium text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full"
+                    title="Requires refrigeration"
+                    data-testid="cold-chain-badge"
+                  >
+                    <Snowflake className="w-3 h-3" /> Cold Chain
+                  </span>
+                )}
+              </div>
               <p className="text-gray-500">
                 {product.manufacturer || product.brand || '–'} • {product.pack_info || `${product.units_per_pack || 1} units/pack`}
               </p>

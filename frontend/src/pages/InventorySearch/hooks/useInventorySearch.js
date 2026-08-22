@@ -87,6 +87,7 @@ export function useInventorySearch() {
       if (debouncedSearch)           params.search          = debouncedSearch;
       if (activeFilters.stock_status) params.status_filter  = activeFilters.stock_status;
       if (activeFilters.category)     params.category_filter = activeFilters.category;
+      if (activeFilters.requires_refrigeration) params.cold_chain_only = true;
 
       const res = await api.get(apiUrl.inventory(params));
       setInventory(res.data.items || []);

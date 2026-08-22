@@ -88,6 +88,20 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
             <option value="healthy">Healthy</option>
           </select>
         </div>
+
+        {/* Cold Chain */}
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={!!local.requires_refrigeration}
+              onChange={(e) => set('requires_refrigeration', e.target.checked)}
+              className="w-4 h-4"
+              data-testid="filter-cold-chain"
+            />
+            Requires Refrigeration only
+          </label>
+        </div>
       </div>
 
       {/* Footer */}

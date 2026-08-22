@@ -80,8 +80,8 @@ function SuggestField({ label, required, value, onChange, options, placeholder, 
 
 const FORM_INIT = {
   name: '', category: '', dosageForm: '', gstPercent: 5,
-  manufacturer: '', brand: '', genericName: '', unitsPerPack: 1,
-  schedule: 'OTC', lowStockThreshold: 10,
+  manufacturer: '', brand: '', genericName: '', strength: '', unitsPerPack: 1,
+  schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false,
   addOpeningStock: true, batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
 };
 
@@ -123,9 +123,11 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
         manufacturer: form.manufacturer || null,
         brand: form.brand || null,
         generic_name: form.genericName || null,
+        strength: form.strength || null,
         units_per_pack: parseInt(String(form.unitsPerPack), 10) || 1,
         schedule: form.schedule,
         low_stock_threshold_units: parseInt(String(form.lowStockThreshold), 10) || 10,
+        requires_refrigeration: form.requiresRefrigeration,
       });
 
       if (form.addOpeningStock && form.initialQty && form.expiryDate) {
@@ -209,7 +211,12 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
             <SuggestField label="Manufacturer" value={form.manufacturer} onChange={(v: string) => set('manufacturer', v)} options={SEED_MANUFACTURERS} placeholder="e.g. Cipla Ltd" />
             <Field label="Brand"><input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={INPUT_CLS} /></Field>
             <Field label="Generic Name / Composition"><input value={form.genericName} onChange={(e) => set('genericName', e.target.value)} className={INPUT_CLS} /></Field>
+            <Field label="Strength" hint="e.g. 500mg, 5ml"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="medicine-strength-input" /></Field>
             <Field label="Low Stock Alert"><input type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} className={INPUT_CLS} /></Field>
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+              <span className="text-sm font-medium text-gray-700">Requires Refrigeration</span>
+              <Switch checked={form.requiresRefrigeration} onCheckedChange={(v: boolean) => set('requiresRefrigeration', v)} data-testid="medicine-refrigeration-switch" />
+            </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-gray-100">

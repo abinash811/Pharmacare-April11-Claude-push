@@ -61,6 +61,8 @@ class ProductCreate(BaseModel):
     gst_percent: float = 5.0
     schedule: Optional[str] = "OTC"
     low_stock_threshold_units: Optional[int] = 10
+    strength: Optional[str] = None
+    requires_refrigeration: bool = False
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -80,6 +82,8 @@ class ProductUpdate(BaseModel):
     gst_percent: Optional[float] = None
     schedule: Optional[str] = None
     low_stock_threshold_units: Optional[int] = None
+    strength: Optional[str] = None
+    requires_refrigeration: Optional[bool] = None
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -100,7 +104,8 @@ def _product_response(p: ProductORM) -> dict:
         "gst_percent": float(p.gst_rate), "discount_percent": float(p.discount_percent),
         "hsn_code": p.hsn_code,
         "schedule": p.drug_schedule, "generic_name": p.generic_name,
-        "dosage_form": p.dosage_form,
+        "dosage_form": p.dosage_form, "strength": p.strength,
+        "requires_refrigeration": p.requires_refrigeration,
         "low_stock_threshold_units": p.reorder_level,
         "status": "active" if p.is_active else "inactive",
         "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -146,6 +151,7 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
         units_per_pack=data.units_per_pack, category=data.category, barcode=data.barcode,
         gst_rate=data.gst_percent, hsn_code=hsn_code,
         drug_schedule=data.schedule or "OTC", reorder_level=data.low_stock_threshold_units or 10,
+        strength=data.strength, requires_refrigeration=data.requires_refrigeration,
     )
     db.add(product)
     await db.flush()
@@ -164,8 +170,13 @@ async def get_products(
         ProductORM.deleted_at.is_(None))
     if search:
         p = f"%{search}%"
-        query = query.where(or_(ProductORM.name.ilike(p), ProductORM.sku.ilike(
-            p), ProductORM.brand.ilike(p), ProductORM.manufacturer.ilike(p)))
+        # Matches what InventorySearchBar.jsx's own placeholder already
+        # promises ("Search medicine by name, generic, strength…") — generic
+        # and strength were never actually searched until now.
+        query = query.where(or_(
+            ProductORM.name.ilike(p), ProductORM.sku.ilike(p),
+            ProductORM.brand.ilike(p), ProductORM.manufacturer.ilike(p),
+            ProductORM.generic_name.ilike(p), ProductORM.strength.ilike(p)))
     if category:
         query = query.where(ProductORM.category == category)
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
@@ -206,14 +217,22 @@ async def bulk_update_products(data: dict, current_user: User = Depends(
         "schedule": "drug_schedule",
         "location": "storage_location"}
     col = field_map.get(field, field)
-    allowed = {"storage_location", "gst_rate", "category", "drug_schedule", "brand", "discount_percent"}
+    allowed = {
+        "storage_location", "gst_rate", "category", "drug_schedule", "brand",
+        "discount_percent", "requires_refrigeration"}
     if col not in allowed:
         raise HTTPException(status_code=400, detail=f"Field '{field}' not allowed for bulk update")
     result = await db.execute(select(ProductORM).where(
         ProductORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), ProductORM.sku.in_(skus)))
     count = 0
     for product in result.scalars().all():
-        setattr(product, col, float(value) if col in ("gst_rate", "discount_percent") else value)
+        if col in ("gst_rate", "discount_percent"):
+            typed_value = float(value)
+        elif col == "requires_refrigeration":
+            typed_value = value if isinstance(value, bool) else str(value).lower() in ("true", "1", "yes")
+        else:
+            typed_value = value
+        setattr(product, col, typed_value)
         count += 1
     await db.flush()
     return {"message": f"Updated {count} products", "modified_count": count}
@@ -472,6 +491,7 @@ async def get_inventory_with_health(
     status_filter: Optional[str] = None,
     category_filter: Optional[str] = None,
     brand_filter: Optional[str] = None,
+    cold_chain_only: Optional[bool] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -485,12 +505,15 @@ async def get_inventory_with_health(
         ProductORM.deleted_at.is_(None))
     if search:
         p = f"%{search}%"
-        query = query.where(or_(ProductORM.name.ilike(
-            p), ProductORM.sku.ilike(p), ProductORM.brand.ilike(p)))
+        query = query.where(or_(
+            ProductORM.name.ilike(p), ProductORM.sku.ilike(p), ProductORM.brand.ilike(p),
+            ProductORM.generic_name.ilike(p), ProductORM.strength.ilike(p)))
     if category_filter:
         query = query.where(ProductORM.category == category_filter)
     if brand_filter:
         query = query.where(ProductORM.brand == brand_filter)
+    if cold_chain_only:
+        query = query.where(ProductORM.requires_refrigeration.is_(True))
 
     products = (await db.execute(query)).scalars().all()
     product_ids = [p.id for p in products]

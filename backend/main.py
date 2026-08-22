@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from database import AsyncSessionLocal
@@ -17,6 +19,24 @@ from services.provisioning import create_pharmacy_with_defaults
 from utils import excel
 
 app = FastAPI(title="PharmaCare API", version="2.0.0")
+logger = logging.getLogger(__name__)
+
+
+# ── Global exception handler ─────────────────────────────────────────────────
+# Catches anything a router didn't wrap in HTTPException — an unguarded
+# uuid.UUID() call, a KeyError, whatever — and turns it into a clean JSON 500
+# instead of a raw traceback reaching the client. Does NOT intercept
+# HTTPException or FastAPI's own RequestValidationError; those already have
+# their own more-specific handlers and keep returning their real status codes.
+# docs/12_ERROR_HANDLING.md described this as already existing — it wasn't;
+# this is that gap closed for real, added August 22, 2026.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again."},
+    )
 
 _raw_origins = os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 _origins = [o.strip() for o in _raw_origins.split(",") if o.strip() and o.strip() != "*"]

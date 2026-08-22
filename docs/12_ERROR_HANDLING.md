@@ -1,5 +1,5 @@
 # PharmaCare — Error Handling
-# Version: 1.1 | Last updated: August 19, 2026
+# Version: 1.2 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every error must be catchable, displayable, and recoverable. No silent failures.
 
@@ -81,32 +81,49 @@ know which one a given endpoint used.
 # ✅ Correct — specific message, correct status code
 from fastapi import HTTPException
 
-raise HTTPException(status_code=400, detail="Doctor name is required for Schedule H1 drug: Alprazolam 0.5mg")
-raise HTTPException(status_code=404, detail="Invoice not found.")
+raise HTTPException(status_code=400, detail="Prescription details required for Schedule H1 drug: Alprazolam 0.5mg")
+raise HTTPException(status_code=404, detail="Bill not found")
 raise HTTPException(status_code=409, detail="A bill with this number already exists.")
-raise HTTPException(status_code=400, detail=f"Insufficient stock in batch {batch.batch_number}. Available: {batch.qty_on_hand}, requested: {quantity}")
+raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name} in batch {batch.batch_number}: {old_qty} available, {qty} requested")
 
 # ❌ Never — vague messages
 raise HTTPException(status_code=400, detail="Bad request")
 raise HTTPException(status_code=500, detail="Error")
-raise Exception("something broke")  # unhandled — returns raw 500
+raise Exception("something broke")  # unhandled — caught by the global handler
+                                      # (see below) as a clean, but generic,
+                                      # 500 — still worse than a real
+                                      # HTTPException with a real reason
 ```
 
 ### Global Exception Handler
+
+> Corrected August 22, 2026 — this section previously described a handler
+> that did not exist. `backend/main.py` had no `@app.exception_handler`
+> registered at all; an unguarded exception (a bare `uuid.UUID()` call on
+> bad input, for example — a real, still-only-partially-fixed pattern
+> across several routers) fell through to Starlette's own default 500
+> instead of the clean shape below. Added for real the same day, verified
+> live: `GET /purchases/not-a-real-uuid` now returns
+> `{"detail": "An unexpected error occurred. Please try again."}` (500)
+> instead of an unhandled crash.
 
 `backend/main.py` registers a catch-all:
 
 ```python
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again."}
+        content={"detail": "An unexpected error occurred. Please try again."},
     )
 ```
 
-Never remove this handler. It prevents raw tracebacks from reaching the client.
+This does **not** intercept `HTTPException` or FastAPI's own
+`RequestValidationError` — those keep their own more-specific handlers and
+real status codes (400/404/422/etc). It only catches what nothing else
+caught. Never remove this handler. It prevents raw tracebacks from
+reaching the client — it just didn't actually exist to do that until now.
 
 ---
 
@@ -150,10 +167,14 @@ that's how a real bug shipped (Aug 19, 2026): a one-off implementation in
 
 ### 1. Toast notifications — transient feedback
 
-Use `react-hot-toast` (or Shadcn `<Sonner>` if installed). Toasts are for actions: save, delete, copy.
+Use `sonner` — the real, only toast library in this project (verified:
+`react-hot-toast` isn't even in `package.json`; every real call site uses
+`import { toast } from 'sonner'`, a **named** import, not the default
+import this section previously showed). Toasts are for actions: save,
+delete, copy.
 
 ```jsx
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 // ✅ Success toast
 toast.success('Bill saved successfully.');
@@ -215,7 +236,7 @@ function BillingPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/api/invoices');
+      const res = await api.get('/api/bills');
       setBills(res.data.data);
     } catch (err) {
       setError(err.message);
@@ -245,11 +266,14 @@ When an action on a specific item fails (e.g., delete, status change):
 
 ```jsx
 // ✅ Correct — toast with context
-const handleDelete = async (billId) => {
+// Note: there is no DELETE /api/bills/{id} — bills can never be hard- or
+// soft-deleted (docs/07_BUSINESS_LOGIC.md's "what cannot be done" table);
+// a customer is a real, soft-deletable resource, used here instead.
+const handleDeleteCustomer = async (customerId) => {
   try {
-    await api.delete(`/api/invoices/${billId}`);
-    toast.success('Bill deleted.');
-    fetchBills(); // refresh
+    await api.delete(`/api/customers/${customerId}`);
+    toast.success('Customer deleted.');
+    fetchCustomers(); // refresh
   } catch (err) {
     toast.error(err.message);
   }
@@ -269,7 +293,7 @@ const [saving, setSaving] = useState(false);
 const handleSave = async () => {
   setSaving(true);
   try {
-    await api.post('/api/invoices', payload);
+    await api.post('/api/bills', payload);
     toast.success('Bill saved.');
   } catch (err) {
     toast.error(err.message);
@@ -295,11 +319,21 @@ if (fetchingBatches) return <InlineLoader />;
 
 ## SPECIFIC ERROR SCENARIOS
 
+> The three below are illustrative, not a promise the exact wording stays
+> frozen forever — `routers/billing.py` is the source of truth if these
+> drift again. Corrected August 22, 2026 to match what's actually raised
+> today (was previously a different, made-up wording for both).
+
 ### Insufficient stock
 
 ```python
-# Backend raises:
-raise HTTPException(400, detail=f"Insufficient stock in batch {batch.batch_number}. Available: {batch.qty_on_hand}, requested: {quantity}")
+# Backend raises (routers/billing.py::_deduct_stock_and_record — added
+# Aug 22, 2026; previously this check didn't exist at all and a sale could
+# silently oversell a batch, see docs/07_BUSINESS_LOGIC.md):
+raise HTTPException(
+    status_code=400,
+    detail=(f"Insufficient stock for {product.name} in batch {batch.batch_number}: "
+            f"{old_qty} available, {pack_change} requested"))
 ```
 
 ```jsx
@@ -307,11 +341,30 @@ raise HTTPException(400, detail=f"Insufficient stock in batch {batch.batch_numbe
 toast.error(error.message);
 ```
 
+### Selling above MRP
+
+```python
+# Backend raises (routers/billing.py::create_bill / update_bill — added
+# Aug 22, 2026; previously not enforced server-side at all):
+raise HTTPException(
+    status_code=400,
+    detail=(f"Selling price ₹{mrp_paise / 100:.2f} for {product.name} exceeds "
+            f"MRP ₹{batch.mrp_paise / 100:.2f} for batch {batch.batch_number}"))
+```
+
+```jsx
+// Frontend: toast the message
+toast.error(error.message);
+```
+
 ### Schedule H1 without doctor
 
 ```python
-# Backend raises:
-raise HTTPException(400, detail=f"Doctor name is required for Schedule H1 drug: {product_name}")
+# Backend raises (routers/billing.py — the real wording is "Prescription
+# details required", not "Doctor name is required"):
+raise HTTPException(
+    status_code=400,
+    detail=f"Prescription details required for Schedule H1 drug: {product.name}")
 ```
 
 ```jsx

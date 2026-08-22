@@ -80,7 +80,9 @@ async def get_suppliers(
     page = max(page, 1)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    query = select(SupplierORM).where(SupplierORM.pharmacy_id == pharmacy_id, SupplierORM.deleted_at.is_(None))
+    query = select(SupplierORM).where(
+        SupplierORM.pharmacy_id == pharmacy_id,
+        SupplierORM.deleted_at.is_(None))
     if search:
         pattern = f"%{search}%"
         query = query.where(or_(
@@ -90,7 +92,7 @@ async def get_suppliers(
             SupplierORM.gstin.ilike(pattern),
         ))
     if active_only:
-        query = query.where(SupplierORM.is_active == True)
+        query = query.where(SupplierORM.is_active)
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar()
@@ -110,10 +112,14 @@ async def get_suppliers(
 
 
 @router.post("/suppliers")
-async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     existing = await db.execute(
-        select(SupplierORM).where(SupplierORM.pharmacy_id == pharmacy_id, SupplierORM.name == supplier_data.name, SupplierORM.deleted_at.is_(None))
+        select(SupplierORM).where(
+            SupplierORM.pharmacy_id == pharmacy_id,
+            SupplierORM.name == supplier_data.name,
+            SupplierORM.deleted_at.is_(None))
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Supplier with this name already exists")
@@ -126,7 +132,8 @@ async def create_supplier(supplier_data: SupplierCreate, current_user: User = De
         email=supplier_data.email,
         gstin=supplier_data.gstin,
         address=supplier_data.address,
-        credit_days=supplier_data.payment_terms_days if supplier_data.credit_days is None else supplier_data.credit_days,
+        credit_days=(supplier_data.payment_terms_days
+                     if supplier_data.credit_days is None else supplier_data.credit_days),
     )
     db.add(supplier)
     await db.flush()
@@ -134,7 +141,8 @@ async def create_supplier(supplier_data: SupplierCreate, current_user: User = De
 
 
 @router.get("/suppliers/{supplier_id}")
-async def get_supplier(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_supplier(supplier_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
     supplier = result.scalar_one_or_none()
     if not supplier:
@@ -145,7 +153,11 @@ async def get_supplier(supplier_id: str, current_user: User = Depends(get_curren
 
 
 @router.put("/suppliers/{supplier_id}")
-async def update_supplier(supplier_id: str, supplier_data: SupplierUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_supplier(
+        supplier_id: str,
+        supplier_data: SupplierUpdate,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
     supplier = result.scalar_one_or_none()
     if not supplier:
@@ -166,7 +178,8 @@ async def update_supplier(supplier_id: str, supplier_data: SupplierUpdate, curre
 
 
 @router.delete("/suppliers/{supplier_id}")
-async def delete_supplier(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_supplier(supplier_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     sid = uuid.UUID(supplier_id)
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
     supplier = result.scalar_one_or_none()
@@ -187,7 +200,8 @@ async def delete_supplier(supplier_id: str, current_user: User = Depends(get_cur
 
 
 @router.patch("/suppliers/{supplier_id}/toggle-status")
-async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
     supplier = result.scalar_one_or_none()
     if not supplier:
@@ -200,7 +214,8 @@ async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(
 
 
 @router.get("/suppliers/{supplier_id}/summary")
-async def get_supplier_summary(supplier_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     sid = uuid.UUID(supplier_id)
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
     supplier = result.scalar_one_or_none()

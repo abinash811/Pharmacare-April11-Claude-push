@@ -17,7 +17,8 @@ class Supplier(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     contact_person: Mapped[Optional[str]] = mapped_column(String(200))
     phone: Mapped[Optional[str]] = mapped_column(String(10))
@@ -34,5 +35,14 @@ class Supplier(Base):
     credit_limit_paise: Mapped[Optional[int]] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)

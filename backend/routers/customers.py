@@ -77,7 +77,8 @@ def _doctor_response(d: DoctorORM) -> dict:
 # ── /customers ────────────────────────────────────────────────────────────────
 
 @router.post("/customers")
-async def create_customer(customer_data: CustomerCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_customer(customer_data: CustomerCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     customer = CustomerORM(
         pharmacy_id=uuid.UUID(current_user.pharmacy_id),
         name=customer_data.name,
@@ -100,7 +101,9 @@ async def get_customers(
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    query = select(CustomerORM).where(CustomerORM.pharmacy_id == pharmacy_id, CustomerORM.deleted_at.is_(None))
+    query = select(CustomerORM).where(
+        CustomerORM.pharmacy_id == pharmacy_id,
+        CustomerORM.deleted_at.is_(None))
 
     if search:
         pattern = f"%{search}%"
@@ -125,7 +128,8 @@ async def get_customers(
 
 
 @router.get("/customers/search")
-async def search_customers(q: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def search_customers(q: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pattern = f"%{q}%"
     result = await db.execute(
@@ -138,7 +142,8 @@ async def search_customers(q: str, current_user: User = Depends(get_current_user
 
 
 @router.get("/customers/{customer_id}")
-async def get_customer(customer_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_customer(customer_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
     customer = result.scalar_one_or_none()
     if not customer:
@@ -147,7 +152,8 @@ async def get_customer(customer_id: str, current_user: User = Depends(get_curren
 
 
 @router.put("/customers/{customer_id}")
-async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
     customer = result.scalar_one_or_none()
     if not customer:
@@ -165,7 +171,8 @@ async def update_customer(customer_id: str, customer_data: dict, current_user: U
 
 
 @router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_customer(customer_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
     customer = result.scalar_one_or_none()
     if not customer:
@@ -176,7 +183,8 @@ async def delete_customer(customer_id: str, current_user: User = Depends(get_cur
 
 
 @router.get("/customers/{customer_id}/stats")
-async def get_customer_stats(customer_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_customer_stats(customer_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     cust_result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
     customer = cust_result.scalar_one_or_none()
     if not customer:
@@ -195,13 +203,15 @@ async def get_customer_stats(customer_id: str, current_user: User = Depends(get_
         last_date = max(b.bill_date for b in bills)
         last_purchase = last_date.strftime("%d/%m/%Y")
 
-    return {"total_purchases": total_purchases, "total_value": round(total_value, 2), "last_purchase": last_purchase}
+    return {"total_purchases": total_purchases, "total_value": round(
+        total_value, 2), "last_purchase": last_purchase}
 
 
 # ── /doctors ──────────────────────────────────────────────────────────────────
 
 @router.post("/doctors")
-async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     doctor = DoctorORM(
         pharmacy_id=uuid.UUID(current_user.pharmacy_id),
         name=doctor_data.name,
@@ -215,12 +225,19 @@ async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
 
 
 @router.get("/doctors")
-async def get_doctors(search: Optional[str] = None, page: int = 1, page_size: int = 50, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_doctors(
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    query = select(DoctorORM).where(DoctorORM.pharmacy_id == pharmacy_id, DoctorORM.deleted_at.is_(None))
+    query = select(DoctorORM).where(
+        DoctorORM.pharmacy_id == pharmacy_id,
+        DoctorORM.deleted_at.is_(None))
     if search:
         pattern = f"%{search}%"
         query = query.where(or_(
@@ -246,7 +263,8 @@ async def get_doctors(search: Optional[str] = None, page: int = 1, page_size: in
 
 
 @router.put("/doctors/{doctor_id}")
-async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(DoctorORM).where(DoctorORM.id == uuid.UUID(doctor_id)))
     doctor = result.scalar_one_or_none()
     if not doctor:
@@ -265,7 +283,8 @@ async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = 
 
 
 @router.delete("/doctors/{doctor_id}")
-async def delete_doctor(doctor_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_doctor(doctor_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(DoctorORM).where(DoctorORM.id == uuid.UUID(doctor_id)))
     doctor = result.scalar_one_or_none()
     if not doctor:

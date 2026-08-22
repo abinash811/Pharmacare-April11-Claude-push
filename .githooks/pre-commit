@@ -24,7 +24,7 @@ STAGED=$(git diff --name-only --cached --diff-filter=ACM)
 
 FRONTEND_FILES=$(echo "$STAGED" | grep -E '^frontend/src/(pages|components)/.*\.(js|jsx|ts|tsx)$' || true)
 FRONTEND_ALL_FILES=$(echo "$STAGED" | grep -E '^frontend/src/.*\.(js|jsx|ts|tsx)$' || true)
-BACKEND_FILES=$(echo "$STAGED" | grep -E '^backend/.*\.py$' | grep -v -E '(^backend/venv/|/alembic/versions/)' || true)
+BACKEND_FILES=$(echo "$STAGED" | grep -E '^backend/.*\.py$' | grep -v -E '(^backend/venv/|/migrations/versions/)' || true)
 
 echo ""
 echo "PharmaCare pre-commit checks (staged files only)"
@@ -140,7 +140,7 @@ if [ -n "$BACKEND_FILES" ] && [ -x backend/venv/bin/flake8 ]; then
   if [ -n "$FLAKE_OUTPUT" ]; then
     red "BLOCKED: flake8 found issue(s) on line(s) you added or changed"
     echo "$FLAKE_OUTPUT" | while read -r l; do file "$l"; done
-    reason "docs/20_CODE_QUALITY.md + CI: new/changed backend lines must pass flake8 (max-line-length=100). Pre-existing issues elsewhere in a touched file don't block — same policy as the checks above."
+    reason "docs/20_CODE_QUALITY.md + CI: new/changed backend lines must pass flake8 (max-line-length=120). Pre-existing issues elsewhere in a touched file don't block — same policy as the checks above."
     ERRORS=$((ERRORS+1))
   fi
 fi

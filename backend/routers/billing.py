@@ -9,11 +9,11 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register, SalesReturn as SalesReturnORM
+from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register
 from models.customers import Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
@@ -171,7 +171,8 @@ def _bill_list_response(b: BillORM) -> dict:
     }
 
 
-async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID, db: AsyncSession) -> tuple[BatchORM | None, ProductORM | None]:
+async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID,
+                         db: AsyncSession) -> tuple[BatchORM | None, ProductORM | None]:
     """Resolve a batch and product from bill item data."""
     batch: BatchORM | None = None
     product: ProductORM | None = None
@@ -191,12 +192,16 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID, db: AsyncSession) -
     # Try batch by product + batch_number
     if not batch and product_sku and batch_no:
         prod_result = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == product_sku)
         )
         product = prod_result.scalar_one_or_none()
         if product:
             batch_result = await db.execute(
-                select(BatchORM).where(BatchORM.product_id == product.id, BatchORM.batch_number == batch_no)
+                select(BatchORM).where(
+                    BatchORM.product_id == product.id,
+                    BatchORM.batch_number == batch_no)
             )
             batch = batch_result.scalar_one_or_none()
 
@@ -205,7 +210,10 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID, db: AsyncSession) -
         try:
             pid = uuid.UUID(product_id)
             batch_result = await db.execute(
-                select(BatchORM).where(BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0, BatchORM.is_active == True)
+                select(BatchORM).where(
+                    BatchORM.product_id == pid,
+                    BatchORM.quantity_on_hand > 0,
+                    BatchORM.is_active)
                 .order_by(BatchORM.expiry_date).limit(1)
             )
             batch = batch_result.scalar_one_or_none()
@@ -224,7 +232,9 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID, db: AsyncSession) -
             pass
     if not product and product_sku:
         prod_result = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == product_sku)
         )
         product = prod_result.scalar_one_or_none()
 
@@ -301,7 +311,8 @@ async def _create_h1_entry(
 # ── /bills ─────────────────────────────────────────────────────────────────────
 
 @router.post("/bills")
-async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_bill(bill_data: BillCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
     is_draft = bill_data.status == "draft"
@@ -338,11 +349,16 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
             product_sku = item.get("product_sku")
             if product_sku:
                 prod_result = await db.execute(
-                    select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+                    select(ProductORM).where(
+                        ProductORM.pharmacy_id == pharmacy_id,
+                        ProductORM.sku == product_sku)
                 )
                 product = prod_result.scalar_one_or_none()
-                if product and product.drug_schedule == "H1" and (not bill_data.doctor_name or not bill_data.doctor_name.strip()):
-                    raise HTTPException(status_code=400, detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+                if product and product.drug_schedule == "H1" and (
+                        not bill_data.doctor_name or not bill_data.doctor_name.strip()):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Prescription details required for Schedule H1 drug: {product.name}")
 
     # Calculate totals from items
     subtotal_paise = 0
@@ -356,7 +372,8 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         batch, product = await _resolve_batch(item, pharmacy_id, db)
         if not batch or not product:
             if not is_draft:
-                logger.warning(f"No batch/product found for item {item.get('product_name', 'unknown')}")
+                logger.warning(
+                    f"No batch/product found for item {item.get('product_name', 'unknown')}")
             continue
 
         quantity = item.get("quantity", 0)
@@ -471,9 +488,12 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
         final_items.append(bill_item)
 
         if not is_draft:
-            await _deduct_stock_and_record(batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
+            await _deduct_stock_and_record(
+                batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
             if is_sale:
-                await _create_h1_entry(product, batch, bill_item.quantity, bill, bill_item, bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
+                await _create_h1_entry(
+                    product, batch, bill_item.quantity, bill, bill_item,
+                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
 
     await _record_audit(
         pharmacy_id, user_id, "create", "invoice", bill.id, None,
@@ -488,7 +508,8 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(get_cu
 
 
 @router.put("/bills/{bill_id}")
-async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
     bid = uuid.UUID(bill_id)
@@ -598,7 +619,11 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     bill.balance_paise = balance_paise
     bill.cost_total_paise = cost_total_paise
     bill.margin_paise = grand_total_paise - cost_total_paise
-    bill.margin_percent = round((bill.margin_paise / grand_total_paise * 100) if grand_total_paise > 0 else 0, 2)
+    bill.margin_percent = round(
+        (bill.margin_paise /
+         grand_total_paise *
+         100) if grand_total_paise > 0 else 0,
+        2)
     bill.customer_name = bill_data.customer_name or "Counter Sale"
     bill.customer_phone = bill_data.customer_mobile
     bill.doctor_name = bill_data.doctor_name
@@ -611,11 +636,15 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     if is_finalizing:
         for bill_item, batch, product in item_orms:
             is_sale = bill_data.invoice_type == "SALE"
-            await _deduct_stock_and_record(batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
+            await _deduct_stock_and_record(
+                batch, product, bill_item.quantity, is_sale, bill.id, pharmacy_id, user_id, db)
             if is_sale:
-                await _create_h1_entry(product, batch, bill_item.quantity, bill, bill_item, bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
+                await _create_h1_entry(
+                    product, batch, bill_item.quantity, bill, bill_item,
+                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
 
     await db.flush()
+    await db.refresh(bill)  # updated_at has onupdate=func.now() — see purchases.py
 
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bid))
     return _bill_response(bill, items_result.scalars().all())
@@ -680,7 +709,8 @@ async def get_bills(
 
 
 @router.get("/bills/{bill_id}")
-async def get_bill(bill_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_bill(bill_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(BillORM).where(BillORM.id == uuid.UUID(bill_id)))
     bill = result.scalar_one_or_none()
     if not bill:
@@ -690,7 +720,8 @@ async def get_bill(bill_id: str, current_user: User = Depends(get_current_user),
 
 
 @router.get("/bills/{bill_id}/pdf")
-async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
 
@@ -883,7 +914,8 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(get_curre
 # ── /payments ──────────────────────────────────────────────────────────────────
 
 @router.post("/payments")
-async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     bid = uuid.UUID(payment_data.invoice_id)
 
@@ -905,14 +937,17 @@ async def create_payment(payment_data: PaymentCreate, current_user: User = Depen
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "payment", "invoice", bid, None,
-        {"amount": payment_data.amount, "payment_method": payment_data.payment_method, "new_status": new_status},
+        {"amount": payment_data.amount,
+         "payment_method": payment_data.payment_method,
+         "new_status": new_status},
         db,
     )
 
     if old_status != new_status:
         await _record_audit(
             pharmacy_id, uuid.UUID(current_user.id), "status_change", "invoice", bid,
-            {"status": old_status, "due_amount": (bill.grand_total_paise - bill.amount_paid_paise + payment_paise) / 100},
+            {"status": old_status, "due_amount": (
+                bill.grand_total_paise - bill.amount_paid_paise + payment_paise) / 100},
             {"status": new_status, "due_amount": new_balance / 100},
             db,
         )
@@ -932,7 +967,8 @@ async def create_payment(payment_data: PaymentCreate, current_user: User = Depen
 
 
 @router.get("/payments")
-async def get_payments(invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_payments(invoice_id: Optional[str] = None, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if not invoice_id:
         return []
     bid = uuid.UUID(invoice_id)
@@ -955,7 +991,8 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
 # ── /refunds ───────────────────────────────────────────────────────────────────
 
 @router.post("/refunds")
-async def create_refund(refund_data: RefundCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     bid = uuid.UUID(refund_data.return_invoice_id)
     result = await db.execute(select(BillORM).where(BillORM.id == bid))
     bill = result.scalar_one_or_none()
@@ -969,7 +1006,9 @@ async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
     await _record_audit(
         uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id),
         "create", "refund", bid, None,
-        {"amount": refund_data.amount, "refund_method": refund_data.refund_method, "reason": refund_data.reason},
+        {"amount": refund_data.amount,
+         "refund_method": refund_data.refund_method,
+         "reason": refund_data.reason},
         db,
     )
     await db.flush()
@@ -989,7 +1028,11 @@ async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
 
 
 @router.get("/refunds")
-async def get_refunds(return_invoice_id: Optional[str] = None, original_invoice_id: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_refunds(
+        return_invoice_id: Optional[str] = None,
+        original_invoice_id: Optional[str] = None,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     # Refunds are tracked via bill status and audit logs
     if not return_invoice_id:
         return []
@@ -1029,22 +1072,22 @@ async def get_audit_logs(
     total = count_result.scalar()
 
     page_size = min(max(page_size, 1), 100)
-    page      = max(page, 1)
-    offset    = (page - 1) * page_size
-    result    = await db.execute(query.order_by(AuditLog.created_at.desc()).offset(offset).limit(page_size))
-    logs      = result.scalars().all()
+    page = max(page, 1)
+    offset = (page - 1) * page_size
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).offset(offset).limit(page_size))
+    logs = result.scalars().all()
 
     return {
         "data": [{
-            "id": str(l.id),
-            "entity_type": l.entity_type,
-            "entity_id": str(l.entity_id) if l.entity_id else None,
-            "action": l.action,
-            "old_value": l.old_values,
-            "new_value": l.new_values,
-            "performed_by": str(l.user_id) if l.user_id else None,
-            "created_at": l.created_at.isoformat() if l.created_at else None,
-        } for l in logs],
+            "id": str(log.id),
+            "entity_type": log.entity_type,
+            "entity_id": str(log.entity_id) if log.entity_id else None,
+            "action": log.action,
+            "old_value": log.old_values,
+            "new_value": log.new_values,
+            "performed_by": str(log.user_id) if log.user_id else None,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        } for log in logs],
         "pagination": {
             "page": page, "page_size": page_size, "total": total,
             "total_pages": max(1, (total + page_size - 1) // page_size),
@@ -1054,7 +1097,8 @@ async def get_audit_logs(
 
 
 @router.get("/audit-logs/entity/{entity_type}/{entity_id}")
-async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(AuditLog)
         .where(AuditLog.entity_type == entity_type, AuditLog.entity_id == uuid.UUID(entity_id))
@@ -1063,12 +1107,12 @@ async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user:
     logs = result.scalars().all()
 
     return [{
-        "id": str(l.id),
-        "entity_type": l.entity_type,
-        "entity_id": str(l.entity_id) if l.entity_id else None,
-        "action": l.action,
-        "old_value": l.old_values,
-        "new_value": l.new_values,
-        "performed_by": str(l.user_id) if l.user_id else None,
-        "created_at": l.created_at.isoformat() if l.created_at else None,
-    } for l in logs]
+        "id": str(log.id),
+        "entity_type": log.entity_type,
+        "entity_id": str(log.entity_id) if log.entity_id else None,
+        "action": log.action,
+        "old_value": log.old_values,
+        "new_value": log.new_values,
+        "performed_by": str(log.user_id) if log.user_id else None,
+        "created_at": log.created_at.isoformat() if log.created_at else None,
+    } for log in logs]

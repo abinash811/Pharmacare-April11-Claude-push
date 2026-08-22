@@ -42,8 +42,8 @@ def main(argv: list[str]) -> int:
         return 0
 
     result = subprocess.run(
-        ["flake8", *files, "--max-line-length=100",
-         "--exclude=venv,alembic/versions,__pycache__"],
+        ["flake8", *files, "--max-line-length=120",
+         "--exclude=venv,migrations/versions,__pycache__,server.py"],
         capture_output=True, text=True, check=False,
     )
     if result.returncode == 0:

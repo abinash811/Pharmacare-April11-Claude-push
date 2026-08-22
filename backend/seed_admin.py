@@ -16,6 +16,12 @@ Run from the backend/ directory:
 Safe to run multiple times — skips anything that already exists.
 """
 from __future__ import annotations
+from models.users import Role, User
+from models.pharmacy import Pharmacy, PharmacySettings
+from database import AsyncSessionLocal, engine
+from config import settings
+from sqlalchemy import select
+from passlib.context import CryptContext
 
 import argparse
 import asyncio
@@ -26,38 +32,31 @@ import uuid
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from passlib.context import CryptContext
-from sqlalchemy import select
-
-from config import settings
-from database import AsyncSessionLocal, engine, Base
-from models.pharmacy import Pharmacy, PharmacySettings
-from models.users import Role, User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ── Default credentials (override with CLI flags) ─────────────────────────────
-DEFAULT_EMAIL    = "admin@pharmacare.com"
+DEFAULT_EMAIL = "admin@pharmacare.com"
 DEFAULT_PASSWORD = "Admin@123"
-DEFAULT_NAME     = "Admin User"
+DEFAULT_NAME = "Admin User"
 
 # ── Role permission matrices ──────────────────────────────────────────────────
 ROLE_PERMISSIONS: dict[str, dict] = {
     "admin": {"*": True},           # full access
     "manager": {
         "dashboard": {"view": True},
-        "billing":   {"view": True, "create": True, "edit": True},
+        "billing": {"view": True, "create": True, "edit": True},
         "inventory": {"view": True, "create": True, "edit": True},
         "purchases": {"view": True, "create": True, "edit": True},
         "customers": {"view": True, "create": True, "edit": True},
         "suppliers": {"view": True, "create": True},
-        "reports":   {"view": True},
-        "settings":  {"view": True},
-        "users":     {"view": True},
+        "reports": {"view": True},
+        "settings": {"view": True},
+        "users": {"view": True},
     },
     "cashier": {
         "dashboard": {"view": True},
-        "billing":   {"view": True, "create": True},
+        "billing": {"view": True, "create": True},
         "inventory": {"view": True},
         "customers": {"view": True, "create": True},
     },
@@ -157,7 +156,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                 print(f"  🔄 Reset password for existing user '{email}'  (name updated to '{name}')")
             else:
                 print(f"  ✅ Admin user '{email}' already exists — skipping")
-                print(f"     Run with --force to reset the password to the default.")
+                print("     Run with --force to reset the password to the default.")
         else:
             admin_role = role_map.get("admin")
             if not admin_role:
@@ -183,7 +182,7 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
     print("─" * 55)
     print("  LOGIN CREDENTIALS")
     print("─" * 55)
-    print(f"  URL      : http://localhost:3000")
+    print("  URL      : http://localhost:3000")
     print(f"  Email    : {email}")
     print(f"  Password : {password}")
     print("─" * 55)
@@ -191,10 +190,22 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Seed PharmaCare PostgreSQL admin user")
-    parser.add_argument("--email",    default=DEFAULT_EMAIL,    help=f"Admin email (default: {DEFAULT_EMAIL})")
-    parser.add_argument("--password", default=DEFAULT_PASSWORD, help=f"Admin password (default: {DEFAULT_PASSWORD})")
-    parser.add_argument("--name",     default=DEFAULT_NAME,     help=f"Admin display name (default: {DEFAULT_NAME})")
-    parser.add_argument("--force",    action="store_true",       help="Reset password/name even if user already exists")
+    parser.add_argument(
+        "--email",
+        default=DEFAULT_EMAIL,
+        help=f"Admin email (default: {DEFAULT_EMAIL})")
+    parser.add_argument(
+        "--password",
+        default=DEFAULT_PASSWORD,
+        help=f"Admin password (default: {DEFAULT_PASSWORD})")
+    parser.add_argument(
+        "--name",
+        default=DEFAULT_NAME,
+        help=f"Admin display name (default: {DEFAULT_NAME})")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Reset password/name even if user already exists")
     args = parser.parse_args()
 
     print()

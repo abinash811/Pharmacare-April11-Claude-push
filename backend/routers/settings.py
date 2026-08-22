@@ -191,7 +191,8 @@ def _role_response(role: RoleORM) -> dict:
 # ── /settings ─────────────────────────────────────────────────────────────────
 
 @router.get("/settings")
-async def get_settings(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_settings(current_user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = result.scalar_one_or_none()
@@ -201,18 +202,18 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
 
     return {
         "inventory": {
-            "near_expiry_days":        ps.near_expiry_threshold_days if ps else 90,
-            "low_stock_threshold_days":ps.low_stock_threshold_days   if ps else 30,
-            "block_expired_stock":     True,
-            "allow_near_expiry_sale":  True,
+            "near_expiry_days": ps.near_expiry_threshold_days if ps else 90,
+            "low_stock_threshold_days": ps.low_stock_threshold_days if ps else 30,
+            "block_expired_stock": True,
+            "allow_near_expiry_sale": True,
         },
         "notifications": {
-            "alert_low_stock_enabled":    ps.alert_low_stock_enabled    if ps else True,
-            "alert_near_expiry_enabled":  ps.alert_near_expiry_enabled  if ps else True,
+            "alert_low_stock_enabled": ps.alert_low_stock_enabled if ps else True,
+            "alert_near_expiry_enabled": ps.alert_near_expiry_enabled if ps else True,
             "alert_drug_license_enabled": ps.alert_drug_license_enabled if ps else True,
-            "low_stock_threshold_days":   ps.low_stock_threshold_days   if ps else 30,
-            "near_expiry_days":           ps.near_expiry_threshold_days if ps else 90,
-            "drug_license_alert_days":    ps.drug_license_alert_days    if ps else 90,
+            "low_stock_threshold_days": ps.low_stock_threshold_days if ps else 30,
+            "near_expiry_days": ps.near_expiry_threshold_days if ps else 90,
+            "drug_license_alert_days": ps.drug_license_alert_days if ps else 90,
         },
         "billing": {
             "enable_draft_bills": True,
@@ -227,40 +228,43 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
             "allow_partial_return": True,
         },
         "general": {
-            "name":                 pharmacy.name                 if pharmacy else "",
-            "address":              pharmacy.address              if pharmacy else "",
-            "city":                 pharmacy.city                 if pharmacy else "",
-            "state":                pharmacy.state                if pharmacy else "",
-            "pincode":              pharmacy.pincode              if pharmacy else "",
-            "phone":                pharmacy.phone                if pharmacy else "",
-            "email":                pharmacy.email                if pharmacy else "",
-            "gstin":                pharmacy.gstin                if pharmacy else "",
-            "drug_license_number":  pharmacy.drug_license_number  if pharmacy else "",
-            "drug_license_expiry":  pharmacy.drug_license_expiry.isoformat() if pharmacy and pharmacy.drug_license_expiry else "",
-            "fssai_number":         pharmacy.fssai_number         if pharmacy else "",
-            "pan_number":           pharmacy.pan_number           if pharmacy else "",
-            "logo_url":             pharmacy.logo_url             if pharmacy else "",
+            "name": pharmacy.name if pharmacy else "",
+            "address": pharmacy.address if pharmacy else "",
+            "city": pharmacy.city if pharmacy else "",
+            "state": pharmacy.state if pharmacy else "",
+            "pincode": pharmacy.pincode if pharmacy else "",
+            "phone": pharmacy.phone if pharmacy else "",
+            "email": pharmacy.email if pharmacy else "",
+            "gstin": pharmacy.gstin if pharmacy else "",
+            "drug_license_number": pharmacy.drug_license_number if pharmacy else "",
+            "drug_license_expiry": (
+                pharmacy.drug_license_expiry.isoformat()
+                if pharmacy and pharmacy.drug_license_expiry else ""
+            ),
+            "fssai_number": pharmacy.fssai_number if pharmacy else "",
+            "pan_number": pharmacy.pan_number if pharmacy else "",
+            "logo_url": pharmacy.logo_url if pharmacy else "",
         },
         "gst": {
-            "default_gst_rate":       float(ps.default_gst_rate)    if ps else 5.0,
-            "is_composition_scheme":  ps.is_composition_scheme       if ps else False,
-            "default_hsn_medicines":  ps.default_hsn_medicines       if ps else "3004",
-            "default_hsn_surgical":   ps.default_hsn_surgical        if ps else "9018",
-            "auto_apply_hsn":         ps.auto_apply_hsn              if ps else True,
-            "round_off_amount":       ps.round_off_amount            if ps else True,
-            "print_gst_summary":      ps.print_gst_summary           if ps else True,
+            "default_gst_rate": float(ps.default_gst_rate) if ps else 5.0,
+            "is_composition_scheme": ps.is_composition_scheme if ps else False,
+            "default_hsn_medicines": ps.default_hsn_medicines if ps else "3004",
+            "default_hsn_surgical": ps.default_hsn_surgical if ps else "9018",
+            "auto_apply_hsn": ps.auto_apply_hsn if ps else True,
+            "round_off_amount": ps.round_off_amount if ps else True,
+            "print_gst_summary": ps.print_gst_summary if ps else True,
         },
         "print": {
-            "paper_size":         ps.paper_size          if ps else "80mm",
-            "print_logo":         ps.print_logo          if ps else True,
-            "print_drug_license": ps.print_drug_license  if ps else True,
-            "print_patient_name": ps.print_patient_name  if ps else True,
-            "print_gstin":        ps.print_gstin         if ps else True,
-            "print_fssai":        ps.print_fssai         if ps else False,
-            "print_signature":    ps.print_signature     if ps else False,
+            "paper_size": ps.paper_size if ps else "80mm",
+            "print_logo": ps.print_logo if ps else True,
+            "print_drug_license": ps.print_drug_license if ps else True,
+            "print_patient_name": ps.print_patient_name if ps else True,
+            "print_gstin": ps.print_gstin if ps else True,
+            "print_fssai": ps.print_fssai if ps else False,
+            "print_signature": ps.print_signature if ps else False,
             "print_pan": ps.print_pan if ps else False,
-            "bill_header":        ps.bill_header         if ps else "",
-            "bill_footer":        ps.bill_footer         if ps else "Thank you for your purchase!",
+            "bill_header": ps.bill_header if ps else "",
+            "bill_footer": ps.bill_footer if ps else "Thank you for your purchase!",
         },
         "digital": {
             "use_default_header": ps.digital_use_default_header if ps else True,
@@ -275,7 +279,8 @@ async def get_settings(current_user: User = Depends(get_current_user), db: Async
 
 
 @router.put("/settings")
-async def update_settings(settings_data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_settings(settings_data: dict, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -295,7 +300,8 @@ async def update_settings(settings_data: dict, current_user: User = Depends(get_
         ps.low_stock_threshold_days = inv["low_stock_threshold_days"]
 
     notif = settings_data.get("notifications", {})
-    for field in ["alert_low_stock_enabled", "alert_near_expiry_enabled", "alert_drug_license_enabled", "drug_license_alert_days"]:
+    for field in ["alert_low_stock_enabled", "alert_near_expiry_enabled",
+                  "alert_drug_license_enabled", "drug_license_alert_days"]:
         if field in notif:
             setattr(ps, field, notif[field])
     if "low_stock_threshold_days" in notif:
@@ -386,21 +392,27 @@ async def get_all_permissions(current_user: User = Depends(get_current_user)):
 # ── /roles ────────────────────────────────────────────────────────────────────
 
 @router.get("/roles")
-async def get_all_roles(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_all_roles(current_user: User = Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
-        select(RoleORM).where(RoleORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), RoleORM.is_active == True)
+        select(RoleORM).where(
+            RoleORM.pharmacy_id == uuid.UUID(
+                current_user.pharmacy_id),
+            RoleORM.is_active)
     )
     return [_role_response(r) for r in result.scalars().all()]
 
 
 @router.post("/roles")
-async def create_role(role_data: RoleCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_role(role_data: RoleCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    existing = await db.execute(select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_data.name))
+    existing = await db.execute(select(RoleORM).where(
+        RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Role name already exists")
 
@@ -417,7 +429,8 @@ async def create_role(role_data: RoleCreate, current_user: User = Depends(get_cu
 
 
 @router.get("/roles/{role_id}")
-async def get_role(role_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_role(role_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
@@ -428,7 +441,8 @@ async def get_role(role_id: str, current_user: User = Depends(get_current_user),
 
 
 @router.put("/roles/{role_id}")
-async def update_role(role_id: str, role_update: RoleUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_role(role_id: str, role_update: RoleUpdate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
@@ -444,11 +458,13 @@ async def update_role(role_id: str, role_update: RoleUpdate, current_user: User 
         role.permissions = role_update.permissions
 
     await db.flush()
+    await db.refresh(role)  # updated_at has onupdate=func.now() — see purchases.py for the full note
     return _role_response(role)
 
 
 @router.delete("/roles/{role_id}")
-async def delete_role(role_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_role(role_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
@@ -461,7 +477,9 @@ async def delete_role(role_id: str, current_user: User = Depends(get_current_use
     count_result = await db.execute(select(func.count()).select_from(UserORM).where(UserORM.role_id == role.id))
     user_count = count_result.scalar()
     if user_count > 0:
-        raise HTTPException(status_code=400, detail=f"Cannot delete role. {user_count} user(s) are assigned this role")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete role. {user_count} user(s) are assigned this role")
 
     role.is_active = False
     await db.flush()
@@ -497,13 +515,18 @@ async def get_bill_sequence_settings(
     if document_type not in _SEQUENCE_TYPES:
         raise HTTPException(status_code=400, detail=f"Unknown document_type '{document_type}'")
     result = await db.execute(
-        select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
+        select(PharmacySettings).where(
+            PharmacySettings.pharmacy_id == uuid.UUID(
+                current_user.pharmacy_id))
     )
     return _sequence_response(result.scalar_one_or_none(), document_type)
 
 
 @router.put("/settings/bill-sequence")
-async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_bill_sequence_settings(
+        seq_settings: BillSequenceSettings,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     if seq_settings.document_type not in _SEQUENCE_TYPES:
@@ -571,9 +594,12 @@ async def update_bill_sequence_settings(seq_settings: BillSequenceSettings, curr
 
 
 @router.get("/settings/bill-sequence/all")
-async def get_all_bill_sequences(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_all_bill_sequences(current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(PharmacySettings).where(PharmacySettings.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
+        select(PharmacySettings).where(
+            PharmacySettings.pharmacy_id == uuid.UUID(
+                current_user.pharmacy_id))
     )
     ps = result.scalar_one_or_none()
     return [_sequence_response(ps, document_type) for document_type in _SEQUENCE_TYPES]

@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
@@ -90,7 +90,8 @@ async def _generate_credit_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> s
     return f"{prefix}{new_num:04d}"
 
 
-def _return_response(r: PurchaseReturnORM, items: list[PurchaseReturnItemORM], supplier_name: str = "") -> dict:
+def _return_response(r: PurchaseReturnORM,
+                     items: list[PurchaseReturnItemORM], supplier_name: str = "") -> dict:
     return {
         "id": str(r.id),
         "return_number": r.return_number,
@@ -126,7 +127,8 @@ def _return_item_response(i: PurchaseReturnItemORM) -> dict:
     }
 
 
-async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: str | None, batch_no: str | None, db: AsyncSession) -> BatchORM | None:
+async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: str |
+                      None, batch_no: str | None, db: AsyncSession) -> BatchORM | None:
     """Find a batch by ID or by product+batch_number."""
     if batch_id:
         try:
@@ -138,14 +140,18 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: s
             pass
     if batch_no:
         result = await db.execute(
-            select(BatchORM).where(BatchORM.product_id == product_id, BatchORM.batch_number == batch_no)
+            select(BatchORM).where(
+                BatchORM.product_id == product_id,
+                BatchORM.batch_number == batch_no)
         )
         batch = result.scalar_one_or_none()
         if batch:
             return batch
     # Fallback: any batch for this product
     result = await db.execute(
-        select(BatchORM).where(BatchORM.product_id == product_id, BatchORM.quantity_on_hand > 0).limit(1)
+        select(BatchORM).where(
+            BatchORM.product_id == product_id,
+            BatchORM.quantity_on_hand > 0).limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -178,7 +184,8 @@ async def _deduct_stock_and_record(
 # ── /purchases/{purchase_id}/items-for-return ──────────────────────────────────
 
 @router.get("/purchases/{purchase_id}/items-for-return")
-async def get_purchase_items_for_return(purchase_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_purchase_items_for_return(purchase_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pid = uuid.UUID(purchase_id)
     result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == pid))
     purchase = result.scalar_one_or_none()
@@ -191,14 +198,17 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
 
     # Get already-returned quantities from confirmed returns
     existing_returns = await db.execute(
-        select(PurchaseReturnORM).where(PurchaseReturnORM.purchase_id == pid, PurchaseReturnORM.status == "confirmed")
+        select(PurchaseReturnORM).where(
+            PurchaseReturnORM.purchase_id == pid,
+            PurchaseReturnORM.status == "confirmed")
     )
     return_ids = [r.id for r in existing_returns.scalars().all()]
 
     returned_qtys: dict[uuid.UUID, int] = {}  # product_id -> qty returned
     if return_ids:
         ret_items_result = await db.execute(
-            select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
+            select(PurchaseReturnItemORM).where(
+                PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
         )
         for ri in ret_items_result.scalars().all():
             key = ri.product_id
@@ -241,7 +251,8 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
 # ── /purchase-returns ──────────────────────────────────────────────────────────
 
 @router.post("/purchase-returns")
-async def create_purchase_return(return_data: PurchaseReturnCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_purchase_return(return_data: PurchaseReturnCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(return_data.supplier_id)
     purchase_id = uuid.UUID(return_data.purchase_id)
@@ -264,24 +275,29 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
 
         # Get already returned
         existing_returns = await db.execute(
-            select(PurchaseReturnORM).where(PurchaseReturnORM.purchase_id == purchase_id, PurchaseReturnORM.status == "confirmed")
+            select(PurchaseReturnORM).where(
+                PurchaseReturnORM.purchase_id == purchase_id,
+                PurchaseReturnORM.status == "confirmed")
         )
         return_ids = [r.id for r in existing_returns.scalars().all()]
         returned_qtys: dict[str, int] = {}
         if return_ids:
             ret_items_result = await db.execute(
-                select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
+                select(PurchaseReturnItemORM).where(
+                    PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
             )
             for ri in ret_items_result.scalars().all():
                 returned_qtys[ri.product_name] = returned_qtys.get(ri.product_name, 0) + ri.quantity
 
         for item_data in return_data.items:
             qty_units = item_data.return_qty_units or item_data.qty_units or 0
-            max_returnable = original_qtys.get(item_data.product_name, 0) - returned_qtys.get(item_data.product_name, 0)
+            max_returnable = original_qtys.get(
+                item_data.product_name, 0) - returned_qtys.get(item_data.product_name, 0)
             if qty_units > max_returnable:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Return qty ({qty_units}) exceeds max returnable ({max_returnable}) for {item_data.product_name}",
+                    detail=(f"Return qty ({qty_units}) exceeds max returnable "
+                            f"({max_returnable}) for {item_data.product_name}"),
                 )
 
     return_number = await _generate_return_number(pharmacy_id, db)
@@ -305,15 +321,19 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
         line_total = line_taxable + line_gst
 
         product = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == item_data.product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == item_data.product_sku)
         )
         product_orm = product.scalar_one_or_none()
         if not product_orm:
-            raise HTTPException(status_code=404, detail=f"Product {item_data.product_sku} not found")
+            raise HTTPException(status_code=404,
+                                detail=f"Product {item_data.product_sku} not found")
 
         batch = await _find_batch(pharmacy_id, product_orm.id, item_data.batch_id, item_data.batch_no, db)
         if not batch:
-            raise HTTPException(status_code=404, detail=f"No batch found for {item_data.product_name}")
+            raise HTTPException(status_code=404,
+                                detail=f"No batch found for {item_data.product_name}")
 
         expiry = item_data.expiry_date or item_data.expiry
         item_orm = PurchaseReturnItemORM(
@@ -402,33 +422,42 @@ async def get_purchase_returns(
     items_by_return: dict[uuid.UUID, list] = {rid: [] for rid in return_ids}
     if return_ids:
         items_result = await db.execute(
-            select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
+            select(PurchaseReturnItemORM).where(
+                PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
         )
         for item in items_result.scalars().all():
             items_by_return[item.purchase_return_id].append(item)
 
-    return [_return_response(r, items_by_return.get(r.id, []), supplier_map.get(r.supplier_id, "")) for r in returns]
+    return [_return_response(r, items_by_return.get(
+        r.id, []), supplier_map.get(r.supplier_id, "")) for r in returns]
 
 
 @router.get("/purchase-returns/{return_id}")
-async def get_purchase_return(return_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_purchase_return(return_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     rid = uuid.UUID(return_id)
     result = await db.execute(select(PurchaseReturnORM).where(PurchaseReturnORM.id == rid))
     purchase_return = result.scalar_one_or_none()
     if not purchase_return:
         raise HTTPException(status_code=404, detail="Purchase return not found")
 
-    items_result = await db.execute(select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id == rid))
+    items_result = await db.execute(select(PurchaseReturnItemORM).where(
+        PurchaseReturnItemORM.purchase_return_id == rid))
     items = items_result.scalars().all()
 
-    sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
+    sup_result = await db.execute(select(SupplierORM.name).where(
+        SupplierORM.id == purchase_return.supplier_id))
     supplier_name = sup_result.scalar_one_or_none() or ""
 
     return _return_response(purchase_return, items, supplier_name)
 
 
 @router.put("/purchase-returns/{return_id}")
-async def update_purchase_return(return_id: str, update_data: PurchaseReturnUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_purchase_return(
+        return_id: str,
+        update_data: PurchaseReturnUpdate,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
 
@@ -442,22 +471,26 @@ async def update_purchase_return(return_id: str, update_data: PurchaseReturnUpda
         if update_data.note is not None:
             purchase_return.notes = update_data.note
         await db.flush()
+        await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
 
-        items_result = await db.execute(select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id == rid))
-        sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
-        return _return_response(purchase_return, items_result.scalars().all(), sup_result.scalar_one_or_none() or "")
+        items_result = await db.execute(select(PurchaseReturnItemORM).where(
+            PurchaseReturnItemORM.purchase_return_id == rid))
+        sup_result = await db.execute(select(SupplierORM.name).where(
+            SupplierORM.id == purchase_return.supplier_id))
+        return _return_response(purchase_return, items_result.scalars().all(),
+                                sup_result.scalar_one_or_none() or "")
 
     # Financial edit — requires items
     if not update_data.items:
         raise HTTPException(status_code=400, detail="Items required for financial edit")
 
     # Get old items for stock adjustment
-    old_items_result = await db.execute(select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id == rid))
+    old_items_result = await db.execute(select(PurchaseReturnItemORM).where(
+        PurchaseReturnItemORM.purchase_return_id == rid))
     old_items = old_items_result.scalars().all()
     old_qty_map: dict[uuid.UUID, int] = {}  # product_id -> old qty
     for oi in old_items:
         old_qty_map[oi.product_id] = old_qty_map.get(oi.product_id, 0) + oi.quantity
-    old_total = purchase_return.grand_total_paise
 
     # Delete old items
     for oi in old_items:
@@ -482,7 +515,9 @@ async def update_purchase_return(return_id: str, update_data: PurchaseReturnUpda
         line_total = line_taxable + line_gst
 
         product = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == item_data.product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == item_data.product_sku)
         )
         product_orm = product.scalar_one_or_none()
         if not product_orm:
@@ -546,13 +581,15 @@ async def update_purchase_return(return_id: str, update_data: PurchaseReturnUpda
         purchase_return.notes = update_data.note
 
     await db.flush()
+    await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
 
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
     return _return_response(purchase_return, new_items, sup_result.scalar_one_or_none() or "")
 
 
 @router.post("/purchase-returns/{return_id}/confirm")
-async def confirm_purchase_return(return_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def confirm_purchase_return(return_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
 
@@ -563,7 +600,8 @@ async def confirm_purchase_return(return_id: str, current_user: User = Depends(g
     if purchase_return.status == "confirmed":
         raise HTTPException(status_code=400, detail="Return is already confirmed")
 
-    items_result = await db.execute(select(PurchaseReturnItemORM).where(PurchaseReturnItemORM.purchase_return_id == rid))
+    items_result = await db.execute(select(PurchaseReturnItemORM).where(
+        PurchaseReturnItemORM.purchase_return_id == rid))
     items = items_result.scalars().all()
 
     movements_created = 0

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -88,15 +88,13 @@ async def _generate_credit_note_number(pharmacy_id: uuid.UUID, db: AsyncSession)
     return return_number
 
 
-def _return_response(r: SalesReturnORM, items: list[SalesReturnItemORM], bill: Bill | None = None) -> dict:
+def _return_response(
+        r: SalesReturnORM, items: list[SalesReturnItemORM], bill: Bill | None = None) -> dict:
     item_list = []
     for i in items:
         sale_price = i.sale_price_paise / 100
-        base_amount = sale_price * i.quantity
         gst_percent = float(i.gst_rate)
         disc_percent = 0  # stored at bill-item level, not on return item
-        after_disc = base_amount
-        gst = i.gst_paise / 100
         line_total = i.line_total_paise / 100
 
         item_list.append({
@@ -132,7 +130,12 @@ def _return_response(r: SalesReturnORM, items: list[SalesReturnItemORM], bill: B
     }
 
 
-async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID | None, batch_id: str | None, batch_no: str | None, db: AsyncSession) -> BatchORM | None:
+async def _find_batch(
+        pharmacy_id: uuid.UUID,
+        product_id: uuid.UUID | None,
+        batch_id: str | None,
+        batch_no: str | None,
+        db: AsyncSession) -> BatchORM | None:
     if batch_id:
         try:
             result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
@@ -143,7 +146,9 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID | None, batc
             pass
     if product_id and batch_no:
         result = await db.execute(
-            select(BatchORM).where(BatchORM.product_id == product_id, BatchORM.batch_number == batch_no)
+            select(BatchORM).where(
+                BatchORM.product_id == product_id,
+                BatchORM.batch_number == batch_no)
         )
         batch = result.scalar_one_or_none()
         if batch:
@@ -151,7 +156,8 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID | None, batc
     return None
 
 
-async def _find_bill_item(bill_id: uuid.UUID, product_id: uuid.UUID, batch_id: uuid.UUID, db: AsyncSession) -> BillItem | None:
+async def _find_bill_item(bill_id: uuid.UUID, product_id: uuid.UUID,
+                          batch_id: uuid.UUID, db: AsyncSession) -> BillItem | None:
     result = await db.execute(
         select(BillItem).where(
             BillItem.bill_id == bill_id,
@@ -210,7 +216,8 @@ async def _reverse_stock(
 # ── /sales-returns ─────────────────────────────────────────────────────────────
 
 @router.post("/sales-returns")
-async def create_sales_return(return_data: SalesReturnCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_sales_return(return_data: SalesReturnCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
 
@@ -218,7 +225,9 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
     if not return_data.original_bill_id:
         if current_user.role != "admin":
             role_result = await db.execute(
-                select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == current_user.role)
+                select(RoleORM).where(
+                    RoleORM.pharmacy_id == pharmacy_id,
+                    RoleORM.name == current_user.role)
             )
             role = role_result.scalar_one_or_none()
             perms = role.permissions if role and isinstance(role.permissions, list) else []
@@ -245,7 +254,8 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
         if orig_item and item.qty > orig_item.quantity:
             raise HTTPException(
                 status_code=400,
-                detail=f"Return quantity for {item.medicine_name} ({item.qty}) exceeds original billed quantity ({orig_item.quantity})",
+                detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
+                        f"original billed quantity ({orig_item.quantity})"),
             )
 
     return_no = await _generate_credit_note_number(pharmacy_id, db)
@@ -268,14 +278,17 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
         product: ProductORM | None = None
         if item_data.product_sku:
             prod_result = await db.execute(
-                select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == item_data.product_sku)
+                select(ProductORM).where(
+                    ProductORM.pharmacy_id == pharmacy_id,
+                    ProductORM.sku == item_data.product_sku)
             )
             product = prod_result.scalar_one_or_none()
             if product:
                 product_id = product.id
         if not product_id and item_data.medicine_id:
             try:
-                prod_result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(item_data.medicine_id)))
+                prod_result = await db.execute(select(ProductORM).where(
+                    ProductORM.id == uuid.UUID(item_data.medicine_id)))
                 product = prod_result.scalar_one_or_none()
                 if product:
                     product_id = product.id
@@ -290,22 +303,27 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
                 product = prod_result.scalar_one_or_none()
 
         if not product_id or not product:
-            raise HTTPException(status_code=404, detail=f"Product not found for {item_data.medicine_name}")
+            raise HTTPException(status_code=404,
+                                detail=f"Product not found for {item_data.medicine_name}")
 
         batch = await _find_batch(pharmacy_id, product_id, item_data.batch_id, item_data.batch_no, db)
         if not batch:
-            raise HTTPException(status_code=404, detail=f"Batch not found for {item_data.medicine_name}")
+            raise HTTPException(status_code=404,
+                                detail=f"Batch not found for {item_data.medicine_name}")
 
         # Find the matching bill_item for the FK
         bill_item = await _find_bill_item(bill_id, product_id, batch.id, db)
         if not bill_item:
             # Fallback: find by batch_number
             bi_result = await db.execute(
-                select(BillItem).where(BillItem.bill_id == bill_id, BillItem.batch_number == item_data.batch_no)
+                select(BillItem).where(
+                    BillItem.bill_id == bill_id,
+                    BillItem.batch_number == item_data.batch_no)
             )
             bill_item = bi_result.scalar_one_or_none()
         if not bill_item:
-            raise HTTPException(status_code=400, detail=f"No matching bill item found for {item_data.medicine_name}")
+            raise HTTPException(status_code=400,
+                                detail=f"No matching bill item found for {item_data.medicine_name}")
 
         return_to_stock = not item_data.is_damaged
 
@@ -443,7 +461,8 @@ async def get_sales_returns(
 
 
 @router.get("/sales-returns/{return_id}")
-async def get_sales_return(return_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_sales_return(return_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     # Try by UUID first, then by return_number
     sales_return: SalesReturnORM | None = None
     try:
@@ -490,7 +509,9 @@ async def update_sales_return(
         # Permission check
         if current_user.role != "admin":
             role_result = await db.execute(
-                select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == current_user.role)
+                select(RoleORM).where(
+                    RoleORM.pharmacy_id == pharmacy_id,
+                    RoleORM.name == current_user.role)
             )
             role = role_result.scalar_one_or_none()
             perms = role.permissions if role and isinstance(role.permissions, list) else []
@@ -509,7 +530,9 @@ async def update_sales_return(
             prod_result = await db.execute(select(ProductORM).where(ProductORM.id == old_item.product_id))
             product = prod_result.scalar_one_or_none()
             if batch and product:
-                await _reverse_stock(batch, old_item.quantity, product, old_item.return_to_stock, pharmacy_id, user_id, rid, db)
+                await _reverse_stock(
+                    batch, old_item.quantity, product, old_item.return_to_stock,
+                    pharmacy_id, user_id, rid, db)
 
         # Delete old items
         for old_item in old_items:
@@ -533,12 +556,15 @@ async def update_sales_return(
             product: ProductORM | None = None
             if item_data.product_sku:
                 prod_result = await db.execute(
-                    select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == item_data.product_sku)
+                    select(ProductORM).where(
+                        ProductORM.pharmacy_id == pharmacy_id,
+                        ProductORM.sku == item_data.product_sku)
                 )
                 product = prod_result.scalar_one_or_none()
             if not product and item_data.medicine_id:
                 try:
-                    prod_result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(item_data.medicine_id)))
+                    prod_result = await db.execute(select(ProductORM).where(
+                        ProductORM.id == uuid.UUID(item_data.medicine_id)))
                     product = prod_result.scalar_one_or_none()
                 except ValueError:
                     pass
@@ -552,7 +578,9 @@ async def update_sales_return(
             bill_item = await _find_bill_item(sales_return.original_bill_id, product.id, batch.id, db)
             if not bill_item:
                 bi_result = await db.execute(
-                    select(BillItem).where(BillItem.bill_id == sales_return.original_bill_id, BillItem.batch_number == item_data.batch_no)
+                    select(BillItem).where(
+                        BillItem.bill_id == sales_return.original_bill_id,
+                        BillItem.batch_number == item_data.batch_no)
                 )
                 bill_item = bi_result.scalar_one_or_none()
             if not bill_item:
@@ -590,6 +618,7 @@ async def update_sales_return(
             sales_return.refund_method = update_data.refund_method
 
         await db.flush()
+        await db.refresh(sales_return)  # updated_at has onupdate=func.now() — see purchases.py
 
         bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
         return _return_response(sales_return, new_items, bill_result.scalar_one_or_none())
@@ -602,18 +631,21 @@ async def update_sales_return(
         sales_return.refund_method = update_data.refund_method
 
     await db.flush()
+    await db.refresh(sales_return)  # updated_at has onupdate=func.now() — see purchases.py
 
     items_result = await db.execute(
         select(SalesReturnItemORM).where(SalesReturnItemORM.sales_return_id == rid)
     )
     bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
-    return _return_response(sales_return, items_result.scalars().all(), bill_result.scalar_one_or_none())
+    return _return_response(sales_return, items_result.scalars().all(),
+                            bill_result.scalar_one_or_none())
 
 
 # ── Role return permissions ────────────────────────────────────────────────────
 
 @router.get("/roles/{role_name}/permissions/returns")
-async def get_role_return_permissions(role_name: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_role_return_permissions(role_name: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(
         select(RoleORM).where(RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_name)
@@ -644,7 +676,8 @@ async def update_role_return_permissions(
         raise HTTPException(status_code=404, detail="Role not found")
 
     perms = list(role.permissions) if isinstance(role.permissions, list) else []
-    for perm, enabled in [("allow_manual_returns", allow_manual_returns), ("allow_financial_edit_return", allow_financial_edit_return)]:
+    for perm, enabled in [("allow_manual_returns", allow_manual_returns),
+                          ("allow_financial_edit_return", allow_financial_edit_return)]:
         if enabled and perm not in perms:
             perms.append(perm)
         elif not enabled and perm in perms:
@@ -689,9 +722,11 @@ async def get_purchase_analytics(
         PurchaseReturnORM.status == "confirmed",
     )
     if from_date:
-        ret_query = ret_query.where(PurchaseReturnORM.return_date >= date.fromisoformat(from_date[:10]))
+        ret_query = ret_query.where(PurchaseReturnORM.return_date >=
+                                    date.fromisoformat(from_date[:10]))
     if to_date:
-        ret_query = ret_query.where(PurchaseReturnORM.return_date <= date.fromisoformat(to_date[:10]))
+        ret_query = ret_query.where(PurchaseReturnORM.return_date <=
+                                    date.fromisoformat(to_date[:10]))
     ret_result = await db.execute(ret_query)
     ret_row = ret_result.one()
     total_returns_count = ret_row[0]

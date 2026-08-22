@@ -203,7 +203,9 @@ async def get_purchases(
     page = max(page, 1)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    query = select(PurchaseORM).where(PurchaseORM.pharmacy_id == pharmacy_id, PurchaseORM.deleted_at.is_(None))
+    query = select(PurchaseORM).where(
+        PurchaseORM.pharmacy_id == pharmacy_id,
+        PurchaseORM.deleted_at.is_(None))
     if from_date:
         query = query.where(PurchaseORM.purchase_date >= date.fromisoformat(from_date[:10]))
     if to_date:
@@ -244,7 +246,8 @@ async def get_purchases(
 
 
 @router.post("/purchases")
-async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(purchase_data.supplier_id)
 
@@ -271,7 +274,8 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
             product_id=product.id,
             product_name=item_data.product_name,
             batch_number=item_data.batch_no,
-            expiry_date=date.fromisoformat(item_data.expiry_date[:10]) if item_data.expiry_date else None,
+            expiry_date=date.fromisoformat(
+                item_data.expiry_date[:10]) if item_data.expiry_date else None,
             hsn_code=product.hsn_code,
             quantity_ordered=item_data.qty_units,
             quantity_received=0,
@@ -312,7 +316,8 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
         supplier_id=supplier_id,
         purchase_number=purchase_number,
         supplier_invoice_number=purchase_data.supplier_invoice_no,
-        supplier_invoice_date=date.fromisoformat(purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None,
+        supplier_invoice_date=date.fromisoformat(
+            purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None,
         purchase_date=date.fromisoformat(purchase_data.purchase_date[:10]),
         due_date=due_dt,
         subtotal_paise=subtotal_paise,
@@ -341,7 +346,10 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "purchase", purchase.id,
-        {"purchase_number": purchase_number, "status": status, "total_value": grand_total_paise / 100, "payment_status": payment_status},
+        {"purchase_number": purchase_number,
+         "status": status,
+         "total_value": grand_total_paise / 100,
+         "payment_status": payment_status},
         db,
     )
     await db.flush()
@@ -350,7 +358,11 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
 
 
 @router.put("/purchases/{purchase_id}")
-async def update_purchase(purchase_id: str, purchase_data: PurchaseCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_purchase(
+        purchase_id: str,
+        purchase_data: PurchaseCreate,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
@@ -389,7 +401,8 @@ async def update_purchase(purchase_id: str, purchase_data: PurchaseCreate, curre
             product_id=product.id,
             product_name=item_data.product_name,
             batch_number=item_data.batch_no,
-            expiry_date=date.fromisoformat(item_data.expiry_date[:10]) if item_data.expiry_date else None,
+            expiry_date=date.fromisoformat(
+                item_data.expiry_date[:10]) if item_data.expiry_date else None,
             hsn_code=product.hsn_code,
             quantity_ordered=item_data.qty_units,
             quantity_received=0,
@@ -415,7 +428,8 @@ async def update_purchase(purchase_id: str, purchase_data: PurchaseCreate, curre
     purchase.supplier_id = uuid.UUID(purchase_data.supplier_id)
     purchase.purchase_date = date.fromisoformat(purchase_data.purchase_date[:10])
     purchase.supplier_invoice_number = purchase_data.supplier_invoice_no
-    purchase.supplier_invoice_date = date.fromisoformat(purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None
+    purchase.supplier_invoice_date = date.fromisoformat(
+        purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None
     purchase.subtotal_paise = subtotal_paise
     purchase.total_gst_paise = tax_paise
     purchase.total_cgst_paise = tax_paise // 2
@@ -435,12 +449,18 @@ async def update_purchase(purchase_id: str, purchase_data: PurchaseCreate, curre
         {"status": status, "total_value": grand_total_paise / 100}, db,
     )
     await db.flush()
+    # purchase.updated_at has onupdate=func.now() — the flush above expires it
+    # server-side, and touching it in _purchase_response() without an explicit
+    # async refresh first throws MissingGreenlet (sync lazy-load attempted in
+    # an async context). Refresh eagerly here instead of letting it lazy-load.
+    await db.refresh(purchase)
 
     return _purchase_response(purchase, item_orms)
 
 
 @router.get("/purchases/{purchase_id}")
-async def get_purchase(purchase_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_purchase(purchase_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == uuid.UUID(purchase_id)))
     purchase = result.scalar_one_or_none()
     if not purchase:
@@ -460,7 +480,11 @@ async def get_purchase(purchase_id: str, current_user: User = Depends(get_curren
 
 
 @router.post("/purchases/{purchase_id}/pay")
-async def mark_purchase_paid(purchase_id: str, payment: PurchasePaymentRequest, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def mark_purchase_paid(
+        purchase_id: str,
+        payment: PurchasePaymentRequest,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
@@ -496,10 +520,13 @@ async def mark_purchase_paid(purchase_id: str, payment: PurchasePaymentRequest, 
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "payment", "purchase", pid,
-        {"amount": payment.amount, "payment_method": payment.payment_method, "payment_status": payment_status},
+        {"amount": payment.amount,
+         "payment_method": payment.payment_method,
+         "payment_status": payment_status},
         db,
     )
     await db.flush()
+    await db.refresh(purchase)  # see comment on the same pattern in update_purchase()
 
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
     return _purchase_response(purchase, items_result.scalars().all())

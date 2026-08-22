@@ -20,21 +20,27 @@ class Bill(Base):
         Index("idx_bills_customer", "customer_id"),
         Index("idx_bills_status", "pharmacy_id", "status"),
         Index("idx_bills_number", "pharmacy_id", "bill_number"),
-        Index("idx_bills_paid", "pharmacy_id", "bill_date", postgresql_where=text("status = 'paid'")),
+        Index("idx_bills_paid", "pharmacy_id", "bill_date",
+              postgresql_where=text("status = 'paid'")),
         Index("idx_bills_due", "pharmacy_id", postgresql_where=text("status = 'due'")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     bill_number: Mapped[str] = mapped_column(String(50), nullable=False)
     invoice_type: Mapped[str] = mapped_column(String(20), default="retail", nullable=False)
-    bill_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
-    bill_time: Mapped[Optional[str]] = mapped_column(Time(timezone=True), server_default=func.current_time())
-    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id"))
+    bill_date: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date())
+    bill_time: Mapped[Optional[str]] = mapped_column(
+        Time(timezone=True), server_default=func.current_time())
+    customer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("customers.id"))
     customer_name: Mapped[Optional[str]] = mapped_column(String(200))
     customer_phone: Mapped[Optional[str]] = mapped_column(String(10))
     customer_gstin: Mapped[Optional[str]] = mapped_column(String(15))
-    doctor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("doctors.id"))
+    doctor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doctors.id"))
     doctor_name: Mapped[Optional[str]] = mapped_column(String(200))
     prescription_number: Mapped[Optional[str]] = mapped_column(String(100))
     prescription_date: Mapped[Optional[date]] = mapped_column(Date)
@@ -60,10 +66,20 @@ class Bill(Base):
     status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
     internal_note: Mapped[Optional[str]] = mapped_column(Text)
     delivery_note: Mapped[Optional[str]] = mapped_column(Text)
-    billed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    billed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"))
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
 
 
 class BillItem(Base):
@@ -75,9 +91,12 @@ class BillItem(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    bill_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bills.id", ondelete="CASCADE"), nullable=False)
-    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
-    batch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stock_batches.id"), nullable=False)
+    bill_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bills.id", ondelete="CASCADE"), nullable=False)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stock_batches.id"), nullable=False)
     product_name: Mapped[str] = mapped_column(String(300), nullable=False)
     generic_name: Mapped[Optional[str]] = mapped_column(String(300))
     batch_number: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -101,7 +120,11 @@ class BillItem(Base):
     gst_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     line_total_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     line_cost_paise: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
 
 
 class SalesReturn(Base):
@@ -111,10 +134,13 @@ class SalesReturn(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    original_bill_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bills.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    original_bill_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bills.id"), nullable=False)
     return_number: Mapped[str] = mapped_column(String(50), nullable=False)
-    return_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
+    return_date: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date())
     return_reason: Mapped[Optional[str]] = mapped_column(Text)
     total_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_gst_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -122,19 +148,33 @@ class SalesReturn(Base):
     refund_method: Mapped[Optional[str]] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
-    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
 
 
 class SalesReturnItem(Base):
     __tablename__ = "sales_return_items"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    sales_return_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_returns.id", ondelete="CASCADE"), nullable=False)
-    bill_item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bill_items.id"), nullable=False)
-    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
-    batch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("stock_batches.id"), nullable=False)
+    sales_return_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sales_returns.id", ondelete="CASCADE"), nullable=False)
+    bill_item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bill_items.id"), nullable=False)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    batch_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stock_batches.id"), nullable=False)
     product_name: Mapped[str] = mapped_column(String(300), nullable=False)
     batch_number: Mapped[str] = mapped_column(String(100), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -143,7 +183,11 @@ class SalesReturnItem(Base):
     gst_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     line_total_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     return_to_stock: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
 
 
 class ScheduleH1Register(Base):
@@ -154,10 +198,13 @@ class ScheduleH1Register(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("bills.id"))
-    bill_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("bill_items.id"))
-    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    bill_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bill_items.id"))
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     product_name: Mapped[str] = mapped_column(String(300), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     batch_number: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -167,6 +214,12 @@ class ScheduleH1Register(Base):
     patient_name: Mapped[str] = mapped_column(String(200), nullable=False)
     patient_address: Mapped[Optional[str]] = mapped_column(Text)
     patient_age: Mapped[Optional[int]] = mapped_column(Integer)
-    supply_date: Mapped[date] = mapped_column(Date, nullable=False, server_default=func.current_date())
-    dispensed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    supply_date: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date())
+    dispensed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)

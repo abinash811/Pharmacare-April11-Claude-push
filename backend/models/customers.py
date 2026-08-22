@@ -19,7 +19,8 @@ class Customer(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(10))
     alternate_phone: Mapped[Optional[str]] = mapped_column(String(10))
@@ -36,8 +37,17 @@ class Customer(Base):
     loyalty_points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
 
 
 class Doctor(Base):
@@ -48,7 +58,8 @@ class Doctor(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     qualification: Mapped[Optional[str]] = mapped_column(String(200))
     specialization: Mapped[Optional[str]] = mapped_column(String(200))
@@ -58,5 +69,14 @@ class Doctor(Base):
     address: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)

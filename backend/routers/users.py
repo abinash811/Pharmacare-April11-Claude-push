@@ -51,7 +51,8 @@ def _user_response(user: UserORM) -> dict:
 
 
 @router.get("/users")
-async def get_all_users(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_all_users(current_user: User = Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
@@ -63,7 +64,8 @@ async def get_all_users(current_user: User = Depends(get_current_user), db: Asyn
 
 
 @router.post("/users")
-async def create_user(user_data: UserCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_user(user_data: UserCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
@@ -99,7 +101,8 @@ async def create_user(user_data: UserCreate, current_user: User = Depends(get_cu
 
 
 @router.get("/users/{user_id}")
-async def get_user(user_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_user(user_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
@@ -112,7 +115,8 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user),
 
 
 @router.put("/users/{user_id}")
-async def update_user(user_id: str, user_update: UserUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_user(user_id: str, user_update: UserUpdate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
@@ -124,7 +128,9 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 
     if user_update.role is not None:
         role_result = await db.execute(
-            select(RoleORM).where(RoleORM.pharmacy_id == user.pharmacy_id, RoleORM.name == user_update.role)
+            select(RoleORM).where(
+                RoleORM.pharmacy_id == user.pharmacy_id,
+                RoleORM.name == user_update.role)
         )
         role = role_result.scalar_one_or_none()
         if not role:
@@ -133,7 +139,9 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 
     if user_update.email is not None and user_update.email != user.email:
         dup = await db.execute(
-            select(UserORM).where(UserORM.pharmacy_id == user.pharmacy_id, UserORM.email == user_update.email)
+            select(UserORM).where(
+                UserORM.pharmacy_id == user.pharmacy_id,
+                UserORM.email == user_update.email)
         )
         if dup.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already in use")
@@ -152,7 +160,8 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 
 
 @router.delete("/users/{user_id}")
-async def deactivate_user(user_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def deactivate_user(user_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     if user_id == current_user.id:
@@ -168,7 +177,8 @@ async def deactivate_user(user_id: str, current_user: User = Depends(get_current
 
 
 @router.put("/users/me/change-password")
-async def change_password(password_data: ChangePassword, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def change_password(password_data: ChangePassword, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))
     user = result.scalar_one_or_none()
     if not user:

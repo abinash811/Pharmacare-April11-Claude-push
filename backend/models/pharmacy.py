@@ -29,10 +29,20 @@ class Pharmacy(Base):
     pan_number: Mapped[Optional[str]] = mapped_column(String(10))
     logo_url: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
 
-    settings: Mapped[Optional[PharmacySettings]] = relationship(back_populates="pharmacy", uselist=False)
+    settings: Mapped[Optional[PharmacySettings]] = relationship(
+        back_populates="pharmacy", uselist=False)
 
 
 class PharmacySettings(Base):
@@ -40,7 +50,8 @@ class PharmacySettings(Base):
     __table_args__ = (UniqueConstraint("pharmacy_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    pharmacy_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
     # Bill sequence — Sales Invoice
     bill_prefix: Mapped[str] = mapped_column(String(10), default="INV", nullable=False)
     bill_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -91,7 +102,16 @@ class PharmacySettings(Base):
     digital_footer_height_px: Mapped[int] = mapped_column(Integer, default=60, nullable=False)
     digital_bill_header: Mapped[Optional[str]] = mapped_column(Text)
     digital_bill_footer: Mapped[Optional[str]] = mapped_column(Text)
-    created_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(
+            timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False)
 
     pharmacy: Mapped[Pharmacy] = relationship(back_populates="settings")

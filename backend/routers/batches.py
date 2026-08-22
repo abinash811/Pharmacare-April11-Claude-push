@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -148,7 +148,8 @@ async def _record_movement(
 # ── /stock/batches ─────────────────────────────────────────────────────────────
 
 @router.post("/stock/batches")
-async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, batch_data.product_sku, db)
 
@@ -160,12 +161,15 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Batch with this number already exists for this product at this location")
+        raise HTTPException(
+            status_code=400,
+            detail="Batch with this number already exists for this product at this location")
 
     expiry = date.fromisoformat(batch_data.expiry_date[:10])
     if expiry < date.today():
         raise HTTPException(status_code=400, detail="Expiry date has already passed")
-    mfg = date.fromisoformat(batch_data.manufacture_date[:10]) if batch_data.manufacture_date else None
+    mfg = date.fromisoformat(
+        batch_data.manufacture_date[:10]) if batch_data.manufacture_date else None
 
     batch = BatchORM(
         pharmacy_id=pharmacy_id,
@@ -195,13 +199,19 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
 
 
 @router.get("/stock/batches")
-async def get_stock_batches(product_sku: Optional[str] = None, location: Optional[str] = None, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_stock_batches(
+        product_sku: Optional[str] = None,
+        location: Optional[str] = None,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(BatchORM).where(BatchORM.pharmacy_id == pharmacy_id)
 
     if product_sku:
         prod_result = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == product_sku)
         )
         product = prod_result.scalar_one_or_none()
         if not product:
@@ -216,11 +226,13 @@ async def get_stock_batches(product_sku: Optional[str] = None, location: Optiona
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id.in_(product_ids)))
     products_by_id = {p.id: p for p in prod_result.scalars().all()}
 
-    return [_batch_response(b, products_by_id[b.product_id]) for b in batches if b.product_id in products_by_id]
+    return [_batch_response(b, products_by_id[b.product_id])
+            for b in batches if b.product_id in products_by_id]
 
 
 @router.get("/stock/batches/{batch_id}")
-async def get_stock_batch(batch_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_stock_batch(batch_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     batch = await _get_batch(batch_id, db)
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
@@ -230,7 +242,11 @@ async def get_stock_batch(batch_id: str, current_user: User = Depends(get_curren
 
 
 @router.put("/stock/batches/{batch_id}")
-async def update_stock_batch(batch_id: str, batch_data: StockBatchUpdate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def update_stock_batch(
+        batch_id: str,
+        batch_data: StockBatchUpdate,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update stock batches")
 
@@ -268,13 +284,16 @@ async def update_stock_batch(batch_id: str, batch_data: StockBatchUpdate, curren
 
 
 @router.delete("/stock/batches/{batch_id}")
-async def delete_stock_batch(batch_id: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def delete_stock_batch(batch_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete stock batches")
 
     batch = await _get_batch(batch_id, db)
     if batch.quantity_on_hand > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete batch with stock. Adjust quantity to 0 first.")
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete batch with stock. Adjust quantity to 0 first.")
 
     batch.is_active = False
     await db.flush()
@@ -284,7 +303,8 @@ async def delete_stock_batch(batch_id: str, current_user: User = Depends(get_cur
 # ── /batches/:id/adjust & writeoff ────────────────────────────────────────────
 
 @router.post("/batches/{batch_id}/adjust")
-async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     batch = await _get_batch(batch_id, db)
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
@@ -298,7 +318,9 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
     new_qty = old_qty + pack_delta
 
     if new_qty < 0:
-        raise HTTPException(status_code=400, detail=f"Cannot remove {adjustment.qty_units} units. Only {int(old_qty * units_per_pack)} units available.")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot remove {adjustment.qty_units} units. Only {int(old_qty * units_per_pack)} units available.")
 
     batch.quantity_on_hand = int(new_qty)
 
@@ -311,11 +333,13 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
     )
     await db.flush()
 
-    return {"message": "Stock adjusted successfully", "new_qty_packs": new_qty, "new_qty_units": int(new_qty * units_per_pack), "adjustment_units": qty_delta_units}
+    return {"message": "Stock adjusted successfully", "new_qty_packs": new_qty,
+            "new_qty_units": int(new_qty * units_per_pack), "adjustment_units": qty_delta_units}
 
 
 @router.post("/batches/{batch_id}/writeoff-expiry")
-async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     batch = await _get_batch(batch_id, db)
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
@@ -345,13 +369,15 @@ async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_use
     )
     await db.flush()
 
-    return {"message": "Expired stock written off successfully", "qty_written_off_units": qty_units, "batch_id": batch_id}
+    return {"message": "Expired stock written off successfully",
+            "qty_written_off_units": qty_units, "batch_id": batch_id}
 
 
 # ── /stock-movements ───────────────────────────────────────────────────────────
 
 @router.post("/stock-movements")
-async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
     batch = await _get_batch(movement_data.batch_id, db)
@@ -360,7 +386,8 @@ async def create_stock_movement(movement_data: StockMovementCreate, current_user
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
         movement_type=movement_data.movement_type, quantity=movement_data.qty_delta_units,
         qty_before=batch.quantity_on_hand, qty_after=batch.quantity_on_hand + movement_data.qty_delta_units,
-        ref_type=movement_data.ref_type, ref_id=uuid.UUID(movement_data.ref_id) if movement_data.ref_id else uuid.uuid4(),
+        ref_type=movement_data.ref_type, ref_id=uuid.UUID(
+            movement_data.ref_id) if movement_data.ref_id else uuid.uuid4(),
         user_id=uuid.UUID(current_user.id), notes=movement_data.reason, db=db,
     )
     await db.flush()
@@ -379,11 +406,21 @@ async def get_stock_movements(
 
     if product_sku:
         prod_result = await db.execute(
-            select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == product_sku)
+            select(ProductORM).where(
+                ProductORM.pharmacy_id == pharmacy_id,
+                ProductORM.sku == product_sku)
         )
         product = prod_result.scalar_one_or_none()
         if not product:
-            return {"data": [], "pagination": {"page": 1, "page_size": page_size, "total": 0, "total_pages": 1, "has_next": False, "has_prev": False}}
+            return {
+                "data": [],
+                "pagination": {
+                    "page": 1,
+                    "page_size": page_size,
+                    "total": 0,
+                    "total_pages": 1,
+                    "has_next": False,
+                    "has_prev": False}}
         query = query.where(MovementORM.product_id == product.id)
     if batch_id:
         query = query.where(MovementORM.batch_id == uuid.UUID(batch_id))
@@ -394,9 +431,9 @@ async def get_stock_movements(
     total = count_result.scalar()
 
     page_size = min(max(page_size, 1), 100)
-    page      = max(page, 1)
-    offset    = (page - 1) * page_size
-    result    = await db.execute(query.order_by(MovementORM.created_at.desc()).offset(offset).limit(page_size))
+    page = max(page, 1)
+    offset = (page - 1) * page_size
+    result = await db.execute(query.order_by(MovementORM.created_at.desc()).offset(offset).limit(page_size))
 
     return {
         "data": [_movement_response(m) for m in result.scalars().all()],

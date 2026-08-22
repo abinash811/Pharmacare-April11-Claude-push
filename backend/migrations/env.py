@@ -1,3 +1,5 @@
+from database import Base
+from config import settings
 import asyncio
 import sys
 import os
@@ -12,11 +14,9 @@ from alembic import context
 # Add backend/ to path so we can import our modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import settings
-from database import Base
 
 # Import all models so Alembic can detect them
-import models  # noqa: F401
+import models  # noqa: E402,F401
 
 config = context.config
 

@@ -51,50 +51,71 @@ DEFAULT_ROLES = [
 
 # ── All permission definitions (used by /permissions endpoint and UI) ─────────
 ALL_PERMISSIONS = {
-    "dashboard": {"display_name": "Dashboard", "permissions": [{"id": "dashboard:view", "name": "View Dashboard"}]},
+    "dashboard": {"display_name": "Dashboard", "permissions": [
+        {"id": "dashboard:view", "name": "View Dashboard"},
+    ]},
     "billing": {"display_name": "Billing", "permissions": [
-        {"id": "billing:create", "name": "Create Bills"}, {"id": "billing:view", "name": "View Bills"},
-        {"id": "billing:edit", "name": "Edit Bills"}, {"id": "billing:delete", "name": "Delete Bills"},
+        {"id": "billing:create", "name": "Create Bills"},
+        {"id": "billing:view", "name": "View Bills"},
+        {"id": "billing:edit", "name": "Edit Bills"},
+        {"id": "billing:delete", "name": "Delete Bills"},
     ]},
     "inventory": {"display_name": "Inventory", "permissions": [
-        {"id": "inventory:view", "name": "View Inventory"}, {"id": "inventory:create", "name": "Add Products"},
-        {"id": "inventory:edit", "name": "Edit Products"}, {"id": "inventory:delete", "name": "Delete Products"},
-        {"id": "inventory:batches_view", "name": "View Batches"}, {"id": "inventory:batches_create", "name": "Add Batches"},
+        {"id": "inventory:view", "name": "View Inventory"},
+        {"id": "inventory:create", "name": "Add Products"},
+        {"id": "inventory:edit", "name": "Edit Products"},
+        {"id": "inventory:delete", "name": "Delete Products"},
+        {"id": "inventory:batches_view", "name": "View Batches"},
+        {"id": "inventory:batches_create", "name": "Add Batches"},
         {"id": "inventory:stock_adjust", "name": "Adjust Stock"},
     ]},
     "purchases": {"display_name": "Purchases", "permissions": [
-        {"id": "purchases:create", "name": "Create Purchases"}, {"id": "purchases:view", "name": "View Purchases"},
-        {"id": "purchases:edit", "name": "Edit Purchases"}, {"id": "purchases:delete", "name": "Delete Purchases"},
+        {"id": "purchases:create", "name": "Create Purchases"},
+        {"id": "purchases:view", "name": "View Purchases"},
+        {"id": "purchases:edit", "name": "Edit Purchases"},
+        {"id": "purchases:delete", "name": "Delete Purchases"},
     ]},
     "purchase_returns": {"display_name": "Purchase Returns", "permissions": [
-        {"id": "purchase_returns:create", "name": "Create Returns"}, {"id": "purchase_returns:view", "name": "View Returns"},
+        {"id": "purchase_returns:create", "name": "Create Returns"},
+        {"id": "purchase_returns:view", "name": "View Returns"},
         {"id": "purchase_returns:confirm", "name": "Confirm Returns"},
     ]},
     "sales_returns": {"display_name": "Sales Returns", "permissions": [
-        {"id": "sales_returns:create", "name": "Create Returns"}, {"id": "sales_returns:view", "name": "View Returns"},
+        {"id": "sales_returns:create", "name": "Create Returns"},
+        {"id": "sales_returns:view", "name": "View Returns"},
         {"id": "sales_returns:process", "name": "Process Returns"},
     ]},
     "customers": {"display_name": "Customers", "permissions": [
-        {"id": "customers:view", "name": "View Customers"}, {"id": "customers:create", "name": "Add Customers"},
-        {"id": "customers:edit", "name": "Edit Customers"}, {"id": "customers:delete", "name": "Delete Customers"},
+        {"id": "customers:view", "name": "View Customers"},
+        {"id": "customers:create", "name": "Add Customers"},
+        {"id": "customers:edit", "name": "Edit Customers"},
+        {"id": "customers:delete", "name": "Delete Customers"},
     ]},
     "reports": {"display_name": "Reports", "permissions": [
-        {"id": "reports:view", "name": "View Reports"}, {"id": "reports:export", "name": "Export Reports"},
+        {"id": "reports:view", "name": "View Reports"},
+        {"id": "reports:export", "name": "Export Reports"},
     ]},
     "settings": {"display_name": "Settings", "permissions": [
-        {"id": "settings:view", "name": "View Settings"}, {"id": "settings:edit", "name": "Edit Settings"},
+        {"id": "settings:view", "name": "View Settings"},
+        {"id": "settings:edit", "name": "Edit Settings"},
     ]},
     "users": {"display_name": "User Management", "permissions": [
-        {"id": "users:view", "name": "View Users"}, {"id": "users:create", "name": "Create Users"},
-        {"id": "users:edit", "name": "Edit Users"}, {"id": "users:delete", "name": "Deactivate Users"},
+        {"id": "users:view", "name": "View Users"},
+        {"id": "users:create", "name": "Create Users"},
+        {"id": "users:edit", "name": "Edit Users"},
+        {"id": "users:delete", "name": "Deactivate Users"},
     ]},
     "roles": {"display_name": "Roles & Permissions", "permissions": [
-        {"id": "roles:view", "name": "View Roles"}, {"id": "roles:create", "name": "Create Roles"},
-        {"id": "roles:edit", "name": "Edit Roles"}, {"id": "roles:delete", "name": "Delete Roles"},
+        {"id": "roles:view", "name": "View Roles"},
+        {"id": "roles:create", "name": "Create Roles"},
+        {"id": "roles:edit", "name": "Edit Roles"},
+        {"id": "roles:delete", "name": "Delete Roles"},
     ]},
     "suppliers": {"display_name": "Suppliers", "permissions": [
-        {"id": "suppliers:view", "name": "View Suppliers"}, {"id": "suppliers:create", "name": "Create Suppliers"},
-        {"id": "suppliers:edit", "name": "Edit Suppliers"}, {"id": "suppliers:deactivate", "name": "Deactivate Suppliers"},
+        {"id": "suppliers:view", "name": "View Suppliers"},
+        {"id": "suppliers:create", "name": "Create Suppliers"},
+        {"id": "suppliers:edit", "name": "Edit Suppliers"},
+        {"id": "suppliers:deactivate", "name": "Deactivate Suppliers"},
     ]},
 }
 
@@ -122,14 +143,14 @@ VALID_GST_RATES = {0, 5, 12, 18}
 # Dosage form decides whether a product can be sold loose (one tablet out of a
 # strip) or only as a whole pack (a syrup bottle can't be subdivided).
 DOSAGE_FORMS = [
-    {"value": "tablet",    "label": "Tablet",            "divisible": True},
-    {"value": "capsule",   "label": "Capsule",           "divisible": True},
-    {"value": "syrup",     "label": "Syrup / Liquid",    "divisible": False},
-    {"value": "injection", "label": "Injection",         "divisible": False},
-    {"value": "ointment",  "label": "Ointment / Cream",  "divisible": False},
-    {"value": "drops",     "label": "Drops",             "divisible": False},
-    {"value": "powder",    "label": "Powder / Sachet",   "divisible": False},
-    {"value": "inhaler",   "label": "Inhaler",           "divisible": False},
-    {"value": "other",     "label": "Other",             "divisible": False},
+    {"value": "tablet", "label": "Tablet", "divisible": True},
+    {"value": "capsule", "label": "Capsule", "divisible": True},
+    {"value": "syrup", "label": "Syrup / Liquid", "divisible": False},
+    {"value": "injection", "label": "Injection", "divisible": False},
+    {"value": "ointment", "label": "Ointment / Cream", "divisible": False},
+    {"value": "drops", "label": "Drops", "divisible": False},
+    {"value": "powder", "label": "Powder / Sachet", "divisible": False},
+    {"value": "inhaler", "label": "Inhaler", "divisible": False},
+    {"value": "other", "label": "Other", "divisible": False},
 ]
 VALID_DOSAGE_FORMS = {d["value"] for d in DOSAGE_FORMS}

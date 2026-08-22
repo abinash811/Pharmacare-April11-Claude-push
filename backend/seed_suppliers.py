@@ -11,9 +11,10 @@ MONGO_URL = "mongodb://localhost:27017"
 client = AsyncIOMotorClient(MONGO_URL)
 db = client.pharmacy_db
 
+
 async def seed_suppliers():
     """Add sample suppliers"""
-    
+
     suppliers = [
         {
             "id": str(uuid.uuid4()),
@@ -76,34 +77,35 @@ async def seed_suppliers():
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
     ]
-    
+
     # Check if suppliers already exist
     existing_count = await db.suppliers.count_documents({})
-    
+
     if existing_count > 0:
         print(f"⚠️  Database already has {existing_count} suppliers")
         response = input("Do you want to add more suppliers? (y/n): ")
         if response.lower() != 'y':
             print("Aborted.")
             return
-    
+
     # Insert suppliers
     result = await db.suppliers.insert_many(suppliers)
-    
+
     print(f"✅ Successfully added {len(result.inserted_ids)} suppliers:")
     for supplier in suppliers:
         print(f"   - {supplier['name']} (GSTIN: {supplier['gstin']})")
-    
+
     # Display summary
     total_count = await db.suppliers.count_documents({})
     print(f"\n📊 Total suppliers in database: {total_count}")
+
 
 async def main():
     print("=" * 60)
     print("  Supplier Seed Script - PharmaCare")
     print("=" * 60)
     print()
-    
+
     try:
         await seed_suppliers()
     except Exception as e:

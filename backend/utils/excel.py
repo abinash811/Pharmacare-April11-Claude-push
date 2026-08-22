@@ -26,14 +26,20 @@ bulk_upload_jobs: Dict[str, Dict] = {}
 # ── Column auto-detection keywords ────────────────────────────────────────────
 COLUMN_KEYWORDS = {
     "sku": ["sku", "code", "product_code", "item_code", "product code", "item code"],
-    "name": ["name", "product_name", "item_name", "medicine", "product name", "medicine name", "item name", "product", "item", "description"],
-    "price": ["price", "mrp", "rate", "selling_price", "selling price", "mrp_per_unit", "mrp per unit", "unit_price", "unit price"],
-    "quantity": ["quantity", "qty", "stock", "qty_on_hand", "qty on hand", "packs", "units", "opening_qty", "opening qty"],
-    "expiry_date": ["expiry", "expiry_date", "exp_date", "exp", "expiry date", "exp date", "expires", "expire"],
-    "batch_number": ["batch", "batch_number", "batch_no", "batch no", "lot", "lot_number", "lot number", "batch number"],
+    "name": ["name", "product_name", "item_name", "medicine", "product name", "medicine name",
+             "item name", "product", "item", "description"],
+    "price": ["price", "mrp", "rate", "selling_price", "selling price", "mrp_per_unit",
+              "mrp per unit", "unit_price", "unit price"],
+    "quantity": ["quantity", "qty", "stock", "qty_on_hand", "qty on hand", "packs", "units",
+                 "opening_qty", "opening qty"],
+    "expiry_date": ["expiry", "expiry_date", "exp_date", "exp", "expiry date", "exp date",
+                    "expires", "expire"],
+    "batch_number": ["batch", "batch_number", "batch_no", "batch no", "lot", "lot_number",
+                     "lot number", "batch number"],
     "brand": ["brand", "manufacturer", "company", "mfr"],
     "category": ["category", "type", "group", "class"],
-    "cost_price": ["cost", "cost_price", "purchase_price", "purchase price", "cost price", "buy_price", "buy price", "ptr"],
+    "cost_price": ["cost", "cost_price", "purchase_price", "purchase price", "cost price",
+                   "buy_price", "buy price", "ptr"],
     "gst_percent": ["gst", "gst_percent", "tax", "gst percent", "tax_rate", "tax rate"],
     "hsn_code": ["hsn", "hsn_code", "hsn code"],
     "units_per_pack": ["units_per_pack", "pack_size", "units per pack", "pack size", "strip_qty", "strip qty"],
@@ -90,9 +96,12 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
         ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = 18
 
     sample_data = [
-        ["MED001", "Paracetamol 500mg", "Cipla", "Tablets", "BTN2024001", "2025-12-31", 100, 2.50, 1.80, 12, "30049099", 10],
-        ["MED002", "Amoxicillin 250mg", "Sun Pharma", "Antibiotics", "BTN2024002", "2025-06-30", 50, 8.00, 6.50, 12, "30042011", 10],
-        ["MED003", "Vitamin D3 Capsules", "Abbott", "Vitamins", "BTN2024003", "2026-03-15", 200, 5.50, 4.20, 5, "21069099", 15],
+        ["MED001", "Paracetamol 500mg", "Cipla", "Tablets", "BTN2024001",
+            "2025-12-31", 100, 2.50, 1.80, 12, "30049099", 10],
+        ["MED002", "Amoxicillin 250mg", "Sun Pharma", "Antibiotics",
+            "BTN2024002", "2025-06-30", 50, 8.00, 6.50, 12, "30042011", 10],
+        ["MED003", "Vitamin D3 Capsules", "Abbott", "Vitamins",
+            "BTN2024003", "2026-03-15", 200, 5.50, 4.20, 5, "21069099", 15],
     ]
     for row_num, row_data in enumerate(sample_data, 2):
         for col_num, value in enumerate(row_data, 1):
@@ -139,7 +148,8 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
 
 
 @router.post("/inventory/bulk-upload/parse")
-async def parse_bulk_upload_file(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+async def parse_bulk_upload_file(file: UploadFile = File(...),
+                                 current_user: User = Depends(get_current_user)):
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are supported")
 
@@ -149,7 +159,8 @@ async def parse_bulk_upload_file(file: UploadFile = File(...), current_user: Use
         df = pd.read_excel(io.BytesIO(contents), engine=engine)
 
         if len(df) > 5000:
-            raise HTTPException(status_code=400, detail=f"File has {len(df)} rows. Maximum allowed is 5000 rows.")
+            raise HTTPException(status_code=400,
+                                detail=f"File has {len(df)} rows. Maximum allowed is 5000 rows.")
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="File is empty or has no data rows")
 
@@ -201,22 +212,34 @@ async def validate_bulk_upload(
     column_mapping = request.column_mapping
 
     if job_id not in bulk_upload_jobs:
-        raise HTTPException(status_code=404, detail="Upload job not found. Please re-upload the file.")
+        raise HTTPException(
+            status_code=404,
+            detail="Upload job not found. Please re-upload the file.")
 
     job = bulk_upload_jobs[job_id]
     data = job["data"]
 
-    missing_required = [f for f in REQUIRED_FIELDS if f not in column_mapping or not column_mapping[f]]
+    missing_required = [
+        f for f in REQUIRED_FIELDS if f not in column_mapping or not column_mapping[f]]
     if missing_required:
-        raise HTTPException(status_code=400, detail=f"Missing required field mappings: {', '.join(missing_required)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required field mappings: {', '.join(missing_required)}")
 
     pid = current_user.pharmacy_id
 
-    # Load existing products and batches for duplicate detection
+    # Load existing products and batches for duplicate detection.
+    # NOTE: only batch-level duplicates (existing_batches below) are actually
+    # checked in the validation loop — SKU-level duplicate detection against
+    # `products` was never wired in, so a row with a SKU that already exists
+    # is not currently flagged as a duplicate during bulk upload.
     products = (await db.execute(
-        select(ProductORM.id, ProductORM.sku).where(ProductORM.pharmacy_id == pid, ProductORM.deleted_at.is_(None))
+        select(
+            ProductORM.id,
+            ProductORM.sku).where(
+            ProductORM.pharmacy_id == pid,
+            ProductORM.deleted_at.is_(None))
     )).all()
-    existing_products = {p.sku: str(p.id) for p in products}
 
     batches = (await db.execute(
         select(BatchORM.id, BatchORM.product_id, BatchORM.batch_number)
@@ -343,7 +366,11 @@ async def validate_bulk_upload(
             status = "valid"
             valid_count += 1
 
-        validation_results.append({"row_number": row_idx, "status": status, "errors": row_errors, "warnings": row_warnings, "data": row_data})
+        validation_results.append({"row_number": row_idx,
+                                   "status": status,
+                                   "errors": row_errors,
+                                   "warnings": row_warnings,
+                                   "data": row_data})
 
     bulk_upload_jobs[job_id].update({
         "status": "validated",
@@ -373,7 +400,9 @@ async def import_bulk_upload(
 ):
     job_id = request.job_id
     if job_id not in bulk_upload_jobs:
-        raise HTTPException(status_code=404, detail="Upload job not found. Please re-upload the file.")
+        raise HTTPException(
+            status_code=404,
+            detail="Upload job not found. Please re-upload the file.")
 
     job = bulk_upload_jobs[job_id]
     if job.get("status") != "validated":
@@ -385,10 +414,18 @@ async def import_bulk_upload(
         raise HTTPException(status_code=400, detail="No valid rows to import")
 
     bulk_upload_jobs[job_id]["status"] = "importing"
-    bulk_upload_jobs[job_id]["import_progress"] = {"total": len(rows_to_import), "processed": 0, "success": 0, "failed": 0, "errors": []}
+    bulk_upload_jobs[job_id]["import_progress"] = {
+        "total": len(rows_to_import),
+        "processed": 0,
+        "success": 0,
+        "failed": 0,
+        "errors": []}
 
     pharmacy_id = uuid.UUID(job["pharmacy_id"])
-    user_id = current_user.id if isinstance(current_user.id, uuid.UUID) else uuid.UUID(current_user.id)
+    user_id = current_user.id if isinstance(
+        current_user.id,
+        uuid.UUID) else uuid.UUID(
+        current_user.id)
 
     async def process_import() -> None:
         progress = bulk_upload_jobs[job_id]["import_progress"]
@@ -406,7 +443,8 @@ async def import_bulk_upload(
 
                     # Find or create product
                     existing = (await db.execute(
-                        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == sku)
+                        select(ProductORM).where(
+                            ProductORM.pharmacy_id == pharmacy_id, ProductORM.sku == sku)
                     )).scalars().first()
 
                     if not existing:
@@ -447,7 +485,8 @@ async def import_bulk_upload(
                         batch_id = existing_batch.id
                         qty_after = existing_batch.quantity_on_hand
                     else:
-                        expiry = date.fromisoformat(row_data["expiry_date"]) if row_data.get("expiry_date") else date.today() + timedelta(days=365)
+                        expiry = date.fromisoformat(row_data["expiry_date"]) if row_data.get(
+                            "expiry_date") else date.today() + timedelta(days=365)
                         batch = BatchORM(
                             pharmacy_id=pharmacy_id, product_id=product_id,
                             batch_number=batch_no, expiry_date=expiry,
@@ -524,9 +563,24 @@ async def download_error_report(job_id: str, current_user: User = Depends(get_cu
     error_fill = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
     warning_fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
     success_fill = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
-    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    thin_border = Border(
+        left=Side(
+            style="thin"), right=Side(
+            style="thin"), top=Side(
+                style="thin"), bottom=Side(
+                    style="thin"))
 
-    headers = ["Row #", "Status", "SKU", "Name", "Batch #", "Expiry", "Qty", "MRP", "Errors", "Warnings"]
+    headers = [
+        "Row #",
+        "Status",
+        "SKU",
+        "Name",
+        "Batch #",
+        "Expiry",
+        "Qty",
+        "MRP",
+        "Errors",
+        "Warnings"]
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
@@ -543,7 +597,8 @@ async def download_error_report(job_id: str, current_user: User = Depends(get_cu
             data.get("expiry_date", ""), data.get("quantity", ""), data.get("price", ""),
             "; ".join(result.get("errors", [])), "; ".join(result.get("warnings", [])),
         ]
-        row_fill = error_fill if status == "error" else (warning_fill if status == "warning" else success_fill)
+        row_fill = error_fill if status == "error" else (
+            warning_fill if status == "warning" else success_fill)
         for col, value in enumerate(row_values, 1):
             cell = ws.cell(row=row_idx, column=col, value=value)
             cell.border = thin_border
@@ -576,5 +631,6 @@ async def download_error_report(job_id: str, current_user: User = Depends(get_cu
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=validation_report_{job_id[:8]}.xlsx"},
+        headers={
+            "Content-Disposition": f"attachment; filename=validation_report_{job_id[:8]}.xlsx"},
     )

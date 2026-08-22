@@ -230,3 +230,46 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+  definition-of-done:
+    name: Definition of Done — source changes need a matching test change
+    runs-on: ubuntu-latest
+    # PR-time only, by design — see docs/11_TESTING.md "DEFINITION-OF-DONE CI
+    # GATE". There's no meaningful base to diff against on a push/dispatch
+    # run, and the PR merge into main is the one point CLAUDE.md's workflow
+    # agreement treats as the real confirmation gate anyway.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check source changes have a matching test change
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=50
+          CHANGED=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          echo "Changed files in this PR:"
+          echo "$CHANGED"
+
+          EXEMPT_REASON=$(printf '%s\n' "$PR_BODY" | grep -m1 -oP '(?<=^Test-exempt:).*' || true)
+          if [ -n "$EXEMPT_REASON" ]; then
+            echo "::notice::Test-exempt claimed in PR description — reason:$EXEMPT_REASON"
+            exit 0
+          fi
+
+          SOURCE_CHANGED=$(printf '%s\n' "$CHANGED" | grep -E '^(backend/(routers|models|utils)/|frontend/src/(pages|components|hooks)/)' | grep -vE '\.(test|spec)\.' || true)
+          TEST_CHANGED=$(printf '%s\n' "$CHANGED" | grep -E '(^backend/tests/|^frontend/e2e/|/__tests__/|\.(test|spec)\.(js|jsx|ts|tsx|py)$)' || true)
+
+          if [ -n "$SOURCE_CHANGED" ] && [ -z "$TEST_CHANGED" ]; then
+            echo "::error::Source files changed under backend/routers|models|utils or frontend/src/pages|components|hooks, but no test file changed (backend/tests/, frontend/e2e/, __tests__/, or a *.test.*/*.spec.* file)."
+            echo "Per CLAUDE.md Manifesto rule 12: every feature, fix, or enhancement ships with the tests that prove it."
+            echo "If this PR genuinely needs no new test, add a line 'Test-exempt: <reason>' to the PR description and re-run."
+            echo ""
+            echo "Source files with no matching test change:"
+            echo "$SOURCE_CHANGED"
+            exit 1
+          fi
+          echo "OK — either no watched source file changed, or a matching test file changed alongside it."

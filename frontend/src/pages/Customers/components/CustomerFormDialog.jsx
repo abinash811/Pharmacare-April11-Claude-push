@@ -102,7 +102,7 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
           </div>
           <DialogFooter>
             <AppButton type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</AppButton>
-            <AppButton type="submit" loading={isSubmitting}>
+            <AppButton type="submit" loading={isSubmitting} data-testid="customer-submit-btn">
               {editingCustomer ? 'Update Customer' : 'Add Customer'}
             </AppButton>
           </DialogFooter>

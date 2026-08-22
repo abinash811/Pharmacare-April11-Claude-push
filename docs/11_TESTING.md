@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.4 | Last updated: August 22, 2026
+# Version: 1.5 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 
@@ -39,6 +39,46 @@
 
 None of this replaces a human review before merge to `main` — it's the bar
 for calling something ready for that review in the first place.
+
+---
+
+## DEFINITION-OF-DONE CI GATE
+> Added August 22, 2026. Manifesto rule 12 ("every feature, fix, or
+> enhancement ships with the tests that prove it") existed in writing all
+> session but had nothing checking it — the `func.case` bug (see CI STATUS
+> below) shipped, passed review, and sat silently wrong in production math
+> until an E2E test finally ran the real endpoint. This closes that gap:
+> it's now a real CI job, not a rule that depends on someone remembering.
+
+`.github/workflows/ci.yml`'s `definition-of-done` job runs on every pull
+request targeting `main`. It diffs the PR against its base branch: if any
+file changed under `backend/routers/`, `backend/models/`, `backend/utils/`,
+or `frontend/src/pages/`, `frontend/src/components/`, `frontend/src/hooks/`
+— and no file changed under `backend/tests/`, `frontend/e2e/`,
+`__tests__/`, or a `*.test.*`/`*.spec.*` file — the job fails with a clear
+message naming which changed files had no matching test change.
+
+**What this catches:** a PR that changes real behavior and adds zero test
+coverage for it — exactly the shape of miss that let the dashboard bug ship.
+
+**What this does NOT catch (be honest about the limits):**
+- A test file that changed but doesn't actually exercise the changed
+  behavior (a rename, an unrelated snapshot update) — this is a presence
+  check, not a quality check. Human review still has to judge whether the
+  test that changed is the *right* test.
+- A change entirely outside the watched directories (docs, CI config,
+  Settings tabs not yet covered by the watched component paths).
+- Anything on `push`/`workflow_dispatch` runs (no PR base to diff against
+  in those events) — this gate is PR-time only, by design: that's the one
+  point that actually blocks a merge (see CLAUDE.md's WORKFLOW AGREEMENT —
+  "the confirmation moment is the PR merge into `main`").
+
+**Escape hatch:** a PR that genuinely needs no new test (pure refactor
+already covered by existing tests, a copy/config-only change inside a
+watched directory) can include a line `Test-exempt: <reason>` anywhere in
+the PR description. The job reads `github.event.pull_request.body` and
+skips the block with that reason logged in the job output — visible in the
+PR's checks tab, not a silent bypass.
 
 ---
 

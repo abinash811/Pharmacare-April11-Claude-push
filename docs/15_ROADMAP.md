@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.8 | Last updated: August 22, 2026
+# Version: 1.9 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -383,6 +383,45 @@ All auth improvements must be built together — they share the same architectur
 | Insurance claims / CGHS | Phase 3+ |
 | AI drug interaction checker | Not a pharmacy management feature |
 | Hard delete anything | Compliance — forever forbidden |
+
+---
+
+## RULE MISSES LOG
+> Added August 22, 2026, in response to a direct question: "how will I be
+> highlighted which rule was violated and why, and how do we update that so
+> it doesn't happen again?" This section is the answer — a standing habit,
+> not a one-time fix.
+
+**The habit, every time a real bug is found that a written CLAUDE.md/docs
+rule should have prevented** (not a typo, a genuine gap between documented
+behavior and real behavior):
+1. Name the exact rule (number + one line) **in the chat response**, not
+   just in a commit message — you shouldn't have to go looking for it.
+2. State plainly why it didn't catch the bug: was the rule not
+   automatically enforced (a gap in tooling), or was it enforced but I
+   missed following it (a gap in execution)? These need different fixes.
+3. Fix the bug.
+4. Close the gap that let it through — **in this order of preference**:
+   a) an automated CI/pre-commit gate (like the `definition-of-done` job
+      added today for rule 12) — the only kind of fix that doesn't depend
+      on anyone remembering; b) only if no automated check is realistically
+      possible, tighten the rule's wording so the next miss is less likely.
+5. Log it below, dated, so there's one place to scan instead of hunting
+   through chat history or commit messages.
+
+| Date | Rule violated | Why it wasn't caught | Fix applied |
+|------|---------------|----------------------|--------------|
+| Aug 22, 2026 | Rule 12 ("every feature/fix ships with the tests that prove it") | Written, but nothing enforced it — a fix could merge with zero test coverage and nobody would know until it broke again. Root cause of the `func.case` dashboard bug shipping silently in the first place. | Added the `definition-of-done` CI job (`.github/workflows/ci.yml`) — blocks a PR that changes `backend/routers\|models\|utils` or `frontend/src/pages\|components\|hooks` with no matching test file changed. Documented in `docs/11_TESTING.md`. Still unproven on a real PR as of this entry — first real PR is the real test of this gate. |
+
+**Rules known to still be manual-only (flagged proactively, not yet
+violated in a way that's been caught)** — these are the honest candidates
+for the next entry in this table if they slip:
+- Rule 11 (cross-cutting consumers) — no automated check that every linked
+  domain in `docs/08_ARCHITECTURE.md`'s cross-cutting map was actually
+  verified before calling a change done.
+- Rule 9 (no unverified routes / magic strings) — nothing lints that a
+  called API route or a hardcoded status string actually exists/matches
+  `constants/domainConstants.js`.
 
 ---
 

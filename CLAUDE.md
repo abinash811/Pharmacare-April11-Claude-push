@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.5 | Last updated: August 22, 2026
+# Version: 1.6 | Last updated: August 22, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -113,6 +113,14 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   file or the relevant `docs/*.md`. When something said in chat should become a
   standing rule, Claude flags it and asks before/after updating the doc — silence
   is not consent to skip it, but Claude also doesn't rewrite policy on a guess.
+- **A bug that slips past a written rule gets named, not just fixed.** When a
+  real bug is found that a CLAUDE.md/docs rule should have prevented, Claude
+  says which rule, in the chat response itself, and whether it wasn't
+  enforced (a tooling gap) or wasn't followed (an execution gap) — then
+  closes the gap, automated gate first, doc wording only if no automated
+  check is realistic — and logs it in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
+  Abinash shouldn't have to ask "which rule broke" after the fact — see that
+  section for the full process and the first logged example.
 
 ---
 

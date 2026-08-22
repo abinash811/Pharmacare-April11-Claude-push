@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.7 | Last updated: August 22, 2026
+# Version: 1.8 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -62,6 +62,16 @@
 | WhatsApp — add custom number | 🔄 | Button exists; "Add custom number" flow incomplete |
 | Split payment (cash + UPI on one bill) | 📋 | |
 | Day-end closing / Z-report | 📋 | |
+
+**Billing — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP and eVitalRx (see `docs/01_PRODUCT.md` §10). Verified against real code (`BillingOperations.js`, `backend/routers/billing.py`), not guessed.
+
+| User story | Status | Detail |
+|---|---|---|
+| As a pharmacist, I want to generate an e-invoice (IRN via the GST e-invoice portal) for B2B bills above the mandatory turnover threshold. | ❌ **Not built** | Grepped the whole backend for `irn`/`e-invoice`/`einvoice` — zero hits outside unrelated matches in `seed_admin.py`/`migrations/env.py`. Marg ERP ships this as a core, not optional, feature. Real compliance exposure once a pharmacy crosses the e-invoicing turnover threshold, not just a nice-to-have. |
+| As a pharmacist, I want to generate an e-way bill for a high-value shipment. | ❌ **Not built** | Same grep, same result — no e-way bill generation anywhere in the codebase. |
+| As a pharmacist, I want to WhatsApp a bill to my customer. | 🔄 **Exists, but minimal** | `BillingOperations.js::handleWhatsApp` opens a `wa.me` link with the bill total as plain text — works, but only for a customer who already has `customer_mobile` on file; no custom-number entry (already tracked above), no PDF/receipt image attached (text summary only), no payment-reminder or "bill is due" follow-up message — Marg ERP's WhatsApp billing sends the actual invoice and can auto-remind on dues. |
+| As a pharmacist, I want to accept a payment gateway (UPI QR / card) at the counter, reconciled automatically against the bill. | ❌ **Not built** | Grepped for `razorpay`/`cashfree`/`paytm`/`payment_gateway` — zero hits. Payment method today is a manual label (`cash`/`upi`/`due`), not a real integration; nothing confirms a UPI payment actually landed. |
+| As a pharmacist, I want my billing data to sync to Tally for my accountant. | ❌ **Not built** | No `tally` reference anywhere in the backend. Standard Marg/eVitalRx integration; PharmaCare has no export in a Tally-importable format at all (not even a generic ledger CSV). |
 
 ### Inventory
 
@@ -211,6 +221,16 @@ A product with `reorder_level = 50` can show "low stock" on the Inventory page w
 | Supplier management (CRUD) | ✅ | |
 | Link purchase to supplier | ✅ | |
 | Purchase history per supplier | ✅ | |
+
+**Purchases — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP, eVitalRx, and Pharmasoft. Verified against real code (`backend/routers/purchases.py` — every endpoint grepped and listed: list/create/update/get/pay, no others exist), not guessed.
+
+| User story | Status | Detail |
+|---|---|---|
+| As a pharmacist receiving a distributor's invoice, I want to import that bill directly from a CSV/Excel file the distributor sends, instead of typing every line item by hand. | ❌ **Not built** | Already flagged once under Inventory §F (don't duplicate the fix there) — restating here because it's really a Purchases-flow gap: `purchases.py` has no upload/parse/import endpoints, only manual `PurchaseCreate` entry. Pharmasoft ships one-click CSV/Excel/email invoice import as a named feature. |
+| As a pharmacist, I want a running auto-generated purchase list ("digital shortbook") built from products at or below reorder level, that I can turn directly into a purchase order. | ❌ **Not built** | Same root gap as the Inventory §F "short book" entry — `reorder_level`/`reorder_quantity` exist on `Product` but nothing in `purchases.py` reads them to seed a draft purchase. eVitalRx's flagship ordering feature; here it would also finally make the currently-dead `reorder_quantity` column do something. |
+| As a pharmacist, I want to compare a medicine's price across my different suppliers before creating a purchase order. | ❌ **Not built** | No per-supplier price history endpoint or view — confirmed via the full endpoint list above. |
+| As a pharmacist, I want automatic highlighting when a purchase order line item is for a product that's already expired or near-expiry in my catalog, so I don't reorder something with a stock problem by accident. | ❌ **Not built** | `create_purchase`/`update_purchase` in `purchases.py` do not cross-check `Product`/`StockBatch` expiry state at all — a standard Indian-pharmacy-software convention (auto-flagging near-expiry/expired items in PO review), absent here. |
+| As a pharmacist, I want my confirmed purchases to sync to Tally for accounting. | ❌ **Not built** | Same `tally` grep as Billing above — zero hits repo-wide, applies equally to the purchase side. |
 
 ### Customers
 

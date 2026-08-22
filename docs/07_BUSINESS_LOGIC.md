@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.1 | Last updated: August 22, 2026
+# Version: 2.2 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
 #        or compliance — read the relevant section here first.
@@ -409,6 +409,18 @@ the item carries. Verified live: a bill item identified purely by
 `product_id` for an H1 product, with no doctor name, now correctly 400s with
 "Prescription details required for Schedule H1 drug: ..." — it previously
 would have gone through.
+
+**A second gap in the same fix, found and closed the same day**: `create_bill`
+isn't the only path that can turn a bill into a real, finalized sale —
+`PUT /bills/{id}::update_bill` can too, by editing a draft's `status` to
+`"paid"` (`is_finalizing`). The insufficient-stock guard was covered there
+for free (both paths call the same `_deduct_stock_and_record`), but the H1
+and MRP checks were only added to `create_bill` — `update_bill` had neither,
+so finalizing a draft via PUT could still bill an H1 drug with no doctor or
+finalize above MRP. Added the same two checks to `update_bill`'s item loop,
+gated on `is_finalizing and invoice_type == "SALE"`. Verified live: both a
+no-doctor H1 finalize and an above-MRP finalize now 400 through `PUT
+/bills/{id}`, the same as they do through `POST /bills`.
 
 ### What is recorded (verified field names — several differ from v1.0)
 

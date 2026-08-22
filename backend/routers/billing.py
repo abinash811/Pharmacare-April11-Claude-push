@@ -554,13 +554,34 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     cost_total_paise = 0
     item_orms: list[tuple[BillItemORM, BatchORM, ProductORM]] = []
 
+    new_status_preview = bill_data.status or "draft"
+    is_finalizing_preview = new_status_preview == "paid" and bill.status == "draft"
+    is_sale_preview = bill_data.invoice_type == "SALE"
+
     for item in bill_data.items:
         batch, product = await _resolve_batch(item, pharmacy_id, db)
         if not batch or not product:
             continue
 
+        # Same checks as create_bill — this loop is the *other* path that can
+        # finalize a bill into a real paid sale (editing a draft to "paid"),
+        # so it needs the same H1/MRP guards, not just the stock one (that
+        # one's covered since _deduct_stock_and_record is shared below).
+        if is_finalizing_preview and is_sale_preview and product.drug_schedule == "H1" and (
+                not bill_data.doctor_name or not bill_data.doctor_name.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+
         quantity = item.get("quantity", 0)
         mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
+
+        if is_finalizing_preview and is_sale_preview and mrp_paise > batch.mrp_paise:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Selling price ₹{mrp_paise / 100:.2f} for {product.name} exceeds "
+                        f"MRP ₹{batch.mrp_paise / 100:.2f} for batch {batch.batch_number}"))
+
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
         disc_paise = int(mrp_paise * quantity * disc_percent / 100)
         taxable_paise = mrp_paise * quantity - disc_paise

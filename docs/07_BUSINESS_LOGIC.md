@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 2.0 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
 #        or compliance — read the relevant section here first.
@@ -7,15 +7,28 @@
 
 ---
 
+## AUDITED AUGUST 22, 2026
+> Version 1.0 (April 18, 2026) was written ahead of the code it described and had
+> drifted badly — wrong routes, an entire sales-return flow that doesn't exist,
+> a purchase-number format that was never implemented, and two compliance rules
+> ("insufficient stock blocks a sale," "system enforces no-selling-above-MRP")
+> that read as guaranteed but aren't actually enforced anywhere in the backend.
+> Every flow below was re-verified against the real, running code (not memory,
+> not the old doc) — `backend/routers/billing.py`, `sales_returns.py`,
+> `purchases.py`, `purchase_returns.py`, `batches.py`, `reports.py`. Real gaps
+> found are called out inline as **⚠ GAP**, not silently written up as if fixed.
+
+---
+
 ## CRITICAL RULES (apply to everything)
 
 1. **All money is integer paise.** ₹1 = 100 paise. Convert to rupees only for display.
-2. **Soft deletes only.** Never `DELETE FROM` any table. Set `is_deleted = True`.
+2. **Soft deletes only.** Never `DELETE FROM` any table. Set `deleted_at` (not a boolean flag — see `docs/09_DATABASE.md`).
 3. **Bill numbers assigned only at settlement.** Drafts get `DRAFT-{uuid}` placeholders.
 4. **Stock deducted only at settlement.** Drafts do not touch stock.
 5. **Snapshot billing.** Bill items store product name, MRP, GST rate at time of sale — never live references.
-6. **Schedule H1 requires doctor.** Billing a Schedule H1 drug without a doctor name raises HTTP 400.
-7. **Audit every state change.** Every status change, stock movement, and payment is recorded in `audit_logs`.
+6. **Schedule H1 requires doctor.** Billing a Schedule H1 drug without a doctor name raises HTTP 400 — but only when the item's `product_sku` is present (see ⚠ GAP under FLOW 6).
+7. **Audit every state change.** Bill creation, status changes, and payments are recorded in `audit_logs` (`old_values`/`new_values`, not just a message).
 
 ---
 
@@ -24,40 +37,52 @@
 ### States
 
 ```
-DRAFT → SETTLED (paid / due / partial)
+DRAFT → SETTLED (paid / due)
 ```
-
-A bill moves through two states. There is no going back from settled.
 
 | State | Bill number | Stock | Editable |
 |-------|------------|-------|----------|
 | `draft` | `DRAFT-{8-char-uuid}` | Not deducted | Yes |
-| `paid` | `INV-000042` (real sequence) | Deducted | No |
+| `paid` | `INV-000042` (real sequence) | Deducted | No (only payment/status can change) |
 | `due` | `INV-000042` (real sequence) | Deducted | No (only payment can be added) |
-| `partial` | `INV-000042` (real sequence) | Deducted | No |
+
+`partial` appears in `domainConstants.js`'s `BILL_STATUS` as `// Alias used in some older records` —
+no code path writes it today; only `paid` and `due` are ever assigned.
 
 ### Step-by-step: Creating a settled bill
 
 ```
 1. Frontend collects: customer, doctor (if H1), line items, discount, payment method
-2. POST /api/invoices with status="paid" (or "due")
-3. Backend:
-   a. Pre-check: if any item is Schedule H1 → doctor name required or HTTP 400
-   b. Generate bill number via _generate_bill_number() → sequential, atomic
-   c. For each line item:
-      - Resolve batch (by batch_id or product SKU)
-      - Snapshot: copy product_name, batch_number, expiry_date, mrp, gst_rate into bill item
+2. POST /api/bills with status="paid" (or "due")
+3. Backend (routers/billing.py::create_bill):
+   a. Drug License check (not in v1.0 of this doc): a non-draft SALE bill requires
+      the pharmacy to have a non-blank, non-expired drug_license_number — else 400.
+      Mirrors the frontend's proactive check (BillingWorkspace's
+      DrugLicenseRequiredState) as a defense-in-depth backstop.
+   b. Pre-check: if any item's resolved product is Schedule H1 → doctor name
+      required or HTTP 400 (see ⚠ GAP below — only checked when product_sku
+      is present on the item).
+   c. Generate bill number via _generate_bill_number() → sequential, atomic
+   d. For each line item:
+      - Resolve batch (_resolve_batch: by batch_id, then product_sku+batch_no,
+        then FEFO — earliest-expiry batch with stock — for a bare product_id)
+      - Snapshot: copy product_name, batch_number, expiry_date, hsn_code,
+        drug_schedule, and — critically — the *submitted* price into the bill
+        item, not a server-verified one (see ⚠ GAP: MRP enforcement below)
       - Calculate: disc_paise, taxable_paise, gst_paise, line_total_paise (all integers)
-   d. Calculate bill totals (all paise):
+   e. Calculate bill totals (all paise):
       - subtotal = sum of taxable_paise per item
-      - gst = sum of gst_paise per item (split equally into CGST + SGST)
+      - gst = sum of gst_paise per item (split equally into CGST + SGST,
+        odd paise goes to SGST: sgst = gst - gst//2)
       - grand_total = subtotal + gst - bill_discount (rounded to nearest rupee)
-   e. Determine status: paid if balance=0, due if balance>0
-   f. Deduct stock: batch.qty_on_hand -= quantity for each item
-   g. Create StockMovement record for each item (type="sale")
-   h. If Schedule H1 items: create ScheduleH1Register record
-   i. Create AuditLog entry
-   j. Commit transaction
+   f. Determine status: paid if balance ≤ 0, due if balance > 0
+   g. Deduct stock: batch.quantity_on_hand -= quantity for each item (see
+      ⚠ GAP: no insufficient-stock guard, unlike batches.py's own adjust
+      endpoint, which does have one)
+   h. Create StockMovement record for each item (movement_type="sale")
+   i. If item's product is Schedule H1: create ScheduleH1Register record
+      (routers/billing.py::_create_h1_entry)
+   j. Create AuditLog entry (action="create", entity_type="invoice")
 4. Return settled bill with real bill number
 ```
 
@@ -66,23 +91,41 @@ A bill moves through two states. There is no going back from settled.
 Same as above except:
 - `status = "draft"` in request
 - Bill number = `DRAFT-{uuid}` (no sequence consumed)
-- Stock NOT deducted
-- Schedule H1 pre-check skipped (doctor not required for drafts)
+- Stock NOT deducted, no StockMovement, no H1 register entry
+- Drug License check and Schedule H1 pre-check both skipped (drafts aren't finalized sales)
 
-### GST Calculation (exact formula)
+### ⚠ GAP: MRP enforcement doesn't exist
+
+`sale_price_paise` is set directly to whatever `unit_price`/`mrp` the request sends
+(`mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)`) — there is
+**no comparison against `batch.mrp_paise`** anywhere in `create_bill`. "Sell above
+MRP" is illegal under DPCO, but nothing in the backend actually blocks it; the
+frontend price field is trusted as-is. If this needs to be a hard rule, it needs
+a real check, not just a policy statement in this doc.
+
+### ⚠ GAP: no insufficient-stock guard on sale
+
+`_deduct_stock_and_record` does `batch.quantity_on_hand = max(0, old_qty - pack_change)`
+— it clamps to zero instead of rejecting the sale. Compare to
+`batches.py::adjust_stock`, which *does* raise `HTTPException(400, ...)` when a
+manual adjustment would go negative. A sale can currently be recorded for more
+units than a batch actually has on hand.
+
+### GST Calculation (exact formula — verified against `create_bill`)
 
 ```python
 # Per line item — all integers (paise)
-mrp_paise        = int(unit_mrp_rupees * 100)
+mrp_paise        = int(unit_price_or_mrp_rupees * 100)   # trusted as sent, see gap above
+disc_percent     = item.get("disc_percent", item.get("discount_percent", 0))
 disc_paise       = int(mrp_paise * quantity * disc_percent / 100)
 taxable_paise    = mrp_paise * quantity - disc_paise
-gst_rate         = product.gst_rate  # 0, 5, 12, or 18
+gst_rate         = item.get("gst_percent", bill.tax_rate or 5)   # 0, 5, 12, or 18
 line_gst_paise   = int(taxable_paise * gst_rate / 100)
 line_total_paise = taxable_paise + line_gst_paise
 
-# GST splits (intra-state sales only — all Phase 1 sales are intra-state)
+# GST splits (intra-state sales only — no interstate flow exists yet)
 cgst_paise = line_gst_paise // 2
-sgst_paise = line_gst_paise - cgst_paise   # handles odd paise correctly
+sgst_paise = line_gst_paise - cgst_paise   # odd paise goes to SGST
 
 # Bill total
 grand_total_paise = subtotal_paise + total_gst_paise - bill_discount_paise
@@ -95,13 +138,9 @@ grand_total_paise = round(grand_total_paise / 100) * 100  # round to nearest rup
 
 ```python
 # _generate_bill_number() in backend/routers/billing.py
-# Reads PharmacySettings for prefix, length, current sequence
-# Increments sequence in same transaction
-# Format: {PREFIX}-{zero_padded_number}
-# Example: INV-000042, RTN-000001
-
-# Sales return bills use separate "RTN" prefix
-# Drafts never consume a sequence number
+# Reads PharmacySettings.bill_prefix / bill_number_length / bill_sequence_number
+# (configurable in Settings > Bill Sequence), increments atomically in the
+# same transaction. Format: {PREFIX}-{zero_padded_number}. Default: INV-000042.
 ```
 
 ### Margin Calculation
@@ -117,31 +156,59 @@ Stored on the bill for reporting. `cost_total_paise` = sum of `batch.cost_price_
 
 ## FLOW 2 — SALES RETURN
 
-### When it happens
-Patient returns medicine. Pharmacy refunds money and takes stock back.
+> Rewritten entirely — v1.0 described a `POST /api/invoices` flow with an
+> `RTN-` prefix that does not exist anywhere in the real system.
 
-### Rules
-- A sales return creates a new bill with `invoice_type = "SALES_RETURN"`
-- Bill number prefix: `RTN-` (separate sequence from `INV-`)
-- Stock is **restored** to the original batch (`qty_on_hand += returned_quantity`)
-- A `StockMovement` record is created with `type = "sales_return"`
-- If original bill had Schedule H1 items, the register entry is NOT deleted (audit trail)
-- GST is reversed on the credit note
+### The real flow: `POST /api/sales-returns`
 
-### Step-by-step
+Sales returns are their **own resource** (`routers/sales_returns.py`,
+`SalesReturn`/`SalesReturnItem` models) — a separate table from `bills`, not a
+special `invoice_type` on a bill. This is what the frontend actually calls
+(confirmed: no frontend code anywhere posts a bill with `invoice_type=SALES_RETURN`).
+
+- Return number prefix: **`CN-`** (credit note — GST requires returns to be their
+  own gapless numbered series), from `PharmacySettings.return_prefix` /
+  `return_sequence_number` / `return_number_length`, same atomic-counter pattern
+  as bill numbers. Configurable in Settings > Bill Sequence > Sales Return.
+- Requires `original_bill_id` (or admin + an `allow_manual_returns` permission
+  for a manual return not tied to a bill) — a return without a real originating
+  bill is otherwise rejected with 400.
+- Return quantity per item is validated against the original bill item's quantity
+  — cannot return more than was sold.
+- Stock is **restored** to the original batch (`quantity_on_hand += returned_qty`),
+  unless the item is marked `is_damaged`, in which case it's *not* returned to
+  stock (`return_to_stock=False` on the item, no quantity added back).
+- A `StockMovement` is created with `movement_type="sales_return"`.
+- Status is always `"completed"` on creation — there's no separate approval step.
 
 ```
-1. POST /api/invoices with invoice_type="SALES_RETURN"
-2. Backend:
-   a. Generate RTN-XXXXXX bill number
-   b. For each returned item:
-      - Find original batch
-      - Restore stock: batch.qty_on_hand += quantity
-      - Create StockMovement (type="sales_return", quantity=+returned_qty)
-   c. Create refund record if refund method provided
-   d. Status = "refunded" once refund is recorded
-   e. Audit log
+1. POST /api/sales-returns
+   { original_bill_id, return_date, items: [{ product_sku, medicine_name,
+     batch_no, mrp, qty, original_qty, gst_percent, is_damaged }], refund_method }
+2. Backend (create_sales_return):
+   a. Validate original bill + item quantities
+   b. Generate CN-XXXXX credit-note number (_generate_credit_note_number)
+   c. For each item: resolve batch, restore stock unless is_damaged,
+      create StockMovement(movement_type="sales_return")
+   d. status = "completed"
+3. Return the credit note
 ```
+
+### ⚠ GAP — dead/parallel code path: `POST /api/bills` with `invoice_type=SALES_RETURN`
+
+`create_bill` in `billing.py` *does* have a branch for `invoice_type == "SALES_RETURN"`
+(accepts a `refund` object, forces `status="paid"`) — but it numbers the result
+with the ordinary `INV-` sequence, never `return_prefix`, and nothing in the
+frontend ever calls it this way. It looks like an earlier design that was
+superseded by `/sales-returns` and never removed. Don't build on it; treat
+`/sales-returns` as the only real sales-return path. (`backend/tests/test_bill_sequence.py::TestSalesReturnSequence`
+documents this exact gap with a `pytest.skip`.)
+
+### ⚠ GAP — the GST report doesn't see returns at all
+
+See FLOW 8 — `GET /reports/gst` only scans `bills`/`bill_items`, never
+`sales_returns`/`sales_return_items`. A credit note issued this month has no
+effect on the GST report's numbers.
 
 ---
 
@@ -167,51 +234,87 @@ DRAFT → CONFIRMED
    a. For each line item:
       - Create new StockBatch record:
           batch_number = item.batch_no or "PUR-{purchase_number[:8]}"
-          expiry_date  = item.expiry_date
-          qty_on_hand  = item.quantity
+          expiry_date  = item.expiry_date (defaults to +365 days if omitted)
+          quantity_on_hand = item.qty_units
           mrp_paise    = int(item.mrp_per_unit * 100)
-          cost_price_paise = int(ptr * 100)  ← PTR after discount
-      - Create StockMovement (type="purchase", quantity=+qty)
+          cost_price_paise = int(ptr * 100)   ← see Cost Price below, no trade discount involved
+      - Create StockMovement (movement_type="purchase", quantity=+qty)
       - Link batch to purchase item (item.batch_id = batch.id)
    b. Create AuditLog entry
-   c. Commit
 ```
 
 ### Cost Price Calculation at Purchase
 
+> v1.0 described a `trade_discount` field that does not exist on `PurchaseItemCreate`.
+
 ```python
-# PTR = MRP × (1 - trade_margin/100)
-# But actual cost stored = what pharmacist paid after all discounts
-
-# In purchase item entry:
-ptr             = item_data.ptr_per_unit  # entered by pharmacist
-trade_discount  = item_data.trade_discount or 0
-cost_per_unit   = ptr * (1 - trade_discount / 100)
-cost_price_paise = int(cost_per_unit * 100)
-
-# This becomes batch.cost_price_paise — used for margin calc in billing
+# routers/purchases.py::create_purchase
+ptr = item_data.ptr_per_unit if item_data.ptr_per_unit else item_data.cost_price_per_unit
+cost_price_paise = int(ptr * 100)
+# This becomes batch.cost_price_paise — used for margin calc in billing.
+# There is no separate trade-discount step; whatever PTR (or cost_price_per_unit
+# as a fallback) the pharmacist enters is stored as-is.
 ```
+
+`order_type`, `with_gst` (as a *stored* flag — it does control the GST calc at
+creation time), and `batch_priority` (LIFA/LILA) are all accepted on the request
+but **not persisted or echoed back anywhere** — no columns exist for any of the
+three on `Purchase`/`PurchaseItem`. `PurchaseItem` also has no `landing_price_per_unit`
+rollup onto `Product` — confirming a purchase updates that *batch's* own cost
+price only. All three are documented as known gaps, not implemented, in
+`backend/tests/test_purchases_module.py`.
 
 ### Purchase Number Generation
 
 ```python
-# Format: PUR-YYYYMMDD-XXXX
-# Where XXXX is sequential per pharmacy per day
-# Example: PUR-20260418-0001
+# _generate_purchase_number() in backend/routers/purchases.py
+# Format: PUR-{year}-{4-digit sequential number}, e.g. PUR-2026-0001
+# (v1.0 claimed a per-day date-based format, PUR-YYYYMMDD-XXXX — that was
+# never implemented; the real sequence is per-year, not per-day.)
 ```
 
 ---
 
 ## FLOW 4 — PURCHASE RETURN
 
-### When it happens
-Pharmacy returns goods to supplier (expired, damaged, excess stock, wrong product).
+> Rewritten — v1.0 described this as "a new purchase with invoice_type =
+> PURCHASE_RETURN," which isn't how it works.
 
-### Rules
-- Creates a new purchase with `invoice_type = "PURCHASE_RETURN"` or debit note
-- Stock **deducted** from the batch (`qty_on_hand -= returned_quantity`)
-- `StockMovement` created with `type = "purchase_return"`
-- GST input credit is reversed
+### The real flow: `POST /api/purchase-returns`
+
+Its own resource (`routers/purchase_returns.py`, `PurchaseReturn`/
+`PurchaseReturnItem` models) — not a purchase record at all.
+
+- Requires a real `purchase_id` + `supplier_id`; return quantity per item is
+  validated against that purchase's original quantity minus anything already
+  returned against it (keyed by `product_name`, scoped to that one purchase).
+- Stock is **deducted** from the batch (`quantity_on_hand -= returned_qty`,
+  tracked separately in `quantity_returned`).
+- A `StockMovement` is created with `movement_type="purchase_return"`.
+- Status is always `"confirmed"` on creation, same as sales returns — no draft
+  state for purchase returns despite the doc originally implying one.
+- `return_reason` is required on the model (`String(50)`, `nullable=False`) —
+  defaults to `"return"` if the request omits it.
+
+```
+1. POST /api/purchase-returns
+   { supplier_id, purchase_id, return_date, reason,
+     items: [{ product_sku, product_name, batch_no, qty_units,
+     cost_price_per_unit, gst_percent, reason }] }
+2. Backend (create_purchase_return):
+   a. Validate return quantities against the original purchase + prior returns
+   b. Generate PRET-{year}-{seq} return number (_generate_return_number)
+   c. For each item: resolve batch, deduct stock, create
+      StockMovement(movement_type="purchase_return")
+   d. status = "confirmed"
+```
+
+### ⚠ GAP — GST input credit reversal isn't reflected in the GST report
+
+Same shape of gap as FLOW 2: `GET /reports/gst`'s purchases side scans
+`purchase_items` for `status="confirmed"` purchases only — it never subtracts
+`purchase_return_items`. A purchase return doesn't reduce the reported input
+tax credit.
 
 ---
 
@@ -219,50 +322,65 @@ Pharmacy returns goods to supplier (expired, damaged, excess stock, wrong produc
 
 ### Every stock change creates a StockMovement record
 
-No stock ever changes silently. Every addition or deduction is logged.
+No stock changes silently — every addition or deduction is logged (with one
+caveat: see the "no insufficient-stock guard" gap under FLOW 1 — the sale can
+still happen even when a StockMovement is later created for a quantity the
+batch didn't have).
 
 | Movement type | Triggered by | qty effect |
 |--------------|--------------|-----------|
 | `purchase` | Purchase confirmed | `+qty` |
 | `sale` | Bill settled | `-qty` |
-| `sales_return` | Sales return settled | `+qty` |
-| `purchase_return` | Purchase return settled | `-qty` |
-| `adjustment` | Manual stock adjustment | `+qty` or `-qty` |
-| `opening_stock` | Batch created via bulk upload or manual entry | `+qty` |
+| `sales_return` | Sales return created | `+qty` (unless item marked damaged) |
+| `purchase_return` | Purchase return created | `-qty` |
+| `adjustment` | Manual stock adjustment (`POST /batches/{id}/adjust`) | `+qty` or `-qty` |
 
-### StockMovement schema
+`opening_stock` (bulk upload / manual batch entry) is **not** a real
+`movement_type` seen in the code paths audited here — don't assume it exists
+without checking the specific creation path first.
+
+### StockMovement schema (verified field names)
 
 ```python
 StockMovement(
-    pharmacy_id   = pharmacy_id,
-    product_id    = product.id,
-    batch_id      = batch.id,
-    movement_type = "sale",              # see table above
-    quantity      = -5,                  # negative for deductions
-    reference_id  = bill.id,             # FK to bill, purchase, etc.
-    reference_type = "bill",
-    notes         = "Bill INV-000042",
-    performed_by  = user_id,
+    pharmacy_id     = pharmacy_id,
+    product_id      = product.id,
+    batch_id        = batch.id,
+    movement_type   = "sale",              # see table above
+    quantity        = -5,                  # signed: negative for deductions
+    quantity_before = old_qty,
+    quantity_after  = new_qty,
+    reference_type  = "invoice",           # NOT "bill" — verified string literal
+    reference_id    = bill.id,
+    user_id         = user_id,             # NOT "performed_by" — that field doesn't exist
+    notes           = "...",
 )
 ```
 
-### Batch qty_on_hand rule
+### Batch quantity_on_hand rule
 
-`qty_on_hand` must never go negative. Before deducting:
+**Enforced for manual adjustments** (`batches.py::adjust_stock`), **not enforced
+for sales** (see FLOW 1's gap):
+
 ```python
-if batch.qty_on_hand < quantity:
-    raise HTTPException(400, detail=f"Insufficient stock in batch {batch.batch_number}")
+# batches.py — the real, working guard
+if new_qty < 0:
+    raise HTTPException(400, detail=f"Cannot remove {qty}. Only {available} units available.")
 ```
 
 ### FEFO (First Expired First Out)
 
-When billing, batches of the same product should be sorted by expiry date ascending.
-The earliest-expiring batch is consumed first.
+When a bill item resolves a batch by bare `product_id` (no explicit `batch_id`
+or `batch_no`), `_resolve_batch` in `billing.py` picks the batch with stock
+whose `expiry_date` is earliest:
 
 ```python
-# Correct batch selection order
-batches = sorted(product_batches, key=lambda b: b.expiry_date)
+select(BatchORM).where(BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0,
+                       BatchORM.is_active).order_by(BatchORM.expiry_date).limit(1)
 ```
+
+This only applies when the caller doesn't already specify a batch — an explicit
+`batch_id`/`batch_no` on the request always wins.
 
 ---
 
@@ -270,44 +388,70 @@ batches = sorted(product_batches, key=lambda b: b.expiry_date)
 
 ### What it is
 An auto-generated compliance register for every Schedule H1 drug sale.
-Drug inspectors can inspect this register. Errors have legal consequences.
+Drug inspectors can inspect this register (`GET /api/compliance/schedule-h1-register`,
+restricted to admin/manager roles). Errors have legal consequences.
 
 ### When a ScheduleH1Register entry is created
-- On every settled bill that contains a product with `drug_schedule = "H1"`
-- One entry per H1 product per bill
-- NOT created for drafts
+- On every settled (non-draft) bill with `invoice_type="SALE"` containing an
+  item whose product has `drug_schedule = "H1"`
+- One entry per H1 item per bill (`billing.py::_create_h1_entry`)
+- NOT created for drafts, and NOT created for `SALES_RETURN`-type bills
 
-### What is recorded
+### ⚠ GAP — the H1 doctor-required pre-check only fires when `product_sku` is on the item
+
+```python
+# routers/billing.py::create_bill — the actual pre-check
+for item in bill_data.items:
+    product_sku = item.get("product_sku")
+    if product_sku:                                   # <-- only checked here
+        ... look up product by sku ...
+        if product.drug_schedule == "H1" and not bill_data.doctor_name.strip():
+            raise HTTPException(400, "Prescription details required...")
+```
+
+If a bill item is built from `product_id`/`batch_id` instead of `product_sku`
+(a valid way to resolve a batch — see FLOW 1), the H1 check is silently
+skipped for that item. This is the compliance-critical check the whole doc
+warns about, and it has a real hole depending on which identifier the caller
+sends.
+
+### What is recorded (verified field names — several differ from v1.0)
 
 ```python
 ScheduleH1Register(
-    pharmacy_id     = pharmacy_id,
-    bill_id         = bill.id,
-    bill_number     = bill.bill_number,
-    bill_date       = bill.bill_date,
-    patient_name    = bill.customer_name,
-    doctor_name     = bill.doctor_name,           # required — validated before bill settles
-    product_name    = item.product_name,          # snapshot
-    batch_number    = item.batch_number,          # snapshot
-    quantity        = item.quantity,
-    schedule_type   = "H1",
+    pharmacy_id                     = pharmacy_id,
+    bill_id                         = bill.id,
+    bill_item_id                    = bill_item.id,
+    product_id                      = product.id,
+    product_name                    = product.name,
+    quantity                        = item.quantity,
+    batch_number                    = batch.batch_number,
+    prescriber_name                 = doctor_name or "N/A",
+    prescriber_registration_number  = doctor.registration_number or doctor.phone or "",
+    prescriber_address              = doctor.address or "",
+    patient_name                    = customer_name or "Walk-in Customer",
+    dispensed_by                    = user_id,
 )
+# prescriber_registration_number/address are only populated if doctor_name
+# matches a real Doctor record (case-insensitive name lookup) — a free-text
+# doctor name with no matching record still passes the H1 gate but leaves
+# those two fields blank.
 ```
 
 ### Frontend rule
 When the billing form contains a Schedule H1 drug:
 - Show doctor name field as **required** (not optional)
 - Block settlement if doctor name is empty
-- Show clear message: "Doctor name required for Schedule H1 drug: {product_name}"
+- Show clear message naming the H1 product that needs it
 
 ---
 
-## FLOW 7 — PAYMENTS (for credit/due bills)
+## FLOW 7 — PAYMENTS (for due bills)
 
 ### When a bill has `status = "due"`
 
-A bill is "due" when `balance_paise > 0` after creation.
-The customer owes money. The pharmacist records payment later.
+A bill is "due" when `balance_paise > 0` after creation. The pharmacist
+records payment later via `POST /api/payments`:
 
 ```
 POST /api/payments
@@ -319,17 +463,17 @@ POST /api/payments
 }
 ```
 
-### Payment status transitions
+### Payment status transitions (verified against `create_payment`)
 
+```python
+new_paid    = bill.amount_paid_paise + payment_paise
+new_balance = max(0, bill.grand_total_paise - new_paid)
+new_status  = "paid" if new_balance <= 0 else "due"
 ```
-bill.amount_paid += payment_amount
-bill.balance = max(0, bill.grand_total - bill.amount_paid)
 
-if bill.balance <= 0:
-    bill.status = "paid"
-else:
-    bill.status = "due"   # still owing
-```
+Two audit log entries are written: one `action="payment"`, and — only if the
+status actually changed — a second `action="status_change"` capturing
+old/new status and old/new due amount.
 
 ### Payment methods
 `cash` | `upi` | `card` | `credit` | `cheque`
@@ -338,32 +482,47 @@ else:
 
 ## FLOW 8 — GST REPORT
 
-### What it covers
-- All settled bills in a date range
-- Grouped by HSN code
-- Shows: taxable amount, CGST, SGST, total GST
-- Used for GSTR-1 and GSTR-3B filing
+> Substantially different from v1.0's description — verified against
+> `GET /reports/gst` in `routers/reports.py`.
 
-### Key rules
-- Only `status = "paid"` bills are included (not drafts, not due)
-- Sales returns (`invoice_type = "SALES_RETURN"`) reduce GST amounts
-- IGST is not used — all sales are intra-state in Phase 1
-- HSN code comes from `bill_items.hsn_code` (snapshot at time of sale)
+### What it actually covers
+- **Both sides**: sales (`bill_items` for `status="paid"` bills) *and*
+  purchases (`purchase_items` for `status="confirmed"` purchases) in the date
+  range — not sales-only as v1.0 implied.
+- Grouped by **`gst_rate`** (0/5/12/18), not by HSN code — HSN isn't a
+  grouping key anywhere in this endpoint.
+- Returns `sales`, `purchases`, `sales_summary`, `purchases_summary`, and
+  `net_liability` (`sales GST − purchases GST`, i.e. output tax minus input
+  tax credit) — a real net-liability figure, useful for GSTR-3B.
+- `igst` fields exist in the response shape (ready for interstate sales) but
+  are always 0 today — no interstate flow exists in Phase 1, matching the
+  "all sales intra-state" assumption.
+
+### ⚠ GAP — sales returns and purchase returns are invisible to this report
+
+Neither `sales_return_items` nor `purchase_return_items` is queried anywhere
+in `get_gst_report`. A credit note issued to a customer, or goods returned to
+a supplier, has **zero effect** on the GST numbers this endpoint returns —
+despite both being real, live-used flows (FLOW 2, FLOW 4). If this report is
+used for actual GSTR-1/GSTR-3B filing, this is worth fixing before relying on
+it, not something to assume already works.
 
 ---
 
 ## FLOW 9 — STOCK ADJUSTMENT (Manual)
 
 ### When used
-- Opening stock entry (new pharmacy onboarding)
-- Correction after physical stock count
-- Damaged/expired stock write-off
+- Opening stock entry, correction after a physical stock count, damaged/expired write-off
 
-### Rules
-- Creates a `StockMovement` with `type = "adjustment"`
-- Requires a reason note
-- Audit logged with old and new qty
-- Cannot make `qty_on_hand` negative
+### Rules (verified, matches v1.0 closely — this flow was accurate)
+- `POST /batches/{batch_id}/adjust` creates a `StockMovement` with
+  `movement_type = "adjustment"`
+- Requires a `reason` (stored as the movement's `notes`)
+- **Does** reject a negative result (`400`, with the available-units count in
+  the message) — this is the one stock-mutating path in the codebase that
+  actually has the guard the other flows are missing
+- `POST /batches/{batch_id}/writeoff-expiry` is a related, separate endpoint
+  for expired-stock write-off specifically (not mentioned in v1.0 at all)
 
 ---
 
@@ -392,49 +551,41 @@ total  = mrp * 5 * 1.05                     # 65.625 — float rounding issues
 
 ## AUDIT LOG
 
-Every significant action is recorded in `audit_logs`.
-
-### What gets audited
-- Bill created (draft or settled)
-- Bill status changed
-- Stock movement (purchase, sale, adjustment)
-- Payment recorded
-- Product created or edited
-- Batch deleted
-- User created or role changed
-- Settings changed
-
-### AuditLog schema
+### AuditLog schema (verified — matches v1.0)
 ```python
 AuditLog(
     pharmacy_id  = pharmacy_id,
     user_id      = current_user.id,
-    action       = "create" | "update" | "delete" | "payment" | "status_change",
+    action       = "create" | "payment" | "status_change" | ...,   # free-text, not an enum
     entity_type  = "invoice" | "batch" | "product" | "purchase" | "user",
     entity_id    = entity.id,
-    old_values   = { ... },   # state before change
-    new_values   = { ... },   # state after change
+    old_values   = { ... } | None,
+    new_values   = { ... } | None,
 )
 ```
+`action`/`entity_type` are plain strings on the model, not a constrained enum —
+match existing call sites' conventions rather than inventing new values.
 
 **Never skip audit logging for compliance-sensitive actions.**
 
 ---
 
-## WHAT CANNOT BE DONE (hard rules)
+## WHAT CANNOT BE DONE (hard rules) — and which ones are actually enforced
 
-| Action | Why forbidden |
-|--------|--------------|
-| Hard delete a bill | Legal document — must exist forever |
-| Hard delete a batch | Drug recall tracking requires batch history |
-| Reuse a bill number | Sequential numbering is a legal requirement |
-| Change a settled bill | Immutable once stock is deducted — create a return instead |
-| Sell above MRP | Illegal under DPCO — system must enforce |
-| Bill H1 drug without doctor | Legal requirement — backend enforces HTTP 400 |
-| Store money as float | Rounding errors — always integer paise |
-| Skip stock movement record | Every stock change must be traceable |
+| Action | Why forbidden | Actually enforced in code? |
+|--------|--------------|------|
+| Hard delete a bill | Legal document — must exist forever | Yes — no DELETE route on bills |
+| Hard delete a batch | Drug recall tracking requires batch history | Yes — soft delete only |
+| Reuse a bill number | Sequential numbering is a legal requirement | Yes — UNIQUE(pharmacy_id, bill_number) + atomic sequence |
+| Change a settled bill | Immutable once stock is deducted — create a return instead | Yes — `PUT /bills/{id}` explicitly 400s unless `status == "draft"` |
+| Sell above MRP | Illegal under DPCO | **⚠ No** — see FLOW 1 gap, price is trusted as sent |
+| Bill H1 drug without doctor | Legal requirement | **Partially** — see FLOW 6 gap, only when `product_sku` present |
+| Sell more than a batch has on hand | Data integrity | **⚠ No** for sales (FLOW 1) — **Yes** for manual adjustments (FLOW 9) |
+| Store money as float | Rounding errors — always integer paise | Yes, throughout |
+| Skip stock movement record | Every stock change must be traceable | Yes |
 
 ---
 
 *When new business flows are built, document them here before writing code.*
 *Owner: The developer building the feature writes the flow documentation first.*
+*Re-audit this file against real code periodically — see the note at the top.*

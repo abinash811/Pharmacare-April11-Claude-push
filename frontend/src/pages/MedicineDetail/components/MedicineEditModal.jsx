@@ -19,15 +19,12 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
     manufacturer:        product.manufacturer                                   || '',
     category:            product.category                                       || '',
     units_per_pack:      product.units_per_pack                                 || 1,
-    mrp_per_unit:        product.default_mrp_per_unit || product.default_mrp   || '',
     gst_percent:         product.gst_percent                                    || 5,
-    hsn_code:            product.hsn_code                                       || '',
-    schedule:            product.schedule                                       || '',
-    composition:         product.composition || product.generic_name           || '',
+    schedule:            product.schedule                                       || 'OTC',
+    generic_name:        product.generic_name                                   || '',
     strength:            product.strength                                      || '',
     requires_refrigeration: product.requires_refrigeration                     || false,
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
-    status:              product.status                                         || 'active',
   });
   const [loading, setLoading] = useState(false);
 
@@ -39,26 +36,26 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      // Fixed August 22, 2026 — see the identical fix + full explanation in
-      // InventorySearch/components/EditProductModal.jsx (same bug, same
-      // root cause, this file is its near-duplicate reached from the
-      // Medicine Detail page instead of the Inventory list).
+      // Redesigned August 22, 2026 — see the identical fix + full
+      // explanation in InventorySearch/components/EditProductModal.jsx
+      // (same bug, same root cause, this file is its near-duplicate
+      // reached from the Medicine Detail page instead of the Inventory
+      // list). Dropped hsn_code, default_mrp_per_unit/default_mrp,
+      // composition, and status — none were real ProductUpdate fields;
+      // FastAPI silently ignored all four, so removing them changes
+      // nothing about what actually saved.
       await api.put(apiUrl.product(product.id), {
         name:                      form.name,
         brand:                     form.brand               || null,
         manufacturer:              form.manufacturer        || null,
         category:                  form.category            || null,
         units_per_pack:            parseInt(form.units_per_pack)  || 1,
-        default_mrp_per_unit:      parseFloat(form.mrp_per_unit)  || 0,
-        default_mrp:               parseFloat(form.mrp_per_unit)  || 0,
         gst_percent:               parseFloat(form.gst_percent)   || 5,
-        hsn_code:                  form.hsn_code            || null,
         schedule:                  form.schedule            || null,
-        composition:               form.composition         || null,
+        generic_name:              form.generic_name        || null,
         strength:                  form.strength            || null,
         requires_refrigeration:    form.requires_refrigeration,
         low_stock_threshold_units: parseInt(form.low_stock_threshold) || 10,
-        status:                    form.status,
       });
       toast.success('Product updated successfully');
       onSuccess();
@@ -100,41 +97,26 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
               <input type="number" value={form.units_per_pack} onChange={set('units_per_pack')} className={cls} />
             </div>
             <div>
-              {/* Not `required` — see the identical note in
-                  InventorySearch/components/EditProductModal.jsx: MRP lives
-                  per-batch here, not per-product, so this field is always
-                  blank and unsaved. Was blocking every save. */}
-              <label className="block text-sm font-medium text-gray-700 mb-1">MRP per Unit</label>
-              <input type="number" step="0.01" value={form.mrp_per_unit} onChange={set('mrp_per_unit')} className={cls} />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">GST %</label>
               <input type="number" step="0.01" value={form.gst_percent} onChange={set('gst_percent')} className={cls} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">HSN Code</label>
-              <input value={form.hsn_code} onChange={set('hsn_code')} className={cls} />
+              <input value={product.hsn_code || ''} className={`${cls} bg-gray-50 text-gray-500`} disabled />
+              <p className="text-xs text-gray-400 mt-1">Set from Category, not typed here.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label>
               <select value={form.schedule} onChange={set('schedule')} className={cls}>
-                <option value="">Non-Restricted</option>
-                <option value="H">Schedule H</option>
-                <option value="H1">Schedule H1</option>
-                <option value="X">Schedule X</option>
-                <option value="G">Schedule G</option>
+                <option value="OTC">OTC — Over the Counter</option>
+                <option value="H">H — Prescription Required</option>
+                <option value="H1">H1 — Prescription + 3yr Register</option>
+                <option value="X">X — Narcotic</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
               <input type="number" value={form.low_stock_threshold} onChange={set('low_stock_threshold')} className={cls} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select value={form.status} onChange={set('status')} className={cls}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Strength (e.g. 500mg, 5ml)</label>
@@ -147,8 +129,8 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
               </label>
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Composition</label>
-              <textarea value={form.composition} onChange={set('composition')} className={cls} rows={2}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Generic Name / Composition</label>
+              <textarea value={form.generic_name} onChange={set('generic_name')} className={cls} rows={2}
                 placeholder="e.g., Paracetamol 500mg + Caffeine 65mg" />
             </div>
           </div>

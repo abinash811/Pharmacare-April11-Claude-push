@@ -492,6 +492,10 @@ async def get_inventory_with_health(
     category_filter: Optional[str] = None,
     brand_filter: Optional[str] = None,
     cold_chain_only: Optional[bool] = None,
+    dosage_form_filter: Optional[str] = None,
+    schedule_filter: Optional[str] = None,
+    gst_filter: Optional[float] = None,
+    location_filter: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -514,6 +518,14 @@ async def get_inventory_with_health(
         query = query.where(ProductORM.brand == brand_filter)
     if cold_chain_only:
         query = query.where(ProductORM.requires_refrigeration.is_(True))
+    if dosage_form_filter:
+        query = query.where(ProductORM.dosage_form == dosage_form_filter)
+    if schedule_filter:
+        query = query.where(ProductORM.drug_schedule == schedule_filter)
+    if gst_filter is not None:
+        query = query.where(ProductORM.gst_rate == gst_filter)
+    if location_filter:
+        query = query.where(ProductORM.storage_location == location_filter)
 
     products = (await db.execute(query)).scalars().all()
     product_ids = [p.id for p in products]
@@ -576,8 +588,24 @@ async def get_inventory_filters(current_user: User = Depends(
         base, ProductORM.deleted_at.is_(None), ProductORM.category.isnot(None)).distinct())
     brands = await db.execute(select(ProductORM.brand).where(
         base, ProductORM.deleted_at.is_(None), ProductORM.brand.isnot(None)).distinct())
+    locations = await db.execute(select(ProductORM.storage_location).where(
+        base, ProductORM.deleted_at.is_(None), ProductORM.storage_location.isnot(None)).distinct())
     return {"categories": sorted([r[0] for r in cats if r[0]]),
             "brands": sorted([r[0] for r in brands if r[0]]),
+            "locations": sorted([r[0] for r in locations if r[0]]),
+            # Canonical lists, not distinct-from-data — dosage form and GST
+            # rate are constrained inputs (VALID_DOSAGE_FORMS/VALID_GST_RATES
+            # in constants.py, the same source Add Medicine's dropdowns use),
+            # not free text like category/brand/location, so every valid
+            # choice should be offered even before any product uses it.
+            "dosage_forms": DOSAGE_FORMS,
+            "schedules": [
+                {"value": "OTC", "label": "OTC — Over the Counter"},
+                {"value": "H", "label": "H — Prescription Required"},
+                {"value": "H1", "label": "H1 — Prescription + 3yr Register"},
+                {"value": "X", "label": "X — Narcotic"},
+            ],
+            "gst_rates": sorted(VALID_GST_RATES),
             "statuses": [{"value": "out_of_stock",
                           "label": "Out of Stock"},
                          {"value": "expired",

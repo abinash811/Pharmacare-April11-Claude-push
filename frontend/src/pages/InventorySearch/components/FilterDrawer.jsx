@@ -45,7 +45,11 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
           <label className="block text-sm font-medium text-gray-700 mb-2">Dosage Type</label>
           <select value={local.dosage_type || ''} onChange={(e) => set('dosage_type', e.target.value)} className={SELECT_CLS} data-testid="filter-dosage">
             <option value="">All Types</option>
-            {dosage_types.map(t => <option key={t} value={t}>{t}</option>)}
+            {dosage_types.map(t => {
+              const value = typeof t === 'string' ? t : t.value;
+              const label = typeof t === 'string' ? t : t.label;
+              return <option key={value} value={value}>{label}</option>;
+            })}
           </select>
         </div>
 
@@ -54,7 +58,11 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
           <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Type</label>
           <select value={local.schedule || ''} onChange={(e) => set('schedule', e.target.value)} className={SELECT_CLS} data-testid="filter-schedule">
             <option value="">All Schedules</option>
-            {schedule_types.map(s => <option key={s} value={s}>{s}</option>)}
+            {schedule_types.map(s => {
+              const value = typeof s === 'string' ? s : s.value;
+              const label = typeof s === 'string' ? s : s.label;
+              return <option key={value} value={value}>{label}</option>;
+            })}
           </select>
         </div>
 

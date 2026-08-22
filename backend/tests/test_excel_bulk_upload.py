@@ -269,6 +269,79 @@ class TestExcelBulkUploadFeature:
         print("Missing Required Field Validation: SUCCESS")
 
 
+class TestExcelBulkUploadStrengthDosageForm:
+    """Regression test for August 22, 2026: strength and dosage_form were
+    real, working ProductCreate fields (see the Inventory Feature Audit
+    fix) but the bulk-upload column mapping never offered either one —
+    COLUMN_KEYWORDS, OPTIONAL_FIELDS, and the actual ProductORM(...) import
+    call in utils/excel.py all silently ignored them even if a pharmacist's
+    file had exactly-named columns. Fixed alongside the strength/
+    refrigeration UI fields, not a separate pass."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+        login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+            "email": "testadmin@pharmacy.com",
+            "password": "admin123",
+        })
+        if login_response.status_code == 200:
+            token = login_response.json().get("token")
+            self.session.headers.update({"Authorization": f"Bearer {token}"})
+        else:
+            pytest.skip("Authentication failed")
+
+    def test_strength_and_dosage_form_column_auto_detected_and_imported(self):
+        import uuid
+        unique = uuid.uuid4().hex[:8]
+        sku = f"XLSTRENGTH-{unique}"
+        path = f"/tmp/test_strength_upload_{unique}.xlsx"
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["SKU", "Name", "Batch Number", "Expiry Date", "Quantity",
+                   "MRP per Unit", "Strength", "Dosage Form"])
+        future_expiry = (date.today() + timedelta(days=365)).isoformat()
+        ws.append([sku, f"Strength Bulk Test {unique}", f"BATCH-{unique}",
+                  future_expiry, 10, 5.0, "750mg", "Tablet"])
+        wb.save(path)
+
+        try:
+            with open(path, "rb") as f:
+                files = {"file": ("test.xlsx", f,
+                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+                headers = {k: v for k, v in self.session.headers.items() if k != "Content-Type"}
+                parse_resp = requests.post(
+                    f"{BASE_URL}/api/inventory/bulk-upload/parse", files=files, headers=headers)
+            assert parse_resp.status_code == 200, parse_resp.text
+            parsed = parse_resp.json()
+            assert parsed["auto_mappings"].get("strength") == "Strength"
+            assert parsed["auto_mappings"].get("dosage_form") == "Dosage Form"
+
+            validate_resp = self.session.post(f"{BASE_URL}/api/inventory/bulk-upload/validate", json={
+                "job_id": parsed["job_id"], "column_mapping": parsed["auto_mappings"],
+            })
+            assert validate_resp.status_code == 200, validate_resp.text
+            assert validate_resp.json()["can_import"]
+
+            import_resp = self.session.post(f"{BASE_URL}/api/inventory/bulk-upload/import", json={
+                "job_id": parsed["job_id"], "import_valid_only": True,
+            })
+            assert import_resp.status_code == 200, import_resp.text
+
+            import time
+            time.sleep(2)
+
+            fetched = self.session.get(f"{BASE_URL}/api/products", params={"search": sku})
+            assert fetched.status_code == 200
+            products = fetched.json()
+            assert len(products) == 1, products
+            assert products[0]["strength"] == "750mg"
+            assert products[0]["dosage_form"] == "Tablet"
+        finally:
+            os.remove(path)
+
+
 class TestExcelUploadEndpointAuth:
     """Test authentication requirements for Excel upload endpoints"""
 

@@ -19,11 +19,15 @@ import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 
+// Fallback only, used before GET /inventory/filters responds (or if it
+// fails) — the real request now returns all of these for real (see the
+// comment at its call site), including correcting a stray 28% GST option
+// here that was never a valid slab (backend's VALID_GST_RATES = {0,5,12,18}).
 const DEFAULT_FILTER_OPTIONS = {
   categories: [],
   dosage_types: ['Tablet','Capsule','Syrup','Injection','Cream','Drops','Powder','Gel','Ointment'],
-  schedule_types: ['OTC','H1','H','X','G'],
-  gst_rates: ['0','5','12','18','28'],
+  schedule_types: ['OTC','H1','H','X'],
+  gst_rates: [0, 5, 12, 18],
   locations: ['Store A','Store B','Warehouse','Counter'],
 };
 
@@ -53,13 +57,19 @@ export function useInventorySearch() {
       else {
         try {
           const res = await api.get(apiUrl.inventoryFilters());
+          // dosage_types/schedule_types/gst_rates/locations used to always
+          // be the hardcoded defaults above regardless of what the backend
+          // returned — these 4 filters looked real in the UI but never
+          // actually filtered anything (see docs/15_ROADMAP.md RULE MISSES
+          // LOG). Fixed August 22, 2026: GET /inventory/filters now returns
+          // all of these for real, and they're used here instead.
           const opts = {
-            categories:     res.data.categories || [],
-            dosage_types:   DEFAULT_FILTER_OPTIONS.dosage_types,
-            schedule_types: DEFAULT_FILTER_OPTIONS.schedule_types,
-            gst_rates:      DEFAULT_FILTER_OPTIONS.gst_rates,
-            locations:      DEFAULT_FILTER_OPTIONS.locations,
-            stock_statuses: res.data.statuses || [],
+            categories:     res.data.categories     || [],
+            dosage_types:   res.data.dosage_forms    || DEFAULT_FILTER_OPTIONS.dosage_types,
+            schedule_types: res.data.schedules       || DEFAULT_FILTER_OPTIONS.schedule_types,
+            gst_rates:      res.data.gst_rates       || DEFAULT_FILTER_OPTIONS.gst_rates,
+            locations:      res.data.locations       || DEFAULT_FILTER_OPTIONS.locations,
+            stock_statuses: res.data.statuses        || [],
           };
           _filterCache = opts;
           setFilterOptions(opts);
@@ -88,6 +98,10 @@ export function useInventorySearch() {
       if (activeFilters.stock_status) params.status_filter  = activeFilters.stock_status;
       if (activeFilters.category)     params.category_filter = activeFilters.category;
       if (activeFilters.requires_refrigeration) params.cold_chain_only = true;
+      if (activeFilters.dosage_type)  params.dosage_form_filter = activeFilters.dosage_type;
+      if (activeFilters.schedule)     params.schedule_filter = activeFilters.schedule;
+      if (activeFilters.gst)          params.gst_filter = activeFilters.gst;
+      if (activeFilters.location)     params.location_filter = activeFilters.location;
 
       const res = await api.get(apiUrl.inventory(params));
       setInventory(res.data.items || []);

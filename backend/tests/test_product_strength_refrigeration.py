@@ -139,5 +139,88 @@ class TestProductStrengthAndRefrigeration(_AuthedTestBase):
         assert fetched.json()[0]["requires_refrigeration"] is True
 
 
+class TestInventoryFilterDrawerWiring(_AuthedTestBase):
+    """FilterDrawer.jsx offered Dosage Type, Schedule, GST%, and Location
+    filters that looked real but silently filtered nothing — only category
+    and stock_status were ever wired into real API params (see
+    docs/15_ROADMAP.md RULE MISSES LOG). Proves all four now work, and that
+    GET /inventory/filters returns real option lists instead of the
+    frontend's old hardcoded (and partly wrong — a fictional 28% GST slab)
+    defaults.
+    """
+
+    def test_inventory_filters_endpoint_returns_real_option_lists(self):
+        resp = self.session.get(f"{BASE_URL}/api/inventory/filters")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert "dosage_forms" in data and len(data["dosage_forms"]) > 0
+        assert "schedules" in data and len(data["schedules"]) > 0
+        assert "gst_rates" in data
+        assert 28 not in data["gst_rates"], "28% was never a real GST slab"
+        assert "locations" in data
+
+    def test_dosage_form_filter(self):
+        unique = uuid.uuid4().hex[:8]
+        sku = f"DOSFILTER-{unique}"
+        # VALID_DOSAGE_FORMS (constants.py) is lowercase ("syrup", not
+        # "Syrup") — a real, separate constraint this test must respect,
+        # not something this filter fix changed.
+        create = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": f"Dosage Filter Test {unique}", "category": "medicine",
+            "gst_percent": 5, "dosage_form": "syrup",
+        })
+        assert create.status_code == 200, create.text
+        resp = self.session.get(f"{BASE_URL}/api/inventory", params={
+            "dosage_form_filter": "syrup", "search": unique})
+        assert resp.status_code == 200
+        skus = [i["product"]["sku"] for i in resp.json()["items"]]
+        assert sku in skus
+
+    def test_schedule_filter(self):
+        unique = uuid.uuid4().hex[:8]
+        sku = f"SCHFILTER-{unique}"
+        self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": f"Schedule Filter Test {unique}", "category": "medicine",
+            "gst_percent": 5, "schedule": "H1",
+        })
+        resp = self.session.get(f"{BASE_URL}/api/inventory", params={
+            "schedule_filter": "H1", "search": unique})
+        assert resp.status_code == 200
+        skus = [i["product"]["sku"] for i in resp.json()["items"]]
+        assert sku in skus
+
+    def test_gst_filter(self):
+        unique = uuid.uuid4().hex[:8]
+        sku = f"GSTFILTER-{unique}"
+        self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": f"GST Filter Test {unique}", "category": "medicine",
+            "gst_percent": 18,
+        })
+        resp = self.session.get(f"{BASE_URL}/api/inventory", params={
+            "gst_filter": 18, "search": unique})
+        assert resp.status_code == 200
+        skus = [i["product"]["sku"] for i in resp.json()["items"]]
+        assert sku in skus
+
+    def test_location_filter(self):
+        unique = uuid.uuid4().hex[:8]
+        sku = f"LOCFILTER-{unique}"
+        self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": f"Location Filter Test {unique}", "category": "medicine",
+            "gst_percent": 5,
+        })
+        # storage_location isn't settable via POST /products (only bulk-update
+        # and PUT /stock/batches touch it) — set it via bulk-update, matching
+        # how a pharmacist would actually assign a location today.
+        self.session.post(f"{BASE_URL}/api/products/bulk-update", json={
+            "skus": [sku], "field": "location", "value": "Cold Room A",
+        })
+        resp = self.session.get(f"{BASE_URL}/api/inventory", params={
+            "location_filter": "Cold Room A", "search": unique})
+        assert resp.status_code == 200
+        skus = [i["product"]["sku"] for i in resp.json()["items"]]
+        assert sku in skus
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

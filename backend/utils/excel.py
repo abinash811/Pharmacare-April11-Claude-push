@@ -43,10 +43,14 @@ COLUMN_KEYWORDS = {
     "gst_percent": ["gst", "gst_percent", "tax", "gst percent", "tax_rate", "tax rate"],
     "hsn_code": ["hsn", "hsn_code", "hsn code"],
     "units_per_pack": ["units_per_pack", "pack_size", "units per pack", "pack size", "strip_qty", "strip qty"],
+    "strength": ["strength", "power", "dosage_strength", "dosage strength"],
+    "dosage_form": ["dosage_form", "dosage form", "form"],
 }
 
 REQUIRED_FIELDS = ["sku", "name", "price", "quantity", "expiry_date", "batch_number"]
-OPTIONAL_FIELDS = ["brand", "category", "cost_price", "gst_percent", "hsn_code", "units_per_pack"]
+OPTIONAL_FIELDS = [
+    "brand", "category", "cost_price", "gst_percent", "hsn_code", "units_per_pack",
+    "strength", "dosage_form"]
 
 
 def _rupees_to_paise(rupees: float) -> int:
@@ -85,7 +89,7 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
         ("SKU *", True), ("Name *", True), ("Brand", False), ("Category", False),
         ("Batch Number *", True), ("Expiry Date *", True), ("Quantity (Packs) *", True),
         ("MRP per Unit *", True), ("Cost Price per Unit", False), ("GST %", False),
-        ("HSN Code", False), ("Units per Pack", False),
+        ("HSN Code", False), ("Units per Pack", False), ("Strength", False), ("Dosage Form", False),
     ]
     for col, (header, is_required) in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
@@ -97,11 +101,11 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
 
     sample_data = [
         ["MED001", "Paracetamol 500mg", "Cipla", "Tablets", "BTN2024001",
-            "2025-12-31", 100, 2.50, 1.80, 12, "30049099", 10],
+            "2025-12-31", 100, 2.50, 1.80, 12, "30049099", 10, "500mg", "Tablet"],
         ["MED002", "Amoxicillin 250mg", "Sun Pharma", "Antibiotics",
-            "BTN2024002", "2025-06-30", 50, 8.00, 6.50, 12, "30042011", 10],
+            "BTN2024002", "2025-06-30", 50, 8.00, 6.50, 12, "30042011", 10, "250mg", "Capsule"],
         ["MED003", "Vitamin D3 Capsules", "Abbott", "Vitamins",
-            "BTN2024003", "2026-03-15", 200, 5.50, 4.20, 5, "21069099", 15],
+            "BTN2024003", "2026-03-15", 200, 5.50, 4.20, 5, "21069099", 15, "60000IU", "Capsule"],
     ]
     for row_num, row_data in enumerate(sample_data, 2):
         for col_num, value in enumerate(row_data, 1):
@@ -124,6 +128,8 @@ async def download_bulk_upload_template(current_user: User = Depends(get_current
         ["- GST %: Tax percentage (default 5%)"],
         ["- HSN Code: Harmonized System code"],
         ["- Units per Pack: Number of units in a pack (default 1)"],
+        ["- Strength: e.g. 500mg, 5ml"],
+        ["- Dosage Form: e.g. Tablet, Capsule, Syrup"],
         [""], ["Important Notes:"],
         ["- Dates must be in YYYY-MM-DD format (e.g., 2025-12-31)"],
         ["- Expiry date must be in the future"],
@@ -454,6 +460,8 @@ async def import_bulk_upload(
                             units_per_pack=row_data.get("units_per_pack", 1),
                             gst_rate=row_data.get("gst_percent", 5),
                             hsn_code=row_data.get("hsn_code") or "3004",
+                            strength=row_data.get("strength"),
+                            dosage_form=row_data.get("dosage_form"),
                             reorder_level=10,
                         )
                         db.add(product)
@@ -465,6 +473,10 @@ async def import_bulk_upload(
                             existing.brand = row_data["brand"]
                         if row_data.get("category") and not existing.category:
                             existing.category = row_data["category"]
+                        if row_data.get("strength") and not existing.strength:
+                            existing.strength = row_data["strength"]
+                        if row_data.get("dosage_form") and not existing.dosage_form:
+                            existing.dosage_form = row_data["dosage_form"]
 
                     # Find or create batch
                     existing_batch = (await db.execute(

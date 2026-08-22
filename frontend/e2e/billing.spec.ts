@@ -12,7 +12,9 @@ test.beforeEach(async ({ page }) => {
 test.describe('Billing', () => {
   test('navigates to billing page', async ({ page }) => {
     await page.goto('/billing', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('billing-page')).toBeVisible();
+    // Real testid on the page is 'billing-operations-page'
+    // (pages/BillingOperations.js) — 'billing-page' never existed.
+    await expect(page.getByTestId('billing-operations-page')).toBeVisible();
   });
 
   test('can open new bill workspace', async ({ page }) => {
@@ -26,8 +28,18 @@ test.describe('Billing', () => {
     await expect(page.getByTestId('park-bill-btn')).toBeVisible();
   });
 
-  test('finalise is disabled with no items', async ({ page }) => {
+  test('finalising with no items shows an error and does not proceed', async ({ page }) => {
+    // The Finalise button itself isn't disabled for an empty bill (verified
+    // in BillingWorkspace/index.jsx: it's only disabled while isSaving) —
+    // clicking it with zero items is guarded client-side instead, with a
+    // toast explaining why (matches CLAUDE.md's "every error must say why"
+    // rule). This test asserts that real behavior, not a `disabled` state
+    // that was never actually implemented.
     await page.goto('/billing/new', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByTestId('finalise-btn')).toBeDisabled();
+    await expect(page.getByTestId('finalise-btn')).toBeEnabled();
+    await page.getByTestId('finalise-btn').click();
+    await expect(page.getByText('Add items to bill first')).toBeVisible();
+    // Still on the same page — the click didn't finalise or navigate away.
+    await expect(page).toHaveURL(/billing\/new/);
   });
 });

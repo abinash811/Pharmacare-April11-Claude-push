@@ -88,7 +88,15 @@ api.interceptors.response.use(
     }
 
     // 401 — token expired or invalid → clear storage and redirect to login
-    if (status === 401) {
+    // ('/' — AuthPage renders there for an unauthenticated user; see
+    // App.js's unauthenticated route branch. Not for a 401 from the login
+    // attempt itself (wrong credentials): that's a normal, expected
+    // failure the caller already shows via toast, not a session expiring.
+    // Previously this redirected on every 401 including that one — wrong
+    // credentials hard-reloaded the whole page instead of just showing
+    // the error toast.
+    const isLoginAttempt = error.config?.url?.includes('/auth/login');
+    if (status === 401 && !isLoginAttempt) {
       localStorage.removeItem('token');
       // Only redirect if we're not already on the login page
       if (window.location.pathname !== '/') {

@@ -33,6 +33,11 @@ test.describe('Inventory', () => {
 
     await page.getByTestId('add-medicine-submit-btn').click();
 
+    // The results table only renders after a search or filter is applied
+    // (useInventorySearch.js's `hasSearched` gate) — the list page shows an
+    // empty "Start searching..." state by default, even right after adding
+    // a product. Search for the new medicine by name to bring it up.
+    await page.getByTestId('inventory-search-input').fill(medicineName);
     await expect(page.getByTestId('inventory-results-table')).toContainText(medicineName, { timeout: 10000 });
   });
 
@@ -61,6 +66,9 @@ test.describe('Inventory', () => {
     await page.getByTestId('medicine-quantity-input').fill('3');
     await page.getByTestId('medicine-mrp-input').fill('40');
     await page.getByTestId('add-medicine-submit-btn').click();
+    // See the comment in the previous test — the results table needs an
+    // explicit search before it renders anything.
+    await page.getByTestId('inventory-search-input').fill(medicineName);
     await expect(page.getByTestId('inventory-results-table')).toContainText(medicineName, { timeout: 10000 });
 
     const authHeader = { Authorization: `Bearer ${await page.evaluate(() => localStorage.getItem('token'))}` };

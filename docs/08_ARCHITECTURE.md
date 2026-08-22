@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.2 | Last updated: August 21, 2026
+# Version: 1.3 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
 #        Before making a structural change, read this file.
@@ -37,7 +37,7 @@ Keep it simple until scale demands complexity.
 | Tailwind CSS | 3 | Utility-first, design tokens via config, no runtime overhead |
 | Shadcn/UI | latest | Accessible primitives, unstyled base, owns the code |
 | Lucide React | latest | Consistent icon set, tree-shakeable |
-| React Router | 6 | Client-side routing, nested routes |
+| React Router | 7 | Client-side routing, nested routes (verified in `frontend/package.json`; was mislabeled "6" here) |
 | Axios | latest | HTTP client with interceptors for auth and error handling |
 | Sonner | latest | Toast notifications |
 | date-fns | latest | Date manipulation (Indian FY, expiry calculations) |
@@ -229,17 +229,25 @@ backend/
 ├── routers/             ← FastAPI route handlers (one file per domain)
 │   ├── auth.py          ← /auth/login, /auth/register, /auth/me
 │   ├── auth_helpers.py  ← JWT decode, get_current_user dependency
-│   ├── billing.py       ← /invoices, /payments, /refunds, /audit-logs
-│   ├── inventory.py     ← /products, /stock-movements
-│   ├── batches.py       ← /batches
-│   ├── purchases.py     ← /purchases
-│   ├── purchase_returns.py
-│   ├── sales_returns.py
+│   ├── billing.py       ← /bills, /payments, /audit-logs (NOT /invoices — a
+│   │                       naming holdover from an earlier design; the real
+│   │                       routes and models are all "bill", never "invoice")
+│   ├── inventory.py     ← /products, /products/{sku}/transactions, /inventory
+│   ├── batches.py       ← /stock/batches, /batches/{id}/adjust,
+│   │                       /batches/{id}/writeoff-expiry, /stock-movements
+│   │                       (stock-movements lives here, not in inventory.py)
+│   ├── purchases.py     ← /purchases, /purchases/{id}/pay
+│   ├── purchase_returns.py  ← /purchase-returns (its own resource — not a
+│   │                           special Purchase record, see docs/07)
+│   ├── sales_returns.py     ← /sales-returns (its own resource — not a
+│   │                           special Bill record, see docs/07)
 │   ├── customers.py     ← /customers, /doctors
 │   ├── suppliers.py     ← /suppliers
-│   ├── reports.py       ← /reports/*, /gst-report
-│   ├── settings.py      ← /settings/*, /bill-sequences
-│   └── users.py         ← /users, /roles
+│   ├── reports.py       ← /reports/gst (NOT /gst-report), /compliance/schedule-h1-register
+│   ├── settings.py      ← /settings, /settings/bill-sequence,
+│   │                       /settings/bill-sequence/all, /roles (roles live
+│   │                       here, not in users.py)
+│   └── users.py         ← /users only
 ├── migrations/          ← Alembic migration files
 │   └── versions/        ← One file per migration
 ├── seed_admin.py        ← Creates default admin user
@@ -287,7 +295,7 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 # In routers — just use db, never call commit() manually
-@router.post("/invoices")
+@router.post("/bills")
 async def create_bill(data: BillCreate, db: AsyncSession = Depends(get_db)):
     bill = BillORM(...)
     db.add(bill)
@@ -299,7 +307,7 @@ async def create_bill(data: BillCreate, db: AsyncSession = Depends(get_db)):
 
 ```python
 # Every protected route uses Depends(get_current_user)
-@router.get("/invoices")
+@router.get("/bills")
 async def get_bills(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -312,6 +320,36 @@ async def get_bills(
 ```
 
 **Every query must filter by `pharmacy_id`.** This ensures one pharmacy never sees another's data.
+
+### Gotcha: a resource can have more than one path to the same outcome
+
+Found August 22, 2026, the hard way: `POST /bills` (create) and
+`PUT /bills/{id}` (update) are two separate route handlers, but both can
+produce the exact same real-world outcome — a finalized, paid sale that
+deducts stock. A compliance check (MRP-above-batch, Schedule H1
+doctor-required) was added to `create_bill` only, verified live, and
+shipped — and it took a second, deliberate check of *every other path that
+reaches the same state* to notice `update_bill` could finalize a draft
+into the identical outcome without either check. The stock-insufficiency
+guard was covered for free only because it happened to live in a shared
+helper (`_deduct_stock_and_record`) both routes call — the other two
+weren't shared, so they weren't covered.
+
+**The rule going forward:** when adding a business-rule check (compliance,
+validation, anything that must never be bypassed), don't just add it where
+the resource is *created* — grep for every route that can produce the same
+end state (a draft being finalized, a status transition, a bulk-update
+path) and confirm the check fires there too, or better, put the check in a
+shared helper so there's only one place to have gotten it right.
+
+Checked the obvious parallel case the same day: `create_purchase` and
+`update_purchase` (`routers/purchases.py`) both transition `status` to
+`"confirmed"` and create stock — but unlike billing, that whole step is
+already funneled through one shared helper (`_create_stock_for_items`),
+called identically from both routes. No gap there. That's the actual goal
+this rule is pointing at: not "audit every pair by hand forever," but
+"share the check so there's structurally only one place it could be
+missing from."
 
 ### Error Handling Pattern
 
@@ -359,17 +397,21 @@ select(Bill).where(Bill.pharmacy_id == pharmacy_id)
 
 ### Soft Deletes
 
+> Corrected August 22, 2026 — this section previously described an
+> `is_deleted` boolean column that doesn't exist anywhere in the real
+> models (verified: zero occurrences across `backend/models/*.py`).
+> `deleted_at` alone is the real, only pattern — see `docs/09_DATABASE.md`
+> and `docs/07_BUSINESS_LOGIC.md` rule 2.
+
 ```python
-# All deletable models have
-is_deleted: Mapped[bool] = mapped_column(default=False)
-deleted_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+# All deletable models have ONLY this — no separate boolean flag
+deleted_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP(timezone=True))
 
 # Soft delete
-record.is_deleted = True
 record.deleted_at = datetime.now(timezone.utc)
 
 # All queries exclude deleted records
-select(Product).where(Product.pharmacy_id == pid, Product.is_deleted == False)
+select(Product).where(Product.pharmacy_id == pid, Product.deleted_at.is_(None))
 ```
 
 ### Bill Number Sequences
@@ -499,9 +541,18 @@ CORS_ORIGINS = "https://app.pharmacare.in"
 - Connection pool: 10 persistent + 20 overflow
 
 ### Database
-- Every FK column is indexed automatically by PostgreSQL
+- PostgreSQL does **not** index foreign key columns automatically (it only
+  auto-indexes primary keys and UNIQUE constraints) — every FK that's
+  queried on needs an explicit `Index(...)` in the model's `__table_args__`.
+  This is already the real, consistent practice across the models (e.g.
+  `idx_purchases_supplier` on `Purchase.supplier_id`,
+  `idx_purchase_items_product` on `PurchaseItem.product_id`) — this line
+  previously claimed the opposite (that it happens automatically), which
+  isn't true of PostgreSQL and would be actively misleading advice for a
+  new table.
 - `bill_number` has UNIQUE constraint per pharmacy — prevents duplicates at DB level
-- `batch_number + product_id` should be unique per pharmacy (future constraint)
+- `batch_number + product_id` should be unique per pharmacy (still a future
+  constraint — verified no such UniqueConstraint exists on `StockBatch` yet)
 
 ---
 

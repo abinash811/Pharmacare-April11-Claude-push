@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.3 | Last updated: August 22, 2026
+# Version: 1.4 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -65,82 +65,84 @@
 
 ### Inventory
 
-> Rewritten August 22, 2026 as a complete, code-verified use-case checklist
-> (not a sample) — every row below was checked against the real router/model
-> code, not assumed from memory. Work this list top to bottom, one row at a
-> time, so a change doesn't drift ahead of what's actually verified. The
-> previous version of this table claimed "Bulk upload (Excel) 🔄 backend
-> done" — that was false; no such endpoint exists anywhere in the codebase
-> (verified by grep, zero hits beyond Python's own `import` keyword). Doc
-> drift like that is exactly what this rewrite is meant to stop.
+> Rewritten August 22, 2026 as a complete, code-verified use-case checklist —
+> every row checked against the real router/model code, not memory. Each
+> feature is broken into its actual sub-use-cases (not one summary line),
+> written as a user story, with the real fields/rules it involves and any
+> limitation found. Work this list top to bottom, one row at a time.
+>
+> **Correction to this doc's own previous pass:** it had claimed "Bulk import
+> via Excel/CSV — ❌ Not built." That was wrong — a full, working feature
+> exists (`backend/utils/excel.py`, 6 endpoints; `ExcelBulkUploadWizard/`, a
+> 4-step frontend wizard; `test_excel_bulk_upload.py`). The first pass
+> grepped only two frontend page folders and missed `backend/utils/` and
+> `frontend/src/components/` entirely. Fixed below. Flagging this here
+> because it's the exact kind of miss Manifesto rule 14 exists to catch —
+> including when it's this document's own.
 
 **A. Product Catalog** — `backend/routers/inventory.py`, `models/products.py::Product`
 
-| Use case | Status | Where | Notes |
+| User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| Create product | ✅ | `POST /products` | SKU auto-generated if omitted |
-| Edit product | ✅ | `PUT /products/{id}` | Admin-only |
-| Soft-delete product | ✅ | `DELETE /products/{id}` | Blocked if any batch has `quantity_on_hand > 0` |
-| List / search products (name, SKU, brand, manufacturer) | ✅ | `GET /products` | |
-| Product detail page | ✅ | `pages/MedicineDetail` | |
-| Barcode / SKU lookup for billing | ✅ | `GET /products/barcode/{barcode}` | |
-| Typeahead search with live batch/stock data | ✅ | `GET /products/search-with-batches` | Powers the billing item search |
-| Categories / GST rates / dosage forms as one source of truth | ✅ | `GET /products/meta` | Frontend dropdowns read this, not a hardcoded local list |
-| HSN code auto-derived from category (not free-typed) | ✅ | `CATEGORY_HSN_MAP` in `constants.py` | |
-| Drug schedule (OTC/H/H1/X) | ✅ | `drug_schedule` column | Drives the H1 doctor-required billing check |
-| Reorder level (per product) | ✅ | `reorder_level` column | Drives `/inventory` health severity — see gap below on the *other* two low-stock definitions |
-| Reorder quantity (per product) | 🔄 | `reorder_quantity` column | Column exists and is set on create; nothing reads it yet — no "suggested purchase qty" feature consumes it |
-| Bulk field update (GST%, category, schedule, discount%, location) | ✅ | `POST /products/bulk-update` | Backend also allows `brand`; `BulkUpdateModal.jsx` doesn't expose it in the UI — minor, not a bug |
-| Bulk import via Excel/CSV | ❌ **Not built** | — | No endpoint, no parser, no UI anywhere in the repo. Correcting this table's previous false "🔄 backend done" claim |
-| Barcode/label printing | ❌ **Not built** | — | No print-label code found |
-| Multi-unit conversion (strip vs. box via `units_per_pack`) | ✅ | used in `billing.py`, `batches.py` | |
-| Storage "location" field | 🔄 | `storage_location` (free-text string) + `location_id` param (always `"default"`) | Not a real multi-location system — matches Phase 1's single-store scope, but the `location_id` param on 3 endpoints is vestigial and misleading; either wire it or remove it |
+| As a pharmacist, I want to add a new medicine to the catalog. | ✅ `POST /products` | Required: `name`. Optional: `sku` (auto-generated `SKU-XXXXXXXX` if left blank), `manufacturer`, `brand`, `generic_name`, `dosage_form`, `pack_size`, `units_per_pack` (default 1), `category`, `barcode`, `gst_percent` (default 5%, must be one of the valid GST slabs), `schedule` (OTC/H/H1/X, default OTC), `low_stock_threshold_units` (→ `reorder_level`, default 10). HSN code is auto-derived from category, not typed. SKU must be unique per pharmacy. | Three real DB columns have **no field to set them anywhere** — `strength` (e.g. "500mg"), `requires_refrigeration` (cold-chain flag), and `reorder_quantity` is settable but nothing downstream reads it. Photo/image field doesn't exist. No default-supplier link at the product level. |
+| As a pharmacist, I want to edit an existing medicine's details. | ✅ `PUT /products/{id}` | Same field set as create, all optional/partial. Changing `category` silently re-derives `hsn_code`. | **Admin-only** — a manager or cashier cannot fix a typo in a medicine name themselves; every correction needs an admin. Same missing-fields limitation as above (`strength`, `requires_refrigeration`). |
+| As a pharmacist, I want to remove a medicine that's no longer stocked. | ✅ `DELETE /products/{id}` (soft delete, sets `deleted_at`) | Admin-only. Blocked with a 400 if any batch still has `quantity_on_hand > 0` — "Write off batches first." | No reason/note is captured for the deletion itself (unlike stock adjustments, which require a reason) — there's no audit trail answering "why was this removed." |
+| As a pharmacist, I want to search for a medicine by name, SKU, brand, or manufacturer. | ✅ `GET /products?search=` | Matches any of the four fields (`ilike`, partial match). | Doesn't search `generic_name`/composition in the same box — a pharmacist searching by salt name gets no results unless it happens to also be in the brand/name field. |
+| As a cashier, I want to scan a barcode and instantly find the medicine and its stock. | ✅ `GET /products/barcode/{barcode}` | Falls back to matching on `sku` too if barcode isn't found. Returns available batches + suggested (FEFO) batch. | — |
+| As a pharmacist, I want to view one medicine's full detail — batches, stock ledger, sales/purchase history. | ✅ `pages/MedicineDetail` (tabs: Batches, Ledger, Transactions) | — | — |
+| As a pharmacist, I want to change the GST rate, category, schedule, discount, or location on many medicines at once instead of one by one. | ✅ `POST /products/bulk-update` | Allowed fields: `gst_percent`, `category`, `schedule`, `discount_percent`, `location`, and `brand`. Admin/manager only. | `brand` is allowed by the backend but **not offered** in `BulkUpdateModal.jsx`'s field dropdown — a real but minor UI gap. No bulk delete. No validation warning if a bulk change conflicts with existing stock (e.g. bulk-changing schedule to H1 on products already mid-sale). |
+| As a pharmacist onboarding a new pharmacy, I want to upload my whole existing medicine catalog from an Excel/CSV file instead of typing each one in. | ✅ `POST /inventory/bulk-upload/parse` → `/validate` → `/import`, plus `GET /template` and `/progress/{job_id}` | 4-step wizard: upload file → map columns (auto-detects SKU/name/price/quantity/expiry/batch/brand/category columns by keyword) → preview & validate → import with a progress bar. Downloadable template. Error report available per failed row. | Job state is stored **in-memory** (`bulk_upload_jobs: Dict`) — a backend restart mid-import loses job/progress state. Not yet confirmed whether a partially-failed import is fully atomic or can leave a mix of imported/skipped rows without a clear "what actually landed" summary — worth a dedicated test before relying on it for a large real catalog. |
+| As a pharmacist, I want to print a barcode label for a medicine that doesn't have one yet. | ❌ **Not built** | — | No label-printing code anywhere in the repo. |
+| As a cashier, I want to sell 5 loose tablets from a 10-tablet strip, not the whole strip. | ✅ | `units_per_pack` conversion, used consistently in `billing.py` and `batches.py`. | — |
+| As a pharmacist, I want to record exactly which rack/shelf/bin a medicine sits on so staff can find it fast. | ❌ **Not built as a real feature** | Only a single free-text `storage_location` string exists (used by bulk-update as "location"). A separate `location_id` param appears on 3 endpoints but is always `"default"` — vestigial, not wired to anything. | No structured rack/shelf/aisle/bin fields. No support for one product's stock being split across multiple physical spots. Either build this properly or remove the misleading `location_id` param. |
+| As a pharmacist, I want the system to suggest how much to reorder when a medicine runs low. | 🔄 **Half-built** | `reorder_quantity` column exists and is stored per product. | Nothing reads it — no "suggested purchase quantity" appears anywhere (not in Purchases, not in the low-stock alert). The field is write-only today. |
+| As a pharmacist, I want to flag a medicine as needing refrigerated storage. | ❌ **Not built** | `requires_refrigeration` column exists on the `Product` table. | Not exposed in `ProductCreate`/`ProductUpdate` at all — dead column, unreachable from the API or UI. |
+| As a pharmacist, I want to record a medicine's strength (e.g. 500mg) separately from its name. | ❌ **Not built** | `strength` column exists on the `Product` table. | Same as above — not in `ProductCreate`/`ProductUpdate`, dead column. |
 
 **B. Batch & Stock Tracking** — `backend/routers/batches.py`, `models/products.py::StockBatch`
 
-| Use case | Status | Where | Notes |
+| User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| Create batch (manual entry) | ✅ | `POST /stock/batches` | Rejects duplicate batch number per product, rejects already-past expiry |
-| Create batch via Purchase/GRN confirm | ✅ | see Purchases section below | |
-| Edit batch | ✅ | `PUT /stock/batches/{id}` | Admin-only |
-| Soft-disable batch | ✅ | `DELETE /stock/batches/{id}` | Blocked if `quantity_on_hand > 0` |
-| FEFO batch selection at billing | ✅ | ordered by `expiry_date` | Earliest-expiring active batch offered first |
-| Batch list per product | ✅ | `MedicineDetail → BatchesTab` | |
+| As a pharmacist, I want to manually add a stock batch (not via a purchase) — e.g. opening stock when first setting up. | ✅ `POST /stock/batches` | `product_sku`, `batch_no`, `expiry_date`, `qty_on_hand`, `cost_price_per_unit`, `mrp_per_unit`, plus optional `manufacture_date`, `supplier_name`, `supplier_invoice_no`, `received_date`, `location`, `free_qty_units`, `notes`. Rejects a duplicate batch number for the same product. Rejects an expiry date already in the past. Auto-records an `opening_stock` movement. | `supplier_name`/`supplier_invoice_no` here are **free-text strings**, not linked to the real `Supplier` table — inconsistent with the Purchases flow, which links a real `supplier_id`. Same real-world concept, two different representations depending on entry path. |
+| As a pharmacist, I want to edit a batch's details (cost, MRP, expiry, quantity). | ✅ `PUT /stock/batches/{id}`, admin-only | Any field from create, partial update. Expiry can't be moved into the past. | Directly editing `qty_on_hand` here **bypasses the stock-movement audit trail** — no `StockMovement` row is created, no reason is required, unlike the dedicated `/adjust` endpoint. Two paths change the same number; only one is audited. |
+| As a pharmacist, I want to remove a batch that's fully used up or was entered by mistake. | ✅ `DELETE /stock/batches/{id}`, admin-only (soft: `is_active=False`) | Blocked if `quantity_on_hand > 0`. | — |
+| As a cashier, when billing, I want the system to automatically pick the batch that expires soonest. | ✅ FEFO, ordered by `expiry_date` | Only batches with `is_active=True` and `quantity_on_hand > 0` are offered. | — |
+| As a pharmacist, I want to see every batch of a medicine, current and historical. | ✅ `MedicineDetail → BatchesTab` | — | — |
 
 **C. Stock Movements & Adjustments**
 
-| Use case | Status | Where | Notes |
+| User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| Movement log on every stock change | ✅ | `StockMovement` model, `_record_movement()` helper | opening/sale/purchase/adjustment/writeoff/return all traced |
-| Movement history view | ✅ | `GET /stock-movements`, `MedicineDetail → LedgerTab` | Paginated |
-| Manual stock adjustment (add/remove + reason) | ✅ | `POST /batches/{id}/adjust` | Blocks a result below 0 |
-| Expired-batch write-off | ✅ | `POST /batches/{id}/writeoff-expiry` | Blocks writing off a batch that isn't actually expired yet |
-| Physical stock take / cycle count reconciliation | ❌ **Not built** | — | No code anywhere counts physical stock against system stock and reconciles the difference. Real gap for a compliance product — this is normally how shrinkage/theft/counting-error gets caught |
+| As a pharmacist, I want every stock change traced — what happened, when, by whom, why. | ✅ `StockMovement` model, `_record_movement()` | Records `movement_type`, `quantity`, `quantity_before/after`, `reference_type/id`, `user_id`, `notes`, timestamp. Covers opening/sale/purchase/adjustment/writeoff/return. | The batch-edit gap in section B means not every stock change actually goes through this — direct `PUT /stock/batches/{id}` quantity edits skip it. |
+| As a pharmacist, I want to see the full movement history for a medicine or batch. | ✅ `GET /stock-movements`, `MedicineDetail → LedgerTab` | Filterable by product SKU, batch, movement type. Paginated. | — |
+| As a pharmacist, I want to manually correct stock (damage, loss, found extra) with a reason on record. | ✅ `POST /batches/{id}/adjust` | `adjustment_type` (add/remove), `qty_units`, `reason` (required), optional `reference_number`/`notes`. Blocks a result below 0. | — |
+| As a pharmacist, I want to write off a batch that's expired and unsellable. | ✅ `POST /batches/{id}/writeoff-expiry` | Only allowed if `expiry_date < today`. Zeroes the batch, deactivates it, records the write-off amount. | — |
+| As a pharmacist, I want to periodically count physical stock and reconcile it against what the system shows, recording the variance. | ❌ **Not built** | — | No stock-take / cycle-count feature exists anywhere. This is normally how shrinkage, theft, and counting errors get caught in a compliance-driven business — currently the only way to correct a mismatch is the generic `/adjust` endpoint, one batch at a time, with no "count session" concept. |
 
 **D. Inventory Health / Alerts** — `GET /inventory`, `GET /inventory/filters`
 
-| Use case | Status | Where | Notes |
+| User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| Health list: out_of_stock / expired / near_expiry / low_stock / healthy | ✅ | `inventory.py::get_inventory_with_health` | Severity-sorted, paginated |
-| Filter by category / brand / status | ✅ | `GET /inventory/filters` | |
-| Near-expiry threshold, configurable | ✅ | `PharmacySettings.near_expiry_threshold_days` | Same value read consistently by both `/inventory` and `/analytics/dashboard` — verified consistent |
-| ⚠ Low-stock threshold — **three different definitions, unreconciled** | ❌ **Real gap** | see below | Not one bug — three separate, disagreeing implementations live in the codebase right now |
+| As a pharmacist, I want one screen showing which medicines are out of stock, expired, near expiry, low stock, or healthy. | ✅ `GET /inventory` | Severity-ranked (1=critical → 3=healthy), sorted by severity then nearest expiry then name. Paginated, with summary counts. | — |
+| As a pharmacist, I want to filter that list by category, brand, or status. | ✅ `GET /inventory/filters` | Returns the real distinct categories/brands present, plus the 5 fixed status values. | — |
+| As a pharmacist, I want to set how many days before expiry counts as "near expiry." | ✅ `PharmacySettings.near_expiry_threshold_days` | Read consistently by both `/inventory` and `/analytics/dashboard` — verified the same value both places. | — |
+| As a pharmacist, I want to set the quantity that counts as "low stock." | ❌ **Real gap — three disagreeing definitions** | See detail below. | Not one bug — three separate implementations disagree right now. |
 
-**Low-stock gap, in detail (found and verified this pass, not yet fixed):**
-1. `GET /inventory` (the Inventory list page) uses each **product's own** `reorder_level`.
+**Low-stock gap, in detail (verified, not yet fixed):**
+1. `GET /inventory` (Inventory list) uses each **product's own** `reorder_level`.
 2. `GET /analytics/dashboard` (Dashboard alerts) uses the **pharmacy-wide** `PharmacySettings.low_stock_threshold_days` setting, checked **per batch**, not per product's summed stock.
-3. `GET /reports/dashboard` (Dashboard's top stat cards) **hardcodes `10`**, ignoring both the per-product `reorder_level` and the pharmacy-wide setting entirely.
+3. `GET /reports/dashboard` (Dashboard stat cards) **hardcodes `10`**, ignoring both of the above.
 
-A pharmacist can set a product's reorder level to 50 and see it flagged "low stock" on the Inventory page, while the Dashboard stat card — same product, same moment — uses a hardcoded 10 and doesn't flag it at all. This wasn't visible until the three endpoints were read side by side. Needs a decision (which definition is *the* definition) before a fix, not just a patch to one endpoint.
+A product with `reorder_level = 50` can show "low stock" on the Inventory page while the Dashboard stat card — same product, same moment — uses a hardcoded 10 and shows nothing wrong. Needs one decision (which definition is *the* definition) before any fix.
 
 **E. Settings → Inventory tab enforcement** — `frontend/src/pages/Settings/components/InventoryTab.jsx`, `backend/routers/settings.py`
 
-| Use case | Status | Where | Notes |
+| User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| "Block expired stock from billing" toggle | ❌ **Not enforced, not even persisted** | `settings.py:207` | `GET /settings` returns this field **hardcoded to `True`** — there is no DB column backing it. Flipping the toggle in the UI does nothing; `billing.py` never checks a batch's `expiry_date` before allowing a sale |
-| "Allow near-expiry sale (with warning)" toggle | ❌ **Not enforced, not even persisted** | `settings.py:208` | Same as above — hardcoded `True` on GET, never read anywhere in `billing.py` |
-| "Enable low stock alerts on dashboard" toggle | ✅ | `alert_low_stock_enabled` column, read by `/analytics/dashboard` | Server returns both the data and the flag; the frontend is responsible for honoring the flag when rendering `AlertsPanel` — confirm this client-side check exists before treating the feature as fully done |
-| Near-expiry alert days | ✅ | `near_expiry_threshold_days` column | Persisted and read correctly, unlike the two toggles above |
+| As a pharmacist, I want to stop expired stock from ever being sold. | ❌ **Not enforced, not even persisted** | Toggle exists in `InventoryTab.jsx`. `GET /settings` returns it **hardcoded to `True`** (`settings.py:207`) — no DB column backs it. | Flipping this toggle does nothing either way. `billing.py` never checks a batch's `expiry_date` before allowing a sale, regardless of the toggle. |
+| As a pharmacist, I want to allow selling near-expiry stock but with a warning shown at billing. | ❌ **Not enforced, not even persisted** | Same as above — hardcoded `True` (`settings.py:208`). | No warning exists anywhere in the billing flow. |
+| As a pharmacist, I want to turn dashboard low-stock alerts on/off. | 🔄 | `alert_low_stock_enabled` column, persisted and read by `/analytics/dashboard`, returned alongside the alert data. | Server does the storage/read correctly; whether `AlertsPanel` on the frontend actually checks this flag before rendering hasn't been confirmed — verify before calling this fully done. |
+| As a pharmacist, I want to set the near-expiry alert window in days. | ✅ | `near_expiry_threshold_days` column, persisted and read correctly. | — |
 
 ---
 

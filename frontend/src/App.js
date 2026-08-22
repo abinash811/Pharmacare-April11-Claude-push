@@ -28,8 +28,7 @@ import Settings from '@/pages/Settings';
 import Users from '@/pages/Users';
 import RolesPermissions from '@/pages/RolesPermissions';
 // Team page — merges Users + Roles into a single tabbed page
-let Team;
-try { Team = require('@/pages/Team').default; } catch { Team = Users; }
+import Team from '@/pages/Team';
 import Suppliers from '@/pages/Suppliers';
 import GSTReport from '@/pages/GSTReport';
 import ScheduleH1Register from '@/pages/ScheduleH1Register';

@@ -51,7 +51,7 @@ export default function PurchaseDetail() {
   const openPayModal = () => {
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
     setPaymentData({ amount: outstanding, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '' });
-    setShowPayModal(true); setShowMoreMenu(false);
+    setShowPayModal(true);
   };
 
   const formatDateShort = (d) => d ? format(new Date(d), 'dd MMM yyyy') : '—';

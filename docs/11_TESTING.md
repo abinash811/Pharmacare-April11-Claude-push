@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.2 | Last updated: August 22, 2026
+# Version: 1.3 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 
@@ -81,6 +81,25 @@ local testing had masked:**
 | 10 | Every file in `backend/tests/` is an **HTTP integration test** — it logs in over `requests` against a real running backend. CI never started one, and never seeded the account (`testadmin@pharmacy.com`) those tests log in as. Locally this "worked" only because a developer (this session) manually ran `uvicorn` and `seed_admin.py` first — CI had neither step. | Added `Seed test admin account` and `Start backend` steps to `ci.yml`'s backend job, between migrations and the test step; `Test` now gets `REACT_APP_BACKEND_URL` pointing at it. |
 | 11 | `npm run lint -- --max-warnings 71` was verified locally through a pipe to `tail` — which meant the `echo "exit: $?"` right after it was checking `tail`'s exit code (always 0), not eslint's. Once checked correctly, it failed at 71 too: `--max-warnings` only gates warning-severity findings; **any** error-severity finding fails the step regardless of that number, and 21 real errors remained. | Fixed the verification (no more piping through `tail` when the exit code matters). Of the 21: 2 were `no-restricted-syntax` false positives — the "never import raw axios" rule has no exception for its own canonical wrapper (`src/lib/axios.{js,ts}`, which by definition has to); 12 were the same rule's hardcoded-hex-color check firing on `PrintReceipt.jsx`, which renders literal thermal/A4 print output where black borders are correct, not a brand-token violation. Both are real gaps in the rule's scope, not the code — added file-scoped `no-restricted-syntax: 'off'` overrides in `eslint.config.js` for exactly those two files, with the reasoning inline. The remaining 7 (`react-hooks/set-state-in-effect` ×1, `react-hooks/immutability` ×5, `react-hooks/static-components` ×1 at the time) are real, unaudited findings from `eslint-plugin-react-hooks@7`'s new React-Compiler-era rules — downgraded to `warn` (matching this file's own existing precedent for `exhaustive-deps`, same comment style), not fixed outright; still visible in the warning count below, not hidden. |
 
+**The eslint/date-fns downgrades above (bug #3) were the safe fix to get
+CI running, not the modern one — asked "why not make it modern instead,"
+here's what was actually possible:**
+
+| Package | Was | Now | Note |
+|---|---|---|---|
+| `eslint` | `8.57.1` (downgrade; npm itself warns this version is unsupported) | `9.23.0` (back to current) | Unblocked by upgrading `@typescript-eslint` below, not by staying on eslint 8. |
+| `@typescript-eslint/eslint-plugin` + `parser` | `^5.62.0` (predates ESLint 9 flat config) | `8.67.0` (current, built for flat config) | Found 11 more real findings v5 had missed (57→68 warnings) — a more thorough linter, not a regression. |
+| `react-day-picker` | `8.10.1` (peer range predates React 19 entirely — no version fix existed) | `10.0.1` (current major; declares `react: >=16.8.0`, no upper bound) | v10's `classNames` keys and the `IconLeft`/`IconRight` → single `Chevron` component are a real, breaking API change from v8 — rewrote `components/ui/calendar.tsx` against the package's actual shipped `.d.ts` files (not memory), verified with `tsc --noEmit` (0 errors), the existing `DateRangePicker.test.tsx` suite (6/6 passing), and a live Playwright screenshot of the rendered two-month range picker before trusting it. |
+
+**What's still not fixable by a version bump:** `--legacy-peer-deps` is
+still required in `ci.yml` — but no longer for either package above. What's
+left is `react-scripts@5.0.1` (Create React App itself, unmaintained since
+~2023) hard-peer-requiring `typescript@"^3.2.1 || ^4"`, while this project
+needs TypeScript 5.7 for modern syntax. That's not a package to swap —
+it's the build tool itself. Removing this flag for real means migrating
+off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
+— genuinely separate, larger work, not part of this pass.
+
 **Current real state, not aspirational:**
 - **Backend:** `flake8` — clean (0 violations; also fixed 660+ pre-existing
   E501/whitespace violations across the whole backend, mostly via
@@ -99,12 +118,13 @@ local testing had masked:**
   it as a real feature gap), not blind "make it pass" — deliberately not
   done in this pass, since each needs a real judgment call, not a
   mechanical fix.
-- **Frontend:** `npm run lint` — 0 errors, 57 warnings (was 74 problems,
-  28 of them errors, before this pass — see bug #11 above for where the
-  14-error drop came from). Ratcheted as the CI ceiling
-  (`--max-warnings 57`) rather than pretending it's 0 — lower this number
-  as the backlog is worked down, per file/rule breakdown below.
-  `npm test` — 104/108 passing.
+- **Frontend:** `npm run lint` — 0 errors, 68 warnings on the modernized
+  toolchain (eslint 9, `@typescript-eslint` 8 — see the modernization
+  table above; was 74 problems including 28 errors before this pass).
+  Ratcheted as the CI ceiling (`--max-warnings 68`) rather than pretending
+  it's 0 — lower this number as the backlog is worked down, per
+  file/rule breakdown below. `npm test` — 104/108 passing, verified both
+  locally and live in CI. `tsc --noEmit` — 0 errors.
 - **3 real production bugs found and fixed during this pass** (not test
   bugs — actual 500 errors in the running app):
   - `POST /purchases/{id}/pay`, `PUT /purchases/{id}`, `PUT /bills/{id}`,

@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
 # Auth: Bearer JWT token in Authorization header (handled by axios instance automatically)
@@ -106,6 +106,25 @@ Login with email and password.
 
 **Errors:**
 - `400` — Invalid credentials
+
+---
+
+### `POST /auth/session`
+> ⚠️ **Tech debt, not a designed feature.** This is leftover scaffolding from
+> the app-builder template this project started from. On session creation it
+> calls out to a **third-party demo backend**
+> (`https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data`) to
+> validate an `X-Session-ID` header, auto-provisions a user from whatever
+> that external service returns, and sets a `session_token` cookie — a
+> completely separate auth path from `POST /auth/login`'s JWT flow. It is
+> still live and still called by `frontend/src/App.js` (the `session_id=`
+> URL-hash handler). A production auth flow should not depend on an external
+> demo service. Flagged in `docs/13_DEPLOYMENT.md` pre-launch blockers —
+> decide whether to remove this path entirely or replace it with a real SSO
+> integration before launch.
+
+Creates or logs in a user from an external session lookup (see warning
+above). Sets an httpOnly `session_token` cookie.
 
 ---
 
@@ -241,6 +260,13 @@ Record payment against a due bill.
 
 ---
 
+### `GET /payments`
+List payments for a bill. **Query params:** `invoice_id` (required — returns
+`[]` without it). Payments aren't a separate ledger table; this derives a
+single synthetic entry from `bills.amount_paid_paise` / `payment_method`.
+
+---
+
 ### `POST /refunds`
 Record refund for a sales return bill.
 
@@ -254,6 +280,13 @@ Record refund for a sales return bill.
   "reason": "Expired product"
 }
 ```
+
+---
+
+### `GET /refunds`
+List refunds. **Query params:** `return_invoice_id`, `original_invoice_id`.
+Like `GET /payments`, this is derived (from bill status + audit logs), not a
+dedicated refunds table.
 
 ---
 
@@ -289,6 +322,33 @@ Get available filter options (distinct values for dropdowns).
   "locations": ["Rack A", "Rack B", ...]
 }
 ```
+
+---
+
+### `GET /products/meta`
+Dropdown source of truth for the Add Medicine form — categories (with fixed
+HSN + description), valid GST slabs, dosage forms. Read this instead of
+hardcoding the same lists in frontend constants.
+
+**Response:**
+```json
+{ "categories": [...], "gst_rates": [0, 5, 12, 18, 28], "dosage_forms": [...] }
+```
+
+---
+
+### `POST /products/bulk-update`
+Bulk-edit one field across many products by SKU. Admin/manager only.
+
+**Request:**
+```json
+{ "skus": ["PARA500", "AMOX250"], "field": "category", "value": "Analgesics" }
+```
+
+**Allowed `field` values:** `storage_location` (`location` accepted as
+alias), `gst_rate` (`gst_percent` accepted as alias), `category`,
+`drug_schedule` (`schedule` accepted as alias), `brand`. Any other field
+name returns `400`.
 
 ---
 
@@ -377,6 +437,27 @@ Get all purchase and sale transactions for a product.
 
 ---
 
+### Bulk upload (Excel) — `frontend/src/components/ExcelBulkUploadWizard`
+Defined in `backend/utils/excel.py` (a separate `excel.router`, not
+`inventory.router` — same `/api` prefix, so paths still read as
+`/inventory/bulk-upload/*`). A 4-step wizard: download template → upload &
+auto-detect columns → validate rows → import.
+
+| Endpoint | Notes |
+|----------|-------|
+| `GET /inventory/bulk-upload/template` | Downloads an `.xlsx` template with the expected columns |
+| `POST /inventory/bulk-upload/parse` | Upload a file (`multipart/form-data`); auto-detects column mapping by header keyword matching (see `COLUMN_KEYWORDS` in `excel.py`) |
+| `POST /inventory/bulk-upload/validate` | `{ job_id, column_mapping }` — validates every row against required fields (`sku`, `name`, `price`, `quantity`, `expiry_date`, `batch_number`) |
+| `POST /inventory/bulk-upload/import` | `{ job_id, import_valid_only }` — runs as a background task |
+| `GET /inventory/bulk-upload/progress/{job_id}` | Poll for import progress |
+| `GET /inventory/bulk-upload/error-report/{job_id}` | Rows that failed validation/import |
+
+**Note:** job state is an in-memory dict (`bulk_upload_jobs` in `excel.py`) —
+lost on backend restart, and won't work correctly behind more than one
+backend worker/replica.
+
+---
+
 ## STOCK BATCHES
 
 ### `POST /stock/batches`
@@ -442,6 +523,17 @@ Write off an expired batch.
 
 ---
 
+### `POST /stock-movements`
+Record a manual movement directly against a batch (used by adjust/writeoff
+flows internally, and available standalone).
+
+**Request:**
+```json
+{ "batch_id": "uuid", "movement_type": "adjustment", "qty_delta_units": -5, "ref_type": "manual", "reason": "Damaged stock" }
+```
+
+---
+
 ### `GET /stock-movements`
 List stock movements (the ledger).
 
@@ -483,6 +575,16 @@ List sales returns with pagination.
 
 ### `GET /sales-returns/{return_id}`
 Get single sales return with items.
+
+---
+
+### `PUT /sales-returns/{return_id}`
+Edit a sales return. Two edit modes:
+- **Non-financial** (note, billed-by) — any user.
+- **Financial** (items, amounts) — reverses the old stock movements, deletes
+  the old return items, and rebuilds them from the request. Requires the
+  `allow_financial_edit_return` permission (admins always have it — see
+  `PUT /roles/{role_id}/permissions/returns` under USERS & ROLES).
 
 ---
 
@@ -566,6 +668,16 @@ List purchase returns.
 
 ---
 
+### `GET /purchase-returns/{return_id}`
+Get single purchase return with items.
+
+---
+
+### `PUT /purchase-returns/{return_id}`
+Edit a purchase return — `{ edit_type: "financial" | "non_financial", note, billed_by }`.
+
+---
+
 ### `POST /purchase-returns/{return_id}/confirm`
 Confirm a purchase return (deducts stock).
 
@@ -592,6 +704,13 @@ Create a customer.
 List customers with search and pagination.
 
 **Query params:** `search`, `customer_type`, `page`, `page_size`
+
+---
+
+### `GET /customers/search`
+Lightweight typeahead — `?q=` matches name or phone, returns up to 100,
+no pagination. Used by `PatientCombobox` on the billing screen. Different
+from `GET /customers?search=`, which is the paginated list-page search.
 
 ---
 
@@ -737,6 +856,46 @@ Batches expiring within threshold days.
 
 ---
 
+## ANALYTICS
+Dashboard-facing aggregates — distinct from `/reports/*` above (which are
+export/compliance-oriented). All money fields are rupees (float), computed
+from `_paise` columns server-side.
+
+### `GET /analytics/summary`
+Gross sales, returns, net sales, pending (due) amount, today's sales, draft
+count — the tiles at the top of the Dashboard.
+
+### `GET /analytics/daily`
+Per-day sales/returns/net for the last N days. **Query params:** `days` (default `7`).
+
+### `GET /analytics/dashboard`
+Wider dashboard payload — week/month/yesterday/last-week/last-month/30-day
+comparisons.
+
+### `GET /analytics/purchases`
+Purchase totals + purchase-return totals for a date range. **Query params:**
+`from_date`, `to_date`.
+
+> ⚠️ **This route is defined twice** — in `backend/routers/reports.py:523`
+> and again in `backend/routers/sales_returns.py:659`. FastAPI matches the
+> first registration, and `main.py` includes `reports.router` (line 43)
+> before `sales_returns.router` (line 47), so the `reports.py` version
+> always wins — the copy in `sales_returns.py` is dead code, unreachable.
+> Not fixed as part of this doc pass (code change, not a doc one); worth a
+> follow-up to delete the dead copy from `sales_returns.py` so a future
+> edit to "the" `/analytics/purchases` doesn't silently target the wrong
+> file.
+
+---
+
+### `GET /backup/export`
+Admin-only. Dumps every row (this pharmacy only) from `products`, `bills`,
+`purchases`, `customers`, `doctors`, `suppliers` as JSON. Manual substitute
+for the "No automated backups" gap tracked in `docs/13_DEPLOYMENT.md`
+pre-launch blockers — not a scheduled/automated backup itself.
+
+---
+
 ## COMPLIANCE
 
 ### `GET /compliance/schedule-h1-register`
@@ -810,6 +969,9 @@ List all users in the pharmacy.
 ### `POST /users`
 Create a new user.
 
+### `GET /users/{user_id}`
+Get single user detail. Admin only.
+
 ### `PUT /users/{user_id}`
 Update user (name, role, active status).
 
@@ -824,14 +986,32 @@ Change own password.
 { "current_password": "old", "new_password": "new" }
 ```
 
+### `GET /permissions`
+List every permission flag the system knows about (`ALL_PERMISSIONS`).
+Admin only — feeds the role-editor's permission checkboxes.
+
 ### `GET /roles`
 List all roles with permissions.
 
 ### `POST /roles`
 Create custom role.
 
+### `GET /roles/{role_id}`
+Get single role.
+
 ### `PUT /roles/{role_id}`
-Update role permissions.
+Update role permissions. System roles (`is_system_role=true`) reject edits with `400`.
+
+### `DELETE /roles/{role_id}`
+Delete a custom role. Admin only.
+
+### `GET /roles/{role_name}/permissions/returns`
+### `PUT /roles/{role_id}/permissions/returns`
+Get/set the two Sales-Return-specific permission flags
+(`allow_manual_returns`, `allow_financial_edit_return`) for a role — admin
+only for the write. **Note:** defined in `backend/routers/sales_returns.py`,
+not `settings.py`, alongside the rest of the role endpoints above — look
+there first if these seem to be missing.
 
 ---
 

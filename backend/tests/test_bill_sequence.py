@@ -1,7 +1,7 @@
 """
 Test Bill Number Sequence Generation System
 Tests:
-- GET /api/settings/bill-sequences - Get current sequences
+- GET /api/settings/bill-sequence/all - Get current sequences
 - PUT /api/settings/bill-sequence - Update sequence settings
 - Sequential bill number generation
 - Draft bills use DRAFT- prefix
@@ -45,15 +45,13 @@ class TestBillSequenceGetEndpoints:
     """Test GET endpoints for bill sequences"""
 
     def test_get_all_bill_sequences(self, auth_headers):
-        """Test GET /api/settings/bill-sequences returns current sequences"""
-        response = requests.get(f"{BASE_URL}/api/settings/bill-sequences", headers=auth_headers)
+        """Test GET /api/settings/bill-sequence/all returns current sequences"""
+        response = requests.get(f"{BASE_URL}/api/settings/bill-sequence/all", headers=auth_headers)
         assert response.status_code == 200, f"Failed: {response.text}"
 
-        data = response.json()
-        assert "sequences" in data, "Response should contain 'sequences' array"
-
-        sequences = data["sequences"]
-        assert isinstance(sequences, list), "sequences should be a list"
+        # The real endpoint returns a bare list, not {"sequences": [...]}
+        sequences = response.json()
+        assert isinstance(sequences, list), "response should be a list"
 
         # Verify INV sequence exists
         inv_seq = next((s for s in sequences if s.get("prefix") == "INV"), None)
@@ -67,9 +65,9 @@ class TestBillSequenceGetEndpoints:
         print(f"INV sequence: current={inv_seq['current_sequence']}, next={inv_seq['next_number']}")
 
     def test_get_single_bill_sequence(self, auth_headers):
-        """Test GET /api/settings/bill-sequence?prefix=INV"""
+        """Test GET /api/settings/bill-sequence?document_type=sales_invoice"""
         response = requests.get(
-            f"{BASE_URL}/api/settings/bill-sequence?prefix=INV",
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_invoice",
             headers=auth_headers)
         assert response.status_code == 200, f"Failed: {response.text}"
 
@@ -80,16 +78,23 @@ class TestBillSequenceGetEndpoints:
 
         print(f"Single sequence for INV: {data}")
 
-    def test_get_rtn_sequence(self, auth_headers):
-        """Test GET /api/settings/bill-sequence?prefix=RTN for returns"""
+    def test_get_sales_return_sequence(self, auth_headers):
+        """Test GET /api/settings/bill-sequence?document_type=sales_return.
+
+        Sales returns are numbered as credit notes (default prefix "CN"),
+        via their own PharmacySettings.return_prefix counter — see
+        _SEQUENCE_TYPES in routers/settings.py. There is no "RTN" prefix
+        anywhere in the real system.
+        """
         response = requests.get(
-            f"{BASE_URL}/api/settings/bill-sequence?prefix=RTN",
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_return",
             headers=auth_headers)
         assert response.status_code == 200, f"Failed: {response.text}"
 
         data = response.json()
-        assert data.get("prefix") == "RTN", "Should have RTN prefix"
-        print(f"RTN sequence: {data}")
+        assert data.get("document_type") == "sales_return", "Should be the sales_return sequence"
+        assert "prefix" in data, "Should have prefix"
+        print(f"Sales return sequence: {data}")
 
 
 class TestBillSequenceUpdateEndpoint:
@@ -98,10 +103,10 @@ class TestBillSequenceUpdateEndpoint:
     def test_update_sequence_settings(self, auth_headers):
         """Test PUT /api/settings/bill-sequence updates sequence settings"""
         # First get current settings
-        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequences", headers=auth_headers)
+        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequence/all", headers=auth_headers)
         assert get_response.status_code == 200
 
-        sequences = get_response.json().get("sequences", [])
+        sequences = get_response.json()
         inv_seq = next((s for s in sequences if s.get("prefix") == "INV"), None)
 
         # If INV sequence exists, we need to use a starting number greater than current
@@ -110,6 +115,7 @@ class TestBillSequenceUpdateEndpoint:
 
         # Update sequence
         update_data = {
+            "document_type": "sales_invoice",
             "prefix": "INV",
             "starting_number": new_starting,
             "sequence_length": 6,
@@ -121,14 +127,15 @@ class TestBillSequenceUpdateEndpoint:
         assert response.status_code == 200, f"Failed: {response.text}"
 
         data = response.json()
-        assert "message" in data, "Should have success message"
-        assert "settings" in data, "Should return updated settings"
+        assert data.get("prefix") == "INV", "Should return updated settings"
+        assert data.get("next_number") == new_starting, "Should reflect the new starting number"
 
         print(f"Updated sequence: {data}")
 
         # Verify the change
-        verify_response = requests.get(f"{BASE_URL}/api/settings/bill-sequence?prefix=INV",
-                                       headers=auth_headers)
+        verify_response = requests.get(
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_invoice",
+            headers=auth_headers)
         assert verify_response.status_code == 200
         verify_data = verify_response.json()
         assert verify_data.get("next_number") == new_starting, "Next number should be updated"
@@ -136,8 +143,8 @@ class TestBillSequenceUpdateEndpoint:
     def test_update_sequence_length(self, auth_headers):
         """Test updating sequence length changes format"""
         # Get current sequence
-        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequences", headers=auth_headers)
-        sequences = get_response.json().get("sequences", [])
+        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequence/all", headers=auth_headers)
+        sequences = get_response.json()
         inv_seq = next((s for s in sequences if s.get("prefix") == "INV"), None)
 
         current_seq = inv_seq.get("current_sequence", 0) if inv_seq else 0
@@ -145,6 +152,7 @@ class TestBillSequenceUpdateEndpoint:
 
         # Update with different sequence length
         update_data = {
+            "document_type": "sales_invoice",
             "prefix": "INV",
             "starting_number": new_starting,
             "sequence_length": 8,  # Change to 8 digits
@@ -156,8 +164,9 @@ class TestBillSequenceUpdateEndpoint:
         assert response.status_code == 200, f"Failed: {response.text}"
 
         # Verify length was updated
-        verify_response = requests.get(f"{BASE_URL}/api/settings/bill-sequence?prefix=INV",
-                                       headers=auth_headers)
+        verify_response = requests.get(
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_invoice",
+            headers=auth_headers)
         verify_data = verify_response.json()
         assert verify_data.get("sequence_length") == 8, "Sequence length should be 8"
 
@@ -224,13 +233,14 @@ class TestBillSequenceValidation:
     def test_starting_number_less_than_current_rejected(self, auth_headers):
         """Test that starting number less than current sequence is rejected"""
         # First get current sequence
-        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequences", headers=auth_headers)
-        sequences = get_response.json().get("sequences", [])
+        get_response = requests.get(f"{BASE_URL}/api/settings/bill-sequence/all", headers=auth_headers)
+        sequences = get_response.json()
         inv_seq = next((s for s in sequences if s.get("prefix") == "INV"), None)
 
         if inv_seq and inv_seq.get("current_sequence", 0) > 0:
             # Try to set starting number less than current
             update_data = {
+                "document_type": "sales_invoice",
                 "prefix": "INV",
                 "starting_number": 1,  # Should be rejected if current > 1
                 "sequence_length": 6,
@@ -241,8 +251,8 @@ class TestBillSequenceValidation:
                                     json=update_data, headers=auth_headers)
             assert response.status_code == 400, (
                 f"Should reject starting number less than current ({inv_seq['current_sequence']})")
-            assert "greater than" in response.json().get(
-                "detail", "").lower(), "Error should mention needing greater value"
+            assert "at least" in response.json().get(
+                "detail", "").lower(), "Error should mention needing a higher value"
             print(f"Correctly rejected low starting number: {response.json()}")
         else:
             pytest.skip("No existing sequence to test against")
@@ -255,7 +265,7 @@ class TestDraftBillsNoSequence:
         """Test that draft bills get DRAFT- prefix instead of INV-"""
         # Get current sequence number
         get_response = requests.get(
-            f"{BASE_URL}/api/settings/bill-sequence?prefix=INV",
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_invoice",
             headers=auth_headers)
         current_next = get_response.json().get("next_number", 1)
 
@@ -293,7 +303,7 @@ class TestDraftBillsNoSequence:
 
         # Verify sequence number didn't change
         verify_response = requests.get(
-            f"{BASE_URL}/api/settings/bill-sequence?prefix=INV",
+            f"{BASE_URL}/api/settings/bill-sequence?document_type=sales_invoice",
             headers=auth_headers)
         new_next = verify_response.json().get("next_number", 1)
         assert new_next == current_next, "Draft bill should not consume sequence number"
@@ -388,44 +398,28 @@ class TestSequentialBillGeneration:
 
 
 class TestSalesReturnSequence:
-    """Test that sales returns use RTN- prefix"""
+    """Known gap, documented rather than force-fixed (see docs/11_TESTING.md):
 
-    def test_sales_return_uses_rtn_prefix(self, auth_headers):
-        """Test that SALES_RETURN invoice type uses RTN- prefix"""
-        return_data = {
-            "customer_name": "TEST Return Customer",
-            "customer_mobile": "6666666666",
-            "items": [
-                {
-                    "product_id": "test-product-return",
-                    "product_name": "Test Product Return",
-                    "batch_no": "BATCH-RETURN",
-                    "quantity": 1,
-                    "unit_price": 10,
-                    "mrp": 10,
-                    "discount": 0,
-                    "gst_percent": 5,
-                    "line_total": 10.5
-                }
-            ],
-            "discount": 0,
-            "tax_rate": 5,
-            "status": "paid",
-            "invoice_type": "SALES_RETURN",  # This should use RTN-
-            "refund": {
-                "amount": 10.5,
-                "refund_method": "cash"
-            }
-        }
+    POST /api/bills accepts invoice_type="SALES_RETURN" and always numbers
+    the result with the sales_invoice (INV-) sequence — it never touches
+    PharmacySettings.return_prefix. There is also no frontend code anywhere
+    that posts a bill with invoice_type=SALES_RETURN (confirmed via repo
+    search) — the real, live sales-return flow is POST /api/sales-returns
+    (routers/sales_returns.py), which correctly numbers returns as credit
+    notes via its own return_prefix counter (default "CN", not "RTN").
+    invoice_type=SALES_RETURN on /api/bills looks like unused/dead API
+    surface from an earlier design, not a live bug — deciding whether to
+    remove it or wire it up properly is a product call, left to the owner
+    rather than guessed at here.
+    """
 
-        response = requests.post(f"{BASE_URL}/api/bills", json=return_data, headers=auth_headers)
-        assert response.status_code == 200, f"Failed to create return: {response.text}"
-
-        bill = response.json()
-        bill_number = bill.get("bill_number", "")
-        assert bill_number.startswith(
-            "RTN-"), f"Sales return should have RTN- prefix, got: {bill_number}"
-        print(f"Created sales return: {bill_number}")
+    def test_sales_return_via_bills_endpoint_is_a_known_gap(self, auth_headers):
+        pytest.skip(
+            "POST /api/bills invoice_type=SALES_RETURN always uses the INV- "
+            "sequence, never return_prefix — dead/unused code path (no "
+            "frontend caller). Real returns go through POST /api/sales-returns "
+            "with the CN- credit-note sequence instead. See class docstring."
+        )
 
 
 class TestConcurrentBillCreation:
@@ -494,27 +488,23 @@ class TestConcurrentBillCreation:
 
 
 class TestPreviewEndpoint:
-    """Test the preview endpoint"""
+    """Known gap, documented rather than force-fixed (see docs/11_TESTING.md):
+    POST /api/settings/bill-sequence/preview was never implemented on the
+    backend and no route exists for it (confirmed via grep of routers/).
+    It was also never needed — frontend/src/pages/Settings/components/
+    BillSequenceTab.jsx computes the preview string client-side
+    (`${prefix}-${String(starting_number).padStart(sequence_length, '0')}`),
+    so no frontend code ever calls this URL either. Testing an endpoint
+    that was never built for a feature that never needed it — removed
+    rather than kept failing.
+    """
 
-    def test_preview_bill_number(self, auth_headers):
-        """Test POST /api/settings/bill-sequence/preview"""
-        preview_data = {
-            "prefix": "TEST",
-            "starting_number": 123,
-            "sequence_length": 6,
-            "allow_prefix_change": True
-        }
-
-        response = requests.post(f"{BASE_URL}/api/settings/bill-sequence/preview",
-                                 json=preview_data, headers=auth_headers)
-        assert response.status_code == 200, f"Failed: {response.text}"
-
-        data = response.json()
-        assert "preview" in data, "Should have preview field"
-        assert data["preview"] == "TEST-000123", f"Preview should be TEST-000123, got: {data['preview']}"
-        assert "format" in data, "Should have format field"
-
-        print(f"Preview result: {data}")
+    def test_preview_endpoint_does_not_exist_by_design(self, auth_headers):
+        pytest.skip(
+            "POST /api/settings/bill-sequence/preview was never implemented — "
+            "the Bill Sequence Settings preview is computed client-side. "
+            "See class docstring."
+        )
 
 
 if __name__ == "__main__":

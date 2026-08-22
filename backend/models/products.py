@@ -41,6 +41,7 @@ class Product(Base):
     units_per_pack: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     hsn_code: Mapped[str] = mapped_column(String(10), default="3004", nullable=False)
     gst_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=5.00, nullable=False)
+    discount_percent: Mapped[float] = mapped_column(Numeric(5, 2), default=0, nullable=False)
     reorder_level: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     reorder_quantity: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     storage_location: Mapped[Optional[str]] = mapped_column(String(100))

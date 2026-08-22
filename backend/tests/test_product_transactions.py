@@ -4,11 +4,18 @@ Tests the /api/products/{sku}/transactions endpoint
 Product SKU '3004' (Paracetamol 500mg) should have linked transactions
 """
 
+import random
+import uuid
+from datetime import date
+
 import pytest
 import requests
 import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+API = f"{BASE_URL}/api"
+SKU = "3004"
+PRODUCT_NAME = "Paracetamol 500mg"
 
 
 @pytest.fixture(scope="module")
@@ -31,6 +38,104 @@ def api_client(auth_token):
         "Content-Type": "application/json"
     })
     return session
+
+
+@pytest.fixture(scope="module", autouse=True)
+def product_3004_with_transactions(api_client):
+    """Build a real product + full transaction history through the actual
+    APIs (not direct DB writes) — this file assumed SKU 3004 with 4
+    purchases / 2 sales / 2 sales returns / 2 purchase returns already
+    existed (nothing in this repo ever seeded it), and
+    get_product_transactions() itself never populated sales_returns/
+    purchase_returns at all (see the fix in routers/inventory.py). Fixed
+    the endpoint; this fixture creates the missing fixture data.
+    """
+    unique = str(uuid.uuid4())[:6]
+
+    supplier_resp = api_client.post(f"{API}/suppliers", json={
+        "name": f"TEST_Supplier_{unique}",
+    })
+    assert supplier_resp.status_code in (200, 201), supplier_resp.text
+    supplier_id = supplier_resp.json()["id"]
+
+    product_resp = api_client.post(f"{API}/products", json={
+        "sku": SKU, "name": PRODUCT_NAME, "gst_percent": 12,
+    })
+    # A prior run of this fixture (e.g. an interrupted test session) may have
+    # already created SKU 3004 — that's fine, this fixture only needs it to
+    # exist, not to have created it itself.
+    already_exists = (product_resp.status_code == 400
+                      and "already exists" in product_resp.text)
+    assert product_resp.status_code in (200, 201) or already_exists, product_resp.text
+
+    today = date.today().isoformat()
+    purchases = []
+    for i in range(4):
+        batch_no = f"3004-BATCH-{unique}-{i}"
+        resp = api_client.post(f"{API}/purchases", json={
+            "supplier_id": supplier_id,
+            "purchase_date": today,
+            "purchase_on": "cash",
+            "status": "confirmed",
+            "items": [{
+                "product_sku": SKU, "product_name": PRODUCT_NAME,
+                "batch_no": batch_no, "qty_units": 100,
+                "cost_price_per_unit": 1.8, "mrp_per_unit": 2.5, "gst_percent": 12,
+            }],
+        })
+        assert resp.status_code in (200, 201), resp.text
+        data = resp.json()
+        purchases.append({"id": data["id"], "batch_no": batch_no})
+
+    batches_resp = api_client.get(f"{API}/stock/batches", params={"product_sku": SKU})
+    assert batches_resp.status_code == 200, batches_resp.text
+    batches_by_no = {b["batch_no"]: b for b in batches_resp.json()}
+
+    bills = []
+    for i in range(2):
+        batch_no = purchases[i]["batch_no"]
+        batch_id = batches_by_no[batch_no]["id"]
+        resp = api_client.post(f"{API}/bills", json={
+            "customer_name": f"TEST_TxnCustomer_{unique}_{i}",
+            "customer_mobile": str(random.randint(6000000000, 9999999999)),
+            "items": [{
+                "product_sku": SKU, "product_name": PRODUCT_NAME,
+                "batch_id": batch_id, "batch_no": batch_no,
+                "quantity": 2, "unit_price": 2.5, "mrp": 2.5,
+                "discount": 0, "gst_percent": 12, "line_total": 5.6,
+            }],
+            "discount": 0, "tax_rate": 12, "payment_method": "cash",
+            "status": "paid", "invoice_type": "SALE",
+        })
+        assert resp.status_code in (200, 201), resp.text
+        bills.append({"id": resp.json()["id"], "batch_no": batch_no})
+
+    for i in range(2):
+        resp = api_client.post(f"{API}/sales-returns", json={
+            "original_bill_id": bills[i]["id"],
+            "return_date": today,
+            "items": [{
+                "product_sku": SKU, "medicine_name": PRODUCT_NAME,
+                "batch_no": bills[i]["batch_no"], "mrp": 2.5, "qty": 1,
+                "original_qty": 2, "gst_percent": 12,
+            }],
+            "refund_method": "cash",
+        })
+        assert resp.status_code in (200, 201), resp.text
+
+    for i in range(2):
+        resp = api_client.post(f"{API}/purchase-returns", json={
+            "supplier_id": supplier_id,
+            "purchase_id": purchases[i]["id"],
+            "return_date": today,
+            "reason": "Damaged",
+            "items": [{
+                "product_sku": SKU, "product_name": PRODUCT_NAME,
+                "batch_no": purchases[i]["batch_no"], "qty_units": 5,
+                "cost_price_per_unit": 1.8, "gst_percent": 12, "reason": "Damaged",
+            }],
+        })
+        assert resp.status_code in (200, 201), resp.text
 
 
 class TestProductTransactionsEndpoint:

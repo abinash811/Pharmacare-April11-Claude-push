@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,16 @@ from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from routers.auth_helpers import User, get_current_user, paginate_response
 
 router = APIRouter(prefix="/api", tags=["customers"])
+
+
+# customers.phone/alternate_phone and doctors.phone are all VARCHAR(10) (see
+# models/customers.py) — without this check, a too-long value reaches
+# asyncpg unvalidated and crashes with a raw 500 (StringDataRightTruncationError)
+# instead of a clean 422.
+def _validate_phone_length(v: Optional[str]) -> Optional[str]:
+    if v is not None and len(v) > 10:
+        raise ValueError("Phone number must be at most 10 characters")
+    return v
 
 
 # ── Pydantic request models ──────────────────────────────────────────────────
@@ -29,6 +39,8 @@ class CustomerCreate(BaseModel):
     credit_limit: float = 0
     notes: Optional[str] = None
 
+    _v_phone = field_validator("phone")(_validate_phone_length)
+
 
 class DoctorCreate(BaseModel):
     name: str
@@ -36,6 +48,8 @@ class DoctorCreate(BaseModel):
     specialization: Optional[str] = None
     clinic_address: Optional[str] = None
     notes: Optional[str] = None
+
+    _v_contact = field_validator("contact")(_validate_phone_length)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -144,7 +158,12 @@ async def search_customers(q: str, current_user: User = Depends(
 @router.get("/customers/{customer_id}")
 async def get_customer(customer_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
+    result = await db.execute(
+        select(CustomerORM).where(
+            CustomerORM.id == uuid.UUID(customer_id),
+            CustomerORM.deleted_at.is_(None),
+        )
+    )
     customer = result.scalar_one_or_none()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -164,6 +183,11 @@ async def update_customer(customer_id: str, customer_data: dict, current_user: U
         if key == "credit_limit" and value is not None:
             customer.credit_limit_paise = int(value * 100)
         elif key in allowed and value is not None:
+            if key == "phone":
+                try:
+                    _validate_phone_length(value)
+                except ValueError as e:
+                    raise HTTPException(status_code=422, detail=str(e))
             setattr(customer, key, value)
 
     await db.flush()
@@ -276,6 +300,11 @@ async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = 
         col = field_map.get(key, key)
         if col in allowed or col in ("phone", "address"):
             if value is not None:
+                if col == "phone":
+                    try:
+                        _validate_phone_length(value)
+                    except ValueError as e:
+                        raise HTTPException(status_code=422, detail=str(e))
                 setattr(doctor, col, value)
 
     await db.flush()

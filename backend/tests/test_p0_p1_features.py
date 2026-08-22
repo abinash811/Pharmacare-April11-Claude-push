@@ -3,6 +3,8 @@ Backend Tests for P0 (Critical Optimizations) and P1 (Core Feature Completion)
 - P0: Barcode lookup API, Product search with barcode
 - P1: Customers CRUD, Doctors CRUD, Reports (Low Stock, Expiry, Sales Summary)
 """
+import random
+
 import pytest
 import requests
 import os
@@ -10,6 +12,13 @@ import uuid
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 API = f"{BASE_URL}/api"
+
+
+def _random_test_phone() -> str:
+    """customers.phone / doctors.phone are VARCHAR(10) — a real 10-digit
+    number, not the uuid-derived strings this file used to send (those are
+    >10 chars and crash the create endpoint with a raw 500)."""
+    return str(random.randint(6000000000, 9999999999))
 
 
 @pytest.fixture(scope="session")
@@ -70,11 +79,11 @@ class TestCustomersCRUD:
     @pytest.fixture
     def test_customer_id(self, auth_headers):
         """Create a test customer and return its ID for other tests"""
-        unique_phone = f"TEST_{str(uuid.uuid4())[:8]}"
+        unique_id = f"TEST_{str(uuid.uuid4())[:8]}"
         customer_data = {
-            "name": f"TEST_Customer_{unique_phone}",
-            "phone": unique_phone,
-            "email": f"test_{unique_phone}@test.com",
+            "name": f"TEST_Customer_{unique_id}",
+            "phone": _random_test_phone(),
+            "email": f"test_{unique_id}@test.com",
             "customer_type": "regular",
             "credit_limit": 5000
         }
@@ -92,11 +101,11 @@ class TestCustomersCRUD:
 
     def test_create_customer(self, auth_headers):
         """Test POST /customers - Create new customer"""
-        unique_phone = f"TEST_{str(uuid.uuid4())[:8]}"
+        unique_id = f"TEST_{str(uuid.uuid4())[:8]}"
         customer_data = {
-            "name": f"TEST_NewCustomer_{unique_phone}",
-            "phone": unique_phone,
-            "email": f"newcust_{unique_phone}@test.com",
+            "name": f"TEST_NewCustomer_{unique_id}",
+            "phone": _random_test_phone(),
+            "email": f"newcust_{unique_id}@test.com",
             "customer_type": "regular",
             "credit_limit": 10000
         }
@@ -159,11 +168,11 @@ class TestCustomersCRUD:
     def test_delete_customer(self, auth_headers):
         """Test DELETE /customers/{id} - Delete customer"""
         # Create a customer to delete
-        unique_phone = f"DEL_{str(uuid.uuid4())[:8]}"
+        unique_id = f"DEL_{str(uuid.uuid4())[:8]}"
         customer_data = {
-            "name": f"TEST_DeleteMe_{unique_phone}",
-            "phone": unique_phone,
-            "email": f"delete_{unique_phone}@test.com",
+            "name": f"TEST_DeleteMe_{unique_id}",
+            "phone": _random_test_phone(),
+            "email": f"delete_{unique_id}@test.com",
             "customer_type": "regular"
         }
         create_response = requests.post(
@@ -202,11 +211,11 @@ class TestDoctorsCRUD:
         return None
 
     def test_list_doctors(self, auth_headers):
-        """Test GET /doctors - List all doctors"""
+        """Test GET /doctors - List all doctors (paginated {data, pagination} envelope)"""
         response = requests.get(f"{API}/doctors", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert isinstance(data.get("data"), list)
 
     def test_create_doctor(self, auth_headers):
         """Test POST /doctors - Create new doctor"""
@@ -356,7 +365,7 @@ def cleanup_test_data(auth_token):
     try:
         doctors_response = requests.get(f"{API}/doctors", headers=headers)
         if doctors_response.status_code == 200:
-            for doctor in doctors_response.json():
+            for doctor in doctors_response.json().get("data", []):
                 if doctor.get("name", "").startswith("TEST_"):
                     requests.delete(f"{API}/doctors/{doctor['id']}", headers=headers)
     except Exception as e:

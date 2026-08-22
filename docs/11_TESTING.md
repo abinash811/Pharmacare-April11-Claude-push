@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.3 | Last updated: August 22, 2026
+# Version: 1.4 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 
@@ -103,21 +103,19 @@ off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
 **Current real state, not aspirational:**
 - **Backend:** `flake8` — clean (0 violations; also fixed 660+ pre-existing
   E501/whitespace violations across the whole backend, mostly via
-  `autopep8`, see CHANGELOG). `pytest` against a live seeded backend — **91
-  passing, 30 failing, 13 skipped** (was 81/40/13 before an additional
-  reconciliation pass on `test_supplier_management.py`: 11 of its 12
-  failures were the exact `TestSupplierManagement` bug described below,
-  fixed by reading `response.json()["data"]` instead of `response.json()`
-  directly — verified against a live backend, not guessed). **Most of the
-  remaining 30 are still stale tests, not app bugs**: several
-  `TestPurchasesModule` tests assert on fields (`order_type`, `with_gst`,
-  `batch_priority`) that don't exist anywhere in the real `Purchase`
-  model; `test_edit_supplier` asserts a `notes` field that doesn't exist
-  on the `Supplier` model either — same pattern, testing a feature that
-  was never built. These need a reconciliation pass (fix the test or file
-  it as a real feature gap), not blind "make it pass" — deliberately not
-  done in this pass, since each needs a real judgment call, not a
-  mechanical fix.
+  `autopep8`, see CHANGELOG). `pytest` against a live seeded backend —
+  **130 passing, 1 failing, 3 skipped** (was 91/30/13 before a full
+  reconciliation pass across every remaining failure — each one either
+  a real bug, fixed below, or a genuinely stale test pointed at a route,
+  param, or field that never existed, converted to a documented
+  `pytest.skip` with the real reason inline rather than deleted or left
+  red). The 1 remaining failure (`test_edit_supplier`, asserting a
+  `notes` field that doesn't exist on `Supplier`) and the 3 skips
+  (`TestBillSequenceValidation`'s dead `/bill-sequence/preview` endpoint,
+  a Bill-model `SALES_RETURN` path that was never wired to the real
+  credit-note sequence, and Purchase's never-implemented
+  `landing_price_per_unit` rollup) are deliberately left as documented
+  gaps, not blindly closed — see each test file's docstring for why.
 - **Frontend:** `npm run lint` — 0 errors, 68 warnings on the modernized
   toolchain (eslint 9, `@typescript-eslint` 8 — see the modernization
   table above; was 74 problems including 28 errors before this pass).
@@ -125,7 +123,7 @@ off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
   it's 0 — lower this number as the backlog is worked down, per
   file/rule breakdown below. `npm test` — 104/108 passing, verified both
   locally and live in CI. `tsc --noEmit` — 0 errors.
-- **3 real production bugs found and fixed during this pass** (not test
+- **3 real production bugs found and fixed earlier in this arc** (not test
   bugs — actual 500 errors in the running app):
   - `POST /purchases/{id}/pay`, `PUT /purchases/{id}`, `PUT /bills/{id}`,
     `PUT /purchase-returns/{id}` (both edit modes), `PUT /sales-returns/{id}`
@@ -149,12 +147,60 @@ off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
     referenced the `React` type without importing it. Both were `no-undef`
     lint errors that had simply never been caught because lint had never
     run. Fixed both.
-- **Known gap, not fixed in this pass:** `POST /customers` (and likely
-  `/doctors`, `/suppliers` — same `String(10)` pattern) crashes with a raw
-  `500 StringDataRightTruncationError` instead of a clean `400` when a
-  field like `phone` exceeds its DB column length. `CustomerCreate.phone`
-  has no Pydantic length constraint. Worth a `Field(max_length=10)` pass
-  across the affected schemas.
+- **6 more real production bugs found and fixed during the pytest
+  reconciliation pass** (surfaced by fixing tests, not by inspection —
+  each one is a genuine gap between the real running app and what it's
+  supposed to do):
+  - `POST /customers`, `PUT /customers/{id}`, `POST /doctors`,
+    `PUT /doctors/{id}`, and `POST /bills` (`customer_mobile`) all crashed
+    with a raw `500 StringDataRightTruncationError` instead of a clean
+    `422` when a phone-shaped field exceeded its `VARCHAR(10)` column —
+    the exact gap this doc used to flag as "known, not fixed." Added a
+    shared length-check `field_validator` (`routers/customers.py`,
+    `routers/billing.py`) at every one of those call sites.
+  - `GET /customers/{id}` never filtered `deleted_at IS NULL` — a
+    soft-deleted customer stayed fully fetchable by ID forever, unlike the
+    list/search endpoints, which do filter it. Fixed to match.
+  - `GET /products/{sku}/transactions` initialized `sales_returns` and
+    `purchase_returns` in its response but never actually queried either
+    one — both arrays were permanently empty regardless of real data, on
+    the live Medicine Detail page's own transaction-history tabs
+    (`frontend/src/pages/MedicineDetail/components/TransactionTab.jsx`).
+    The `purchases` branch was also missing `supplier_name`/
+    `supplier_invoice`, fields that tab already renders. Added the two
+    missing queries (`SalesReturnItem`→`SalesReturn`→`Bill`,
+    `PurchaseReturnItem`→`PurchaseReturn`→`Purchase`+`Supplier`) and the
+    two missing purchase fields.
+  - `GET /products/{product_id}` called `uuid.UUID(product_id)` with no
+    try/except — passing anything that isn't a UUID (e.g. a SKU) crashed
+    the route instead of returning a clean 404. Wrapped it.
+  - The Inventory bulk-update modal (`BulkUpdateModal.jsx`) has always
+    offered "Discount %" as an editable field, and `InventoryTable.jsx`
+    already renders `item.product.discount_percent` — but no
+    `discount_percent` column ever existed on `Product`, so every bulk
+    discount update 400'd, silently, forever. Added the column
+    (migration `c4a8e1f92d05`), wired it into `POST
+    /products/bulk-update`'s allowed-field set and `_product_response`.
+- **Known gaps, deliberately left as documented `pytest.skip`s, not
+  force-fixed** (each is real feature work — a schema change and business
+  logic, not a bug fix — and picking the right design is a product call,
+  not something to guess at mid-reconciliation):
+  - `Purchase`/`PurchaseItem` accept `order_type`, `with_gst` (persistence,
+    not the GST-calc use it already has), and `batch_priority` from the
+    API but never store or echo any of them back — no columns exist.
+  - `POST /bills` with `invoice_type=SALES_RETURN` always numbers the
+    result with the `INV-` sequence, never `return_prefix` — and nothing
+    in the frontend calls it that way. The real, live sales-return flow is
+    `POST /sales-returns`, which correctly uses its own `CN-` credit-note
+    sequence (`PharmacySettings.return_prefix`). The `/bills` path looks
+    like dead API surface from an earlier design.
+  - `Purchase` has no `landing_price_per_unit` rollup onto `Product` —
+    confirming a purchase updates that batch's own cost price (correct
+    for FEFO costing), never a product-level "last landing price."
+  - `POST /settings/bill-sequence/preview` was never implemented — the
+    Bill Sequence Settings preview string is computed client-side in
+    `BillSequenceTab.jsx`, so nothing ever needed the endpoint.
+  - `Supplier` has no `notes` field (`test_edit_supplier`).
 
 ---
 

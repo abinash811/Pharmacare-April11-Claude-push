@@ -2,11 +2,38 @@
 Excel Bulk Upload Feature Tests
 Testing the 4-step wizard: Upload, Map, Validate, Import
 """
+import os
+from datetime import date, timedelta
+
 import pytest
 import requests
-import os
+from openpyxl import Workbook
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+
+TEST_UPLOAD_PATH = "/tmp/test_upload.xlsx"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def test_upload_file():
+    """Build the fixture .xlsx tests upload — nothing ever created this
+    file before (it was assumed pre-existing), so parsing it 404'd before
+    the API under test ever ran. Headers/values match what
+    utils/excel.py's COLUMN_KEYWORDS auto-mapping and validate_bulk_upload
+    actually expect (see REQUIRED_FIELDS there), not a guess.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["SKU", "Name", "Brand", "Category", "Batch Number",
+               "Expiry Date", "Quantity", "MRP per Unit", "Cost Price", "GST %"])
+    future_expiry = (date.today() + timedelta(days=365)).isoformat()
+    ws.append(["BULKTEST001", "Bulk Test Paracetamol 500mg", "Cipla", "Tablets",
+               "BULKBATCH001", future_expiry, 100, 2.50, 1.80, 12])
+    ws.append(["BULKTEST002", "Bulk Test Amoxicillin 250mg", "Sun Pharma", "Antibiotics",
+               "BULKBATCH002", future_expiry, 50, 8.00, 6.50, 12])
+    wb.save(TEST_UPLOAD_PATH)
+    yield TEST_UPLOAD_PATH
+    os.remove(TEST_UPLOAD_PATH)
 
 
 class TestExcelBulkUploadFeature:
@@ -40,8 +67,7 @@ class TestExcelBulkUploadFeature:
 
     def test_02_parse_excel_file(self):
         """Test parsing uploaded Excel file"""
-        # Use the pre-created test file
-        test_file_path = "/tmp/test_upload.xlsx"
+        test_file_path = TEST_UPLOAD_PATH
 
         with open(test_file_path, "rb") as f:
             files = {
@@ -204,7 +230,7 @@ class TestExcelBulkUploadFeature:
     def test_08_missing_required_field_validation(self):
         """Test validation fails when required fields missing in mapping"""
         # First create a new job
-        test_file_path = "/tmp/test_upload.xlsx"
+        test_file_path = TEST_UPLOAD_PATH
 
         with open(test_file_path, "rb") as f:
             files = {

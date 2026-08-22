@@ -14,10 +14,11 @@ from constants import (
     VALID_CATEGORIES, VALID_DOSAGE_FORMS, VALID_GST_RATES,
 )
 from deps import get_db
-from models.billing import Bill, BillItem
+from models.billing import Bill, BillItem, SalesReturn, SalesReturnItem
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
-from models.purchases import Purchase, PurchaseItem
+from models.purchases import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
+from models.suppliers import Supplier as SupplierORM
 from routers.auth_helpers import User, get_current_user, paginate_response
 
 router = APIRouter(prefix="/api", tags=["inventory"])
@@ -96,7 +97,8 @@ def _product_response(p: ProductORM) -> dict:
         "id": str(p.id), "sku": p.sku, "name": p.name, "barcode": p.barcode,
         "manufacturer": p.manufacturer, "brand": p.brand, "pack_size": p.pack_size,
         "units_per_pack": p.units_per_pack, "category": p.category,
-        "gst_percent": float(p.gst_rate), "hsn_code": p.hsn_code,
+        "gst_percent": float(p.gst_rate), "discount_percent": float(p.discount_percent),
+        "hsn_code": p.hsn_code,
         "schedule": p.drug_schedule, "generic_name": p.generic_name,
         "dosage_form": p.dosage_form,
         "low_stock_threshold_units": p.reorder_level,
@@ -204,13 +206,14 @@ async def bulk_update_products(data: dict, current_user: User = Depends(
         "schedule": "drug_schedule",
         "location": "storage_location"}
     col = field_map.get(field, field)
-    if col not in {"storage_location", "gst_rate", "category", "drug_schedule", "brand"}:
+    allowed = {"storage_location", "gst_rate", "category", "drug_schedule", "brand", "discount_percent"}
+    if col not in allowed:
         raise HTTPException(status_code=400, detail=f"Field '{field}' not allowed for bulk update")
     result = await db.execute(select(ProductORM).where(
         ProductORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id), ProductORM.sku.in_(skus)))
     count = 0
     for product in result.scalars().all():
-        setattr(product, col, float(value) if col == "gst_rate" else value)
+        setattr(product, col, float(value) if col in ("gst_rate", "discount_percent") else value)
         count += 1
     await db.flush()
     return {"message": f"Updated {count} products", "modified_count": count}
@@ -301,7 +304,13 @@ async def search_products_with_batches(q: str,
 @router.get("/products/{product_id}")
 async def get_product(product_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
+    try:
+        pid = uuid.UUID(product_id)
+    except ValueError:
+        # Not a UUID at all (e.g. a SKU) — this route only looks products up
+        # by id, so that's a clean 404, not an unhandled crash.
+        raise HTTPException(status_code=404, detail="Product not found")
+    result = await db.execute(select(ProductORM).where(ProductORM.id == pid))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -395,12 +404,17 @@ async def get_product_transactions(
                                  "status": st})
     if transaction_type in ["all", "purchases"]:
         rows = await db.execute(
-            select(PurchaseItem, Purchase.purchase_number, Purchase.purchase_date, Purchase.status)
-            .join(Purchase, PurchaseItem.purchase_id == Purchase.id).where(PurchaseItem.product_id == pid)
+            select(PurchaseItem, Purchase.purchase_number, Purchase.purchase_date,
+                   Purchase.supplier_invoice_number, Purchase.status, SupplierORM.name)
+            .join(Purchase, PurchaseItem.purchase_id == Purchase.id)
+            .join(SupplierORM, Purchase.supplier_id == SupplierORM.id)
+            .where(PurchaseItem.product_id == pid)
             .order_by(Purchase.purchase_date.desc()).limit(200))
-        for pi, pnum, pdate, st in rows:
+        for pi, pnum, pdate, sup_inv, st, sup_name in rows:
             out["purchases"].append({"purchase_number": pnum,
                                      "date": pdate.isoformat(),
+                                     "supplier_name": sup_name,
+                                     "supplier_invoice": sup_inv,
                                      "batch_no": pi.batch_number or "–",
                                      "expiry_date": pi.expiry_date.isoformat() if pi.expiry_date else None,
                                      "quantity": pi.quantity_ordered,
@@ -408,6 +422,43 @@ async def get_product_transactions(
                                      "mrp": pi.mrp_paise / 100,
                                      "line_total": pi.line_total_paise / 100,
                                      "status": st})
+    if transaction_type in ["all", "sales_returns"]:
+        rows = await db.execute(
+            select(SalesReturnItem, SalesReturn.return_number, SalesReturn.return_date,
+                   SalesReturn.status, Bill.bill_number, Bill.customer_name)
+            .join(SalesReturn, SalesReturnItem.sales_return_id == SalesReturn.id)
+            .join(Bill, SalesReturn.original_bill_id == Bill.id)
+            .where(SalesReturnItem.product_id == pid)
+            .order_by(SalesReturn.return_date.desc()).limit(200))
+        for sri, rnum, rdate, st, orig_bill_no, cust in rows:
+            out["sales_returns"].append({"return_number": rnum,
+                                         "date": rdate.isoformat(),
+                                         "customer_name": cust or "Walk-in",
+                                         "original_invoice": orig_bill_no,
+                                         "batch_no": sri.batch_number,
+                                         "quantity": sri.quantity,
+                                         "refund_amount": sri.line_total_paise / 100,
+                                         "status": st})
+    if transaction_type in ["all", "purchase_returns"]:
+        rows = await db.execute(
+            select(PurchaseReturnItem, PurchaseReturn.return_number, PurchaseReturn.return_date,
+                   PurchaseReturn.return_reason, PurchaseReturn.status,
+                   Purchase.purchase_number, SupplierORM.name)
+            .join(PurchaseReturn, PurchaseReturnItem.purchase_return_id == PurchaseReturn.id)
+            .join(Purchase, PurchaseReturn.purchase_id == Purchase.id)
+            .join(SupplierORM, PurchaseReturn.supplier_id == SupplierORM.id)
+            .where(PurchaseReturnItem.product_id == pid)
+            .order_by(PurchaseReturn.return_date.desc()).limit(200))
+        for pri, rnum, rdate, reason, st, orig_purchase_no, sup_name in rows:
+            out["purchase_returns"].append({"return_number": rnum,
+                                            "date": rdate.isoformat(),
+                                            "supplier_name": sup_name,
+                                            "original_purchase": orig_purchase_no,
+                                            "batch_no": pri.batch_number,
+                                            "quantity": pri.quantity,
+                                            "reason": reason,
+                                            "line_total": pri.line_total_paise / 100,
+                                            "status": st})
     return out
 
 

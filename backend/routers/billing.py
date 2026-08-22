@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +41,17 @@ class BillCreate(BaseModel):
     invoice_type: str = "SALE"
     ref_invoice_id: Optional[str] = None
     refund: Optional[Dict[str, Any]] = None
+
+    # bills.customer_phone is VARCHAR(10) (models/billing.py) — same class of
+    # bug as customers.phone (see routers/customers.py): an unvalidated
+    # overlong value reaches asyncpg and crashes with a raw 500
+    # (StringDataRightTruncationError) instead of a clean 422.
+    @field_validator("customer_mobile")
+    @classmethod
+    def _validate_customer_mobile_length(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 10:
+            raise ValueError("Customer mobile number must be at most 10 characters")
+        return v
 
 
 class PaymentCreate(BaseModel):

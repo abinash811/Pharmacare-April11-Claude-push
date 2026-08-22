@@ -120,3 +120,107 @@ jobs:
         run: pytest --tb=short -q
         env:
           REACT_APP_BACKEND_URL: http://localhost:8000
+
+  e2e:
+    name: E2E — Playwright (real backend + real browser)
+    runs-on: ubuntu-latest
+
+    # Runs the actual app end-to-end — backend, Postgres, and a real
+    # Chromium browser driving the built frontend — the same class of check
+    # that caught the /reports/dashboard and /analytics/summary bugs on
+    # August 22, 2026 (both had passing pytest coverage's sibling endpoint,
+    # 200 status, correct field types — everything a unit/API test alone
+    # checks — while silently returning wrong data; only running the real
+    # app end-to-end surfaced it). Kept as its own job so a flaky browser
+    # run never blocks the fast backend/frontend unit jobs from reporting.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pharmacare_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        working-directory: backend
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+
+      - name: Seed test admin account
+        working-directory: backend
+        run: python seed_admin.py --email testadmin@pharmacy.com --password admin123 --name "Test Admin"
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/docs -o /dev/null && exit 0
+            sleep 1
+          done
+          echo "Backend did not become ready in time"; cat /tmp/uvicorn.log; exit 1
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          BROWSER=none nohup npm start > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:3000 -o /dev/null && exit 0
+            sleep 1
+          done
+          echo "Frontend did not become ready in time"; cat /tmp/frontend.log; exit 1
+
+      - name: Run Playwright tests
+        working-directory: frontend
+        run: npx playwright test
+        env:
+          E2E_EMAIL: testadmin@pharmacy.com
+          E2E_PASSWORD: admin123
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

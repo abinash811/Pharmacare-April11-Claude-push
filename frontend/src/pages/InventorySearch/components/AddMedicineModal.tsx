@@ -40,7 +40,7 @@ function Field({ label, required, hint, children }: any) {
 
 // Text input with a filtered suggestion dropdown — seed list + free typing.
 // Not a validation constraint: whatever's typed is used as-is on blur/submit.
-function SuggestField({ label, required, value, onChange, options, placeholder }: any) {
+function SuggestField({ label, required, value, onChange, options, placeholder, testId }: any) {
   const [open, setOpen] = useState(false);
   const matches = value.trim().length > 0
     ? options.filter((o: string) => o.toLowerCase().includes(value.trim().toLowerCase())).slice(0, 8)
@@ -56,6 +56,7 @@ function SuggestField({ label, required, value, onChange, options, placeholder }
           className={INPUT_CLS}
           placeholder={placeholder}
           required={required}
+          data-testid={testId}
         />
       </Field>
       {open && matches.length > 0 && (
@@ -161,12 +162,12 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
               <SuggestField
                 label="Medicine Name" required value={form.name}
                 onChange={handleSelectMedicine} options={medicineNames}
-                placeholder="e.g. Dolo 650"
+                placeholder="e.g. Dolo 650" testId="medicine-name-input"
               />
             </div>
 
             <Field label="Category" required>
-              <select value={form.category} onChange={(e) => set('category', e.target.value)} className={INPUT_CLS} required>
+              <select value={form.category} onChange={(e) => set('category', e.target.value)} className={INPUT_CLS} required data-testid="medicine-category-select">
                 <option value="">Select category</option>
                 {meta.categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
@@ -180,7 +181,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
             </Field>
 
             <Field label="Dosage Form" required hint={selectedDosageForm && !selectedDosageForm.divisible ? "Sold as a whole pack — can't sell loose units" : selectedDosageForm ? 'Can be sold loose (e.g. 1 tablet)' : undefined}>
-              <select value={form.dosageForm} onChange={(e) => set('dosageForm', e.target.value)} className={INPUT_CLS} required>
+              <select value={form.dosageForm} onChange={(e) => set('dosageForm', e.target.value)} className={INPUT_CLS} required data-testid="medicine-dosageform-select">
                 <option value="">Select dosage form</option>
                 {meta.dosage_forms.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
               </select>
@@ -222,13 +223,13 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
                   <input value={form.batchNo} onChange={(e) => set('batchNo', e.target.value)} className={INPUT_CLS} />
                 </Field>
                 <Field label="Expiry Date" required={form.addOpeningStock}>
-                  <input type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} />
+                  <input type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-expiry-input" />
                 </Field>
                 <Field label="Quantity" required={form.addOpeningStock}>
-                  <input type="number" value={form.initialQty} onChange={(e) => set('initialQty', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} />
+                  <input type="number" value={form.initialQty} onChange={(e) => set('initialQty', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-quantity-input" />
                 </Field>
                 <Field label="MRP per Unit" required={form.addOpeningStock}>
-                  <input type="number" step="0.01" value={form.mrpPerUnit} onChange={(e) => set('mrpPerUnit', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} />
+                  <input type="number" step="0.01" value={form.mrpPerUnit} onChange={(e) => set('mrpPerUnit', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-mrp-input" />
                 </Field>
                 <Field label="Cost Price per Unit" hint="Optional now — needed later for margin reports">
                   <input type="number" step="0.01" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} className={INPUT_CLS} />
@@ -239,7 +240,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
 
           <DialogFooter className="mt-6 pt-4 border-t border-gray-100">
             <AppButton type="button" variant="secondary" onClick={onClose}>Cancel</AppButton>
-            <AppButton type="submit" loading={loading}>Add Medicine</AppButton>
+            <AppButton type="submit" loading={loading} data-testid="add-medicine-submit-btn">Add Medicine</AppButton>
           </DialogFooter>
         </form>
       </DialogContent>

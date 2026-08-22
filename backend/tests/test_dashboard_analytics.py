@@ -5,6 +5,8 @@ Tests for /api/analytics/dashboard endpoint
 import pytest
 import requests
 import os
+import uuid
+from datetime import date, timedelta
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -204,6 +206,88 @@ class TestDashboardAnalytics:
         assert isinstance(metrics["today_change"], (int, float)), "today_change should be numeric"
         assert isinstance(metrics["week_change"], (int, float)), "week_change should be numeric"
         assert isinstance(metrics["month_change"], (int, float)), "month_change should be numeric"
+
+
+class TestReportsDashboardAndAnalyticsSummary:
+    """Regression tests for GET /reports/dashboard and GET /analytics/summary.
+
+    Both silently returned an all-zero response for every pharmacy, always,
+    because they called func.case(..., else_=...) — invalid on SQLAlchemy's
+    func proxy, only valid on the real case() construct — and a broad
+    except Exception swallowed the resulting TypeError. Fixed August 22,
+    2026. These tests create real, known data and assert the responses
+    actually reflect it, rather than only checking status code and field
+    presence — a shape-only check would have passed against the broken
+    all-zero response too, which is exactly how this bug went uncaught.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+        login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+            "email": "testadmin@pharmacy.com",
+            "password": "admin123",
+        })
+        if login_response.status_code == 200:
+            token = login_response.json().get("token")
+            self.session.headers.update({"Authorization": f"Bearer {token}"})
+        else:
+            pytest.skip("Authentication failed - skipping dashboard regression tests")
+
+    def _create_product_with_batch(self, qty, cost_price):
+        sku = f"DASHFIX-{uuid.uuid4().hex[:8]}"
+        product_resp = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": "Dashboard Regression Test Product",
+            "category": "medicine", "gst_percent": 5, "units_per_pack": 1,
+        })
+        assert product_resp.status_code == 200, product_resp.text
+        product = product_resp.json()
+
+        expiry = (date.today() + timedelta(days=400)).isoformat()
+        batch_resp = self.session.post(f"{BASE_URL}/api/stock/batches", json={
+            "product_sku": sku, "batch_no": f"B-{uuid.uuid4().hex[:6]}",
+            "expiry_date": expiry, "qty_on_hand": qty,
+            "cost_price_per_unit": cost_price, "mrp_per_unit": cost_price * 2,
+        })
+        assert batch_resp.status_code == 200, batch_resp.text
+        return product, batch_resp.json()
+
+    def test_reports_dashboard_reflects_real_stock(self):
+        """total_medicines/total_stock_value must reflect real data, not a
+        silently-swallowed-exception zero fallback."""
+        self._create_product_with_batch(qty=7, cost_price=15)
+
+        resp = self.session.get(f"{BASE_URL}/api/reports/dashboard")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+
+        assert data["total_medicines"] >= 1
+        # 7 units * 15 rupees cost = 105 minimum contribution from this batch
+        assert data["total_stock_value"] >= 105
+
+    def test_analytics_summary_reflects_real_sale(self):
+        """gross_sales must reflect a real paid bill, not a
+        silently-swallowed-exception zero fallback."""
+        product, batch = self._create_product_with_batch(qty=10, cost_price=20)
+
+        bill_resp = self.session.post(f"{BASE_URL}/api/bills", json={
+            "items": [{
+                "product_id": product["id"], "batch_id": batch["id"],
+                "product_name": product["name"], "quantity": 2,
+                "unit_price": 40, "gst_percent": 5,
+            }],
+            "tax_rate": 5, "status": "paid", "invoice_type": "SALE",
+            "payment_method": "cash",
+        })
+        assert bill_resp.status_code == 200, bill_resp.text
+
+        resp = self.session.get(f"{BASE_URL}/api/analytics/summary")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+
+        # 2 units * 40 rupees = 80 rupees minimum gross sales from this bill
+        assert data["gross_sales"] >= 80
 
 
 if __name__ == "__main__":

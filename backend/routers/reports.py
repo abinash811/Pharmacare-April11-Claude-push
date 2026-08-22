@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
@@ -194,7 +194,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db),
             func.coalesce(func.sum(BillORM.grand_total_paise), 0),
             func.coalesce(
                 func.sum(
-                    func.case(
+                    case(
                         (BillORM.bill_date == today,
                          BillORM.grand_total_paise),
                         else_=0)),
@@ -417,16 +417,16 @@ async def get_analytics_summary(db: AsyncSession = Depends(
         base = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
         row = (await db.execute(select(
             func.coalesce(
-                func.sum(func.case((BillORM.status.in_(["paid", "due"]), BillORM.grand_total_paise), else_=0)), 0),
+                func.sum(case((BillORM.status.in_(["paid", "due"]), BillORM.grand_total_paise), else_=0)), 0),
             func.coalesce(
                 func.sum(
-                    func.case(
+                    case(
                         (BillORM.status == "due",
                          BillORM.grand_total_paise),
                         else_=0)),
                 0),
-            func.count(func.case((BillORM.status == "draft", 1))),
-            func.coalesce(func.sum(func.case(
+            func.count(case((BillORM.status == "draft", 1))),
+            func.coalesce(func.sum(case(
                 (BillORM.status.in_(["paid", "due"]) & (BillORM.bill_date == today),
                  BillORM.grand_total_paise), else_=0)), 0),
         ).where(*base))).one()
@@ -435,7 +435,7 @@ async def get_analytics_summary(db: AsyncSession = Depends(
         # Returns
         returns_paise = (await db.execute(select(
             func.coalesce(func.sum(
-                func.case((BillORM.status.in_(["paid", "refunded"]), BillORM.grand_total_paise), else_=0)), 0)
+                case((BillORM.status.in_(["paid", "refunded"]), BillORM.grand_total_paise), else_=0)), 0)
         ).where(BillORM.pharmacy_id == pid, BillORM.invoice_type == "SALES_RETURN",
                 BillORM.deleted_at.is_(None)))).scalar()
 

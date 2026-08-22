@@ -262,7 +262,12 @@ async def _deduct_stock_and_record(
     old_qty = batch.quantity_on_hand
 
     if is_sale:
-        batch.quantity_on_hand = max(0, old_qty - pack_change)
+        if old_qty < pack_change:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Insufficient stock for {product.name} in batch {batch.batch_number}: "
+                        f"{old_qty} available, {pack_change} requested"))
+        batch.quantity_on_hand = old_qty - pack_change
         batch.quantity_sold = (batch.quantity_sold or 0) + pack_change
         qty_delta = -quantity
     else:
@@ -354,23 +359,6 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
                 detail="Your Drug License has expired. Renew it before creating bills.",
             )
 
-    # Pre-check H1 drugs require doctor
-    if not is_draft and is_sale:
-        for item in bill_data.items:
-            product_sku = item.get("product_sku")
-            if product_sku:
-                prod_result = await db.execute(
-                    select(ProductORM).where(
-                        ProductORM.pharmacy_id == pharmacy_id,
-                        ProductORM.sku == product_sku)
-                )
-                product = prod_result.scalar_one_or_none()
-                if product and product.drug_schedule == "H1" and (
-                        not bill_data.doctor_name or not bill_data.doctor_name.strip()):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Prescription details required for Schedule H1 drug: {product.name}")
-
     # Calculate totals from items
     subtotal_paise = 0
     mrp_total_paise = 0
@@ -387,8 +375,28 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
                     f"No batch/product found for item {item.get('product_name', 'unknown')}")
             continue
 
+        # H1 doctor requirement, checked here (once the real product is
+        # resolved) rather than in a separate product_sku-only pre-pass, so
+        # it also applies to items identified by product_id/batch_id — those
+        # used to skip the check entirely.
+        if not is_draft and is_sale and product.drug_schedule == "H1" and (
+                not bill_data.doctor_name or not bill_data.doctor_name.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+
         quantity = item.get("quantity", 0)
         mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
+
+        # DPCO forbids selling above MRP — the batch's own recorded MRP
+        # (from purchase) is the source of truth, not whatever price the
+        # request claims. Drafts are exempt (not a finalized sale yet).
+        if not is_draft and is_sale and mrp_paise > batch.mrp_paise:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Selling price ₹{mrp_paise / 100:.2f} for {product.name} exceeds "
+                        f"MRP ₹{batch.mrp_paise / 100:.2f} for batch {batch.batch_number}"))
+
         sale_price_paise = mrp_paise
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
         disc_paise = int(mrp_paise * quantity * disc_percent / 100)

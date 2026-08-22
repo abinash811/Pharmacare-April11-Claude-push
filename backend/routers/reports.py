@@ -9,13 +9,20 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register as H1ORM
+from models.billing import (
+    Bill as BillORM,
+    BillItem as BillItemORM,
+    SalesReturn as SalesReturnORM,
+    SalesReturnItem as SalesReturnItemORM,
+    ScheduleH1Register as H1ORM,
+)
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import (
     Purchase as PurchaseORM,
     PurchaseItem as PurchaseItemORM,
     PurchaseReturn as PurchaseReturnORM,
+    PurchaseReturnItem as PurchaseReturnItemORM,
 )
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
@@ -291,6 +298,26 @@ async def get_gst_report(
         bucket["igst"] += _p2r(it.igst_paise)
         bucket["total_gst"] += _p2r(it.gst_paise)
 
+    # Sales returns (credit notes) reduce output GST — SalesReturnItem doesn't
+    # store a taxable/cgst/sgst split like BillItem does, so derive it the
+    # same way the return was priced: line_total_paise = taxable + gst.
+    sales_return_items = (await db.execute(
+        select(SalesReturnItemORM).join(
+            SalesReturnORM, SalesReturnORM.id == SalesReturnItemORM.sales_return_id)
+        .where(SalesReturnORM.pharmacy_id == pid,
+               SalesReturnORM.return_date >= start, SalesReturnORM.return_date <= end)
+    )).scalars().all()
+    for it in sales_return_items:
+        rate = float(it.gst_rate)
+        bucket = sales_by_gst.setdefault(
+            rate, {"gst_rate": rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0})
+        cgst_paise = it.gst_paise // 2
+        sgst_paise = it.gst_paise - cgst_paise
+        bucket["taxable_amount"] -= _p2r(it.line_total_paise - it.gst_paise)
+        bucket["cgst"] -= _p2r(cgst_paise)
+        bucket["sgst"] -= _p2r(sgst_paise)
+        bucket["total_gst"] -= _p2r(it.gst_paise)
+
     # Purchases side — purchase items
     purchase_items = (await db.execute(
         select(PurchaseItemORM).join(PurchaseORM, PurchaseORM.id == PurchaseItemORM.purchase_id)
@@ -308,6 +335,25 @@ async def get_gst_report(
         bucket["cgst"] += round(gst_amt / 2, 2)
         bucket["sgst"] += round(gst_amt / 2, 2)
         bucket["total_gst"] += gst_amt
+
+    # Purchase returns reduce input tax credit — same derivation, matching
+    # how create_purchase_return priced the line (line_total = taxable + gst).
+    purchase_return_items = (await db.execute(
+        select(PurchaseReturnItemORM).join(
+            PurchaseReturnORM, PurchaseReturnORM.id == PurchaseReturnItemORM.purchase_return_id)
+        .where(PurchaseReturnORM.pharmacy_id == pid,
+               PurchaseReturnORM.return_date >= start, PurchaseReturnORM.return_date <= end)
+    )).scalars().all()
+    for it in purchase_return_items:
+        rate = float(it.gst_rate)
+        gst_amt = _p2r(it.gst_amount_paise)
+        taxable = _p2r(it.line_total_paise - it.gst_amount_paise)
+        bucket = purchases_by_gst.setdefault(
+            rate, {"gst_rate": rate, "taxable_amount": 0, "cgst": 0, "sgst": 0, "igst": 0, "total_gst": 0})
+        bucket["taxable_amount"] -= taxable
+        bucket["cgst"] -= round(gst_amt / 2, 2)
+        bucket["sgst"] -= round(gst_amt / 2, 2)
+        bucket["total_gst"] -= gst_amt
 
     def _summary(by_gst):
         return {"total_taxable": round(sum(v["taxable_amount"] for v in by_gst.values()), 2),

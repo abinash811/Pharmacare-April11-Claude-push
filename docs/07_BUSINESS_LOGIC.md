@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.0 | Last updated: August 22, 2026
+# Version: 2.1 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
 #        or compliance — read the relevant section here first.
@@ -15,8 +15,16 @@
 > that read as guaranteed but aren't actually enforced anywhere in the backend.
 > Every flow below was re-verified against the real, running code (not memory,
 > not the old doc) — `backend/routers/billing.py`, `sales_returns.py`,
-> `purchases.py`, `purchase_returns.py`, `batches.py`, `reports.py`. Real gaps
-> found are called out inline as **⚠ GAP**, not silently written up as if fixed.
+> `purchases.py`, `purchase_returns.py`, `batches.py`, `reports.py`.
+>
+> The audit (v2.0) surfaced four real, live compliance gaps in
+> `create_bill`/`get_gst_report` — no MRP-above check, no insufficient-stock
+> guard on sales, an H1 doctor check with a hole depending on how an item was
+> identified, and a GST report blind to returns. All four were fixed the same
+> day (v2.1), each verified live against the running backend (not just unit
+> tests) before being marked closed — see the "Fixed" callouts below in place
+> of the original ⚠ GAP writeups. Any *new* gap found from here should follow
+> the same pattern: called out inline, not silently written up as working.
 
 ---
 
@@ -27,7 +35,7 @@
 3. **Bill numbers assigned only at settlement.** Drafts get `DRAFT-{uuid}` placeholders.
 4. **Stock deducted only at settlement.** Drafts do not touch stock.
 5. **Snapshot billing.** Bill items store product name, MRP, GST rate at time of sale — never live references.
-6. **Schedule H1 requires doctor.** Billing a Schedule H1 drug without a doctor name raises HTTP 400 — but only when the item's `product_sku` is present (see ⚠ GAP under FLOW 6).
+6. **Schedule H1 requires doctor.** Billing a Schedule H1 drug without a doctor name raises HTTP 400 — checked for every item regardless of whether it's identified by `product_sku`, `product_id`, or `batch_id` (fixed August 22, 2026; see FLOW 6).
 7. **Audit every state change.** Bill creation, status changes, and payments are recorded in `audit_logs` (`old_values`/`new_values`, not just a message).
 
 ---
@@ -59,16 +67,21 @@ no code path writes it today; only `paid` and `due` are ever assigned.
       the pharmacy to have a non-blank, non-expired drug_license_number — else 400.
       Mirrors the frontend's proactive check (BillingWorkspace's
       DrugLicenseRequiredState) as a defense-in-depth backstop.
-   b. Pre-check: if any item's resolved product is Schedule H1 → doctor name
-      required or HTTP 400 (see ⚠ GAP below — only checked when product_sku
-      is present on the item).
+   b. For each item, once its batch/product is resolved: if the product is
+      Schedule H1 → doctor name required or HTTP 400. Checked here (not in a
+      separate product_sku-only pre-pass) so it applies no matter how the
+      item is identified — **fixed August 22, 2026**; verified live that an
+      item resolved via bare `product_id` (no `product_sku`) now correctly
+      400s without a doctor name, where it previously slipped through.
    c. Generate bill number via _generate_bill_number() → sequential, atomic
    d. For each line item:
       - Resolve batch (_resolve_batch: by batch_id, then product_sku+batch_no,
         then FEFO — earliest-expiry batch with stock — for a bare product_id)
+      - MRP check: if the submitted price exceeds `batch.mrp_paise` → HTTP 400
+        (**fixed August 22, 2026** — previously the submitted price was
+        trusted with no server-side check at all; verified live)
       - Snapshot: copy product_name, batch_number, expiry_date, hsn_code,
-        drug_schedule, and — critically — the *submitted* price into the bill
-        item, not a server-verified one (see ⚠ GAP: MRP enforcement below)
+        drug_schedule, and the (now MRP-checked) price into the bill item
       - Calculate: disc_paise, taxable_paise, gst_paise, line_total_paise (all integers)
    e. Calculate bill totals (all paise):
       - subtotal = sum of taxable_paise per item
@@ -76,9 +89,10 @@ no code path writes it today; only `paid` and `due` are ever assigned.
         odd paise goes to SGST: sgst = gst - gst//2)
       - grand_total = subtotal + gst - bill_discount (rounded to nearest rupee)
    f. Determine status: paid if balance ≤ 0, due if balance > 0
-   g. Deduct stock: batch.quantity_on_hand -= quantity for each item (see
-      ⚠ GAP: no insufficient-stock guard, unlike batches.py's own adjust
-      endpoint, which does have one)
+   g. Deduct stock: batch.quantity_on_hand -= quantity for each item — raises
+      HTTP 400 ("Insufficient stock...") if the batch doesn't have enough
+      (**fixed August 22, 2026** — previously silently clamped to 0 instead
+      of rejecting the sale; now matches batches.py::adjust_stock's guard)
    h. Create StockMovement record for each item (movement_type="sale")
    i. If item's product is Schedule H1: create ScheduleH1Register record
       (routers/billing.py::_create_h1_entry)
@@ -92,30 +106,14 @@ Same as above except:
 - `status = "draft"` in request
 - Bill number = `DRAFT-{uuid}` (no sequence consumed)
 - Stock NOT deducted, no StockMovement, no H1 register entry
-- Drug License check and Schedule H1 pre-check both skipped (drafts aren't finalized sales)
-
-### ⚠ GAP: MRP enforcement doesn't exist
-
-`sale_price_paise` is set directly to whatever `unit_price`/`mrp` the request sends
-(`mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)`) — there is
-**no comparison against `batch.mrp_paise`** anywhere in `create_bill`. "Sell above
-MRP" is illegal under DPCO, but nothing in the backend actually blocks it; the
-frontend price field is trusted as-is. If this needs to be a hard rule, it needs
-a real check, not just a policy statement in this doc.
-
-### ⚠ GAP: no insufficient-stock guard on sale
-
-`_deduct_stock_and_record` does `batch.quantity_on_hand = max(0, old_qty - pack_change)`
-— it clamps to zero instead of rejecting the sale. Compare to
-`batches.py::adjust_stock`, which *does* raise `HTTPException(400, ...)` when a
-manual adjustment would go negative. A sale can currently be recorded for more
-units than a batch actually has on hand.
+- Drug License check, Schedule H1 check, MRP check, and stock check are all
+  skipped (drafts aren't finalized sales)
 
 ### GST Calculation (exact formula — verified against `create_bill`)
 
 ```python
 # Per line item — all integers (paise)
-mrp_paise        = int(unit_price_or_mrp_rupees * 100)   # trusted as sent, see gap above
+mrp_paise        = int(unit_price_or_mrp_rupees * 100)   # now checked against batch.mrp_paise, see above
 disc_percent     = item.get("disc_percent", item.get("discount_percent", 0))
 disc_paise       = int(mrp_paise * quantity * disc_percent / 100)
 taxable_paise    = mrp_paise * quantity - disc_paise
@@ -204,11 +202,14 @@ superseded by `/sales-returns` and never removed. Don't build on it; treat
 `/sales-returns` as the only real sales-return path. (`backend/tests/test_bill_sequence.py::TestSalesReturnSequence`
 documents this exact gap with a `pytest.skip`.)
 
-### ⚠ GAP — the GST report doesn't see returns at all
+### Fixed August 22, 2026 — the GST report now sees returns
 
-See FLOW 8 — `GET /reports/gst` only scans `bills`/`bill_items`, never
-`sales_returns`/`sales_return_items`. A credit note issued this month has no
-effect on the GST report's numbers.
+See FLOW 8 — `GET /reports/gst` used to only scan `bills`/`bill_items`, never
+`sales_returns`/`sales_return_items`, so a credit note had zero effect on the
+report. Now subtracts each return's taxable/GST amounts from the matching
+`gst_rate` bucket — verified live: issuing a ₹22.40 credit note against a
+₹20 taxable / ₹2.40 GST sale moved the report's `total_taxable` down by
+exactly ₹20 and `total_gst` down by exactly ₹2.40 in the same run.
 
 ---
 
@@ -309,12 +310,12 @@ Its own resource (`routers/purchase_returns.py`, `PurchaseReturn`/
    d. status = "confirmed"
 ```
 
-### ⚠ GAP — GST input credit reversal isn't reflected in the GST report
+### Fixed August 22, 2026 — GST input credit reversal now reflected
 
-Same shape of gap as FLOW 2: `GET /reports/gst`'s purchases side scans
-`purchase_items` for `status="confirmed"` purchases only — it never subtracts
-`purchase_return_items`. A purchase return doesn't reduce the reported input
-tax credit.
+Same shape of gap as FLOW 2, fixed the same way: `GET /reports/gst`'s
+purchases side now also subtracts `purchase_return_items` from the matching
+`gst_rate` bucket, so a purchase return correctly reduces the reported input
+tax credit instead of leaving it untouched.
 
 ---
 
@@ -397,23 +398,17 @@ restricted to admin/manager roles). Errors have legal consequences.
 - One entry per H1 item per bill (`billing.py::_create_h1_entry`)
 - NOT created for drafts, and NOT created for `SALES_RETURN`-type bills
 
-### ⚠ GAP — the H1 doctor-required pre-check only fires when `product_sku` is on the item
+### Fixed August 22, 2026 — the H1 doctor-required check now covers every item
 
-```python
-# routers/billing.py::create_bill — the actual pre-check
-for item in bill_data.items:
-    product_sku = item.get("product_sku")
-    if product_sku:                                   # <-- only checked here
-        ... look up product by sku ...
-        if product.drug_schedule == "H1" and not bill_data.doctor_name.strip():
-            raise HTTPException(400, "Prescription details required...")
-```
-
-If a bill item is built from `product_id`/`batch_id` instead of `product_sku`
-(a valid way to resolve a batch — see FLOW 1), the H1 check is silently
-skipped for that item. This is the compliance-critical check the whole doc
-warns about, and it has a real hole depending on which identifier the caller
-sends.
+Previously implemented as a separate pre-pass that only looked items up by
+`product_sku` — an item built from `product_id`/`batch_id` instead (a valid
+way to resolve a batch, see FLOW 1) silently skipped the check. Moved the
+check into the main per-item loop, right after `_resolve_batch` resolves the
+real product (see FLOW 1, step 3b), so it applies no matter which identifier
+the item carries. Verified live: a bill item identified purely by
+`product_id` for an H1 product, with no doctor name, now correctly 400s with
+"Prescription details required for Schedule H1 drug: ..." — it previously
+would have gone through.
 
 ### What is recorded (verified field names — several differ from v1.0)
 
@@ -497,15 +492,13 @@ old/new status and old/new due amount.
 - `igst` fields exist in the response shape (ready for interstate sales) but
   are always 0 today — no interstate flow exists in Phase 1, matching the
   "all sales intra-state" assumption.
-
-### ⚠ GAP — sales returns and purchase returns are invisible to this report
-
-Neither `sales_return_items` nor `purchase_return_items` is queried anywhere
-in `get_gst_report`. A credit note issued to a customer, or goods returned to
-a supplier, has **zero effect** on the GST numbers this endpoint returns —
-despite both being real, live-used flows (FLOW 2, FLOW 4). If this report is
-used for actual GSTR-1/GSTR-3B filing, this is worth fixing before relying on
-it, not something to assume already works.
+- **Fixed August 22, 2026**: also queries `sales_return_items` (by
+  `SalesReturn.return_date` in range) and `purchase_return_items` (by
+  `PurchaseReturn.return_date` in range), subtracting each return's
+  taxable/GST amounts from the matching `gst_rate` bucket. Previously
+  neither was queried at all, so a credit note or a purchase return had zero
+  effect on the report's numbers — verified live that the numbers now
+  reconcile exactly after issuing a return (see FLOW 2 and FLOW 4).
 
 ---
 
@@ -578,9 +571,9 @@ match existing call sites' conventions rather than inventing new values.
 | Hard delete a batch | Drug recall tracking requires batch history | Yes — soft delete only |
 | Reuse a bill number | Sequential numbering is a legal requirement | Yes — UNIQUE(pharmacy_id, bill_number) + atomic sequence |
 | Change a settled bill | Immutable once stock is deducted — create a return instead | Yes — `PUT /bills/{id}` explicitly 400s unless `status == "draft"` |
-| Sell above MRP | Illegal under DPCO | **⚠ No** — see FLOW 1 gap, price is trusted as sent |
-| Bill H1 drug without doctor | Legal requirement | **Partially** — see FLOW 6 gap, only when `product_sku` present |
-| Sell more than a batch has on hand | Data integrity | **⚠ No** for sales (FLOW 1) — **Yes** for manual adjustments (FLOW 9) |
+| Sell above MRP | Illegal under DPCO | Yes — fixed Aug 22, 2026 (FLOW 1), checked against `batch.mrp_paise` |
+| Bill H1 drug without doctor | Legal requirement | Yes — fixed Aug 22, 2026 (FLOW 6), checked for every item regardless of identifier |
+| Sell more than a batch has on hand | Data integrity | Yes — fixed Aug 22, 2026 (FLOW 1), matches the guard manual adjustments (FLOW 9) already had |
 | Store money as float | Rounding errors — always integer paise | Yes, throughout |
 | Skip stock movement record | Every stock change must be traceable | Yes |
 

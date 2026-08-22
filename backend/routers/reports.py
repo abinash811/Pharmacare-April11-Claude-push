@@ -211,11 +211,16 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db),
                 BatchORM.pharmacy_id == pid,
                 BatchORM.is_active.is_(True)).group_by(
                     BatchORM.product_id).subquery())
+        # Same definition as GET /inventory and GET /reports/low-stock: each
+        # product's own reorder_level against its summed active-batch stock —
+        # not a hardcoded number. This used to hardcode `< 10`, disagreeing
+        # with every other low-stock screen in the app (see docs/15_ROADMAP.md
+        # RULE MISSES LOG).
         low_count = (await db.execute(
             select(func.count()).select_from(ProductORM).outerjoin(
                 stock_sub, stock_sub.c.product_id == ProductORM.id)
             .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None),
-                   func.coalesce(stock_sub.c.total, 0) < 10)
+                   func.coalesce(stock_sub.c.total, 0) <= ProductORM.reorder_level)
         )).scalar()
         exp_count = (await db.execute(select(func.count(func.distinct(BatchORM.product_id))).where(
             BatchORM.pharmacy_id == pid, BatchORM.quantity_on_hand > 0,
@@ -515,7 +520,6 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
             select(PharmacySettings).where(PharmacySettings.pharmacy_id == pid)
         )).scalars().first()
         near_expiry_days = getattr(ps, "near_expiry_threshold_days", 30) if ps else 30
-        low_stock_qty = getattr(ps, "low_stock_threshold_days", 10) if ps else 10
         alert_near_expiry = getattr(ps, "alert_near_expiry_enabled", True) if ps else True
         alert_low_stock = getattr(ps, "alert_low_stock_enabled", True) if ps else True
         alert_drug_license = getattr(ps, "alert_drug_license_enabled", True) if ps else True
@@ -615,14 +619,43 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
             .order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(6)
         )).all()
 
-        # Stock health — use settings-based thresholds
-        low_stock_items = (await db.execute(
-            select(ProductORM.name, BatchORM.batch_number, BatchORM.quantity_on_hand)
-            .join(BatchORM, BatchORM.product_id == ProductORM.id)
-            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True),
-                   BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < low_stock_qty)
-            .order_by(BatchORM.quantity_on_hand).limit(5)
+        # Stock health — low stock uses each product's own reorder_level
+        # against its summed active-batch stock, the same definition GET
+        # /inventory and GET /reports/low-stock already use. This used to
+        # compare a single per-batch quantity against the pharmacy-wide
+        # low_stock_threshold_days setting instead — a different unit
+        # (per-batch, not per-product total) against a different number,
+        # which is why this screen could disagree with the Inventory list
+        # for the same product at the same moment (see docs/15_ROADMAP.md
+        # RULE MISSES LOG). low_stock_qty (the pharmacy setting) is no
+        # longer an alert threshold anywhere — see routers/inventory.py
+        # where it now only seeds a new product's default reorder_level.
+        product_stock_sub = (
+            select(BatchORM.product_id, func.sum(BatchORM.quantity_on_hand).label("total_qty"))
+            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True))
+            .group_by(BatchORM.product_id).subquery()
+        )
+        low_stock_products = (await db.execute(
+            select(ProductORM.id, ProductORM.name, product_stock_sub.c.total_qty)
+            .join(product_stock_sub, product_stock_sub.c.product_id == ProductORM.id)
+            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True),
+                   ProductORM.deleted_at.is_(None),
+                   product_stock_sub.c.total_qty <= ProductORM.reorder_level)
+            .order_by(product_stock_sub.c.total_qty).limit(5)
         )).all()
+        low_stock_items = []
+        for prod_id, prod_name, total_qty in low_stock_products:
+            smallest_batch = (await db.execute(
+                select(BatchORM.batch_number).where(
+                    BatchORM.product_id == prod_id, BatchORM.pharmacy_id == pid,
+                    BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0)
+                .order_by(BatchORM.quantity_on_hand).limit(1)
+            )).first()
+            low_stock_items.append({
+                "product_name": prod_name,
+                "batch_no": smallest_batch[0] if smallest_batch else "—",
+                "qty": total_qty,
+            })
         expiring_items = (await db.execute(
             select(
                 ProductORM.name,
@@ -640,9 +673,13 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
         sv_paise = (await db.execute(select(
             func.coalesce(func.sum(BatchORM.quantity_on_hand * BatchORM.cost_price_paise), 0)
         ).where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)))).scalar()
-        low_total = (await db.execute(select(func.count()).where(
-            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True),
-            BatchORM.quantity_on_hand > 0, BatchORM.quantity_on_hand < low_stock_qty))).scalar()
+        low_total = (await db.execute(
+            select(func.count()).select_from(ProductORM).join(
+                product_stock_sub, product_stock_sub.c.product_id == ProductORM.id)
+            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True),
+                   ProductORM.deleted_at.is_(None),
+                   product_stock_sub.c.total_qty <= ProductORM.reorder_level)
+        )).scalar()
         exp_total = (await db.execute(select(func.count()).where(
             BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True),
             BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead))).scalar()
@@ -670,7 +707,7 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
             "top_products": [{"name": n, "revenue": _p2r(r), "qty": q} for n, r, q in product_sales_rows],
             "top_customers": [{"name": n, "revenue": _p2r(d["revenue"]), "bills": d["bills"]}
                               for n, d in top_customers],
-            "low_stock": [{"product_name": n, "batch_no": bn, "qty": q} for n, bn, q in low_stock_items],
+            "low_stock": low_stock_items,
             "expiring_soon": [{"product_name": n, "batch_no": bn, "expiry_date": ed.isoformat(), "qty": q}
                               for n, bn, ed, q in expiring_items],
             "recent_bills": recent_bills[:5],
@@ -682,7 +719,10 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
                 "low_stock_enabled": alert_low_stock,
                 "near_expiry_enabled": alert_near_expiry,
                 "near_expiry_days": near_expiry_days,
-                "low_stock_qty": low_stock_qty,
+                # No single low_stock_qty exists anymore — the threshold is
+                # now each product's own reorder_level, not one pharmacy-wide
+                # number (see the low_stock_items computation above). Never
+                # consumed by the frontend (grepped before removing it).
             },
             "license_alert": {
                 "enabled": drug_license_warning,

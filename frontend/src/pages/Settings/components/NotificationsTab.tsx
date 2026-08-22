@@ -7,6 +7,7 @@
 import React from 'react';
 import { AlertTriangle, Clock, FileCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch.jsx';
+import { AppButton } from '@/components/shared';
 
 interface Props {
   notifications: Record<string, unknown>;
@@ -72,17 +73,19 @@ function DaysInput({ label, value, onChange, min = 1, max = 365 }: {
     <div className="flex items-center justify-between">
       <p className="text-xs text-gray-600">{label}</p>
       <div className="flex items-center gap-2">
-        <button
+        <AppButton
           type="button"
+          variant="ghost"
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-brand hover:text-brand text-sm font-bold transition-colors"
-        >−</button>
+          className="w-7 h-7 p-0 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-brand hover:text-brand text-sm font-bold transition-colors"
+        >−</AppButton>
         <span className="w-12 text-center text-sm font-semibold text-gray-900">{value} days</span>
-        <button
+        <AppButton
           type="button"
+          variant="ghost"
           onClick={() => onChange(Math.min(max, value + 1))}
-          className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-brand hover:text-brand text-sm font-bold transition-colors"
-        >+</button>
+          className="w-7 h-7 p-0 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:border-brand hover:text-brand text-sm font-bold transition-colors"
+        >+</AppButton>
       </div>
     </div>
   );
@@ -93,7 +96,6 @@ export default function NotificationsTab({ notifications, onUpdate }: Props) {
   const nearExpiryEnabled  = !!notifications.alert_near_expiry_enabled;
   const drugLicenseEnabled = !!notifications.alert_drug_license_enabled;
 
-  const lowStockDays    = Number(notifications.low_stock_threshold_days)  || 30;
   const nearExpiryDays  = Number(notifications.near_expiry_days)          || 90;
   const drugLicenseDays = Number(notifications.drug_license_alert_days)   || 90;
 
@@ -108,20 +110,27 @@ export default function NotificationsTab({ notifications, onUpdate }: Props) {
       <AlertCard
         icon={<AlertTriangle className="w-4 h-4" />}
         title="Low Stock Alert"
-        description="Triggered when a medicine's stock falls below the threshold"
+        description="Triggered when a medicine's stock falls below its threshold"
         enabled={lowStockEnabled}
         onToggle={v => onUpdate('alert_low_stock_enabled', v)}
       >
-        <DaysInput
-          label="Alert when stock will last less than"
-          value={lowStockDays}
-          onChange={v => onUpdate('low_stock_threshold_days', v)}
-          min={1} max={180}
-        />
+        {/* The threshold itself is set per medicine (Inventory → edit a
+            medicine → Low Stock Threshold), not one number for the whole
+            pharmacy — a single global day-count can't be right for both a
+            fast-moving and a rarely-sold medicine. This card used to show a
+            "days remaining" input, but nothing ever computed sales velocity
+            to predict days remaining — it silently applied its number as a
+            raw unit-quantity cutoff instead, and only some screens even
+            read it (see docs/15_ROADMAP.md RULE MISSES LOG). Removed rather
+            than left half-true. */}
+        <p className="text-xs text-gray-500">
+          Set the threshold on each medicine's own page — a house-wide number
+          can't be right for both a fast-mover and a rarely-sold item.
+        </p>
         <ToastPreview
           type="warning"
           title="Amoxicillin 500mg — low stock"
-          desc={`Only ${lowStockDays} days of stock remaining. Reorder soon.`}
+          desc="12 units left — at or below its reorder level."
         />
       </AlertCard>
 

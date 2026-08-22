@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.2 | Last updated: August 22, 2026
+# Version: 1.3 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
 #        Never hard DELETE from any table. Soft deletes only.
@@ -122,8 +122,10 @@ to be its own series.
 
 | Column | Type | Default | Notes |
 |--------|------|---------|-------|
-| `low_stock_threshold_days` | Integer | `30` | Alert when stock lasts < N days |
+| `low_stock_threshold_days` | Integer | `30` | **Misnamed** (not a day count — renaming is a separate migration, tracked as tech debt). Currently unused as an alert threshold anywhere — fixed August 22, 2026 to stop being read as one at all, since despite the name it was always applied as a raw unit-quantity, not real "days of stock remaining" (nothing computes sales velocity). Every low-stock screen now uses each product's own `reorder_level` instead (see `docs/15_ROADMAP.md` RULE MISSES LOG). |
 | `near_expiry_threshold_days` | Integer | `90` | Alert when expiry < N days away |
+| `block_expired_stock` | Boolean | `true` | **Added August 22, 2026** (migration `d81f3b0c6a4e`). Enforced in `billing.py` create_bill/update_bill — blocks finalizing a sale on an expired batch. |
+| `allow_near_expiry_sale` | Boolean | `true` | **Added August 22, 2026** (migration `d81f3b0c6a4e`). Enforced the same way — `false` blocks finalizing a sale on a near-expiry batch. No warning UI yet when `true` (default). |
 
 **Notifications**
 

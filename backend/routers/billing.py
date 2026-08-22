@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 
@@ -334,6 +334,24 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
     is_draft = bill_data.status == "draft"
     is_sale = bill_data.invoice_type == "SALE"
 
+    # Settings-driven expiry enforcement — only fetched for a real finalizing
+    # sale (matches the H1/MRP checks' own gate) to avoid an extra query on
+    # every draft autosave. Read-only here: never db.add()s a missing row,
+    # so this can't race _generate_bill_number's own fetch-or-create below
+    # when both run in the same request (SQLAlchemy's identity map dedupes
+    # the read once a row exists; when none exists yet, only the writer
+    # creates one).
+    block_expired_stock, allow_near_expiry_sale, near_expiry_days = True, True, 90
+    if not is_draft and is_sale:
+        bs_result = await db.execute(
+            select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+        bs = bs_result.scalar_one_or_none()
+        if bs:
+            block_expired_stock = bs.block_expired_stock
+            allow_near_expiry_sale = bs.allow_near_expiry_sale
+            near_expiry_days = bs.near_expiry_threshold_days
+    today_for_expiry = date.today()
+
     # Drafts use a per-bill unique placeholder so concurrent/repeated drafts don't
     # collide on the UNIQUE(pharmacy_id, bill_number) constraint. Finalized bills
     # get a real sequential number via _generate_bill_number.
@@ -396,6 +414,27 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
                 status_code=400,
                 detail=(f"Selling price ₹{mrp_paise / 100:.2f} for {product.name} exceeds "
                         f"MRP ₹{batch.mrp_paise / 100:.2f} for batch {batch.batch_number}"))
+
+        # Settings → Inventory "Block expired stock from billing" / "Allow
+        # selling near-expiry products" — previously UI-only toggles that
+        # were hardcoded True server-side and never checked here at all
+        # (see docs/15_ROADMAP.md RULE MISSES LOG). Both default True, so a
+        # pharmacy that never touched these settings sees no behavior
+        # change beyond expired stock now actually being blocked, which is
+        # what the toggle already claimed to do.
+        if not is_draft and is_sale and block_expired_stock and batch.expiry_date < today_for_expiry:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name} (batch {batch.batch_number}) expired on "
+                        f"{batch.expiry_date.isoformat()} and cannot be sold."))
+        if (not is_draft and is_sale and not allow_near_expiry_sale
+                and today_for_expiry <= batch.expiry_date
+                < today_for_expiry + timedelta(days=near_expiry_days)):
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name} (batch {batch.batch_number}) is near expiry "
+                        f"({batch.expiry_date.isoformat()}) — near-expiry sales are "
+                        f"disabled in Settings → Inventory."))
 
         sale_price_paise = mrp_paise
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
@@ -558,6 +597,20 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     is_finalizing_preview = new_status_preview == "paid" and bill.status == "draft"
     is_sale_preview = bill_data.invoice_type == "SALE"
 
+    # See the identical block in create_bill for why this is safe to
+    # read-only-fetch here without racing _generate_bill_number's own
+    # fetch-or-create later in this function.
+    block_expired_stock, allow_near_expiry_sale, near_expiry_days = True, True, 90
+    if is_finalizing_preview and is_sale_preview:
+        bs_result = await db.execute(
+            select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+        bs = bs_result.scalar_one_or_none()
+        if bs:
+            block_expired_stock = bs.block_expired_stock
+            allow_near_expiry_sale = bs.allow_near_expiry_sale
+            near_expiry_days = bs.near_expiry_threshold_days
+    today_for_expiry = date.today()
+
     for item in bill_data.items:
         batch, product = await _resolve_batch(item, pharmacy_id, db)
         if not batch or not product:
@@ -581,6 +634,21 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
                 status_code=400,
                 detail=(f"Selling price ₹{mrp_paise / 100:.2f} for {product.name} exceeds "
                         f"MRP ₹{batch.mrp_paise / 100:.2f} for batch {batch.batch_number}"))
+
+        if (is_finalizing_preview and is_sale_preview and block_expired_stock
+                and batch.expiry_date < today_for_expiry):
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name} (batch {batch.batch_number}) expired on "
+                        f"{batch.expiry_date.isoformat()} and cannot be sold."))
+        if (is_finalizing_preview and is_sale_preview and not allow_near_expiry_sale
+                and today_for_expiry <= batch.expiry_date
+                < today_for_expiry + timedelta(days=near_expiry_days)):
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name} (batch {batch.batch_number}) is near expiry "
+                        f"({batch.expiry_date.isoformat()}) — near-expiry sales are "
+                        f"disabled in Settings → Inventory."))
 
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
         disc_paise = int(mrp_paise * quantity * disc_percent / 100)

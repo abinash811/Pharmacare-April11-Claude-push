@@ -204,8 +204,12 @@ async def get_settings(current_user: User = Depends(get_current_user),
         "inventory": {
             "near_expiry_days": ps.near_expiry_threshold_days if ps else 90,
             "low_stock_threshold_days": ps.low_stock_threshold_days if ps else 30,
-            "block_expired_stock": True,
-            "allow_near_expiry_sale": True,
+            "block_expired_stock": ps.block_expired_stock if ps else True,
+            "allow_near_expiry_sale": ps.allow_near_expiry_sale if ps else True,
+            # Same real column as notifications.alert_low_stock_enabled below —
+            # this tab shows the same setting under its own label, matching
+            # how near_expiry_days is already shown in both tabs.
+            "low_stock_alert_enabled": ps.alert_low_stock_enabled if ps else True,
         },
         "notifications": {
             "alert_low_stock_enabled": ps.alert_low_stock_enabled if ps else True,
@@ -298,6 +302,12 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
         ps.near_expiry_threshold_days = inv["near_expiry_days"]
     if "low_stock_threshold_days" in inv:
         ps.low_stock_threshold_days = inv["low_stock_threshold_days"]
+    if "block_expired_stock" in inv:
+        ps.block_expired_stock = inv["block_expired_stock"]
+    if "allow_near_expiry_sale" in inv:
+        ps.allow_near_expiry_sale = inv["allow_near_expiry_sale"]
+    if "low_stock_alert_enabled" in inv:
+        ps.alert_low_stock_enabled = inv["low_stock_alert_enabled"]
 
     notif = settings_data.get("notifications", {})
     for field in ["alert_low_stock_enabled", "alert_near_expiry_enabled",

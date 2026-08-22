@@ -64,8 +64,17 @@ class PharmacySettings(Base):
     return_sequence_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     return_number_length: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     # Inventory
+    # Despite the column name, this is a raw unit-quantity default (used as
+    # the default reorder_level for a newly created product when none is
+    # given), not a day count — renaming it is a separate migration, left as
+    # tech debt (see docs/15_ROADMAP.md RULE MISSES LOG).
     low_stock_threshold_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     near_expiry_threshold_days: Mapped[int] = mapped_column(Integer, default=90, nullable=False)
+    # Settings → Inventory tab toggles. Both default True to match this
+    # pharmacy's existing behavior before these columns existed (the API
+    # returned these as hardcoded True and nothing enforced them).
+    block_expired_stock: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    allow_near_expiry_sale: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Notifications
     alert_low_stock_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     alert_near_expiry_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

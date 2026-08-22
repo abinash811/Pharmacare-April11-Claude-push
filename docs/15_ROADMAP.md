@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.9 | Last updated: August 22, 2026
+# Version: 2.0 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -136,23 +136,23 @@
 | As a pharmacist, I want one screen showing which medicines are out of stock, expired, near expiry, low stock, or healthy. | ✅ `GET /inventory` | Severity-ranked (1=critical → 3=healthy), sorted by severity then nearest expiry then name. Paginated, with summary counts. | — |
 | As a pharmacist, I want to filter that list by category, brand, or status. | ✅ `GET /inventory/filters` | Returns the real distinct categories/brands present, plus the 5 fixed status values. | — |
 | As a pharmacist, I want to set how many days before expiry counts as "near expiry." | ✅ `PharmacySettings.near_expiry_threshold_days` | Read consistently by both `/inventory` and `/analytics/dashboard` — verified the same value both places. | — |
-| As a pharmacist, I want to set the quantity that counts as "low stock." | ❌ **Real gap — three disagreeing definitions** | See detail below. | Not one bug — three separate implementations disagree right now. |
+| As a pharmacist, I want to set the quantity that counts as "low stock." | ✅ **Fixed August 22, 2026** | Every endpoint now uses the same definition: a product's own `reorder_level` against its summed active-batch stock. See detail below. | — |
 
-**Low-stock gap, in detail (verified, not yet fixed):**
-1. `GET /inventory` (Inventory list) uses each **product's own** `reorder_level`.
-2. `GET /analytics/dashboard` (Dashboard alerts) uses the **pharmacy-wide** `PharmacySettings.low_stock_threshold_days` setting, checked **per batch**, not per product's summed stock.
-3. `GET /reports/dashboard` (Dashboard stat cards) **hardcodes `10`**, ignoring both of the above.
+**Low-stock gap — fixed August 22, 2026 (verified live, not just by reading code):**
+Three implementations used to disagree: `GET /inventory` used each product's own `reorder_level`; `GET /analytics/dashboard` used the pharmacy-wide `PharmacySettings.low_stock_threshold_days` setting checked **per batch**, not per product's summed stock; `GET /reports/dashboard` **hardcoded `10`**. A product with `reorder_level = 50` could show "low stock" on the Inventory page while the Dashboard stat card — same product, same moment — used a hardcoded 10 and showed nothing wrong.
 
-A product with `reorder_level = 50` can show "low stock" on the Inventory page while the Dashboard stat card — same product, same moment — uses a hardcoded 10 and shows nothing wrong. Needs one decision (which definition is *the* definition) before any fix.
+Fixed by making every endpoint (`/inventory`, `/reports/low-stock`, `/analytics/dashboard`, `/reports/dashboard`) compare a product's summed active-batch stock against its own `reorder_level` — no more hardcoded numbers or per-batch/pharmacy-wide shortcuts. `PharmacySettings.low_stock_threshold_days` is no longer read as an alert threshold anywhere (it never functioned as one correctly to begin with — despite its name, it was always a raw unit-quantity, not a day count). Verified live: a product with `reorder_level=20` and 15 units on hand — below its own threshold, but *not* below the old hardcoded `10` — now shows as low stock consistently across all four endpoints; a product well above its threshold shows as low stock nowhere. Regression tests: `backend/tests/test_inventory_safety_settings.py::TestLowStockDefinitionAgreement`.
 
-**E. Settings → Inventory tab enforcement** — `frontend/src/pages/Settings/components/InventoryTab.jsx`, `backend/routers/settings.py`
+**E. Settings → Inventory tab enforcement** — `frontend/src/pages/Settings/components/InventoryTab.jsx`, `backend/routers/settings.py`, `backend/routers/billing.py`
 
 | User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
-| As a pharmacist, I want to stop expired stock from ever being sold. | ❌ **Not enforced, not even persisted** | Toggle exists in `InventoryTab.jsx`. `GET /settings` returns it **hardcoded to `True`** (`settings.py:207`) — no DB column backs it. | Flipping this toggle does nothing either way. `billing.py` never checks a batch's `expiry_date` before allowing a sale, regardless of the toggle. |
-| As a pharmacist, I want to allow selling near-expiry stock but with a warning shown at billing. | ❌ **Not enforced, not even persisted** | Same as above — hardcoded `True` (`settings.py:208`). | No warning exists anywhere in the billing flow. |
-| As a pharmacist, I want to turn dashboard low-stock alerts on/off. | 🔄 | `alert_low_stock_enabled` column, persisted and read by `/analytics/dashboard`, returned alongside the alert data. | Server does the storage/read correctly; whether `AlertsPanel` on the frontend actually checks this flag before rendering hasn't been confirmed — verify before calling this fully done. |
+| As a pharmacist, I want to stop expired stock from ever being sold. | ✅ **Fixed August 22, 2026** | Real `PharmacySettings.block_expired_stock` column (migration `d81f3b0c6a4e`, default `True`), enforced in both `create_bill` and `update_bill`'s finalize paths — same pattern as the existing MRP/H1 checks. | Not separately covered by an HTTP integration test: `POST`/`PUT /stock/batches` both reject an `expiry_date` in the past by design, so there's no HTTP-reachable way to create an already-expired fixture batch without bypassing the API. Verified by code inspection — the two checks are structurally identical, one line apart. |
+| As a pharmacist, I want to allow selling near-expiry stock but with a warning shown at billing. | 🔄 **Enforcement fixed August 22, 2026 — warning UI not built** | Real `PharmacySettings.allow_near_expiry_sale` column, enforced the same way: `False` blocks finalizing a sale on a near-expiry batch in both create_bill and update_bill. | The toggle now genuinely gates the sale (tested: `TestNearExpirySaleEnforcement`), but the "(with warning)" half of its own label isn't built — when the toggle is `True` (default), a near-expiry sale goes through with no warning shown anywhere in the billing UI. Scoped out of this pass; a real, separate frontend task. |
+| As a pharmacist, I want to turn dashboard low-stock alerts on/off. | ✅ **Fixed August 22, 2026** | `InventoryTab.jsx`'s checkbox used a key (`low_stock_alert_enabled`) `GET /settings` never returned and `PUT /settings` silently dropped — a third, disconnected fake toggle alongside the two above, found while fixing them. Now reads/writes the same real `alert_low_stock_enabled` column `NotificationsTab.tsx` already used correctly, shown consistently in both tabs (same pattern already used for `near_expiry_days`). | — |
 | As a pharmacist, I want to set the near-expiry alert window in days. | ✅ | `near_expiry_threshold_days` column, persisted and read correctly. | — |
+
+**A note on `NotificationsTab.tsx`'s old "low stock — N days" input:** removed in the same pass. It read as a genuine days-of-stock-remaining prediction ("Only N days of stock remaining. Reorder soon.") but nothing in the codebase ever computed sales velocity — it silently applied its number as a raw unit-quantity cutoff instead, one of the three disagreeing definitions above. Replaced with a note pointing to each medicine's own `reorder_level` field, which is the real, working mechanism.
 
 **F. Competitor-validated gaps** — per Manifesto rule 15. These are use cases PharmaCare doesn't have, checked against what eVitalRx, Marg ERP, and Pharmasoft actually ship (see `docs/01_PRODUCT.md` §10 for sources). Not internal guesses — named, standard features in this market.
 
@@ -189,19 +189,19 @@ A product with `reorder_level = 50` can show "low stock" on the Inventory page w
 
 **Dashboard / Analytics** (`GET /reports/dashboard`, `GET /analytics/dashboard`, `pages/Dashboard`)
 - `GET /reports/dashboard` (total product count, total stock value, low-stock count, expiring-soon count, today/total sales) — ✅ **fixed August 22, 2026** (was silently returning all zeros — see section G above). Now has a regression test.
-- `GET /analytics/dashboard`'s `low_stock`/`expiring_soon` lists — ✅ live-verified correct (this is the endpoint whose settings-driven logic was already documented correctly)
+- `GET /analytics/dashboard`'s `low_stock`/`expiring_soon` lists — ✅ live-verified correct; `low_stock` now uses the same reorder_level-based definition as every other low-stock screen (was per-batch against a pharmacy-wide setting — fixed August 22, 2026)
 - AlertsPanel (low stock + near expiry + drug license expiry) — 🔄 data side confirmed correct via `/analytics/dashboard`; still need to verify the frontend gates on `low_stock_enabled`/`near_expiry_enabled` flags
 - Sales charts / insights — not inventory-dependent, out of scope here; also likely affected if they read `/reports/dashboard`, not yet checked
 
 **Settings** (`pages/Settings/components/InventoryTab.jsx`, `GeneralTab`, `GSTTab`)
 - Near-expiry day threshold — ✅ wired end-to-end
-- Low-stock day threshold — 🔄 wired to `/analytics/dashboard` only, not to `/inventory` or `/reports/dashboard` (see gap above)
-- Block-expired-stock / allow-near-expiry-sale toggles — ❌ UI-only, no backend column, no enforcement (see above)
+- Low-stock threshold — ✅ **fixed August 22, 2026**: no longer a pharmacy-wide day/quantity setting at all — every screen now reads each product's own `reorder_level` (see gap-fix above). `NotificationsTab.tsx`'s old numeric input was removed rather than left pointing at a dead setting.
+- Block-expired-stock / allow-near-expiry-sale toggles — ✅ **fixed August 22, 2026**: real `PharmacySettings` columns, enforced in `billing.py` (see below)
 - Default GST rate / HSN mapping (Tax & GST tab) — ✅ applied at product-create time via `CATEGORY_HSN_MAP`
 
 **Billing** (already covered in depth in `docs/07_BUSINESS_LOGIC.md` and `docs/08_ARCHITECTURE.md`'s cross-cutting map — cross-referenced, not repeated here)
 - FEFO batch consumption, MRP-vs-batch check, H1 doctor-required check, stock-oversell guard — ✅ all built and verified this session
-- Expired-batch sale blocking — ❌ **not built**, ties directly to the Settings gap above: even if the toggle worked, nothing downstream would enforce it
+- Expired-batch sale blocking — ✅ **fixed August 22, 2026**, enforced in both `create_bill` and `update_bill`, same pattern as the MRP/H1 checks. Near-expiry blocking enforced the same way; the "with warning" UI half of that setting's own label is still not built (see Settings → Inventory tab table above)
 
 **Purchases** (`routers/purchases.py`, cross-referenced in the table below)
 - Confirming a purchase creates `StockBatch` rows and `StockMovement` entries — ✅

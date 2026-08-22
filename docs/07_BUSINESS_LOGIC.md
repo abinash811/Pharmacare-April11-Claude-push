@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.2 | Last updated: August 22, 2026
+# Version: 2.3 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
 #        or compliance — read the relevant section here first.
@@ -80,6 +80,13 @@ no code path writes it today; only `paid` and `due` are ever assigned.
       - MRP check: if the submitted price exceeds `batch.mrp_paise` → HTTP 400
         (**fixed August 22, 2026** — previously the submitted price was
         trusted with no server-side check at all; verified live)
+      - Expiry checks, gated on `Settings > Inventory`'s two toggles (real
+        `PharmacySettings` columns as of **August 22, 2026** — previously
+        UI-only, hardcoded `True` server-side, never enforced anywhere):
+        if `block_expired_stock` (default on) and `batch.expiry_date` is in
+        the past → HTTP 400. If `allow_near_expiry_sale` is off and the
+        batch falls within `near_expiry_threshold_days` → HTTP 400. Both
+        default to the pharmacy's previous (unenforced) behavior — on.
       - Snapshot: copy product_name, batch_number, expiry_date, hsn_code,
         drug_schedule, and the (now MRP-checked) price into the bill item
       - Calculate: disc_paise, taxable_paise, gst_paise, line_total_paise (all integers)
@@ -586,6 +593,8 @@ match existing call sites' conventions rather than inventing new values.
 | Sell above MRP | Illegal under DPCO | Yes — fixed Aug 22, 2026 (FLOW 1), checked against `batch.mrp_paise` |
 | Bill H1 drug without doctor | Legal requirement | Yes — fixed Aug 22, 2026 (FLOW 6), checked for every item regardless of identifier |
 | Sell more than a batch has on hand | Data integrity | Yes — fixed Aug 22, 2026 (FLOW 1), matches the guard manual adjustments (FLOW 9) already had |
+| Sell expired stock (when `block_expired_stock` is on) | Drug safety / compliance | Yes — fixed Aug 22, 2026 (FLOW 1). Previously a Settings toggle that did nothing — hardcoded `True` server-side, never checked at billing |
+| Sell near-expiry stock (when `allow_near_expiry_sale` is off) | Pharmacy policy choice, opt-in per pharmacy | Yes — fixed Aug 22, 2026 (FLOW 1), same fix as above. When allowed (the default), no warning is shown yet — real gap, not built |
 | Store money as float | Rounding errors — always integer paise | Yes, throughout |
 | Skip stock movement record | Every stock change must be traceable | Yes |
 

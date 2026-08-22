@@ -51,31 +51,38 @@ export function useInventorySearch() {
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   // ── Load filter options + summary on mount ──────────────────────────────
+  // Extracted so refetch() (called after add/edit/adjust) can force a real
+  // re-fetch, not just null the cache for some future component mount that
+  // may never happen in a single-page app — a newly added brand/category/
+  // location used to never appear in FilterDrawer or BulkUpdateModal until
+  // a hard page reload, found while live-testing the new Brand bulk-update
+  // field this same fix ships with.
+  const loadFilterOptions = useCallback(async (force = false) => {
+    if (_filterCache && !force) { setFilterOptions(_filterCache); return; }
+    try {
+      const res = await api.get(apiUrl.inventoryFilters());
+      // dosage_types/schedule_types/gst_rates/locations used to always
+      // be the hardcoded defaults above regardless of what the backend
+      // returned — these 4 filters looked real in the UI but never
+      // actually filtered anything (see docs/15_ROADMAP.md RULE MISSES
+      // LOG). Fixed August 22, 2026: GET /inventory/filters now returns
+      // all of these for real, and they're used here instead.
+      const opts = {
+        categories:     res.data.categories     || [],
+        brands:         res.data.brands          || [],
+        dosage_types:   res.data.dosage_forms    || DEFAULT_FILTER_OPTIONS.dosage_types,
+        schedule_types: res.data.schedules       || DEFAULT_FILTER_OPTIONS.schedule_types,
+        gst_rates:      res.data.gst_rates       || DEFAULT_FILTER_OPTIONS.gst_rates,
+        locations:      res.data.locations       || DEFAULT_FILTER_OPTIONS.locations,
+        stock_statuses: res.data.statuses        || [],
+      };
+      _filterCache = opts;
+      setFilterOptions(opts);
+    } catch { /* use defaults */ }
+  }, []);
+
   useEffect(() => {
-    (async () => {
-      if (_filterCache) { setFilterOptions(_filterCache); }
-      else {
-        try {
-          const res = await api.get(apiUrl.inventoryFilters());
-          // dosage_types/schedule_types/gst_rates/locations used to always
-          // be the hardcoded defaults above regardless of what the backend
-          // returned — these 4 filters looked real in the UI but never
-          // actually filtered anything (see docs/15_ROADMAP.md RULE MISSES
-          // LOG). Fixed August 22, 2026: GET /inventory/filters now returns
-          // all of these for real, and they're used here instead.
-          const opts = {
-            categories:     res.data.categories     || [],
-            dosage_types:   res.data.dosage_forms    || DEFAULT_FILTER_OPTIONS.dosage_types,
-            schedule_types: res.data.schedules       || DEFAULT_FILTER_OPTIONS.schedule_types,
-            gst_rates:      res.data.gst_rates       || DEFAULT_FILTER_OPTIONS.gst_rates,
-            locations:      res.data.locations       || DEFAULT_FILTER_OPTIONS.locations,
-            stock_statuses: res.data.statuses        || [],
-          };
-          _filterCache = opts;
-          setFilterOptions(opts);
-        } catch { /* use defaults */ }
-      }
-    })();
+    loadFilterOptions();
 
     (async () => {
       try {
@@ -146,8 +153,8 @@ export function useInventorySearch() {
         expiring_soon: res.data.summary?.critical_count || 0,
       });
     }).catch(() => {});
-    _filterCache = null; // bust filter cache so categories refresh
-  }, [fetchInventory, currentPage]);
+    loadFilterOptions(true); // real re-fetch, not just a cache null — see loadFilterOptions above
+  }, [fetchInventory, currentPage, loadFilterOptions]);
 
   return {
     searchQuery, setSearchQuery,

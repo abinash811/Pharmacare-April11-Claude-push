@@ -2,7 +2,7 @@
  * BulkUpdateModal — confirm and apply a field change to N selected products.
  * Props:
  *   selectedCount  {number}
- *   filterOptions  {{ locations, gst_rates, categories, schedule_types }}
+ *   filterOptions  {{ locations, gst_rates, categories, schedule_types, brands }}
  *   onConfirm      {(field, value) => void}
  *   onClose        {() => void}
  */
@@ -16,7 +16,7 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
   const [field, setField] = useState('');
   const [value, setValue] = useState('');
 
-  const { locations = [], gst_rates = [], categories = [], schedule_types = [] } = filterOptions;
+  const { locations = [], gst_rates = [], categories = [], schedule_types = [], brands = [] } = filterOptions;
 
   const handleConfirm = () => {
     if (!field || value === '') return;
@@ -45,6 +45,8 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
               <option value="gst_percent">GST %</option>
               <option value="category">Drug Category</option>
               <option value="schedule">Schedule</option>
+              <option value="brand">Brand</option>
+              <option value="requires_refrigeration">Requires Refrigeration</option>
             </select>
           </div>
 
@@ -70,7 +72,22 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
               ) : field === 'schedule' ? (
                 <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
                   <option value="">Select schedule…</option>
-                  {schedule_types.map(s => <option key={s} value={s}>{s}</option>)}
+                  {schedule_types.map(s => {
+                    const optValue = typeof s === 'string' ? s : s.value;
+                    const optLabel = typeof s === 'string' ? s : s.label;
+                    return <option key={optValue} value={optValue}>{optLabel}</option>;
+                  })}
+                </select>
+              ) : field === 'brand' ? (
+                <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
+                  <option value="">Select brand…</option>
+                  {brands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              ) : field === 'requires_refrigeration' ? (
+                <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
+                  <option value="">Select…</option>
+                  <option value="true">Yes — requires refrigeration</option>
+                  <option value="false">No — does not require refrigeration</option>
                 </select>
               ) : (
                 <input type="number" value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} placeholder="Enter value" data-testid="bulk-value-input" />

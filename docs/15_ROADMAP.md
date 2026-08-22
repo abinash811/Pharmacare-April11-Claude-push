@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 1.4 | Last updated: August 22, 2026
+# Version: 1.5 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -143,6 +143,16 @@ A product with `reorder_level = 50` can show "low stock" on the Inventory page w
 | As a pharmacist, I want to allow selling near-expiry stock but with a warning shown at billing. | ❌ **Not enforced, not even persisted** | Same as above — hardcoded `True` (`settings.py:208`). | No warning exists anywhere in the billing flow. |
 | As a pharmacist, I want to turn dashboard low-stock alerts on/off. | 🔄 | `alert_low_stock_enabled` column, persisted and read by `/analytics/dashboard`, returned alongside the alert data. | Server does the storage/read correctly; whether `AlertsPanel` on the frontend actually checks this flag before rendering hasn't been confirmed — verify before calling this fully done. |
 | As a pharmacist, I want to set the near-expiry alert window in days. | ✅ | `near_expiry_threshold_days` column, persisted and read correctly. | — |
+
+**F. Competitor-validated gaps** — per Manifesto rule 15. These are use cases PharmaCare doesn't have, checked against what eVitalRx, Marg ERP, and Pharmasoft actually ship (see `docs/01_PRODUCT.md` §10 for sources). Not internal guesses — named, standard features in this market.
+
+| User story | Status | Fields / rules involved | Limitations |
+|---|---|---|---|
+| As a pharmacist, I want a running "short book" / demand list that auto-fills with medicines at or below reorder level, so I know what to order without checking every product. | ❌ **Not built** | Marg calls this "smart ordering," eVitalRx a "digital shortbook." PharmaCare has the raw ingredient (`reorder_level`, `reorder_quantity` columns) but nothing assembles them into a list or feeds a purchase order. | Directly ties to the already-flagged dead `reorder_quantity` field — this is the feature that would make it alive. |
+| As a pharmacist, I want tiered expiry warnings (e.g. 90/60/30 days out), not just one single "near expiry" cutoff. | ❌ **Not built** | Marg broadcasts alerts at 30/60/90 days automatically. PharmaCare has exactly one configurable `near_expiry_threshold_days` value — a batch is either "near expiry" or it isn't, no escalating urgency. | — |
+| As a pharmacist, I want to return near-expiry or expired stock to the supplier for a credit note, before it becomes a total write-off. | 🔄 **Possible but not discoverable where it matters** | `PurchaseReturn` exists and could carry this, but it's always initiated from a specific past Purchase (`GET /purchases/{id}/items-for-return`) — there is no "return this batch" action from the Inventory health screen or the near-expiry alert itself. | A pharmacist looking at a near-expiry batch on the Inventory page has no path from there to returning it — they'd have to know and find the original purchase order first. |
+| As a pharmacist receiving a distributor's invoice, I want to import that purchase bill directly from Excel/CSV/email instead of retyping every line into a new Purchase. | ❌ **Not built** | Pharmasoft supports one-click purchase-bill import from Excel/CSV/email. PharmaCare's only Excel import is the product-catalog bulk-upload (section A) — it does not create a `Purchase` record from a supplier's invoice file. | Distinct feature from catalog bulk-upload — don't conflate the two when scoping this. |
+| As a pharmacist, I want to compare prices for the same medicine across my suppliers before ordering. | ❌ **Not built** | Not present in PharmaCare in any form — no per-supplier price history view. | — |
 
 ---
 

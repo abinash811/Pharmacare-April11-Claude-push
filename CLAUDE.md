@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.4 | Last updated: August 22, 2026
+# Version: 1.5 | Last updated: August 22, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -21,6 +21,7 @@
 12. **Test what you build, before calling it done.** Every feature, fix, or enhancement ships with the tests that prove it — pytest for backend, jest for frontend, at the P0/P1/P2 priority its behavior warrants per `docs/11_TESTING.md`. If no test covers the code path you touched, write one in the same change, and run the suite (locally, then CI) before reporting the work finished. "It compiles" and "the doc says it works" are not evidence — a passing test is.
 13. **Anything outside these rules needs permission first, explained simply.** If a task can't be done inside an existing pattern in this file or `/docs` — a new library, a new architecture, bypassing a documented rule, a schema change — stop and ask before building it. Explain in plain language what's being proposed and why, no jargon, so a non-engineer can approve or reject it. Only propose modern, cost-effective options, checked against `docs/22_TECH_RADAR.md` — never just the first tool that comes to mind.
 14. **No assumptions. Verify, every time.** Don't guess what a route returns, what a doc claims, or whether a pattern still holds — check the real code or the real doc first, per the "HOW TO BUILD" order below. If something looks outdated — a doc, a dependency, a convention, an approach that used to be right — flag it explicitly and ask before deviating from it on your own judgment; don't silently route around it and don't silently keep building on it either. These rules are the law until the user changes them, not a default to override when they seem inconvenient or stale.
+15. **Think like a product manager, not just an auditor.** A use-case list built only by reading our own code rediscovers what we already built — it can't tell you what's missing. Before calling any section's use-case list complete, benchmark it against what real competitors actually ship: **eVitalRx, Marg ERP, Pharmasoft** (see `docs/01_PRODUCT.md` §10 for what's known about each). Named/researched features that we don't have are real gaps, not nice-to-haves — call them out explicitly rather than only listing what exists in our code today.
 
 ---
 

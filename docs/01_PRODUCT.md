@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: August 22, 2026
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
 # Rule: This document is updated every time a major feature ships or strategy shifts.
@@ -271,12 +271,21 @@ Clarity on non-goals is as important as goals. These are explicitly out of scope
 | Product | Strength | Weakness | Our edge |
 |---------|----------|----------|----------|
 | **Busy** | Accounting depth, trusted brand | Complex UI, not pharmacy-specific | Modern UX, pharmacy-first |
-| **Marg ERP** | Pharma-specific, widely used | Windows-only, outdated UI | Web-based, mobile-ready |
+| **Marg ERP** | Pharma-specific, widely used, deep batch/expiry control | Windows-only, outdated UI | Web-based, mobile-ready |
+| **eVitalRx** | Modern-for-category, 20,000+ pharmacies, cloud-based | Still India-legacy UX patterns | Cleaner UX, faster workflows |
+| **Pharmasoft (Yadav Software / Kireeti)** | Simple desktop tool, cheap, easy purchase-bill import | Desktop-only, thin feature set | Cloud, richer compliance, richer reporting |
 | **WinPOS** | Affordable | Very basic, no GST depth | Full compliance, full insight |
 | **PharmaERP** | Enterprise features | Expensive, needs IT support | Self-serve, no IT needed |
 | **Excel/Paper** | Free, familiar | No compliance, no insight | One migration away |
 
 **Our moat:** The combination of modern UX + India-specific compliance + batch-level tracking + no-training-needed simplicity. No one else has all four.
+
+**Competitor feature notes (researched Aug 22, 2026 — refresh before relying on these, they age fast):**
+- **Marg ERP:** batch + expiry tracking with tiered alerts (30/60/90 days before expiry, broadcast automatically), FEFO/expiry-based promotions, expiry-loss prevention via **return-to-supplier before full write-off**, real-time stock deduction on invoice, reorder-point triggers feeding a "smart ordering" flow. [Source](https://margcompusoft.com/m/how-pharmacy-billing-software-simplifies-stock-and-inventory-management-for-chemists/)
+- **eVitalRx:** **digital shortbook** (running reorder list, auto-populated from low stock, feeds ordering), **purchase marketplace** (order from distributors inside the app), unlimited CSV upload, FMCG barcode scanning, daily stock reconciliation. [Source](https://www.softwaresuggest.com/evitalrx)
+- **Pharmasoft:** one-click near-expiry view with 3-month advance notice, item-wise full purchase→sales history, **one-click import of a distributor's purchase bill** (Excel/CSV/email) straight into a purchase record — not just catalog upload. [Source](https://yadavsoftware.com/)
+
+These three named terms — **short book / demand book** (auto-reorder list), **tiered expiry alerts**, and **return-to-supplier before write-off** — are standard in this market and are gaps in PharmaCare today (see `docs/15_ROADMAP.md`'s Inventory section).
 
 ---
 

@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.3 | Last updated: August 22, 2026
+# Version: 1.4 | Last updated: August 22, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -18,6 +18,9 @@
 9. **No magic strings. No unverified routes. Ever.** Every status value (`'draft'`, `'paid'`, `'parked'`) comes from `constants/domainConstants.js`. Every API call targets a route you have confirmed exists in the backend routers. Writing a raw string like `status='parked'` or calling `/patients` without checking — that is the bug. Fix the root, not the symptom.
 10. **Every error notification must say why.** "Failed to save settings" with no cause is a bug, not a valid error state — the user can't fix what they can't see. Every `toast.error(...)` must show the actual field/reason (`error.message`, already normalised by `frontend/src/lib/axios.js`'s interceptor — see `docs/12_ERROR_HANDLING.md`), never a hardcoded generic fallback alone.
 11. **Cross-cutting changes ship as one change, not a series of surprises.** A billing rule doesn't live only in billing — it's also read by the GST report, analytics, the H1 register, stock. Before calling a change to one of these domains done, check every linked consumer listed in `docs/08_ARCHITECTURE.md`'s cross-cutting map and update or verify each one in the same change. Found August 22, 2026 the hard way: an MRP/stock/H1 check added to billing's create path didn't reach its own update/finalize path, and the GST report didn't reach sales/purchase returns, until both were checked separately. Ship the whole surface area, not just the entry point you happened to be looking at.
+12. **Test what you build, before calling it done.** Every feature, fix, or enhancement ships with the tests that prove it — pytest for backend, jest for frontend, at the P0/P1/P2 priority its behavior warrants per `docs/11_TESTING.md`. If no test covers the code path you touched, write one in the same change, and run the suite (locally, then CI) before reporting the work finished. "It compiles" and "the doc says it works" are not evidence — a passing test is.
+13. **Anything outside these rules needs permission first, explained simply.** If a task can't be done inside an existing pattern in this file or `/docs` — a new library, a new architecture, bypassing a documented rule, a schema change — stop and ask before building it. Explain in plain language what's being proposed and why, no jargon, so a non-engineer can approve or reject it. Only propose modern, cost-effective options, checked against `docs/22_TECH_RADAR.md` — never just the first tool that comes to mind.
+14. **No assumptions. Verify, every time.** Don't guess what a route returns, what a doc claims, or whether a pattern still holds — check the real code or the real doc first, per the "HOW TO BUILD" order below. If something looks outdated — a doc, a dependency, a convention, an approach that used to be right — flag it explicitly and ask before deviating from it on your own judgment; don't silently route around it and don't silently keep building on it either. These rules are the law until the user changes them, not a default to override when they seem inconvenient or stale.
 
 ---
 

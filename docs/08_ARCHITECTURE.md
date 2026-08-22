@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.3 | Last updated: August 22, 2026
+# Version: 1.4 | Last updated: August 22, 2026
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
 #        Before making a structural change, read this file.
@@ -350,6 +350,58 @@ called identically from both routes. No gap there. That's the actual goal
 this rule is pointing at: not "audit every pair by hand forever," but
 "share the check so there's structurally only one place it could be
 missing from."
+
+### Cross-cutting consumers map — check these when touching a core domain
+
+Per MANIFESTO rule 11: before calling a change to one of these domains
+done, check every listed consumer, not just the domain you edited. Two
+different safety patterns show up below — know which one a given link is,
+because they fail differently:
+
+- **Shared helper** (safest) — both write paths call the same function, so
+  a fix in the helper reaches every caller automatically. Nothing to
+  remember, nothing to miss.
+- **Computed on read** (also safe) — nothing is stored at write time at
+  all; a value is derived fresh from source rows every time it's fetched,
+  so it can't drift out of sync with whatever wrote those rows.
+- **Independent direct query** (the risk zone) — a second endpoint queries
+  the same underlying tables on its own, with its own field list and its
+  own filters. Nothing forces it to stay in sync when the writing side's
+  schema or rules change — this is the shape of both real gaps found
+  August 22, 2026 (the GST report not scanning returns; the product
+  transactions endpoint not scanning returns either, fixed the same day).
+
+**Billing** (`Bill`/`BillItem`, `POST /bills`, `PUT /bills/{id}`)
+| Consumer | Pattern | Where |
+|---|---|---|
+| Stock deduction/restore | Shared helper | `_deduct_stock_and_record` (billing.py) |
+| Schedule H1 register | Shared helper | `_create_h1_entry` (billing.py) |
+| Audit log | Called at both sites | `_record_audit` (billing.py) |
+| GST report | Independent direct query | `get_gst_report` (reports.py) — scans `bill_items` directly |
+| Dashboard/analytics summary | Independent direct query | `get_analytics_summary` (reports.py) — scans `Bill` directly |
+| Customer stats | Independent direct query | `get_customer_stats` (customers.py) — scans `Bill` directly |
+| Product transaction history | Independent direct query | `get_product_transactions` (inventory.py) — scans `bill_items` directly |
+| Sales returns | Independent, validates against original bill | `create_sales_return` (sales_returns.py) reads `BillItem` quantities |
+
+**Purchases** (`Purchase`/`PurchaseItem`, `POST /purchases`, `PUT /purchases/{id}`)
+| Consumer | Pattern | Where |
+|---|---|---|
+| Stock creation | Shared helper | `_create_stock_for_items` (purchases.py) |
+| Supplier outstanding | Computed on read | `_calc_outstanding` (suppliers.py) — not a stored column, so it can't go stale |
+| GST report (input credit side) | Independent direct query | `get_gst_report` (reports.py) — scans `purchase_items` directly |
+| Product transaction history | Independent direct query | `get_product_transactions` (inventory.py) |
+
+**Sales returns / Purchase returns** (their own resources — see docs/07)
+| Consumer | Pattern | Where |
+|---|---|---|
+| Stock restore/deduct | Inline in the route, not shared | `create_sales_return`, `create_purchase_return` |
+| GST report | Independent direct query | `get_gst_report` — fixed Aug 22 to actually query these; re-check if the return schema changes |
+| Product transaction history | Independent direct query | `get_product_transactions` — same fix, same re-check note |
+
+This map covers only the domains actually audited so far (billing,
+purchases, returns, reports, inventory). Customers, suppliers, settings,
+and users haven't been walked the same way yet — extend this table
+instead of assuming they're fine.
 
 ### Error Handling Pattern
 

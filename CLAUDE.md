@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.2 | Last updated: August 21, 2026
+# Version: 1.3 | Last updated: August 22, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -17,6 +17,7 @@
 8. **Zero cognitive load.** Every feature must be completable in the fewest possible clicks. No unnecessary steps, no confirmation modals for reversible actions, no forms asking for data we can infer. If the user has to think — we've failed. Smart defaults, inline edits, auto-save where possible.
 9. **No magic strings. No unverified routes. Ever.** Every status value (`'draft'`, `'paid'`, `'parked'`) comes from `constants/domainConstants.js`. Every API call targets a route you have confirmed exists in the backend routers. Writing a raw string like `status='parked'` or calling `/patients` without checking — that is the bug. Fix the root, not the symptom.
 10. **Every error notification must say why.** "Failed to save settings" with no cause is a bug, not a valid error state — the user can't fix what they can't see. Every `toast.error(...)` must show the actual field/reason (`error.message`, already normalised by `frontend/src/lib/axios.js`'s interceptor — see `docs/12_ERROR_HANDLING.md`), never a hardcoded generic fallback alone.
+11. **Cross-cutting changes ship as one change, not a series of surprises.** A billing rule doesn't live only in billing — it's also read by the GST report, analytics, the H1 register, stock. Before calling a change to one of these domains done, check every linked consumer listed in `docs/08_ARCHITECTURE.md`'s cross-cutting map and update or verify each one in the same change. Found August 22, 2026 the hard way: an MRP/stock/H1 check added to billing's create path didn't reach its own update/finalize path, and the GST report didn't reach sales/purchase returns, until both were checked separately. Ship the whole surface area, not just the entry point you happened to be looking at.
 
 ---
 

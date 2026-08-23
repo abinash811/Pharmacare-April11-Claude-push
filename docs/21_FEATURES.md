@@ -1,5 +1,5 @@
 # PharmaCare — Feature Reference
-# Last updated: April 19, 2026
+# Last updated: August 23, 2026
 # Audience: Developers, designers, new hires, product reviewers
 # Purpose: For every feature — why it exists, who uses it, how it works in the product.
 # Rule: Update this file every time a feature ships or changes behaviour.
@@ -227,10 +227,15 @@ Each feature entry answers 4 questions:
 
 ## PURCHASES
 
+> Audited against real code Aug 23, 2026 (`backend/routers/purchases.py`,
+> `purchase_returns.py`, `models/purchases.py`) plus Marg ERP research —
+> money-critical module, so gaps below are flagged, not just features
+> described. [Source](https://care.margcompusoft.com/margerp/purchase-return/178/1/null)
+
 ### Purchase / GRN
 **What:** Record stock received from a supplier — creates batches, updates inventory.
 
-**Why:** Stock cannot be billed if it isn't in the system. Every purchase must be recorded with batch numbers and expiry dates. This also builds the purchase history per supplier for payment tracking.
+**Why:** Stock cannot be billed if it isn't in the system. Every purchase must be recorded with batch numbers and expiry dates. Builds purchase history per supplier for payment tracking.
 
 **Who:** Suresh (Manager) — daily/weekly task when stock arrives.
 
@@ -239,9 +244,36 @@ Each feature entry answers 4 questions:
 2. Select supplier
 3. Add items with batch number, expiry, MRP, cost, qty
 4. Save as draft or confirm (confirm = stock added immediately)
-5. Purchase number assigned (PUR-YYYYMMDD-XXXX)
+5. Purchase number assigned (PUR-YYYY-XXXX)
 6. Batches created in inventory
 7. Stock movements logged
+
+**Known gaps — real, code-confirmed, not yet fixed:**
+- `free_qty_units` accepted in the create request, no DB column exists for it — silently discarded, API response hardcodes it to `0`. Real margin-accuracy risk (bonus units received free but priced as if paid for).
+- `discount_percent` on each purchase line is hardcoded to `0` on both create and update, even though the column exists — supplier trade discounts aren't captured at all.
+- `total_igst_paise` column exists but is never populated — GST is always split CGST+SGST even for an inter-state (IGST) purchase. Same class of bug as the Billing IGST issue found earlier.
+- `round_off` is a hardcoded `0` in the API response — not a real field.
+- No partial-receipt / short-delivery tracking: `quantity_received` exists on the schema but confirm always sets it as all received — "ordered 100, received 80" isn't representable. Real pharmacies short-receive often.
+- No separate PO → GRN two-step flow — "order placed" and "goods physically received" are collapsed into one draft→confirmed action.
+- No supplier-wise outstanding ledger view — payments are tracked per-purchase (`PurchasePayment`), no consolidated running balance per supplier found in this router.
+
+### Purchase Return
+**What:** Return stock to a supplier against an original purchase — issues a debit note, deducts stock.
+
+**Why:** Damaged/expired/wrong stock needs to go back to the supplier and reduce what the pharmacy owes them. Must trace back to the original purchase and batch for audit/compliance.
+
+**Who:** Suresh (Manager) — as-needed when stock is rejected/damaged/expiring.
+
+**How:**
+1. Purchases → open a purchase → Return
+2. Pick items/quantities (capped at what's still returnable, not yet returned)
+3. Confirm → stock deducted, credit reference number generated
+
+**Known gaps — real, code-confirmed, money/compliance risk:**
+- **Silent stock skip on confirm:** if a batch doesn't have enough stock on hand (e.g. already sold), `_deduct_stock_and_record` just returns silently — no error, no warning. The return still gets created and a credit reference issued, but stock and the financial record now disagree, and nobody is told.
+- **Wrong-batch fallback:** if the requested batch isn't found, the code falls back to "any batch for this product with stock" — could deduct from a different batch than the one actually being returned, breaking batch-level traceability (Schedule H1 register needs exact batch tracking).
+- **Naming is backwards for GST filing:** the field/prefix is `credit_note_number` / `SCRED-`, but a pharmacy returning goods to a supplier issues a **debit note** (reduces what it owes the supplier) — a credit note is the reverse direction. Marg ERP labels this exact flow "Debit Note." Worth checking if this mislabeling reaches GST filing/reports.
+- Same `discount_percent`/IGST gaps as Purchase/GRN above, inherited on the return side too.
 
 ---
 

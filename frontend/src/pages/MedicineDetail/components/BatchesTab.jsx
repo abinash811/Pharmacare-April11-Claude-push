@@ -65,16 +65,16 @@ export default function BatchesTab({
                   onChange={(e) => onSelectAll(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand" />
               </th>
-              {['Batch ID','Qty.','Exp. Date','MRP','Prev. MRP','PTR','Disc. (%)','LP','Margin%'].map(h => (
+              {['Batch ID','Qty.','Exp. Date','MRP','Disc. (%)','LP','Margin%'].map(h => (
                 <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  ['MRP','Prev. MRP','PTR','LP','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
+                  ['MRP','LP','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
                 }`}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {batches.length === 0 ? (
-              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-500">No batches found</td></tr>
+              <tr><td colSpan="8" className="px-4 py-12 text-center text-gray-500">No batches found</td></tr>
             ) : (
               batches.map(batch => {
                 const expired = isExpired(batch.expiry_date);
@@ -82,7 +82,6 @@ export default function BatchesTab({
                 const qtyUnits = batch.qty_on_hand * (product.units_per_pack || 1);
                 const mrp = batch.mrp_per_unit || batch.mrp || product.default_mrp_per_unit || 0;
                 const costPrice = batch.cost_price_per_unit || batch.cost_price || 0;
-                const ptr = costPrice * 1.1;
                 const margin = calculateMargin(mrp, costPrice);
 
                 return (
@@ -113,8 +112,6 @@ export default function BatchesTab({
                       )}
                     </td>
                     <td className="px-4 py-4 text-right font-medium text-gray-900">₹{mrp.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-right text-gray-400 line-through">₹{(mrp * 1.05).toFixed(2)}</td>
-                    <td className="px-4 py-4 text-right text-gray-700">₹{ptr.toFixed(2)}</td>
                     <td className="px-4 py-4 text-center text-gray-700">{batch.discount_percent || 0}</td>
                     <td className="px-4 py-4 text-right text-gray-700">₹{costPrice.toFixed(2)}</td>
                     <td className="px-4 py-4 text-right"><span className="text-brand font-medium">{margin}%</span></td>

@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.6 | Last updated: August 22, 2026
+# Version: 1.7 | Last updated: August 23, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -121,6 +121,13 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   check is realistic — and logs it in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
   Abinash shouldn't have to ask "which rule broke" after the fact — see that
   section for the full process and the first logged example.
+- **Docs and commit messages: bullets, not paragraphs.** Added August 23,
+  2026 — long prose entries in `docs/15_ROADMAP.md` and commit messages
+  were burning tokens for no real benefit. Roadmap findings, fixes, and
+  commit messages use short bullet points (what broke, why, what changed) —
+  not multi-paragraph explanations. The RULE MISSES LOG's 5-step structure
+  (name the rule, why it wasn't caught, fix, gate closed, log it) still
+  applies — just written as bullets, not prose.
 
 ---
 

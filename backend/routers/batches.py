@@ -5,7 +5,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,20 @@ router = APIRouter(prefix="/api", tags=["batches"])
 
 
 # ── Pydantic request models ──────────────────────────────────────────────────
+
+def _validate_batch_no(v: str) -> str:
+    # Rule 65, Drugs and Cosmetics Rules 1945: the batch number on a sale
+    # invoice must trace back to a real manufacturer batch — required for
+    # every schedule, not just H/H1, since every unit of stock in this
+    # system (any product, any schedule) lives inside a batch record, and
+    # expiry tracking/FEFO/recall lookups all depend on it being real. A
+    # frontend fallback used to silently invent one ("INIT-<timestamp>")
+    # when left blank; fixed to require a real value here so no client can
+    # bypass that by calling this endpoint directly.
+    if not v or not v.strip():
+        raise ValueError("Batch number is required — every unit of stock must trace back to a real batch")
+    return v.strip()
+
 
 class StockBatchCreate(BaseModel):
     product_sku: str
@@ -33,6 +47,8 @@ class StockBatchCreate(BaseModel):
     free_qty_units: Optional[int] = 0
     notes: Optional[str] = None
 
+    _v_batch_no = field_validator("batch_no")(_validate_batch_no)
+
 
 class StockBatchUpdate(BaseModel):
     batch_no: Optional[str] = None
@@ -47,6 +63,9 @@ class StockBatchUpdate(BaseModel):
     location: Optional[str] = None
     free_qty_units: Optional[int] = None
     notes: Optional[str] = None
+
+    # Same rule as create — a batch's number can be corrected, never cleared.
+    _v_batch_no = field_validator("batch_no")(_validate_batch_no)
 
 
 class StockMovementCreate(BaseModel):

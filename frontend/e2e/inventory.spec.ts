@@ -27,6 +27,7 @@ test.describe('Inventory', () => {
 
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + 400);
+    await page.getByTestId('medicine-batchno-input').fill(`E2E-BATCH-${Date.now()}`);
     await page.getByTestId('medicine-expiry-input').fill(expiry.toISOString().slice(0, 10));
     await page.getByTestId('medicine-quantity-input').fill('25');
     await page.getByTestId('medicine-mrp-input').fill('50');
@@ -62,6 +63,7 @@ test.describe('Inventory', () => {
     await page.getByTestId('medicine-dosageform-select').selectOption({ index: 1 });
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + 400);
+    await page.getByTestId('medicine-batchno-input').fill(`E2E-BATCH-${Date.now()}`);
     await page.getByTestId('medicine-expiry-input').fill(expiry.toISOString().slice(0, 10));
     await page.getByTestId('medicine-quantity-input').fill('3');
     await page.getByTestId('medicine-mrp-input').fill('40');

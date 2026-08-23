@@ -99,7 +99,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
       if (form.addOpeningStock && form.initialQty && form.expiryDate) {
         await api.post(apiUrl.stockBatches(), {
           product_sku: res.data.sku,
-          batch_no: form.batchNo || `INIT-${Date.now()}`,
+          batch_no: form.batchNo,
           expiry_date: form.expiryDate,
           qty_on_hand: parseFloat(form.initialQty),
           cost_price_per_unit: parseFloat(form.costPrice) || 0,
@@ -193,8 +193,8 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
             </div>
             {form.addOpeningStock && (
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Batch Number" hint="Auto-generated if left blank">
-                  <input value={form.batchNo} onChange={(e) => set('batchNo', e.target.value)} className={INPUT_CLS} />
+                <Field label="Batch Number" required={form.addOpeningStock} hint="From the manufacturer/supplier — required for expiry tracking and Schedule H/H1 invoicing">
+                  <input value={form.batchNo} onChange={(e) => set('batchNo', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-batchno-input" />
                 </Field>
                 <Field label="Expiry Date" required={form.addOpeningStock}>
                   <input type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-expiry-input" />

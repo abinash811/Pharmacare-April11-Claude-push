@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.7 | Last updated: August 23, 2026
+# Version: 1.8 | Last updated: August 23, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -128,6 +128,19 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   not multi-paragraph explanations. The RULE MISSES LOG's 5-step structure
   (name the rule, why it wasn't caught, fix, gate closed, log it) still
   applies — just written as bullets, not prose.
+- **Batch fixes before spinning up servers to verify.** Added August 23,
+  2026 — a live-verify pass (start backend+frontend, drive it, tear down)
+  costs tokens; doing one per individual fix instead of one per batch was
+  wasteful. Default:
+  - If more than one fix is already known/queued for the same page or
+    feature (e.g. an audit surfaces several bugs), list them all, get
+    them approved, fix all of them, then do ONE verification pass.
+  - Still verify immediately, without waiting to batch, when: it's a
+    single isolated fix with nothing else pending, Abinash says it's
+    urgent, or the fix is high-risk (money/stock/compliance logic) and
+    needs its own check before moving on.
+  - When in doubt, ask "want me to batch this with anything else you
+    have queued, or verify now?" rather than guessing.
 
 ---
 

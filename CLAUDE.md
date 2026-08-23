@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.8 | Last updated: August 23, 2026
+# Version: 1.9 | Last updated: August 23, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -141,6 +141,9 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
     needs its own check before moving on.
   - When in doubt, ask "want me to batch this with anything else you
     have queued, or verify now?" rather than guessing.
+- **Chat replies stay under 100 words.** Added August 23, 2026, direct
+  request. Applies to conversational answers, not code/docs/commit
+  content — those keep whatever length the task genuinely needs.
 
 ---
 

@@ -14,6 +14,20 @@ import { AppButton } from '@/components/shared';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
+// Module-level, not defined inside EditProductModal — a component defined
+// inside a parent's function body gets a new identity every render, so
+// React unmounts and remounts every <F>-wrapped input on each keystroke,
+// dropping focus after every single letter typed.
+function F({ label, children, span2, hint }) {
+  return (
+    <div className={span2 ? 'col-span-2' : ''}>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {children}
+      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
 export default function EditProductModal({ product, onClose, onSuccess }) {
   const [form, setForm] = useState({
     name:                product.name              || '',
@@ -69,14 +83,6 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
       toast.error(err.response?.data?.detail || 'Failed to update product');
     } finally { setLoading(false); }
   };
-
-  const F = ({ label, children, span2, hint }) => (
-    <div className={span2 ? 'col-span-2' : ''}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {children}
-      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-    </div>
-  );
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>

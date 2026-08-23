@@ -94,7 +94,7 @@ export function useInventorySearch() {
         });
       } catch { /* silent */ }
     })();
-  }, []);
+  }, [loadFilterOptions]);
 
   // ── Fetch when debounced search or filters change ───────────────────────
   const fetchInventory = useCallback(async (page = currentPage) => {

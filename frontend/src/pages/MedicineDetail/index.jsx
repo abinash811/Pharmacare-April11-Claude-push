@@ -62,16 +62,28 @@ export default function MedicineDetail() {
   const totalStock = batches.reduce((sum, b) => sum + (b.qty_on_hand || 0), 0);
   const totalUnits = totalStock * (product?.units_per_pack || 1);
 
-  // The MRP stat card shows the price a customer would actually pay right
-  // now, not a single "product MRP" — MRP lives per batch, not per product
-  // (a pharmacy can be carrying two batches of the same medicine at
-  // different MRPs). Batches come back expiry-ascending from the API, so
-  // the first one still in stock is the FEFO batch — the same one billing
-  // would sell next. Was previously read from product.default_mrp_per_unit,
-  // a field that never existed on any product response and always showed
-  // ₹0 (docs/15_ROADMAP.md RULE MISSES LOG).
-  const currentBatch = batches.find(b => b.qty_on_hand > 0);
-  const currentMrp = currentBatch?.mrp_per_unit ?? null;
+  // The MRP stat card shows what's actually in stock, not a single
+  // "product MRP" — MRP lives per batch, not per product (a pharmacy can
+  // legitimately be carrying two batches of the same medicine at different
+  // MRPs). A single number silently picking one batch (e.g. FEFO) reads as
+  // "the" price and hides that a difference exists, so when batches in
+  // stock disagree, show the range instead — the tooltip explains why, the
+  // Batches tab below has the exact per-batch breakdown. Was previously
+  // read from product.default_mrp_per_unit, a field that never existed on
+  // any product response and always showed ₹0 (docs/15_ROADMAP.md RULE
+  // MISSES LOG).
+  const activeBatches = batches.filter(b => b.qty_on_hand > 0);
+  const mrpValues = activeBatches.map(b => b.mrp_per_unit).filter(v => v != null);
+  const minMrp = mrpValues.length ? Math.min(...mrpValues) : null;
+  const maxMrp = mrpValues.length ? Math.max(...mrpValues) : null;
+  const mrpDisplay = minMrp == null
+    ? '–'
+    : minMrp === maxMrp
+      ? `₹${minMrp.toFixed(2)}`
+      : `₹${minMrp.toFixed(2)}–${maxMrp.toFixed(2)}`;
+  const mrpTooltip = minMrp != null && minMrp !== maxMrp
+    ? `${activeBatches.length} batches in stock at different MRPs (₹${minMrp.toFixed(2)}–₹${maxMrp.toFixed(2)}). See the Batches tab below for each batch's exact price.`
+    : null;
 
   if (loading) {
     return (
@@ -89,7 +101,8 @@ export default function MedicineDetail() {
         product={product}
         totalStock={totalStock}
         totalUnits={totalUnits}
-        currentMrp={currentMrp}
+        mrpDisplay={mrpDisplay}
+        mrpTooltip={mrpTooltip}
         onEdit={() => setShowEditModal(true)}
       />
 

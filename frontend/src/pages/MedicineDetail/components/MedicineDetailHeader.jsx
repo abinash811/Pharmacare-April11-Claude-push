@@ -4,33 +4,50 @@
  *   product      {object}
  *   totalStock   {number}  packs
  *   totalUnits   {number}  units
- *   currentMrp   {number | null}  MRP of the batch that would sell next (FEFO) — MRP is
- *                                 per-batch, not per-product, so this is null when there's
- *                                 no active stock rather than a fake ₹0.
+ *   mrpDisplay   {string}  "–", "₹X.XX", or "₹X.XX–₹Y.YY" — MRP is per-batch, not
+ *                          per-product, so a range means batches in stock disagree
+ *                          on price rather than picking one silently.
+ *   mrpTooltip   {string | null}  explanation shown on hover, only set when mrpDisplay
+ *                                 is a range.
  *   onEdit       {() => void}
  */
 import React from 'react';
 import {
   Edit2, Package, Percent, Hash,
-  CreditCard, Calendar, FileText, Snowflake,
+  CreditCard, Calendar, FileText, Snowflake, Info,
 } from 'lucide-react';
 import { AppButton, PageBreadcrumb } from '@/components/shared';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
-function StatCard({ icon: Icon, label, value, className = '' }) {
+function StatCard({ icon: Icon, label, value, tooltip, className = '' }) {
   return (
     <div className={`bg-gray-50 rounded-xl p-4 border border-gray-100 ${className}`}>
       <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
         <Icon className="w-3.5 h-3.5" />
         <span>{label}</span>
+        {tooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-3 h-3 text-gray-400 cursor-help" data-testid="mrp-range-info" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[240px]">{tooltip}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
-      <p className="text-lg font-semibold text-gray-900 truncate" title={String(value)}>
+      {/* A range value ("₹100.00–150.00") is longer than every other stat
+          this card shows and doesn't fit at text-lg without truncating —
+          which would defeat the point of showing the range instead of a
+          single number. Drop the font size once it's long enough to need it. */}
+      <p className={`font-semibold text-gray-900 truncate ${String(value).length > 10 ? 'text-sm' : 'text-lg'}`} title={String(value)}>
         {value}
       </p>
     </div>
   );
 }
 
-export default function MedicineDetailHeader({ product, totalStock, totalUnits, currentMrp, onEdit }) {
+export default function MedicineDetailHeader({ product, totalStock, totalUnits, mrpDisplay, mrpTooltip, onEdit }) {
   return (
     <div className="bg-white border-b border-gray-100">
       <div className="px-6 py-4">
@@ -92,7 +109,7 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
           <StatCard icon={Percent}  label="GST"         value={`${product.gst_percent || 0}%`} />
           <StatCard icon={Package}  label="STOCK"       value={`${totalStock} (${totalUnits})`} />
           <StatCard icon={Hash}     label="HSN"         value={product.hsn_code || '–'} />
-          <StatCard icon={CreditCard} label="MRP"       value={currentMrp != null ? `₹${currentMrp.toFixed(2)}` : '–'} />
+          <StatCard icon={CreditCard} label="MRP"       value={mrpDisplay} tooltip={mrpTooltip} />
           <StatCard icon={Calendar} label="SCHEDULE"    value={product.schedule || 'Non-Restricted'} />
           <StatCard icon={FileText} label="COMPOSITION" value={product.composition || product.generic_name || '–'} />
         </div>

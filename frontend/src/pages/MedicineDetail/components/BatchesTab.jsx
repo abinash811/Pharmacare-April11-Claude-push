@@ -1,8 +1,11 @@
 /**
- * BatchesTab — batch list with select/delete/QR actions.
+ * BatchesTab — batch list with select/delete actions.
  * Props:
  *   batches          {Array}
  *   product          {object}
+ *   nearExpiryDays   {number}  from Settings → Inventory (PharmacySettings.near_expiry_threshold_days),
+ *                              not hardcoded — a pharmacy that changes this setting sees this
+ *                              table's "nearing expiry" highlighting change with it.
  *   selectedBatches  {Set<number>}
  *   hideZeroQty      {boolean}
  *   onHideZeroQty    {(checked) => void}
@@ -11,7 +14,7 @@
  *   onDeleteBatches  {() => void}
  */
 import React from 'react';
-import { Trash2, QrCode, Check } from 'lucide-react';
+import { Trash2, Check } from 'lucide-react';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
 import { AppButton } from '@/components/shared';
 
@@ -21,7 +24,7 @@ function calculateMargin(mrp, costPrice) {
 }
 
 export default function BatchesTab({
-  batches, product, selectedBatches,
+  batches, product, nearExpiryDays, selectedBatches,
   hideZeroQty, onHideZeroQty,
   onSelectBatch, onSelectAll, onDeleteBatches,
 }) {
@@ -49,9 +52,6 @@ export default function BatchesTab({
           >
             Delete Batches
           </AppButton>
-          <AppButton icon={<QrCode className="w-4 h-4" />} data-testid="print-qr-btn">
-            Print QR
-          </AppButton>
         </div>
       </div>
 
@@ -78,10 +78,10 @@ export default function BatchesTab({
             ) : (
               batches.map(batch => {
                 const expired = isExpired(batch.expiry_date);
-                const soon    = isExpiringSoon(batch.expiry_date);
+                const soon    = isExpiringSoon(batch.expiry_date, nearExpiryDays);
                 const qtyUnits = batch.qty_on_hand * (product.units_per_pack || 1);
-                const mrp = batch.mrp_per_unit || batch.mrp || product.default_mrp_per_unit || 0;
-                const costPrice = batch.cost_price_per_unit || batch.cost_price || 0;
+                const mrp = batch.mrp_per_unit || 0;
+                const costPrice = batch.cost_price_per_unit || 0;
                 const margin = calculateMargin(mrp, costPrice);
 
                 return (
@@ -112,7 +112,10 @@ export default function BatchesTab({
                       )}
                     </td>
                     <td className="px-4 py-4 text-right font-medium text-gray-900">₹{mrp.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-center text-gray-700">{batch.discount_percent || 0}</td>
+                    {/* Discount is a product-level field (set via Bulk Update),
+                        not per-batch — batch.discount_percent doesn't exist on
+                        the API response and always read as 0 here before. */}
+                    <td className="px-4 py-4 text-center text-gray-700">{product.discount_percent || 0}</td>
                     <td className="px-4 py-4 text-right text-gray-700">₹{costPrice.toFixed(2)}</td>
                     <td className="px-4 py-4 text-right"><span className="text-brand font-medium">{margin}%</span></td>
                   </tr>

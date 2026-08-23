@@ -12,6 +12,7 @@
  *   fetchBatches        (hideZeroQty) → void
  *   fetchTransactions   () → void
  *   fetchMovements      (batches) → void
+ *   fetchNearExpiryDays () → void
  *   deleteBatches       (batchIds: Set) → void
  */
 import { useState, useCallback } from 'react';
@@ -31,6 +32,9 @@ export function useMedicineDetail(sku) {
     sales: [], purchases: [], sales_returns: [], purchase_returns: []
   });
   const [movements, setMovements] = useState([]);
+  // 90 matches PharmacySettings.near_expiry_threshold_days' own DB default —
+  // only a fallback until the real setting loads, not a second source of truth.
+  const [nearExpiryDays, setNearExpiryDays] = useState(90);
 
   const fetchProductDetails = useCallback(async () => {
     setLoading(true);
@@ -88,6 +92,14 @@ export function useMedicineDetail(sku) {
     } catch { /* silent */ }
   }, []);
 
+  const fetchNearExpiryDays = useCallback(async () => {
+    try {
+      const res = await api.get(apiUrl.settings());
+      const days = res.data?.inventory?.near_expiry_days;
+      if (days) setNearExpiryDays(days);
+    } catch { /* keep the 90-day fallback */ }
+  }, []);
+
   const deleteBatches = useCallback(async (batchIds) => {
     if (batchIds.size === 0) { toast.error('No batches selected'); return; }
     let deleted = 0, errors = 0;
@@ -102,7 +114,8 @@ export function useMedicineDetail(sku) {
 
   return {
     product, batches, loading, transactionsLoading,
-    transactions, movements,
-    fetchProductDetails, fetchBatches, fetchTransactions, fetchMovements, deleteBatches,
+    transactions, movements, nearExpiryDays,
+    fetchProductDetails, fetchBatches, fetchTransactions, fetchMovements,
+    fetchNearExpiryDays, deleteBatches,
   };
 }

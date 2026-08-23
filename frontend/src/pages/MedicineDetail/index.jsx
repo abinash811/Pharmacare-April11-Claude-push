@@ -21,8 +21,9 @@ export default function MedicineDetail() {
 
   const {
     product, batches, loading, transactionsLoading,
-    transactions, movements,
-    fetchProductDetails, fetchBatches, fetchTransactions, fetchMovements, deleteBatches,
+    transactions, movements, nearExpiryDays,
+    fetchProductDetails, fetchBatches, fetchTransactions, fetchMovements,
+    fetchNearExpiryDays, deleteBatches,
   } = useMedicineDetail(sku);
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ export default function MedicineDetail() {
 
   // Initial load
   useEffect(() => { if (sku) fetchProductDetails(); }, [sku]); // eslint-disable-line
+  useEffect(() => { fetchNearExpiryDays(); }, []); // eslint-disable-line
 
   // Re-fetch batches when hideZeroQty changes (and product is loaded)
   useEffect(() => { if (product) fetchBatches(hideZeroQty); }, [product, hideZeroQty]); // eslint-disable-line
@@ -113,6 +115,7 @@ export default function MedicineDetail() {
           <BatchesTab
             batches={batches}
             product={product}
+            nearExpiryDays={nearExpiryDays}
             selectedBatches={selectedBatches}
             hideZeroQty={hideZeroQty}
             onHideZeroQty={(checked) => { setHideZeroQty(checked); setSelectedBatches(new Set()); }}

@@ -62,6 +62,17 @@ export default function MedicineDetail() {
   const totalStock = batches.reduce((sum, b) => sum + (b.qty_on_hand || 0), 0);
   const totalUnits = totalStock * (product?.units_per_pack || 1);
 
+  // The MRP stat card shows the price a customer would actually pay right
+  // now, not a single "product MRP" — MRP lives per batch, not per product
+  // (a pharmacy can be carrying two batches of the same medicine at
+  // different MRPs). Batches come back expiry-ascending from the API, so
+  // the first one still in stock is the FEFO batch — the same one billing
+  // would sell next. Was previously read from product.default_mrp_per_unit,
+  // a field that never existed on any product response and always showed
+  // ₹0 (docs/15_ROADMAP.md RULE MISSES LOG).
+  const currentBatch = batches.find(b => b.qty_on_hand > 0);
+  const currentMrp = currentBatch?.mrp_per_unit ?? null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -78,6 +89,7 @@ export default function MedicineDetail() {
         product={product}
         totalStock={totalStock}
         totalUnits={totalUnits}
+        currentMrp={currentMrp}
         onEdit={() => setShowEditModal(true)}
       />
 

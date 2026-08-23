@@ -4,6 +4,9 @@
  *   product      {object}
  *   totalStock   {number}  packs
  *   totalUnits   {number}  units
+ *   currentMrp   {number | null}  MRP of the batch that would sell next (FEFO) — MRP is
+ *                                 per-batch, not per-product, so this is null when there's
+ *                                 no active stock rather than a fake ₹0.
  *   onEdit       {() => void}
  */
 import React from 'react';
@@ -27,7 +30,7 @@ function StatCard({ icon: Icon, label, value, className = '' }) {
   );
 }
 
-export default function MedicineDetailHeader({ product, totalStock, totalUnits, onEdit }) {
+export default function MedicineDetailHeader({ product, totalStock, totalUnits, currentMrp, onEdit }) {
   return (
     <div className="bg-white border-b border-gray-100">
       <div className="px-6 py-4">
@@ -89,7 +92,7 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
           <StatCard icon={Percent}  label="GST"         value={`${product.gst_percent || 0}%`} />
           <StatCard icon={Package}  label="STOCK"       value={`${totalStock} (${totalUnits})`} />
           <StatCard icon={Hash}     label="HSN"         value={product.hsn_code || '–'} />
-          <StatCard icon={CreditCard} label="MRP"       value={`₹${product.default_mrp_per_unit || 0}`} />
+          <StatCard icon={CreditCard} label="MRP"       value={currentMrp != null ? `₹${currentMrp.toFixed(2)}` : '–'} />
           <StatCard icon={Calendar} label="SCHEDULE"    value={product.schedule || 'Non-Restricted'} />
           <StatCard icon={FileText} label="COMPOSITION" value={product.composition || product.generic_name || '–'} />
         </div>

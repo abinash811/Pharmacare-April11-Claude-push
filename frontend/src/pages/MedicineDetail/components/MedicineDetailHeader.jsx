@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import {
-  Edit2, Bell, Clock, Package, Percent, Hash,
+  Edit2, Package, Percent, Hash,
   CreditCard, Calendar, FileText, Snowflake,
 } from 'lucide-react';
 import { AppButton, PageBreadcrumb } from '@/components/shared';
@@ -81,8 +81,6 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
             >
               Edit
             </AppButton>
-            <AppButton variant="ghost" iconOnly icon={<Bell className="w-4 h-4" />} aria-label="Alerts" />
-            <AppButton variant="ghost" iconOnly icon={<Clock className="w-4 h-4" />} aria-label="History" />
           </div>
         </div>
 

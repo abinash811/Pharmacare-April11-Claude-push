@@ -24,6 +24,7 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
     generic_name:        product.generic_name                                   || '',
     strength:            product.strength                                      || '',
     requires_refrigeration: product.requires_refrigeration                     || false,
+    storage_location:    product.storage_location                              || '',
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
   });
   const [loading, setLoading] = useState(false);
@@ -55,6 +56,7 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
         generic_name:              form.generic_name        || null,
         strength:                  form.strength            || null,
         requires_refrigeration:    form.requires_refrigeration,
+        storage_location:         form.storage_location    || null,
         low_stock_threshold_units: parseInt(form.low_stock_threshold) || 10,
       });
       toast.success('Product updated successfully');
@@ -121,6 +123,10 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Strength (e.g. 500mg, 5ml)</label>
               <input value={form.strength} onChange={set('strength')} className={cls} data-testid="edit-product-strength" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Storage Location</label>
+              <input value={form.storage_location} onChange={set('storage_location')} className={cls} placeholder="e.g. Store A, Shelf 3" data-testid="edit-product-location" />
             </div>
             <div className="flex items-end pb-2">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700">

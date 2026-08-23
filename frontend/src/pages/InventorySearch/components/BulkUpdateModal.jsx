@@ -67,7 +67,11 @@ export default function BulkUpdateModal({ selectedCount, filterOptions = {}, onC
               ) : field === 'category' ? (
                 <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">
                   <option value="">Select category…</option>
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => {
+                    const optValue = typeof c === 'string' ? c : c.value;
+                    const optLabel = typeof c === 'string' ? c : c.label;
+                    return <option key={optValue} value={optValue}>{optLabel}</option>;
+                  })}
                 </select>
               ) : field === 'schedule' ? (
                 <select value={value} onChange={(e) => setValue(e.target.value)} className={INPUT_CLS} data-testid="bulk-value-input">

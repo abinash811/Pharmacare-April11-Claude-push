@@ -36,7 +36,11 @@ export default function FilterDrawer({ filterOptions = {}, activeFilters = {}, o
           <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
           <select value={local.category || ''} onChange={(e) => set('category', e.target.value)} className={SELECT_CLS} data-testid="filter-category">
             <option value="">All Categories</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            {categories.map(c => {
+              const value = typeof c === 'string' ? c : c.value;
+              const label = typeof c === 'string' ? c : c.label;
+              return <option key={value} value={value}>{label}</option>;
+            })}
           </select>
         </div>
 

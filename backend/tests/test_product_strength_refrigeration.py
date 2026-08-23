@@ -222,5 +222,57 @@ class TestInventoryFilterDrawerWiring(_AuthedTestBase):
         assert sku in skus
 
 
+class TestStorageLocationAndCanonicalCategories(_AuthedTestBase):
+    """August 23, 2026: storage_location was a real DB column with no way
+    to set it anywhere except bulk-update and the batch-creation endpoint
+    (which only ever wrote a hardcoded "Default" string) — so Add Medicine
+    and Edit Product had no Location field, meaning storage_location was
+    always null on every product a pharmacist actually created, which in
+    turn meant Bulk Update's Location dropdown was always empty (nothing
+    to be distinct-from). Also fixed in the same pass: GET /inventory/
+    filters' "categories" was distinct-from-data like brand/location, but
+    category is a constrained enum like dosage_form/gst_rate — a pharmacy
+    with only "medicine" products could never bulk-assign "surgical"/
+    "first_aid"/"device" since those never appeared. See
+    docs/15_ROADMAP.md RULE MISSES LOG."""
+
+    def test_create_product_with_storage_location(self):
+        sku = f"LOC-{uuid.uuid4().hex[:8]}"
+        resp = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": "Storage Location Create Test", "category": "medicine",
+            "gst_percent": 5, "storage_location": "Shelf B3",
+        })
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["storage_location"] == "Shelf B3"
+
+    def test_update_storage_location_by_real_id(self):
+        sku = f"LOC-{uuid.uuid4().hex[:8]}"
+        create = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": "Storage Location Update Test", "category": "medicine", "gst_percent": 5,
+        })
+        assert create.status_code == 200, create.text
+        product_id = create.json()["id"]
+
+        update = self.session.put(f"{BASE_URL}/api/products/{product_id}", json={
+            "storage_location": "Cold Room B",
+        })
+        assert update.status_code == 200, update.text
+
+        fetched = self.session.get(f"{BASE_URL}/api/products/{product_id}")
+        assert fetched.status_code == 200
+        assert fetched.json()["storage_location"] == "Cold Room B"
+
+    def test_inventory_filters_categories_are_canonical_not_distinct_from_data(self):
+        """Even a pharmacy with only "medicine"-category products must be
+        offered all 4 valid categories, not just the ones already in use —
+        otherwise Bulk Update can never assign a category nothing has used
+        yet."""
+        resp = self.session.get(f"{BASE_URL}/api/inventory/filters")
+        assert resp.status_code == 200, resp.text
+        categories = resp.json()["categories"]
+        values = {c["value"] for c in categories}
+        assert values == {"medicine", "surgical", "first_aid", "device"}, categories
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

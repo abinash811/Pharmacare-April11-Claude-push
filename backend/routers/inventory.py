@@ -63,6 +63,7 @@ class ProductCreate(BaseModel):
     low_stock_threshold_units: Optional[int] = 10
     strength: Optional[str] = None
     requires_refrigeration: bool = False
+    storage_location: Optional[str] = None
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -84,6 +85,7 @@ class ProductUpdate(BaseModel):
     low_stock_threshold_units: Optional[int] = None
     strength: Optional[str] = None
     requires_refrigeration: Optional[bool] = None
+    storage_location: Optional[str] = None
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -106,6 +108,7 @@ def _product_response(p: ProductORM) -> dict:
         "schedule": p.drug_schedule, "generic_name": p.generic_name,
         "dosage_form": p.dosage_form, "strength": p.strength,
         "requires_refrigeration": p.requires_refrigeration,
+        "storage_location": p.storage_location,
         "low_stock_threshold_units": p.reorder_level,
         "status": "active" if p.is_active else "inactive",
         "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -152,6 +155,7 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
         gst_rate=data.gst_percent, hsn_code=hsn_code,
         drug_schedule=data.schedule or "OTC", reorder_level=data.low_stock_threshold_units or 10,
         strength=data.strength, requires_refrigeration=data.requires_refrigeration,
+        storage_location=data.storage_location,
     )
     db.add(product)
     await db.flush()
@@ -584,20 +588,22 @@ async def get_inventory_filters(current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     base = ProductORM.pharmacy_id == pharmacy_id
-    cats = await db.execute(select(ProductORM.category).where(
-        base, ProductORM.deleted_at.is_(None), ProductORM.category.isnot(None)).distinct())
     brands = await db.execute(select(ProductORM.brand).where(
         base, ProductORM.deleted_at.is_(None), ProductORM.brand.isnot(None)).distinct())
     locations = await db.execute(select(ProductORM.storage_location).where(
         base, ProductORM.deleted_at.is_(None), ProductORM.storage_location.isnot(None)).distinct())
-    return {"categories": sorted([r[0] for r in cats if r[0]]),
-            "brands": sorted([r[0] for r in brands if r[0]]),
+    return {"brands": sorted([r[0] for r in brands if r[0]]),
             "locations": sorted([r[0] for r in locations if r[0]]),
-            # Canonical lists, not distinct-from-data — dosage form and GST
-            # rate are constrained inputs (VALID_DOSAGE_FORMS/VALID_GST_RATES
-            # in constants.py, the same source Add Medicine's dropdowns use),
-            # not free text like category/brand/location, so every valid
-            # choice should be offered even before any product uses it.
+            # Canonical lists, not distinct-from-data — category, dosage
+            # form, and GST rate are constrained inputs (VALID_CATEGORIES/
+            # VALID_DOSAGE_FORMS/VALID_GST_RATES in constants.py, the same
+            # source Add Medicine's dropdowns use), not free text like
+            # brand/location, so every valid choice should be offered even
+            # before any product uses it. Was distinct-from-data until a
+            # pharmacist with only "medicine"-category products found they
+            # could never bulk-assign "surgical"/"first_aid"/"device" since
+            # those never showed up (docs/15_ROADMAP.md RULE MISSES LOG).
+            "categories": PRODUCT_CATEGORIES,
             "dosage_forms": DOSAGE_FORMS,
             "schedules": [
                 {"value": "OTC", "label": "OTC — Over the Counter"},

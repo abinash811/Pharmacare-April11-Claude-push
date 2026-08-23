@@ -78,10 +78,15 @@ function SuggestField({ label, required, value, onChange, options, placeholder, 
   );
 }
 
+// Suggestions only — storage_location is free text, not a constrained
+// enum (see backend/routers/inventory.py GET /inventory/filters), so a
+// pharmacist can type any shelf/room name their pharmacy actually uses.
+const LOCATION_SUGGESTIONS = ['Store A', 'Store B', 'Warehouse', 'Counter'];
+
 const FORM_INIT = {
   name: '', category: '', dosageForm: '', gstPercent: 5,
   manufacturer: '', brand: '', genericName: '', strength: '', unitsPerPack: 1,
-  schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false,
+  schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false, storageLocation: '',
   addOpeningStock: true, batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
 };
 
@@ -128,6 +133,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
         schedule: form.schedule,
         low_stock_threshold_units: parseInt(String(form.lowStockThreshold), 10) || 10,
         requires_refrigeration: form.requiresRefrigeration,
+        storage_location: form.storageLocation || null,
       });
 
       if (form.addOpeningStock && form.initialQty && form.expiryDate) {
@@ -212,6 +218,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
             <Field label="Brand"><input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={INPUT_CLS} /></Field>
             <Field label="Generic Name / Composition"><input value={form.genericName} onChange={(e) => set('genericName', e.target.value)} className={INPUT_CLS} /></Field>
             <Field label="Strength" hint="e.g. 500mg, 5ml"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="medicine-strength-input" /></Field>
+            <SuggestField label="Storage Location" value={form.storageLocation} onChange={(v: string) => set('storageLocation', v)} options={LOCATION_SUGGESTIONS} placeholder="e.g. Store A, Shelf 3" testId="medicine-location-input" />
             <Field label="Low Stock Alert"><input type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} className={INPUT_CLS} /></Field>
             <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
               <span className="text-sm font-medium text-gray-700">Requires Refrigeration</span>

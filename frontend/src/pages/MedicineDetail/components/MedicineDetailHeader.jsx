@@ -14,7 +14,7 @@
 import React from 'react';
 import {
   Edit2, Package, Percent, Hash,
-  CreditCard, Calendar, FileText, Snowflake, Info,
+  CreditCard, Calendar, FileText, Snowflake, Info, MapPin,
 } from 'lucide-react';
 import { AppButton, PageBreadcrumb } from '@/components/shared';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -89,6 +89,11 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
               </div>
               <p className="text-gray-500">
                 {product.manufacturer || product.brand || '–'} • {product.pack_info || `${product.units_per_pack || 1} units/pack`}
+                {product.storage_location && (
+                  <span className="inline-flex items-center gap-1 ml-2" data-testid="storage-location">
+                    <MapPin className="w-3.5 h-3.5 inline" /> {product.storage_location}
+                  </span>
+                )}
               </p>
             </div>
           </div>

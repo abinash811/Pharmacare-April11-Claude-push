@@ -16,7 +16,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch.jsx';
-import { AppButton } from '@/components/shared';
+import { AppButton, SuggestField } from '@/components/shared';
 import { SEED_MEDICINES, SEED_MANUFACTURERS } from '@/constants/medicineSeedList';
 
 interface Props {
@@ -34,46 +34,6 @@ function Field({ label, required, hint, children }: any) {
       </label>
       {children}
       {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-    </div>
-  );
-}
-
-// Text input with a filtered suggestion dropdown — seed list + free typing.
-// Not a validation constraint: whatever's typed is used as-is on blur/submit.
-function SuggestField({ label, required, value, onChange, options, placeholder, testId }: any) {
-  const [open, setOpen] = useState(false);
-  const matches = value.trim().length > 0
-    ? options.filter((o: string) => o.toLowerCase().includes(value.trim().toLowerCase())).slice(0, 8)
-    : [];
-  return (
-    <div className="relative">
-      <Field label={label} required={required}>
-        <input
-          value={value}
-          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          className={INPUT_CLS}
-          placeholder={placeholder}
-          required={required}
-          data-testid={testId}
-        />
-      </Field>
-      {open && matches.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          {matches.map((m: string) => (
-            <AppButton
-              key={m}
-              type="button"
-              variant="ghost"
-              onMouseDown={() => { onChange(m); setOpen(false); }}
-              className="w-full h-auto justify-start text-left px-3 py-2 text-sm font-normal rounded-none hover:bg-brand/5"
-            >
-              {m}
-            </AppButton>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

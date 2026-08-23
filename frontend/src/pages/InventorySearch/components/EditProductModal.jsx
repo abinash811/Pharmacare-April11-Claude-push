@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppButton } from '@/components/shared';
+import { AppButton, SuggestField } from '@/components/shared';
+import { SEED_MEDICINES } from '@/constants/medicineSeedList';
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
 
@@ -45,6 +46,20 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
   });
   const [loading, setLoading] = useState(false);
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
+
+  // Same seed list Add Medicine uses, so a pharmacist sees the same
+  // suggestions whether they're creating or renaming a medicine. Only
+  // fills category/generic_name if they're currently blank — never
+  // overwrites values this product already has.
+  const medicineNames = SEED_MEDICINES.map((m) => m.name);
+  const handleSelectMedicine = (name) => {
+    const match = SEED_MEDICINES.find((m) => m.name === name);
+    set('name', name);
+    if (match) {
+      if (!form.category) set('category', match.category);
+      if (!form.generic_name) set('generic_name', match.genericName);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -96,7 +111,13 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4">
-            <F label="Medicine Name *" span2><input value={form.name} onChange={(e) => set('name', e.target.value)} className={INPUT_CLS} required data-testid="edit-product-name" /></F>
+            <div className="col-span-2">
+              <SuggestField
+                label="Medicine Name" required value={form.name}
+                onChange={handleSelectMedicine} options={medicineNames}
+                placeholder="e.g. Dolo 650" testId="edit-product-name"
+              />
+            </div>
             <F label="Brand"><input value={form.brand} onChange={(e) => set('brand', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Manufacturer"><input value={form.manufacturer} onChange={(e) => set('manufacturer', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Category"><input value={form.category} onChange={(e) => set('category', e.target.value)} className={INPUT_CLS} /></F>

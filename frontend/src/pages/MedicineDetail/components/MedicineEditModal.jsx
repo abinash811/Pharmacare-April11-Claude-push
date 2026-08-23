@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppButton } from '@/components/shared';
+import { AppButton, SuggestField } from '@/components/shared';
+import { SEED_MEDICINES } from '@/constants/medicineSeedList';
 
 export default function MedicineEditModal({ product, onClose, onSuccess }) {
   const [form, setForm] = useState({
@@ -32,6 +33,21 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
   const set = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
   const setChecked = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.checked }));
   const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand';
+
+  // Same seed list Add Medicine uses, so a pharmacist sees the same
+  // suggestions whether they're creating or renaming a medicine. Only
+  // fills category/generic_name if they're currently blank — never
+  // overwrites values this product already has.
+  const medicineNames = SEED_MEDICINES.map((m) => m.name);
+  const handleSelectMedicine = (name) => {
+    const match = SEED_MEDICINES.find((m) => m.name === name);
+    setForm(p => ({
+      ...p,
+      name,
+      category: !p.category && match ? match.category : p.category,
+      generic_name: !p.generic_name && match ? match.genericName : p.generic_name,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,8 +95,11 @@ export default function MedicineEditModal({ product, onClose, onSuccess }) {
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
-              <input value={form.name} onChange={set('name')} className={cls} required data-testid="edit-product-name" />
+              <SuggestField
+                label="Medicine Name" required value={form.name}
+                onChange={handleSelectMedicine} options={medicineNames}
+                placeholder="e.g. Dolo 650" testId="edit-product-name"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>

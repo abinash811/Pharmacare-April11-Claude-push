@@ -28,3 +28,4 @@ export { PageTabs } from './PageTabs';
 export { FilterPills } from './FilterPills';
 export { default as ErrorState } from './ErrorState';
 export { MoreMenu } from './MoreMenu';
+export { SuggestField } from './SuggestField';

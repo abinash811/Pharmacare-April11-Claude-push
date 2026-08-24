@@ -83,6 +83,7 @@ class PurchaseItem(Base):
     hsn_code: Mapped[Optional[str]] = mapped_column(String(10))
     quantity_ordered: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity_received: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    free_qty_units: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     units_per_pack: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     mrp_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_price_paise: Mapped[int] = mapped_column(Integer, nullable=False)

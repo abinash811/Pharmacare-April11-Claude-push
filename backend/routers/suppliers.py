@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.purchases import Purchase
+from models.purchases import Purchase, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
 from routers.auth_helpers import User, get_current_user
 
@@ -244,9 +244,26 @@ async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
 
 
 async def _calc_outstanding(supplier_id: uuid.UUID, db: AsyncSession) -> int:
-    """Calculate outstanding paise = sum(grand_total - amount_paid) for unpaid/partial purchases."""
+    """Calculate outstanding paise = sum(grand_total - amount_paid) for
+    unpaid/partial purchases, minus confirmed purchase returns.
+
+    A confirmed PurchaseReturn issues a credit note but never touches the
+    original Purchase row's grand_total_paise/amount_paid_paise/
+    payment_status — so without this, a supplier's outstanding balance
+    overstated what's actually owed once returns exist. Matches how a
+    real supplier ledger works: a credit note reduces the account's
+    overall balance, not necessarily the specific invoice it was against.
+    """
     result = await db.execute(
         select(func.coalesce(func.sum(Purchase.grand_total_paise - Purchase.amount_paid_paise), 0))
         .where(Purchase.supplier_id == supplier_id, Purchase.payment_status.in_(["unpaid", "partial"]))
     )
-    return result.scalar()
+    gross_outstanding = result.scalar()
+
+    returns_result = await db.execute(
+        select(func.coalesce(func.sum(PurchaseReturn.grand_total_paise), 0))
+        .where(PurchaseReturn.supplier_id == supplier_id, PurchaseReturn.status == "confirmed")
+    )
+    returns_credit = returns_result.scalar()
+
+    return max(0, gross_outstanding - returns_credit)

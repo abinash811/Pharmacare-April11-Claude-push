@@ -109,7 +109,7 @@ def _purchase_item_response(i: PurchaseItemORM) -> dict:
         "batch_no": i.batch_number,
         "expiry_date": i.expiry_date.isoformat() if i.expiry_date else None,
         "qty_units": i.quantity_ordered,
-        "free_qty_units": 0,
+        "free_qty_units": i.free_qty_units,
         "cost_price_per_unit": i.cost_price_paise / 100,
         "ptr_per_unit": i.cost_price_paise / 100,
         "mrp_per_unit": i.mrp_paise / 100,
@@ -170,15 +170,41 @@ async def _create_stock_for_items(
     _deduct_stock_and_record, batches.py's /adjust) — item.quantity_ordered
     is in units (PurchaseItemCreate.qty_units). Convert before storing,
     same floor-division pattern used at every other write site.
+
+    free_qty_units (bonus units received but not billed) are real
+    physical stock and go into quantity_received/quantity_on_hand same
+    as paid units — but were never included in taxable_amount_paise/
+    line_total_paise (see create_purchase/update_purchase), so no tax
+    or cost-price change is needed here to account for them correctly.
     """
     for item in items:
         units_per_pack = item.units_per_pack or 1
-        pack_qty = item.quantity_ordered // units_per_pack if units_per_pack > 1 else item.quantity_ordered
+        paid_pack_qty = item.quantity_ordered // units_per_pack if units_per_pack > 1 else item.quantity_ordered
+        free_pack_qty = item.free_qty_units // units_per_pack if units_per_pack > 1 else item.free_qty_units
+        pack_qty = paid_pack_qty + free_pack_qty
+        batch_number = item.batch_number or f"PUR-{purchase.purchase_number[:8]}"
+
+        # Same duplicate check POST /stock/batches already enforces — this
+        # confirm path had none, so two purchases entering the same
+        # real-world batch number for the same product silently created
+        # two independent StockBatch rows instead of one.
+        existing = await db.execute(
+            select(BatchORM).where(
+                BatchORM.product_id == item.product_id,
+                BatchORM.batch_number == batch_number,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail=(f"A batch numbered '{batch_number}' already exists for this product — "
+                        f"receive additional stock against the existing batch instead of "
+                        f"confirming a purchase with the same batch number again."))
 
         batch = BatchORM(
             pharmacy_id=pharmacy_id,
             product_id=item.product_id,
-            batch_number=item.batch_number or f"PUR-{purchase.purchase_number[:8]}",
+            batch_number=batch_number,
             expiry_date=item.expiry_date or date.today() + timedelta(days=365),
             mrp_paise=item.mrp_paise,
             cost_price_paise=item.cost_price_paise,
@@ -193,7 +219,7 @@ async def _create_stock_for_items(
 
         db.add(MovementORM(
             pharmacy_id=pharmacy_id, product_id=item.product_id, batch_id=batch.id,
-            movement_type="purchase", quantity=item.quantity_ordered,
+            movement_type="purchase", quantity=item.quantity_ordered + item.free_qty_units,
             quantity_before=0, quantity_after=pack_qty,
             reference_type="purchase", reference_id=purchase.id,
             user_id=user_id, notes=f"Purchase {purchase.purchase_number}",
@@ -289,6 +315,7 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
             hsn_code=product.hsn_code,
             quantity_ordered=item_data.qty_units,
             quantity_received=0,
+            free_qty_units=item_data.free_qty_units or 0,
             units_per_pack=product.units_per_pack,
             mrp_paise=int(item_data.mrp_per_unit * 100),
             cost_price_paise=int(ptr * 100),
@@ -416,6 +443,7 @@ async def update_purchase(
             hsn_code=product.hsn_code,
             quantity_ordered=item_data.qty_units,
             quantity_received=0,
+            free_qty_units=item_data.free_qty_units or 0,
             units_per_pack=product.units_per_pack,
             mrp_paise=int(item_data.mrp_per_unit * 100),
             cost_price_paise=int(ptr * 100),

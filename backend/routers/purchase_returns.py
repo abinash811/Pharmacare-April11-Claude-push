@@ -275,13 +275,17 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
     pur_result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == purchase_id))
     original_purchase = pur_result.scalar_one_or_none()
 
-    # Validate return quantities against original purchase
+    # Validate return quantities against original purchase. Keyed by
+    # product_id, not product_name — two different products could share
+    # a display name (no uniqueness constraint on Product.name), which
+    # would silently apply this check to the wrong line or double-count
+    # across same-named products.
     if original_purchase:
         pur_items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == purchase_id))
         pur_items = pur_items_result.scalars().all()
-        original_qtys: dict[str, int] = {}
+        original_qtys: dict[uuid.UUID, int] = {}
         for pi in pur_items:
-            original_qtys[pi.product_name] = pi.quantity_ordered
+            original_qtys[pi.product_id] = original_qtys.get(pi.product_id, 0) + pi.quantity_ordered
 
         # Get already returned
         existing_returns = await db.execute(
@@ -290,19 +294,27 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
                 PurchaseReturnORM.status == "confirmed")
         )
         return_ids = [r.id for r in existing_returns.scalars().all()]
-        returned_qtys: dict[str, int] = {}
+        returned_qtys: dict[uuid.UUID, int] = {}
         if return_ids:
             ret_items_result = await db.execute(
                 select(PurchaseReturnItemORM).where(
                     PurchaseReturnItemORM.purchase_return_id.in_(return_ids))
             )
             for ri in ret_items_result.scalars().all():
-                returned_qtys[ri.product_name] = returned_qtys.get(ri.product_name, 0) + ri.quantity
+                returned_qtys[ri.product_id] = returned_qtys.get(ri.product_id, 0) + ri.quantity
 
         for item_data in return_data.items:
             qty_units = item_data.return_qty_units or item_data.qty_units or 0
-            max_returnable = original_qtys.get(
-                item_data.product_name, 0) - returned_qtys.get(item_data.product_name, 0)
+            prod_result = await db.execute(
+                select(ProductORM).where(
+                    ProductORM.pharmacy_id == pharmacy_id,
+                    ProductORM.sku == item_data.product_sku)
+            )
+            prod = prod_result.scalar_one_or_none()
+            if not prod:
+                raise HTTPException(status_code=404,
+                                    detail=f"Product {item_data.product_sku} not found")
+            max_returnable = original_qtys.get(prod.id, 0) - returned_qtys.get(prod.id, 0)
             if qty_units > max_returnable:
                 raise HTTPException(
                     status_code=400,

@@ -19,7 +19,7 @@ from models.purchases import (
 )
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, has_permission
 
 router = APIRouter(prefix="/api", tags=["purchase_returns"])
 
@@ -77,6 +77,19 @@ async def _record_audit(
         pharmacy_id=pharmacy_id, user_id=user_id, action=action,
         entity_type=entity_type, entity_id=entity_id, new_values=new_values,
     ))
+
+
+async def _require_purchases_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    # Purchase Returns shares the "purchases" permission key with the
+    # purchases module — there's no separate "purchase_returns" key
+    # anywhere in the seeded role data, and the frontend treats Purchases/
+    # Purchase Returns as one PageTabs unit under a single nav item, so
+    # splitting the permission would only create a gap no role's
+    # permissions dict actually covers.
+    if not await has_permission(current_user, f"purchases:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action} purchase returns")
 
 
 async def _generate_return_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
@@ -286,6 +299,7 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
 @router.post("/purchase-returns")
 async def create_purchase_return(return_data: PurchaseReturnCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(return_data.supplier_id)
     purchase_id = uuid.UUID(return_data.purchase_id)
@@ -509,6 +523,7 @@ async def update_purchase_return(
         update_data: PurchaseReturnUpdate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
 
@@ -649,6 +664,7 @@ async def update_purchase_return(
 @router.post("/purchase-returns/{return_id}/confirm")
 async def confirm_purchase_return(return_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
 

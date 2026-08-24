@@ -18,7 +18,7 @@ from models.purchases import (
 )
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, has_permission
 
 router = APIRouter(prefix="/api", tags=["purchases"])
 
@@ -201,6 +201,20 @@ async def _record_audit(
     ))
 
 
+async def _require_purchases_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    """The `roles` table + has_permission() (auth_helpers.py) have existed
+    since the app's seed data (seed_admin.py's ROLE_PERMISSIONS — manager
+    gets purchases view/create/edit, inventory_staff gets view/create,
+    cashier gets none) but were never actually called from any endpoint
+    anywhere in the app. Wired in here for Purchases/Purchase Returns
+    only — every other module remains unenforced for now, a deliberate,
+    scoped first step rather than a sweeping app-wide rollout."""
+    if not await has_permission(current_user, f"purchases:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action} purchases")
+
+
 async def _create_stock_for_items(
     purchase: PurchaseORM, items: list[PurchaseItemORM],
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
@@ -341,6 +355,7 @@ async def get_purchases(
 @router.post("/purchases")
 async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(purchase_data.supplier_id)
 
@@ -478,6 +493,7 @@ async def update_purchase(
         purchase_data: PurchaseCreate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
@@ -622,6 +638,7 @@ async def mark_purchase_paid(
         payment: PurchasePaymentRequest,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
+    await _require_purchases_permission(current_user, "edit", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 

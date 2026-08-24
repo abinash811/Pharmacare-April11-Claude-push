@@ -37,7 +37,6 @@ export default function PurchaseDetail() {
   };
 
   const handlePayment = async () => {
-    if (!paymentData.amount || paymentData.amount <= 0) { toast.error('Enter a valid amount'); return; }
     setPaymentLoading(true);
     try {
       await api.post(`${API}/purchases/${id}/pay`, paymentData);

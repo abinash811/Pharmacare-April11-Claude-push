@@ -8,7 +8,7 @@ import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import usePagination from '@/hooks/usePagination';
 import PurchasesTable from './components/PurchasesTable';
-import PurchasePayModal from './components/PurchasePayModal';
+import PurchasePayModal from '../PurchaseDetail/components/PurchasePayModal';
 import SupplierDropdown from '../PurchaseNew/components/SupplierDropdown';
 
 const PURCHASES_TABS = [
@@ -37,7 +37,9 @@ export default function PurchasesList() {
 
   const [showPayModal, setShowPayModal]     = useState(false);
   const [payingPurchase, setPayingPurchase] = useState(null);
-  const [paymentData, setPaymentData]       = useState({ amount: 0, payment_method: 'cash', reference_no: '', notes: '' });
+  const [paymentData, setPaymentData]       = useState({
+    amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
+  });
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const fetchData = async (pageOverride) => {
@@ -70,12 +72,15 @@ export default function PurchasesList() {
   const openPayModal = (purchase) => {
     setPayingPurchase(purchase);
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
-    setPaymentData({ amount: outstanding, payment_method: 'cash', reference_no: '', notes: '' });
+    setPaymentData({
+      amount: outstanding, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0],
+      reference_no: '', notes: '',
+    });
     setShowPayModal(true);
   };
 
   const handlePayment = async () => {
-    if (!payingPurchase || !paymentData.amount || paymentData.amount <= 0) { toast.error('Enter a valid amount'); return; }
+    if (!payingPurchase) return;
     setPaymentLoading(true);
     try {
       await api.post(apiUrl.purchasePay(payingPurchase.id), paymentData);

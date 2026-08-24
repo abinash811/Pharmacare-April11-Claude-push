@@ -48,6 +48,19 @@ export const PAYMENT_METHOD = {
   MULTIPLE: 'multiple',
 };
 
+// ─── Purchase Payment Methods ─────────────────────────────────────────────────
+// Stored in purchase_payments.payment_method — how a pharmacy pays ITS
+// suppliers, a different set from PAYMENT_METHOD above (that's how a
+// customer pays the pharmacy). Two independently-built purchase payment
+// modals (PurchasesList and PurchaseDetail) each hardcoded their own copy
+// of this list before being consolidated into one <PurchasePayModal>.
+export const PURCHASE_PAYMENT_METHOD = {
+  CASH:          'cash',
+  BANK_TRANSFER: 'bank_transfer',
+  CHEQUE:        'cheque',
+  UPI:           'upi',
+};
+
 // ─── Invoice Types ────────────────────────────────────────────────────────────
 export const INVOICE_TYPE = {
   SALE:           'SALE',

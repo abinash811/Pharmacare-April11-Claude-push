@@ -94,6 +94,15 @@ export default function PurchaseNew() {
           setWithGST(p.with_gst !== false);
           setPurchaseOn(p.purchase_on || 'credit');
           setInternalNote(p.note || '');
+          setInvoiceBreakdown(prev => ({
+            ...prev,
+            totalDiscount: p.total_discount || 0,
+            cess: p.cess || 0,
+            adjustedCN: p.adjusted_cn || 0,
+            tcs: p.tcs || 0,
+            extraCharges: p.extra_charges || 0,
+            adjustmentAmount: p.adjustment_amount || 0,
+          }));
           loadItems((p.items || []).map((item, idx) => ({
             id: `edit-${idx}`,
             product_sku:    item.product_sku,
@@ -138,6 +147,14 @@ export default function PurchaseNew() {
     order_type: orderType, with_gst: withGST, purchase_on: purchaseOn, status,
     payment_status: purchaseOn === 'cash' && status === 'confirmed' ? 'paid' : 'unpaid',
     note: internalNote || null,
+    // InvoiceBreakdownModal's own fields — previously computed on screen
+    // and shown to the user, then silently dropped here instead of sent.
+    total_discount:    invoiceBreakdown.totalDiscount || 0,
+    cess:               invoiceBreakdown.cess || 0,
+    adjusted_cn:        invoiceBreakdown.adjustedCN || 0,
+    tcs:                invoiceBreakdown.tcs || 0,
+    extra_charges:      invoiceBreakdown.extraCharges || 0,
+    adjustment_amount:  invoiceBreakdown.adjustmentAmount || 0,
     items: items.map(item => ({
       product_sku:        item.product_sku,
       product_name:       item.product_name,
@@ -175,25 +192,36 @@ export default function PurchaseNew() {
     await savePurchase('draft');
   };
 
+  // Shared by handleConfirmAndSave and updateInvoiceBreakdown so the two
+  // never compute netAmount differently from each other.
+  const withRecomputedNet = (breakdown) => {
+    const netBeforeRound = breakdown.billAmount - breakdown.totalDiscount + breakdown.cess
+      - breakdown.adjustedCN + breakdown.tcs + breakdown.extraCharges + breakdown.adjustmentAmount;
+    return {
+      ...breakdown,
+      roundOff: Math.round(netBeforeRound) - netBeforeRound,
+      netAmount: Math.round(netBeforeRound),
+    };
+  };
+
   const handleConfirmAndSave = () => {
     if (!validateForm()) return;
     const t = calculateTotals(withGST);
-    setInvoiceBreakdown({
-      ptrTotal: t.ptrTotal, totalDiscount: 0, gst: t.taxValue, cess: 0,
-      billAmount: t.billAmount, adjustedCN: 0, tcs: 0, extraCharges: 0,
-      adjustmentAmount: 0, roundOff: t.roundOff, netAmount: t.netAmount,
-    });
+    // Recompute the auto fields (ptrTotal/gst/billAmount come from the
+    // items table) but keep whatever the user already typed into
+    // Discount/CESS/CN/TCS/Extra Charges/Adjustment — either from this
+    // session's earlier open of this same modal, or restored from a
+    // loaded draft (see the edit-load effect below). Re-opening this
+    // modal must not silently wipe a value the pharmacist already entered.
+    setInvoiceBreakdown(prev => withRecomputedNet({
+      ...prev, ptrTotal: t.ptrTotal, gst: t.taxValue, billAmount: t.billAmount,
+    }));
     setShowInvoiceModal(true);
   };
 
   const updateInvoiceBreakdown = (field, value) => {
     const numValue = parseFloat(value) || 0;
-    const updated = { ...invoiceBreakdown, [field]: numValue };
-    const netBeforeRound = updated.billAmount - updated.totalDiscount + updated.cess
-      - updated.adjustedCN + updated.tcs + updated.extraCharges + updated.adjustmentAmount;
-    updated.roundOff = Math.round(netBeforeRound) - netBeforeRound;
-    updated.netAmount = Math.round(netBeforeRound);
-    setInvoiceBreakdown(updated);
+    setInvoiceBreakdown(prev => withRecomputedNet({ ...prev, [field]: numValue }));
   };
 
   const totals = calculateTotals(withGST);

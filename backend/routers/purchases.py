@@ -53,6 +53,15 @@ class PurchaseCreate(BaseModel):
     note: Optional[str] = None
     status: Optional[str] = "draft"
     payment_status: str = "unpaid"
+    # Match InvoiceBreakdownModal.jsx's own net-amount formula exactly:
+    # net = bill_amount - total_discount + cess - adjusted_cn + tcs
+    #       + extra_charges + adjustment_amount, rounded to the nearest rupee.
+    total_discount: float = 0
+    cess: float = 0
+    adjusted_cn: float = 0
+    tcs: float = 0
+    extra_charges: float = 0
+    adjustment_amount: float = 0
 
 
 class PurchasePaymentRequest(BaseModel):
@@ -91,11 +100,19 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         "payment_status": p.payment_status,
         "subtotal": p.subtotal_paise / 100,
         "tax_value": p.total_gst_paise / 100,
+        "total_discount": p.total_discount_paise / 100,
+        "cess": p.cess_paise / 100,
+        "adjusted_cn": p.adjusted_cn_paise / 100,
+        "tcs": p.tcs_paise / 100,
+        "extra_charges": p.extra_charges_paise / 100,
+        "adjustment_amount": p.adjustment_amount_paise / 100,
         # grand_total_paise is rounded to the nearest rupee at create/update
-        # time (see create_purchase/update_purchase) — this was hardcoded to
-        # 0 even though real rounding happens; derive it from the same
-        # already-stored columns instead of a fake constant.
-        "round_off": (p.grand_total_paise - p.subtotal_paise - p.total_gst_paise) / 100,
+        # time (see create_purchase/update_purchase) — round_off is whatever
+        # remains after every other explicit term, not a fake constant.
+        "round_off": (p.grand_total_paise - (
+            p.subtotal_paise + p.total_gst_paise - p.total_discount_paise + p.cess_paise
+            - p.adjusted_cn_paise + p.tcs_paise + p.extra_charges_paise + p.adjustment_amount_paise
+        )) / 100,
         "total_value": p.grand_total_paise / 100,
         "amount_paid": p.amount_paid_paise / 100,
         "note": p.notes,
@@ -335,10 +352,22 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
         subtotal_paise += taxable
         tax_paise += gst_amount
 
-    grand_total_paise = subtotal_paise + tax_paise
+    # Same net-amount formula InvoiceBreakdownModal.jsx already computes and
+    # shows the pharmacist before they click Confirm & Save — these used to
+    # be silently discarded (see migration c5671e4dfe9f).
+    discount_paise = int(round(purchase_data.total_discount * 100))
+    cess_paise = int(round(purchase_data.cess * 100))
+    adjusted_cn_paise = int(round(purchase_data.adjusted_cn * 100))
+    tcs_paise = int(round(purchase_data.tcs * 100))
+    extra_charges_paise = int(round(purchase_data.extra_charges * 100))
+    adjustment_amount_paise = int(round(purchase_data.adjustment_amount * 100))
+
+    net_before_round_paise = (
+        subtotal_paise + tax_paise - discount_paise + cess_paise
+        - adjusted_cn_paise + tcs_paise + extra_charges_paise + adjustment_amount_paise
+    )
     # Round to nearest rupee
-    rounded_total = round(grand_total_paise / 100) * 100
-    grand_total_paise = rounded_total
+    grand_total_paise = round(net_before_round_paise / 100) * 100
 
     status = purchase_data.status or "draft"
     payment_status = purchase_data.payment_status or "unpaid"
@@ -362,6 +391,12 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
         purchase_date=date.fromisoformat(purchase_data.purchase_date[:10]),
         due_date=due_dt,
         subtotal_paise=subtotal_paise,
+        total_discount_paise=discount_paise,
+        cess_paise=cess_paise,
+        adjusted_cn_paise=adjusted_cn_paise,
+        tcs_paise=tcs_paise,
+        extra_charges_paise=extra_charges_paise,
+        adjustment_amount_paise=adjustment_amount_paise,
         total_gst_paise=tax_paise,
         total_cgst_paise=tax_paise // 2,
         total_sgst_paise=tax_paise - tax_paise // 2,
@@ -464,7 +499,18 @@ async def update_purchase(
         subtotal_paise += taxable
         tax_paise += gst_amount
 
-    grand_total_paise = round((subtotal_paise + tax_paise) / 100) * 100
+    discount_paise = int(round(purchase_data.total_discount * 100))
+    cess_paise = int(round(purchase_data.cess * 100))
+    adjusted_cn_paise = int(round(purchase_data.adjusted_cn * 100))
+    tcs_paise = int(round(purchase_data.tcs * 100))
+    extra_charges_paise = int(round(purchase_data.extra_charges * 100))
+    adjustment_amount_paise = int(round(purchase_data.adjustment_amount * 100))
+
+    net_before_round_paise = (
+        subtotal_paise + tax_paise - discount_paise + cess_paise
+        - adjusted_cn_paise + tcs_paise + extra_charges_paise + adjustment_amount_paise
+    )
+    grand_total_paise = round(net_before_round_paise / 100) * 100
     status = purchase_data.status or "draft"
 
     purchase.supplier_id = uuid.UUID(purchase_data.supplier_id)
@@ -473,6 +519,12 @@ async def update_purchase(
     purchase.supplier_invoice_date = date.fromisoformat(
         purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None
     purchase.subtotal_paise = subtotal_paise
+    purchase.total_discount_paise = discount_paise
+    purchase.cess_paise = cess_paise
+    purchase.adjusted_cn_paise = adjusted_cn_paise
+    purchase.tcs_paise = tcs_paise
+    purchase.extra_charges_paise = extra_charges_paise
+    purchase.adjustment_amount_paise = adjustment_amount_paise
     purchase.total_gst_paise = tax_paise
     purchase.total_cgst_paise = tax_paise // 2
     purchase.total_sgst_paise = tax_paise - tax_paise // 2

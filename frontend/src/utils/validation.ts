@@ -246,6 +246,9 @@ export const validatePurchaseItem = (item: Record<string, unknown>): ValidationR
   const ptr = parseFloat(String(item.ptr_per_unit ?? 0));
   if (!ptr || ptr <= 0)
     return err(`Please enter PTR for ${item.product_name || 'item'}`);
+  const mrp = parseFloat(String(item.mrp_per_unit ?? 0));
+  if (!mrp || mrp <= 0)
+    return err(`MRP for ${item.product_name || 'item'} must be greater than ₹0`);
   if (!item.batch_no || !String(item.batch_no).trim())
     return err(`Please enter batch number for ${item.product_name || 'item'}`);
   const expiry = validateExpiryMMYY(item.expiry_mmyy as string | null | undefined);

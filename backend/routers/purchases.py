@@ -202,6 +202,18 @@ async def _create_stock_for_items(
     or cost-price change is needed here to account for them correctly.
     """
     for item in items:
+        # MRP=0 (or negative) is accepted by PurchaseItemCreate's plain
+        # `float` type and was never checked before the batch this MRP
+        # gets stamped onto is actually created — a purchase confirmed
+        # with an unfilled MRP field silently produced stock nobody could
+        # bill correctly. Gated here (confirm-time only, not draft
+        # save/update) so an in-progress draft can still be saved with
+        # the field left blank, same as qty/PTR/batch/expiry already are.
+        if item.mrp_paise <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"MRP for {item.product_name} must be greater than ₹0 to confirm this purchase")
+
         units_per_pack = item.units_per_pack or 1
         paid_pack_qty = item.quantity_ordered // units_per_pack if units_per_pack > 1 else item.quantity_ordered
         free_pack_qty = item.free_qty_units // units_per_pack if units_per_pack > 1 else item.free_qty_units

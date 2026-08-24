@@ -132,6 +132,7 @@ export default function PurchaseNew() {
     for (const item of items) {
       if (!item.qty_units || parseInt(item.qty_units) <= 0) { toast.error(`Enter quantity for ${item.product_name}`); return false; }
       if (!item.ptr_per_unit || parseFloat(item.ptr_per_unit) <= 0) { toast.error(`Enter PTR for ${item.product_name}`); return false; }
+      if (!item.mrp_per_unit || parseFloat(item.mrp_per_unit) <= 0) { toast.error(`MRP for ${item.product_name} must be greater than ₹0`); return false; }
       if (!item.batch_no) { toast.error(`Enter batch number for ${item.product_name}`); return false; }
       if (!item.expiry_mmyy) { toast.error(`Enter expiry for ${item.product_name}`); return false; }
     }

@@ -360,6 +360,12 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
                 )
 
     return_number = await _generate_return_number(pharmacy_id, db)
+    # A return has always been created already-"confirmed" (deducts
+    # stock in this same request, see below) — its debit note number
+    # belongs right here, not behind a separate confirm step that never
+    # existed in the real UI. Generating it after return_number so both
+    # sequence numbers are assigned together.
+    debit_number = await _generate_debit_number(pharmacy_id, db)
     reason = return_data.reason or "return"
 
     # Create return header
@@ -427,6 +433,7 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
         total_gst_paise=gst_paise,
         grand_total_paise=grand_total_paise,
         status="confirmed",
+        debit_note_number=debit_number,
         notes=return_data.note or return_data.notes,
         created_by=uuid.UUID(current_user.id),
     )
@@ -448,7 +455,7 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "purchase_return", purchase_return.id,
-        {"return_number": return_number, "purchase_id": str(purchase_id),
+        {"return_number": return_number, "debit_number": debit_number, "purchase_id": str(purchase_id),
          "total_value": grand_total_paise / 100, "reason": reason},
         db,
     )
@@ -661,59 +668,10 @@ async def update_purchase_return(
     return _return_response(purchase_return, new_items, sup_result.scalar_one_or_none() or "")
 
 
-@router.post("/purchase-returns/{return_id}/confirm")
-async def confirm_purchase_return(return_id: str, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
-    await _require_purchases_permission(current_user, "edit", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    rid = uuid.UUID(return_id)
-
-    result = await db.execute(select(PurchaseReturnORM).where(PurchaseReturnORM.id == rid))
-    purchase_return = result.scalar_one_or_none()
-    if not purchase_return:
-        raise HTTPException(status_code=404, detail="Purchase return not found")
-    if purchase_return.status == "confirmed":
-        raise HTTPException(status_code=400, detail="Return is already confirmed")
-
-    items_result = await db.execute(select(PurchaseReturnItemORM).where(
-        PurchaseReturnItemORM.purchase_return_id == rid))
-    items = items_result.scalars().all()
-
-    movements_created = 0
-    for item in items:
-        prod_result = await db.execute(select(ProductORM).where(ProductORM.id == item.product_id))
-        product = prod_result.scalar_one_or_none()
-        if not product:
-            continue
-
-        batch_result = await db.execute(select(BatchORM).where(BatchORM.id == item.batch_id))
-        batch = batch_result.scalar_one_or_none()
-        if not batch:
-            continue
-
-        await _deduct_stock_and_record(
-            batch, item.quantity, product,
-            pharmacy_id, uuid.UUID(current_user.id), rid,
-            f"Purchase return confirmed - {purchase_return.return_reason}", db,
-        )
-        movements_created += 1
-
-    # Generate debit note number
-    debit_number = await _generate_debit_number(pharmacy_id, db)
-    purchase_return.status = "confirmed"
-    purchase_return.debit_note_number = debit_number
-
-    await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "confirm", "purchase_return", rid,
-        {"debit_number": debit_number, "debit_amount": purchase_return.grand_total_paise / 100,
-         "stock_movements_created": movements_created},
-        db,
-    )
-    await db.flush()
-
-    return {
-        "message": "Purchase return confirmed successfully",
-        "debit_number": debit_number,
-        "debit_amount": purchase_return.grand_total_paise / 100,
-        "stock_movements_created": movements_created,
-    }
+# Note: there is no POST /purchase-returns/{id}/confirm endpoint. It
+# existed until Aug 24, 2026 but was unreachable dead code —
+# create_purchase_return already sets status="confirmed" and deducts
+# stock in the same request (see below), so a separate confirm step
+# was never exercised by any frontend screen or test. Removed rather
+# than kept "for consistency"; see docs/15_ROADMAP.md's RULE MISSES LOG
+# / KNOWN ISSUES for the removal note.

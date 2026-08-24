@@ -97,7 +97,6 @@ export const API_ENDPOINTS = {
     LIST:    'purchase-returns',
     CREATE:  'purchase-returns',
     DETAIL:  'purchase-returns/:id',
-    CONFIRM: 'purchase-returns/:id/confirm',
   },
 
   // Customers & Doctors
@@ -251,7 +250,6 @@ export const apiUrl = {
   // Purchase Returns
   purchaseReturns:  (params) => `purchase-returns${qs(params)}`,
   purchaseReturn:   (id)     => `purchase-returns/${id}`,
-  purchaseReturnConfirm: (id) => `purchase-returns/${id}/confirm`,
 
   // Customers & Doctors
   customers:        (params) => `customers${qs(params)}`,

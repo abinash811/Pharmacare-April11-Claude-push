@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 1.9 | Last updated: August 23, 2026
+# Version: 2.0 | Last updated: August 24, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -144,6 +144,12 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 - **Chat replies stay under 100 words.** Added August 23, 2026, direct
   request. Applies to conversational answers, not code/docs/commit
   content — those keep whatever length the task genuinely needs.
+- **Default to the standard, simpler fix over the flexible one.** Added
+  August 24, 2026. When a bug fix has a design choice (e.g. reject
+  outright vs. allow-with-a-flag), pick the simpler, more conventional
+  option by default — reconsider only if real usage after launch shows
+  a genuine need for the more flexible behavior. Don't build the
+  flexible option speculatively.
 
 ---
 

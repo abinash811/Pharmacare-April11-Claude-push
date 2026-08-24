@@ -161,13 +161,23 @@ async def _deduct_stock_and_record(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, ref_id: uuid.UUID,
     reason: str, db: AsyncSession,
 ) -> None:
-    """Deduct stock from batch and record a stock movement."""
+    """Deduct stock from batch and record a stock movement.
+
+    Raises rather than silently skipping when stock is insufficient — a
+    return that can't physically be deducted must not still issue a
+    credit note, since that leaves the financial record and real stock
+    disagreeing with nobody told. Same message pattern as billing.py's
+    _deduct_stock_and_record insufficient-stock check.
+    """
     units_per_pack = product.units_per_pack or 1
     qty_packs = qty_units // units_per_pack if units_per_pack > 1 else qty_units
     old_qty = batch.quantity_on_hand
 
     if old_qty < qty_packs:
-        return  # silently skip if insufficient stock
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Insufficient stock for {product.name} in batch {batch.batch_number}: "
+                    f"{old_qty} available, {qty_packs} requested"))
 
     batch.quantity_on_hand = old_qty - qty_packs
     batch.quantity_returned = (batch.quantity_returned or 0) + qty_packs

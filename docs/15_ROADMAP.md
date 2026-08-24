@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.16 | Last updated: August 24, 2026
+# Version: 2.17 | Last updated: August 24, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -299,12 +299,38 @@ IGST/intra-inter-state (deferred — single-state sale only for now).
   every Purchases/Purchase-Returns **write** endpoint only (GET/list/
   detail left ungated); every other module remains unenforced for now
   — a deliberate, known inconsistency, not a decided final state.
+- Dead `POST /purchase-returns/{id}/confirm` removed — unreachable,
+  `create_purchase_return` already sets `status="confirmed"` and
+  deducts stock in the same request. Removing it surfaced a real bug
+  it was masking: `_generate_debit_number` was only ever called from
+  that dead handler, so `debit_note_number` was always null on every
+  real return despite the field existing and being returned in every
+  response. Fixed: number generation moved into `create_purchase_return`
+  itself, alongside `return_number`.
+- Duplicate-invoice-number warning: `GET /purchases/check-duplicate-invoice`
+  (case-insensitive, scoped to distributor, excludes the purchase being
+  edited) — advisory only, never blocks save, per the literal word
+  "warning" in the request.
+- Invoice attachment upload: `Purchase.invoice_attachment_data`/`_name`,
+  base64 `data:` URL client-side (same pattern as `LogoUpload.tsx` — no
+  S3/upload infra exists or was justified for one file per purchase).
+  Backend validates data-URL shape, mime type (jpeg/png/webp/pdf), and
+  5MB decoded size cap. Excluded from the list response, included in
+  detail — same reasoning as `last_payment_date`.
+- Purchase Returns had zero happy-path module coverage — every existing
+  test was a narrow single-bug regression test. Added a
+  create→list→detail→edit walkthrough suite (list + its 3 filters,
+  items-for-return before/after a return, both edit types verified via
+  a follow-up GET, not just response status).
+- Explicitly deferred, not forgotten — raised and the user chose not
+  to act now: **Tally sync** (skip for now); **LIFA/LILA batch
+  priority** (existing UI dead — leave as-is, not removed, not wired
+  up).
 - Still queued from the same audit (excluding IGST/intra-inter-state):
   cancellation/reversal for confirmed purchases, Card/Other payment
   methods, frontend float math on money, locked read-only view for
   confirmed-purchase edit attempts, narrower product search (name+SKU
-  only), duplicate-invoice-number warning, invoice attachment upload,
-  last-purchased-price hint, stock ledger schema gaps, remaining
+  only), last-purchased-price hint, stock ledger schema gaps, remaining
   `Purchase`/`PurchaseItem`/`Supplier` schema gaps, app-wide permission
   rollout beyond Purchases/Purchase Returns.
 

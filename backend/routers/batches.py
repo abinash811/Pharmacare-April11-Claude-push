@@ -281,6 +281,12 @@ async def update_stock_batch(
         "mrp_per_unit": None,  # special handling
     }
 
+    # Every other quantity-mutating endpoint (billing, purchases,
+    # purchase_returns, /adjust) records a StockMovement — this direct
+    # PUT was the one silent exception. Capture the before-value so a
+    # real quantity change gets the same audit trail.
+    old_qty_on_hand = batch.quantity_on_hand
+
     for key, value in updates.items():
         if key == "cost_price_per_unit":
             batch.cost_price_paise = int(value * 100)
@@ -297,6 +303,15 @@ async def update_stock_batch(
             col = field_map.get(key, key)
             if col and hasattr(batch, col):
                 setattr(batch, col, value)
+
+    if batch.quantity_on_hand != old_qty_on_hand:
+        db.add(MovementORM(
+            pharmacy_id=uuid.UUID(current_user.pharmacy_id), product_id=batch.product_id, batch_id=batch.id,
+            movement_type="batch_edit", quantity=batch.quantity_on_hand - old_qty_on_hand,
+            quantity_before=old_qty_on_hand, quantity_after=batch.quantity_on_hand,
+            reference_type="batch_edit", reference_id=batch.id,
+            user_id=uuid.UUID(current_user.id), notes="Direct batch quantity edit via PUT /stock/batches",
+        ))
 
     await db.flush()
     return {"message": "Batch updated successfully"}
@@ -401,10 +416,28 @@ async def create_stock_movement(movement_data: StockMovementCreate, current_user
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
     batch = await _get_batch(movement_data.batch_id, db)
 
+    # StockBatch.quantity_on_hand is in packs everywhere it's written
+    # (billing.py, purchase_returns.py, /adjust above) — qty_delta_units
+    # is in units, same convention as those. This endpoint used to log a
+    # movement without ever applying it to the batch; now it does both,
+    # with the same negative-stock guard /adjust uses.
+    units_per_pack = product.units_per_pack or 1
+    pack_delta = (movement_data.qty_delta_units // units_per_pack
+                  if units_per_pack > 1 else movement_data.qty_delta_units)
+    old_qty = batch.quantity_on_hand
+    new_qty = old_qty + pack_delta
+    if new_qty < 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Cannot record this movement: batch {batch.batch_number} would go negative "
+                    f"({old_qty} on hand, delta of {pack_delta})"))
+
+    batch.quantity_on_hand = new_qty
+
     movement = await _record_movement(
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
         movement_type=movement_data.movement_type, quantity=movement_data.qty_delta_units,
-        qty_before=batch.quantity_on_hand, qty_after=batch.quantity_on_hand + movement_data.qty_delta_units,
+        qty_before=old_qty, qty_after=new_qty,
         ref_type=movement_data.ref_type, ref_id=uuid.UUID(
             movement_data.ref_id) if movement_data.ref_id else uuid.uuid4(),
         user_id=uuid.UUID(current_user.id), notes=movement_data.reason, db=db,

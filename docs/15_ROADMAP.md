@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.14 | Last updated: August 24, 2026
+# Version: 2.15 | Last updated: August 24, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -244,6 +244,45 @@ Fixed by making every endpoint (`/inventory`, `/reports/low-stock`, `/analytics/
 | Supplier management (CRUD) | ✅ | |
 | Link purchase to supplier | ✅ | |
 | Purchase history per supplier | ✅ | |
+
+**Purchases — August 24, 2026 audit fixes.** User directive: fix every gap
+from the rigorous Purchases/Inventory audit one at a time, except
+IGST/intra-inter-state (deferred — single-state sale only for now).
+- Invoice breakdown modal (Total Discount, CESS, Adjusted CN, TCS, Extra
+  Charges, Adjustment Amount) was decorative — none of it reached the
+  backend; grand total silently discarded whatever the pharmacist
+  confirmed on screen. Fixed: 6 new `Purchase` columns, backend now
+  applies the exact formula the frontend already showed.
+- `order_type`/`with_gst`/`purchase_on` were accepted by the API but
+  `Purchase` had no columns for them — editing a draft silently reset
+  all three to defaults every time. Fixed: 3 new columns, persisted on
+  create/update, returned in the response.
+- `usePurchaseItems.js` read `product.default_mrp_per_unit` /
+  `default_ptr_per_unit` / `landing_price_per_unit` — none exist on
+  `GET /api/products`. New lines always defaulted MRP/PTR to 0 via dead
+  reads; the product-search dropdown showed literal "MRP ₹undefined".
+  Fixed: dead reads removed (defaults unchanged, still 0), dropdown now
+  shows real `gst_percent` instead.
+- Edit button/menu item was offered on confirmed purchases even though
+  `update_purchase` has always rejected non-draft edits (400) — a
+  guaranteed dead-end click. Fixed: hidden in the list unless the row is
+  a draft; removed entirely from `PurchaseDetail` (which only ever
+  renders for non-draft purchases, so its own Edit entry was 100% dead).
+- List had no Paid/Balance columns despite the backend already
+  returning both; no working supplier filter despite `supplier_id`
+  already being a real, working query param; the search box's own
+  placeholder promised supplier-name search but the backend never
+  matched supplier name. Fixed: added the 2 columns, wired a supplier
+  filter dropdown, added a pharmacy-scoped supplier-name subquery to
+  search.
+- Still queued from the same audit (excluding IGST/intra-inter-state):
+  cancellation/reversal for confirmed purchases, missing payment
+  methods + duplicate payment modals, frontend float math on money,
+  locked read-only view for confirmed-purchase edit attempts, narrower
+  product search (name+SKU only), duplicate-invoice-number warning,
+  invoice attachment upload, last-purchased-price hint, stock ledger
+  schema gaps, remaining `Purchase`/`PurchaseItem`/`Supplier` schema
+  gaps.
 
 **Purchases — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP, eVitalRx, and Pharmasoft. Verified against real code (`backend/routers/purchases.py` — every endpoint grepped and listed: list/create/update/get/pay, no others exist), not guessed.
 

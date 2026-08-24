@@ -21,15 +21,17 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
               <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry By</th>
               <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distributor</th>
               <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
               <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
               <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={9} className="p-0"><TableSkeleton rows={6} columns={8} /></td></tr>
+              <tr><td colSpan={11} className="p-0"><TableSkeleton rows={6} columns={8} /></td></tr>
             ) : purchases.length === 0 ? (
-              <tr><td colSpan={9} className="p-0">
+              <tr><td colSpan={11} className="p-0">
                 <PurchasesEmptyState filtered={isFiltered}
                   action={<AppButton icon={null} onClick={() => navigate('/purchases/create')} data-testid="empty-new-purchase-btn">New Purchase</AppButton>} />
               </td></tr>
@@ -38,6 +40,7 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
               const isParked = item.status === 'draft';
               const isDue = item.payment_status !== 'paid' && item.status !== 'draft';
               const rowNum = (pagination.page - 1) * pagination.pageSize + index + 1;
+              const balance = (item.total_value || 0) - (item.amount_paid || 0);
 
               return (
                 <tr key={item.id} className="hover:bg-brand-tint cursor-pointer h-10"
@@ -51,6 +54,12 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
                   <td className="px-4 py-2.5 text-sm text-gray-700">{item.created_by_name || 'Owner'}</td>
                   <td className="px-4 py-2.5"><div className="text-sm font-medium text-gray-800">{item.supplier_name || 'Unknown'}</div>{item.supplier_invoice_no && <div className="text-xs text-gray-500">Inv: {item.supplier_invoice_no}</div>}</td>
                   <td className="px-4 py-2.5 text-right"><span className={`font-semibold tabular-nums ${isDue ? 'text-red-600' : 'text-gray-900'}`}>{formatCurrency(item.total_value || 0)}</span></td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-sm text-gray-700">{isParked ? '—' : formatCurrency(item.amount_paid || 0)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-sm">
+                    {isParked ? <span className="text-gray-400">—</span> : (
+                      <span className={balance > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'}>{formatCurrency(balance)}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-center">
                     {badge.clickable
                       ? <AppButton size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onPayClick(item); }} data-testid={`pay-${item.id}`}>{badge.label}</AppButton>

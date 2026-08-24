@@ -9,6 +9,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import usePagination from '@/hooks/usePagination';
 import PurchasesTable from './components/PurchasesTable';
 import PurchasePayModal from './components/PurchasePayModal';
+import SupplierDropdown from '../PurchaseNew/components/SupplierDropdown';
 
 const PURCHASES_TABS = [
   { key: 'purchases', label: 'Purchases' },
@@ -30,6 +31,8 @@ export default function PurchasesList() {
   const debouncedSearch               = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('all');
   const [dateRange, setDateRange]     = useState({ start: null, end: null });
+  const [suppliers, setSuppliers]     = useState([]);
+  const [supplierFilter, setSupplierFilter] = useState(null);
   const pg = usePagination({ pageSize: 20 });
 
   const [showPayModal, setShowPayModal]     = useState(false);
@@ -47,6 +50,7 @@ export default function PurchasesList() {
       if (activeFilter === 'due')    params.payment_status = 'unpaid';
       if (dateRange.start) params.from_date = dateRange.start.toISOString().split('T')[0];
       if (dateRange.end)   params.to_date   = dateRange.end.toISOString().split('T')[0];
+      if (supplierFilter)  params.supplier_id = supplierFilter.id;
       const res = await api.get(apiUrl.purchases(params));
       setPurchases(res.data.data || []);
       pg.setFromResponse(res.data.pagination);
@@ -54,7 +58,13 @@ export default function PurchasesList() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { pg.resetPage(); fetchData(1); }, [debouncedSearch, activeFilter, dateRange]); // eslint-disable-line
+  useEffect(() => {
+    api.get(apiUrl.suppliers({ active_only: true, page_size: 100 }))
+      .then(res => setSuppliers(res.data.data || res.data || []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { pg.resetPage(); fetchData(1); }, [debouncedSearch, activeFilter, dateRange, supplierFilter]); // eslint-disable-line
   useEffect(() => { fetchData(); }, [pg.page]); // eslint-disable-line
 
   const openPayModal = (purchase) => {
@@ -85,7 +95,7 @@ export default function PurchasesList() {
     return { status: 'due', label: 'Due', clickable: true };
   };
 
-  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
+  const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all' || supplierFilter);
 
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="purchases-page">
@@ -98,6 +108,12 @@ export default function PurchasesList() {
       <div className="flex items-center gap-4 mb-4">
         <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Bill no., invoice, supplier..." className="w-64" />
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+        <SupplierDropdown suppliers={suppliers} value={supplierFilter} onChange={setSupplierFilter} />
+        {supplierFilter && (
+          <AppButton variant="ghost" size="sm" onClick={() => setSupplierFilter(null)} className="text-xs text-gray-500">
+            Clear distributor
+          </AppButton>
+        )}
         <FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
       </div>
 

@@ -276,9 +276,12 @@ async def get_purchases(
         query = query.where(PurchaseORM.status == status)
     if search:
         p = f"%{search}%"
+        matching_supplier_ids = select(SupplierORM.id).where(
+            SupplierORM.pharmacy_id == pharmacy_id, SupplierORM.name.ilike(p))
         query = query.where(or_(
             PurchaseORM.purchase_number.ilike(p),
             PurchaseORM.supplier_invoice_number.ilike(p),
+            PurchaseORM.supplier_id.in_(matching_supplier_ids),
         ))
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))

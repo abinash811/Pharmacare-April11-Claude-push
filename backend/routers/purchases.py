@@ -67,6 +67,7 @@ class PurchaseCreate(BaseModel):
 class PurchasePaymentRequest(BaseModel):
     amount: float
     payment_method: str = "cash"
+    payment_date: Optional[str] = None
     reference_no: Optional[str] = None
     notes: Optional[str] = None
 
@@ -118,6 +119,12 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         )) / 100,
         "total_value": p.grand_total_paise / 100,
         "amount_paid": p.amount_paid_paise / 100,
+        # Set by callers that already have a payments row to look up
+        # (get_purchase, mark_purchase_paid) — stays None for a purchase
+        # that has never been paid, or hasn't been looked up with its
+        # payments (create_purchase/update_purchase, where a brand-new
+        # purchase can't have a payment yet).
+        "last_payment_date": None,
         "note": p.notes,
         "items": [_purchase_item_response(i) for i in items],
         "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -161,6 +168,17 @@ def _purchase_list_response(p: PurchaseORM, supplier_name: str = "") -> dict:
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
+
+
+async def _get_last_payment_date(purchase_id: uuid.UUID, db: AsyncSession) -> Optional[str]:
+    result = await db.execute(
+        select(PurchasePaymentORM.payment_date)
+        .where(PurchasePaymentORM.purchase_id == purchase_id)
+        .order_by(PurchasePaymentORM.payment_date.desc(), PurchasePaymentORM.created_at.desc())
+        .limit(1)
+    )
+    last_date = result.scalar_one_or_none()
+    return last_date.isoformat() if last_date else None
 
 
 async def _get_product_by_sku(pharmacy_id: uuid.UUID, sku: str, db: AsyncSession) -> ProductORM:
@@ -593,6 +611,7 @@ async def get_purchase(purchase_id: str, current_user: User = Depends(
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase.supplier_id))
     sup_name = sup_result.scalar_one_or_none()
     resp["supplier_name"] = sup_name or ""
+    resp["last_payment_date"] = await _get_last_payment_date(purchase.id, db)
 
     return resp
 
@@ -625,12 +644,19 @@ async def mark_purchase_paid(
     purchase.amount_paid_paise = new_paid
     purchase.payment_status = payment_status
 
+    # PurchasePayment.payment_date already existed on the model/table
+    # (server_default=CURRENT_DATE) but this request never accepted or
+    # forwarded the date the pharmacist actually picked in the modal —
+    # every payment silently recorded today's date regardless.
+    payment_dt = date.fromisoformat(payment.payment_date[:10]) if payment.payment_date else date.today()
+
     # Record payment
     db.add(PurchasePaymentORM(
         pharmacy_id=pharmacy_id,
         purchase_id=pid,
         amount_paise=payment_paise,
         payment_method=payment.payment_method,
+        payment_date=payment_dt,
         reference_number=payment.reference_no,
         notes=payment.notes,
         created_by=uuid.UUID(current_user.id),
@@ -640,6 +666,7 @@ async def mark_purchase_paid(
         pharmacy_id, uuid.UUID(current_user.id), "payment", "purchase", pid,
         {"amount": payment.amount,
          "payment_method": payment.payment_method,
+         "payment_date": payment_dt.isoformat(),
          "payment_status": payment_status},
         db,
     )
@@ -647,4 +674,9 @@ async def mark_purchase_paid(
     await db.refresh(purchase)  # see comment on the same pattern in update_purchase()
 
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
-    return _purchase_response(purchase, items_result.scalars().all())
+    resp = _purchase_response(purchase, items_result.scalars().all())
+    # Not simply payment_dt — a backdated payment_date on this payment
+    # could still be older than an existing payment's date, so the true
+    # most-recent-by-date must be looked up rather than assumed.
+    resp["last_payment_date"] = await _get_last_payment_date(pid, db)
+    return resp

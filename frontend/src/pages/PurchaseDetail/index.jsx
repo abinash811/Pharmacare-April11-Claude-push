@@ -161,9 +161,15 @@ export default function PurchaseDetail() {
             {isDue && (
               <span className="text-red-600">Due: <span className="font-bold">{formatCurrency((purchase.total_value || 0) - (purchase.amount_paid || 0))}</span>
                 {purchase.due_date && <span className="text-gray-500 ml-2">· Due on {formatDateShort(purchase.due_date)}</span>}
+                {purchase.last_payment_date && <span className="text-gray-500 ml-2">· Last paid on {formatDateShort(purchase.last_payment_date)}</span>}
               </span>
             )}
-            {purchase.payment_status === 'paid' && <span className="text-green-600 font-semibold">Payment complete</span>}
+            {purchase.payment_status === 'paid' && (
+              <span className="text-green-600 font-semibold">
+                Payment complete
+                {purchase.last_payment_date && <span className="text-gray-500 font-normal ml-2">· Paid on {formatDateShort(purchase.last_payment_date)}</span>}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {isDue && <AppButton variant="secondary" onClick={openPayModal} data-testid="mark-paid-btn">Mark as Paid</AppButton>}

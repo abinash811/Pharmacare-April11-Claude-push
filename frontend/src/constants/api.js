@@ -246,6 +246,7 @@ export const apiUrl = {
   purchase:         (id)     => `purchases/${id}`,
   purchasePay:      (id)     => `purchases/${id}/pay`,
   purchaseItemsForReturn: (id) => `purchases/${id}/items-for-return`,
+  purchaseCheckDuplicateInvoice: (params) => `purchases/check-duplicate-invoice${qs(params)}`,
 
   // Purchase Returns
   purchaseReturns:  (params) => `purchase-returns${qs(params)}`,

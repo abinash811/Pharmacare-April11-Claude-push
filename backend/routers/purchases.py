@@ -610,6 +610,46 @@ async def update_purchase(
     return _purchase_response(purchase, item_orms)
 
 
+# Static route — must be registered before the parameterized
+# /purchases/{purchase_id} below, same convention as inventory.py's
+# /products/* routes.
+@router.get("/purchases/check-duplicate-invoice")
+async def check_duplicate_invoice(
+        supplier_id: str, invoice_no: str, exclude_id: Optional[str] = None,
+        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Warns, does not block — a real distributor invoice can legitimately
+    need re-entry (e.g. correcting an earlier mistake), so this is advisory
+    only. Case-insensitive exact match, scoped to the same supplier (the
+    same invoice number from two different suppliers is not a duplicate).
+    Excludes soft-deleted purchases and, when editing, the purchase being
+    edited itself."""
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    invoice_no = invoice_no.strip()
+    if not invoice_no:
+        return {"duplicate": False}
+
+    query = select(PurchaseORM).where(
+        PurchaseORM.pharmacy_id == pharmacy_id,
+        PurchaseORM.supplier_id == uuid.UUID(supplier_id),
+        PurchaseORM.deleted_at.is_(None),
+        func.lower(PurchaseORM.supplier_invoice_number) == invoice_no.lower(),
+    )
+    if exclude_id:
+        query = query.where(PurchaseORM.id != uuid.UUID(exclude_id))
+
+    result = await db.execute(query.order_by(PurchaseORM.created_at.desc()).limit(1))
+    existing = result.scalar_one_or_none()
+    if not existing:
+        return {"duplicate": False}
+
+    return {
+        "duplicate": True,
+        "purchase_id": str(existing.id),
+        "purchase_number": existing.purchase_number,
+        "purchase_date": existing.purchase_date.isoformat() if existing.purchase_date else None,
+    }
+
+
 @router.get("/purchases/{purchase_id}")
 async def get_purchase(purchase_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):

@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 from typing import Optional
-from sqlalchemy import Date, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -35,6 +35,9 @@ class Purchase(Base):
         Date, nullable=False, server_default=func.current_date())
     grn_number: Mapped[Optional[str]] = mapped_column(String(50))
     received_date: Mapped[Optional[date]] = mapped_column(Date)
+    order_type: Mapped[str] = mapped_column(String(20), default="direct", nullable=False)
+    with_gst: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    purchase_on: Mapped[str] = mapped_column(String(20), default="credit", nullable=False)
     subtotal_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_discount_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cess_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

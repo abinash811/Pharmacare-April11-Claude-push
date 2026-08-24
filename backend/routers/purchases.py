@@ -98,6 +98,9 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         "supplier_invoice_date": p.supplier_invoice_date.isoformat() if p.supplier_invoice_date else None,
         "status": p.status,
         "payment_status": p.payment_status,
+        "order_type": p.order_type,
+        "with_gst": p.with_gst,
+        "purchase_on": p.purchase_on,
         "subtotal": p.subtotal_paise / 100,
         "tax_value": p.total_gst_paise / 100,
         "total_discount": p.total_discount_paise / 100,
@@ -390,6 +393,9 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
             purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None,
         purchase_date=date.fromisoformat(purchase_data.purchase_date[:10]),
         due_date=due_dt,
+        order_type=purchase_data.order_type,
+        with_gst=purchase_data.with_gst,
+        purchase_on=purchase_data.purchase_on,
         subtotal_paise=subtotal_paise,
         total_discount_paise=discount_paise,
         cess_paise=cess_paise,
@@ -518,6 +524,9 @@ async def update_purchase(
     purchase.supplier_invoice_number = purchase_data.supplier_invoice_no
     purchase.supplier_invoice_date = date.fromisoformat(
         purchase_data.supplier_invoice_date[:10]) if purchase_data.supplier_invoice_date else None
+    purchase.order_type = purchase_data.order_type
+    purchase.with_gst = purchase_data.with_gst
+    purchase.purchase_on = purchase_data.purchase_on
     purchase.subtotal_paise = subtotal_paise
     purchase.total_discount_paise = discount_paise
     purchase.cess_paise = cess_paise

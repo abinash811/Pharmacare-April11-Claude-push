@@ -1,5 +1,5 @@
 # PharmaCare — Feature Reference
-# Last updated: August 23, 2026
+# Last updated: August 24, 2026
 # Audience: Developers, designers, new hires, product reviewers
 # Purpose: For every feature — why it exists, who uses it, how it works in the product.
 # Rule: Update this file every time a feature ships or changes behaviour.
@@ -248,14 +248,17 @@ Each feature entry answers 4 questions:
 6. Batches created in inventory
 7. Stock movements logged
 
+**Fixed Aug 24, 2026:**
+- `free_qty_units` — added `PurchaseItem.free_qty_units` (migration `d0c8956ea229`), now stored and returned correctly, and added to batch stock on confirm. This was a real, live-broken UI feature — `PurchaseNew`/`PurchaseDetail` already had the input and display for it, silently discarded server-side the whole time.
+- No duplicate-batch-number guard on confirm — `_create_stock_for_items` now rejects confirming a purchase with a batch number already used for that product, matching `POST /stock/batches`'s existing check.
+
 **Known gaps — real, code-confirmed, not yet fixed:**
-- `free_qty_units` accepted in the create request, no DB column exists for it — silently discarded, API response hardcodes it to `0`. Real margin-accuracy risk (bonus units received free but priced as if paid for).
 - `discount_percent` on each purchase line is hardcoded to `0` on both create and update, even though the column exists — supplier trade discounts aren't captured at all.
 - `total_igst_paise` column exists but is never populated — GST is always split CGST+SGST even for an inter-state (IGST) purchase. Same class of bug as the Billing IGST issue found earlier.
 - `round_off` is a hardcoded `0` in the API response — not a real field.
 - No partial-receipt / short-delivery tracking: `quantity_received` exists on the schema but confirm always sets it as all received — "ordered 100, received 80" isn't representable. Real pharmacies short-receive often.
 - No separate PO → GRN two-step flow — "order placed" and "goods physically received" are collapsed into one draft→confirmed action.
-- No supplier-wise outstanding ledger view — payments are tracked per-purchase (`PurchasePayment`), no consolidated running balance per supplier found in this router.
+- No supplier-wise outstanding ledger *view* — payments are tracked per-purchase (`PurchasePayment`), no consolidated transaction-by-transaction breakdown per supplier. (The outstanding *number* itself is now correct — see Purchase Return's fixes below — this gap is only about a missing itemized view.)
 
 ### Purchase Return
 **What:** Return stock to a supplier against an original purchase — issues a debit note, deducts stock.
@@ -269,8 +272,12 @@ Each feature entry answers 4 questions:
 2. Pick items/quantities (capped at what's still returnable, not yet returned)
 3. Confirm → stock deducted, credit reference number generated
 
+**Fixed Aug 24, 2026:**
+- **Silent stock skip on confirm** — `_deduct_stock_and_record` now raises a clear 400 instead of silently skipping when a batch doesn't have enough stock. A return that can't physically be deducted no longer still issues a credit reference.
+- **Return quantity matched by product name, not product ID** — two products sharing a display name (no uniqueness constraint on `Product.name`) could hit the max-returnable check on the wrong product. Now keyed by `product_id`.
+- **Supplier outstanding balance ignored returns** — `_calc_outstanding` now subtracts confirmed `PurchaseReturn.grand_total_paise` for that supplier, clamped at 0. A confirmed return issues a credit note but never touched the original `Purchase` row's own totals, so the shown balance used to overstate what's actually owed.
+
 **Known gaps — real, code-confirmed, money/compliance risk:**
-- **Silent stock skip on confirm:** if a batch doesn't have enough stock on hand (e.g. already sold), `_deduct_stock_and_record` just returns silently — no error, no warning. The return still gets created and a credit reference issued, but stock and the financial record now disagree, and nobody is told.
 - **Wrong-batch fallback:** if the requested batch isn't found, the code falls back to "any batch for this product with stock" — could deduct from a different batch than the one actually being returned, breaking batch-level traceability (Schedule H1 register needs exact batch tracking).
 - **Naming is backwards for GST filing:** the field/prefix is `credit_note_number` / `SCRED-`, but a pharmacy returning goods to a supplier issues a **debit note** (reduces what it owes the supplier) — a credit note is the reverse direction. Marg ERP labels this exact flow "Debit Note." Worth checking if this mislabeling reaches GST filing/reports.
 - Same `discount_percent`/IGST gaps as Purchase/GRN above, inherited on the return side too.

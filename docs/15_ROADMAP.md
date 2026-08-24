@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.13 | Last updated: August 23, 2026
+# Version: 2.14 | Last updated: August 24, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -124,7 +124,7 @@
 | User story | Status | Fields / rules involved | Limitations |
 |---|---|---|---|
 | As a pharmacist, I want to manually add a stock batch (not via a purchase) — e.g. opening stock when first setting up. | ✅ `POST /stock/batches` | `product_sku`, `batch_no`, `expiry_date`, `qty_on_hand`, `cost_price_per_unit`, `mrp_per_unit`, plus optional `manufacture_date`, `supplier_name`, `supplier_invoice_no`, `received_date`, `location`, `free_qty_units`, `notes`. Rejects a duplicate batch number for the same product. Rejects an expiry date already in the past. Auto-records an `opening_stock` movement. | `supplier_name`/`supplier_invoice_no` here are **free-text strings**, not linked to the real `Supplier` table — inconsistent with the Purchases flow, which links a real `supplier_id`. Same real-world concept, two different representations depending on entry path. |
-| As a pharmacist, I want to edit a batch's details (cost, MRP, expiry, quantity). | ✅ `PUT /stock/batches/{id}`, admin-only | Any field from create, partial update. Expiry can't be moved into the past. | Directly editing `qty_on_hand` here **bypasses the stock-movement audit trail** — no `StockMovement` row is created, no reason is required, unlike the dedicated `/adjust` endpoint. Two paths change the same number; only one is audited. |
+| As a pharmacist, I want to edit a batch's details (cost, MRP, expiry, quantity). | ✅ `PUT /stock/batches/{id}`, admin-only | Any field from create, partial update. Expiry can't be moved into the past. | **Fixed Aug 24, 2026** — a `qty_on_hand` change now records a `"batch_edit"` `StockMovement` row, same as every other quantity-mutating endpoint. `POST /stock-movements` also used to log a movement without ever applying it to the batch (the ledger and the real balance could silently diverge) — now actually applies the delta, with the same negative-stock guard `/adjust` uses. Neither path is reachable from any current frontend screen (grep-confirmed) — fixed to make each endpoint's own contract true, not exercised in the live app today. |
 | As a pharmacist, I want to remove a batch that's fully used up or was entered by mistake. | ✅ `DELETE /stock/batches/{id}`, admin-only (soft: `is_active=False`) | Blocked if `quantity_on_hand > 0`. | — |
 | As a cashier, when billing, I want the system to automatically pick the batch that expires soonest. | ✅ FEFO, ordered by `expiry_date` | Only batches with `is_active=True` and `quantity_on_hand > 0` are offered. | — |
 | As a pharmacist, I want to see every batch of a medicine, current and historical. | ✅ `MedicineDetail → BatchesTab` | — | — |

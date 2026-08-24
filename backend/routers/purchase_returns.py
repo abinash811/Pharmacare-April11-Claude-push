@@ -18,6 +18,7 @@ from models.purchases import (
     PurchaseReturnItem as PurchaseReturnItemORM,
 )
 from models.suppliers import Supplier as SupplierORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user
 
 router = APIRouter(prefix="/api", tags=["purchase_returns"])
@@ -61,6 +62,22 @@ class PurchaseReturnUpdate(BaseModel):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+) -> None:
+    # Mirrors purchases.py's identical helper — this router never logged
+    # anything at all before, despite create/financial-edit both mutating
+    # real stock and generating a debit note. No cross-router import
+    # exists anywhere else in this codebase (each router defines its own
+    # small local helpers), so this stays local rather than becoming the
+    # first one.
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+    ))
+
 
 async def _generate_return_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
     current_year = datetime.now(timezone.utc).year
@@ -415,6 +432,12 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
         )
         final_items.append(item_orm)
 
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "purchase_return", purchase_return.id,
+        {"return_number": return_number, "purchase_id": str(purchase_id),
+         "total_value": grand_total_paise / 100, "reason": reason},
+        db,
+    )
     await db.flush()
 
     return _return_response(purchase_return, final_items, supplier.name)
@@ -498,6 +521,10 @@ async def update_purchase_return(
     if update_data.edit_type == "non_financial":
         if update_data.note is not None:
             purchase_return.notes = update_data.note
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update_non_financial", "purchase_return", rid,
+            {"note": update_data.note}, db,
+        )
         await db.flush()
         await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
 
@@ -608,6 +635,10 @@ async def update_purchase_return(
     if update_data.note is not None:
         purchase_return.notes = update_data.note
 
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "update_financial", "purchase_return", rid,
+        {"total_value": grand_total_paise / 100, "item_count": len(new_items)}, db,
+    )
     await db.flush()
     await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
 
@@ -656,6 +687,12 @@ async def confirm_purchase_return(return_id: str, current_user: User = Depends(
     purchase_return.status = "confirmed"
     purchase_return.debit_note_number = debit_number
 
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "confirm", "purchase_return", rid,
+        {"debit_number": debit_number, "debit_amount": purchase_return.grand_total_paise / 100,
+         "stock_movements_created": movements_created},
+        db,
+    )
     await db.flush()
 
     return {

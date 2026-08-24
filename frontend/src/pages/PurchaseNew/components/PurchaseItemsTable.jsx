@@ -14,6 +14,7 @@ import { Search, Trash2 } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import AppButton from '@/components/shared/AppButton';
 
 export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, onAddItem, withGST, searchInputRef }) {
   const [products,          setProducts]          = useState([]);
@@ -73,10 +74,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                       <div className="text-xs text-gray-400">SKU: {product.sku} | {product.manufacturer || 'N/A'}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold text-gray-700">MRP ₹{product.default_mrp_per_unit}</div>
-                      {product.landing_price_per_unit && (
-                        <div className="text-[10px] text-brand">LP ₹{product.landing_price_per_unit}</div>
-                      )}
+                      <div className="text-xs text-gray-400">GST {product.gst_percent}%</div>
                     </div>
                   </div>
                 </div>
@@ -167,10 +165,9 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-semibold text-gray-800">₹{total.toFixed(2)}</td>
                       <td className="px-2 py-2">
-                        <button onClick={() => onRemoveItem(item.id)}
-                          className="p-1.5 hover:bg-red-50 rounded text-red-500 transition-colors" data-testid={`delete-${index}`}>
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <AppButton variant="ghost" iconOnly icon={<Trash2 className="w-4 h-4 text-red-500" />}
+                          aria-label={`Remove ${item.product_name}`} onClick={() => onRemoveItem(item.id)}
+                          className="hover:bg-red-50" data-testid={`delete-${index}`} />
                       </td>
                     </tr>
                   );

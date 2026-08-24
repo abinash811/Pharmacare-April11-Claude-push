@@ -31,8 +31,8 @@ export function usePurchaseItems() {
       expiry_mmyy:      '',
       qty_units:        1,
       free_qty_units:   0,
-      ptr_per_unit:     product.default_ptr_per_unit || product.landing_price_per_unit || 0,
-      mrp_per_unit:     product.default_mrp_per_unit || 0,
+      ptr_per_unit:     0,
+      mrp_per_unit:     0,
       gst_percent:      product.gst_percent || 5,
       batch_priority:   batchPriority,
     }]);

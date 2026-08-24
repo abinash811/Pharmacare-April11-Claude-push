@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, Edit2, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Printer, RotateCcw, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
@@ -107,7 +107,6 @@ export default function PurchaseDetail() {
           <MoreMenu
             testId="more-btn"
             items={[
-              { icon: <Edit2 className="w-4 h-4" />, label: 'Edit', action: () => navigate(`/purchases/edit/${id}?type=purchase`) },
               { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => window.print() },
               { icon: <RotateCcw className="w-4 h-4" />, label: 'Purchase Return', action: () => navigate(`/purchases/returns/create?purchase_id=${id}`) },
               { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => toast.info('Logs coming soon') },

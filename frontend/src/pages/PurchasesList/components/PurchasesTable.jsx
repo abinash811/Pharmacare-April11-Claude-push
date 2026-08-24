@@ -59,7 +59,7 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
                   <td className="px-4 py-2.5">
                     <div className="flex items-center justify-end gap-1">
                       <AppButton variant="ghost" iconOnly icon={<Eye className="h-4 w-4 text-blue-600" strokeWidth={1.5} />} aria-label="View purchase" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/${item.id}`); }} />
-                      <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label="Edit purchase" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }} />
+                      {isParked && <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label="Edit purchase" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }} />}
                       {badge.clickable && <AppButton variant="ghost" iconOnly icon={<CreditCard className="h-4 w-4 text-green-600" strokeWidth={1.5} />} aria-label="Record payment" onClick={(e) => { e.stopPropagation(); onPayClick(item); }} />}
                     </div>
                   </td>

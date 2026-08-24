@@ -1,5 +1,5 @@
 # PharmaCare — Feature Reference
-# Last updated: August 24, 2026
+# Last updated: August 24, 2026 (rev 2)
 # Audience: Developers, designers, new hires, product reviewers
 # Purpose: For every feature — why it exists, who uses it, how it works in the product.
 # Rule: Update this file every time a feature ships or changes behaviour.
@@ -251,11 +251,11 @@ Each feature entry answers 4 questions:
 **Fixed Aug 24, 2026:**
 - `free_qty_units` — added `PurchaseItem.free_qty_units` (migration `d0c8956ea229`), now stored and returned correctly, and added to batch stock on confirm. This was a real, live-broken UI feature — `PurchaseNew`/`PurchaseDetail` already had the input and display for it, silently discarded server-side the whole time.
 - No duplicate-batch-number guard on confirm — `_create_stock_for_items` now rejects confirming a purchase with a batch number already used for that product, matching `POST /stock/batches`'s existing check.
+- `round_off` was hardcoded to `0` — now derived from already-stored columns (`grand_total_paise - subtotal_paise - total_gst_paise`), no schema change needed.
 
-**Known gaps — real, code-confirmed, not yet fixed:**
-- `discount_percent` on each purchase line is hardcoded to `0` on both create and update, even though the column exists — supplier trade discounts aren't captured at all.
+**Known gaps — real, code-confirmed, not yet fixed (deferred — bigger feature work, not small fixes; see V1/V2 scope discussion Aug 24, 2026):**
+- `discount_percent` on each purchase line is hardcoded to `0` on both create and update — the column exists, but there's no request field or UI input for it either (unlike `free_qty_units`, which was fully built and only broken server-side). A real fix needs a new UI column plus tax-math changes, not just wiring.
 - `total_igst_paise` column exists but is never populated — GST is always split CGST+SGST even for an inter-state (IGST) purchase. Same class of bug as the Billing IGST issue found earlier.
-- `round_off` is a hardcoded `0` in the API response — not a real field.
 - No partial-receipt / short-delivery tracking: `quantity_received` exists on the schema but confirm always sets it as all received — "ordered 100, received 80" isn't representable. Real pharmacies short-receive often.
 - No separate PO → GRN two-step flow — "order placed" and "goods physically received" are collapsed into one draft→confirmed action.
 - No supplier-wise outstanding ledger *view* — payments are tracked per-purchase (`PurchasePayment`), no consolidated transaction-by-transaction breakdown per supplier. (The outstanding *number* itself is now correct — see Purchase Return's fixes below — this gap is only about a missing itemized view.)
@@ -276,10 +276,10 @@ Each feature entry answers 4 questions:
 - **Silent stock skip on confirm** — `_deduct_stock_and_record` now raises a clear 400 instead of silently skipping when a batch doesn't have enough stock. A return that can't physically be deducted no longer still issues a credit reference.
 - **Return quantity matched by product name, not product ID** — two products sharing a display name (no uniqueness constraint on `Product.name`) could hit the max-returnable check on the wrong product. Now keyed by `product_id`.
 - **Supplier outstanding balance ignored returns** — `_calc_outstanding` now subtracts confirmed `PurchaseReturn.grand_total_paise` for that supplier, clamped at 0. A confirmed return issues a credit note but never touched the original `Purchase` row's own totals, so the shown balance used to overstate what's actually owed.
+- **Wrong-batch fallback removed** — used to fall back to "any batch for this product with stock" if the requested batch wasn't found; now returns a clear 404 instead. The real UI always sends a real `batch_id` from `items-for-return`, so this path was never legitimately exercised.
+- **Naming fixed for GST filing** — `credit_note_number`/`SCRED-` renamed to `debit_note_number`/`SDN-` (migration `d2b4ac9c191e`). A pharmacy returning goods to a supplier issues a **debit note** (reduces what it owes the supplier), not a credit note — Marg ERP labels this exact flow "Debit Note." Backend-only rename, no frontend code read the old field name.
 
-**Known gaps — real, code-confirmed, money/compliance risk:**
-- **Wrong-batch fallback:** if the requested batch isn't found, the code falls back to "any batch for this product with stock" — could deduct from a different batch than the one actually being returned, breaking batch-level traceability (Schedule H1 register needs exact batch tracking).
-- **Naming is backwards for GST filing:** the field/prefix is `credit_note_number` / `SCRED-`, but a pharmacy returning goods to a supplier issues a **debit note** (reduces what it owes the supplier) — a credit note is the reverse direction. Marg ERP labels this exact flow "Debit Note." Worth checking if this mislabeling reaches GST filing/reports.
+**Known gaps — real, code-confirmed, deferred (bigger feature work, see V1/V2 scope discussion Aug 24, 2026):**
 - Same `discount_percent`/IGST gaps as Purchase/GRN above, inherited on the return side too.
 
 ---

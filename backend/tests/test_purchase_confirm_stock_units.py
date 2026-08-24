@@ -221,6 +221,7 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
             "items": [{
                 "product_sku": product["sku"],
                 "product_name": product["name"],
+                "batch_id": batches_before[0]["id"],
                 "return_qty_units": 20,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,

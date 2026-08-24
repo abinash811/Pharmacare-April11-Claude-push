@@ -76,13 +76,17 @@ async def _generate_return_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> s
     return f"{prefix}{new_num:04d}"
 
 
-async def _generate_credit_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+async def _generate_debit_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+    # A pharmacy returning goods to a supplier issues a debit note (reduces
+    # what it owes the supplier) — a credit note is the reverse direction.
+    # Was "SCRED-"/credit_note_number, matching sales_returns.py's genuinely
+    # correct credit-note terminology by copy-paste, not by design.
     current_year = datetime.now(timezone.utc).year
-    prefix = f"SCRED-{current_year}-"
+    prefix = f"SDN-{current_year}-"
     result = await db.execute(
-        select(PurchaseReturnORM.credit_note_number)
-        .where(PurchaseReturnORM.pharmacy_id == pharmacy_id, PurchaseReturnORM.credit_note_number.like(f"{prefix}%"))
-        .order_by(PurchaseReturnORM.credit_note_number.desc())
+        select(PurchaseReturnORM.debit_note_number)
+        .where(PurchaseReturnORM.pharmacy_id == pharmacy_id, PurchaseReturnORM.debit_note_number.like(f"{prefix}%"))
+        .order_by(PurchaseReturnORM.debit_note_number.desc())
         .limit(1)
     )
     last = result.scalar_one_or_none()
@@ -104,7 +108,7 @@ def _return_response(r: PurchaseReturnORM,
         "gst_amount": r.total_gst_paise / 100,
         "total_value": r.grand_total_paise / 100,
         "note": r.notes,
-        "credit_note_number": r.credit_note_number,
+        "debit_note_number": r.debit_note_number,
         "items": [_return_item_response(i) for i in items],
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "updated_at": r.updated_at.isoformat() if r.updated_at else None,
@@ -129,7 +133,15 @@ def _return_item_response(i: PurchaseReturnItemORM) -> dict:
 
 async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: str |
                       None, batch_no: str | None, db: AsyncSession) -> BatchORM | None:
-    """Find a batch by ID or by product+batch_number."""
+    """Find a batch by ID or by product+batch_number.
+
+    No longer falls back to "any batch for this product with stock" when
+    neither matches — that could silently deduct from a different batch
+    than the one actually being returned, breaking the batch-level
+    traceability Schedule H1 depends on. Callers already raise a 404 on
+    None (the real UI always sends a real batch_id from the original
+    purchase item, so this path isn't exercised by any current screen).
+    """
     if batch_id:
         try:
             result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
@@ -147,13 +159,7 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: s
         batch = result.scalar_one_or_none()
         if batch:
             return batch
-    # Fallback: any batch for this product
-    result = await db.execute(
-        select(BatchORM).where(
-            BatchORM.product_id == product_id,
-            BatchORM.quantity_on_hand > 0).limit(1)
-    )
-    return result.scalar_one_or_none()
+    return None
 
 
 async def _deduct_stock_and_record(
@@ -645,16 +651,16 @@ async def confirm_purchase_return(return_id: str, current_user: User = Depends(
         )
         movements_created += 1
 
-    # Generate credit note number
-    credit_number = await _generate_credit_number(pharmacy_id, db)
+    # Generate debit note number
+    debit_number = await _generate_debit_number(pharmacy_id, db)
     purchase_return.status = "confirmed"
-    purchase_return.credit_note_number = credit_number
+    purchase_return.debit_note_number = debit_number
 
     await db.flush()
 
     return {
         "message": "Purchase return confirmed successfully",
-        "credit_number": credit_number,
-        "credit_amount": purchase_return.grand_total_paise / 100,
+        "debit_number": debit_number,
+        "debit_amount": purchase_return.grand_total_paise / 100,
         "stock_movements_created": movements_created,
     }

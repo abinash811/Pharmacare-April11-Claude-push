@@ -100,7 +100,7 @@ class _AuthedTestBase:
         assert resp.status_code == 200, resp.text
         return resp.json()
 
-    def _create_return(self, supplier_id, purchase_id, sku, product_name, return_qty_units):
+    def _create_return(self, supplier_id, purchase_id, sku, product_name, return_qty_units, batch_id):
         return self.session.post(f"{BASE_URL}/api/purchase-returns", json={
             "supplier_id": supplier_id,
             "purchase_id": purchase_id,
@@ -108,6 +108,7 @@ class _AuthedTestBase:
             "items": [{
                 "product_sku": sku,
                 "product_name": product_name,
+                "batch_id": batch_id,
                 "return_qty_units": return_qty_units,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,
@@ -132,7 +133,8 @@ class TestPurchaseReturnInsufficientStock(_AuthedTestBase):
         assert self._get_batch(product["sku"])["qty_on_hand"] == 5
 
         resp = self._create_return(
-            supplier_id, purchase["id"], product["sku"], product["name"], return_qty_units=30)
+            supplier_id, purchase["id"], product["sku"], product["name"],
+            return_qty_units=30, batch_id=batch["id"])
 
         assert resp.status_code == 400, (
             f"Returning 30 units against 5 on hand must be rejected, got "
@@ -158,9 +160,11 @@ class TestPurchaseReturnInsufficientStock(_AuthedTestBase):
         supplier_id = self._get_or_create_supplier()
 
         purchase = self._confirm_purchase(supplier_id, product["sku"], product["name"], qty_units=50)
+        batch = self._get_batch(product["sku"])
 
         resp = self._create_return(
-            supplier_id, purchase["id"], product["sku"], product["name"], return_qty_units=10)
+            supplier_id, purchase["id"], product["sku"], product["name"],
+            return_qty_units=10, batch_id=batch["id"])
         assert resp.status_code == 200, resp.text
 
         assert self._get_batch(product["sku"])["qty_on_hand"] == 40
@@ -173,9 +177,11 @@ class TestPurchaseReturnInsufficientStock(_AuthedTestBase):
         supplier_id = self._get_or_create_supplier()
 
         purchase = self._confirm_purchase(supplier_id, product["sku"], product["name"], qty_units=50)
+        initial_batch = self._get_batch(product["sku"])
 
         create_resp = self._create_return(
-            supplier_id, purchase["id"], product["sku"], product["name"], return_qty_units=10)
+            supplier_id, purchase["id"], product["sku"], product["name"],
+            return_qty_units=10, batch_id=initial_batch["id"])
         assert create_resp.status_code == 200, create_resp.text
         return_id = create_resp.json()["id"]
 
@@ -192,6 +198,7 @@ class TestPurchaseReturnInsufficientStock(_AuthedTestBase):
             "items": [{
                 "product_sku": product["sku"],
                 "product_name": product["name"],
+                "batch_id": batch["id"],
                 "return_qty_units": 15,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,

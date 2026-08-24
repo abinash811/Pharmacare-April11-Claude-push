@@ -146,7 +146,7 @@ class PurchaseReturn(Base):
     total_gst_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     grand_total_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    credit_note_number: Mapped[Optional[str]] = mapped_column(String(100))
+    debit_note_number: Mapped[Optional[str]] = mapped_column(String(100))
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"))

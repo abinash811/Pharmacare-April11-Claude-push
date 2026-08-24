@@ -91,7 +91,11 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         "payment_status": p.payment_status,
         "subtotal": p.subtotal_paise / 100,
         "tax_value": p.total_gst_paise / 100,
-        "round_off": 0,
+        # grand_total_paise is rounded to the nearest rupee at create/update
+        # time (see create_purchase/update_purchase) — this was hardcoded to
+        # 0 even though real rounding happens; derive it from the same
+        # already-stored columns instead of a fake constant.
+        "round_off": (p.grand_total_paise - p.subtotal_paise - p.total_gst_paise) / 100,
         "total_value": p.grand_total_paise / 100,
         "amount_paid": p.amount_paid_paise / 100,
         "note": p.notes,

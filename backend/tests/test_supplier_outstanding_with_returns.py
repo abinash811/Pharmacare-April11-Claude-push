@@ -89,6 +89,11 @@ class TestSupplierOutstandingWithReturns(_AuthedTestBase):
             f"Outstanding should equal the unpaid purchase's total, got "
             f"{outstanding_after_purchase} vs purchase total {purchase['total_value']}")
 
+        items_resp = self.session.get(
+            f"{BASE_URL}/api/purchases/{purchase['id']}/items-for-return")
+        assert items_resp.status_code == 200, items_resp.text
+        batch_id = items_resp.json()["items"][0]["batch_id"]
+
         return_resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json={
             "supplier_id": supplier_id,
             "purchase_id": purchase["id"],
@@ -96,6 +101,7 @@ class TestSupplierOutstandingWithReturns(_AuthedTestBase):
             "items": [{
                 "product_sku": product["sku"],
                 "product_name": product["name"],
+                "batch_id": batch_id,
                 "return_qty_units": 3,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,
@@ -135,6 +141,11 @@ class TestSupplierOutstandingWithReturns(_AuthedTestBase):
         assert purchase["payment_status"] == "paid"
         assert self._get_outstanding(supplier_id) == 0
 
+        items_resp = self.session.get(
+            f"{BASE_URL}/api/purchases/{purchase['id']}/items-for-return")
+        assert items_resp.status_code == 200, items_resp.text
+        batch_id = items_resp.json()["items"][0]["batch_id"]
+
         return_resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json={
             "supplier_id": supplier_id,
             "purchase_id": purchase["id"],
@@ -142,6 +153,7 @@ class TestSupplierOutstandingWithReturns(_AuthedTestBase):
             "items": [{
                 "product_sku": product["sku"],
                 "product_name": product["name"],
+                "batch_id": batch_id,
                 "return_qty_units": 5,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,

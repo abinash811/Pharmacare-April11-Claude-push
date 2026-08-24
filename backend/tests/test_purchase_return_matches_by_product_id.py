@@ -115,6 +115,11 @@ class TestPurchaseReturnMatchesByProductId(_AuthedTestBase):
 
         purchase = self._confirm_purchase(supplier_id, product_a, qty_units=10)
 
+        items_resp = self.session.get(
+            f"{BASE_URL}/api/purchases/{purchase['id']}/items-for-return")
+        assert items_resp.status_code == 200, items_resp.text
+        batch_id = items_resp.json()["items"][0]["batch_id"]
+
         resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json={
             "supplier_id": supplier_id,
             "purchase_id": purchase["id"],
@@ -122,6 +127,7 @@ class TestPurchaseReturnMatchesByProductId(_AuthedTestBase):
             "items": [{
                 "product_sku": product_a["sku"],
                 "product_name": product_a["name"],
+                "batch_id": batch_id,
                 "return_qty_units": 4,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,

@@ -55,6 +55,14 @@ class Purchase(Base):
     payment_status: Mapped[str] = mapped_column(String(20), default="unpaid", nullable=False)
     due_date: Mapped[Optional[date]] = mapped_column(Date)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    # A scanned invoice/bill, stored as a base64 data: URL — same pattern
+    # as the pharmacy logo (Settings/components/LogoUpload.tsx), the only
+    # existing file-upload precedent in this codebase; no S3/disk storage
+    # exists anywhere yet, and one image/PDF per purchase doesn't justify
+    # standing one up. Postgres TEXT is unbounded, so the 5MB (decoded)
+    # cap enforced at the API layer is the only real size guard.
+    invoice_attachment_data: Mapped[Optional[str]] = mapped_column(Text)
+    invoice_attachment_name: Mapped[Optional[str]] = mapped_column(String(255))
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"))
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))

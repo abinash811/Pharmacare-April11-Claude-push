@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
@@ -62,6 +63,8 @@ class PurchaseCreate(BaseModel):
     tcs: float = 0
     extra_charges: float = 0
     adjustment_amount: float = 0
+    invoice_attachment_data: Optional[str] = None
+    invoice_attachment_name: Optional[str] = None
 
 
 class PurchasePaymentRequest(BaseModel):
@@ -125,6 +128,8 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         # payments (create_purchase/update_purchase, where a brand-new
         # purchase can't have a payment yet).
         "last_payment_date": None,
+        "invoice_attachment_data": p.invoice_attachment_data,
+        "invoice_attachment_name": p.invoice_attachment_name,
         "note": p.notes,
         "items": [_purchase_item_response(i) for i in items],
         "created_at": p.created_at.isoformat() if p.created_at else None,
@@ -189,6 +194,36 @@ async def _get_product_by_sku(pharmacy_id: uuid.UUID, sku: str, db: AsyncSession
     if not product:
         raise HTTPException(status_code=404, detail=f"Product {sku} not found")
     return product
+
+
+INVOICE_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024  # 5MB decoded
+INVOICE_ATTACHMENT_ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
+
+
+def _validate_invoice_attachment(data_url: str) -> None:
+    """data_url is a data: URL (e.g. "data:application/pdf;base64,JVBERi0..."),
+    same client-side-base64 shape LogoUpload.tsx already produces — no
+    backend upload endpoint or file storage exists anywhere in this
+    codebase to justify standing one up for a single per-purchase file."""
+    if not data_url.startswith("data:") or ";base64," not in data_url:
+        raise HTTPException(status_code=400, detail="Invalid invoice attachment format")
+
+    header, _, b64_payload = data_url.partition(";base64,")
+    mime_type = header[len("data:"):]
+    if mime_type not in INVOICE_ATTACHMENT_ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invoice attachment must be an image or PDF, got '{mime_type}'")
+
+    try:
+        decoded = base64.b64decode(b64_payload, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invoice attachment is not valid base64 data")
+
+    if len(decoded) > INVOICE_ATTACHMENT_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invoice attachment must be under {INVOICE_ATTACHMENT_MAX_BYTES // (1024 * 1024)}MB")
 
 
 async def _record_audit(
@@ -356,6 +391,8 @@ async def get_purchases(
 async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "create", db)
+    if purchase_data.invoice_attachment_data:
+        _validate_invoice_attachment(purchase_data.invoice_attachment_data)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(purchase_data.supplier_id)
 
@@ -459,6 +496,8 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
         status=status,
         payment_status=payment_status,
         notes=purchase_data.note,
+        invoice_attachment_data=purchase_data.invoice_attachment_data,
+        invoice_attachment_name=purchase_data.invoice_attachment_name,
         created_by=uuid.UUID(current_user.id),
     )
     db.add(purchase)
@@ -494,6 +533,8 @@ async def update_purchase(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "edit", db)
+    if purchase_data.invoice_attachment_data:
+        _validate_invoice_attachment(purchase_data.invoice_attachment_data)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
@@ -589,6 +630,8 @@ async def update_purchase(
     purchase.grand_total_paise = grand_total_paise
     purchase.status = status
     purchase.notes = purchase_data.note
+    purchase.invoice_attachment_data = purchase_data.invoice_attachment_data
+    purchase.invoice_attachment_name = purchase_data.invoice_attachment_name
 
     await db.flush()
 

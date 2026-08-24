@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
 import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
@@ -127,6 +127,19 @@ export default function PurchaseDetail() {
             <span className="text-[10px] text-gray-400 uppercase font-medium">Inv#</span>
             <span className="font-medium text-gray-700">{purchase.supplier_invoice_no || '—'}</span>
           </div>
+          {purchase.invoice_attachment_data && (
+            <a
+              href={purchase.invoice_attachment_data}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={purchase.invoice_attachment_name || 'invoice'}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-brand font-medium transition-colors"
+              data-testid="view-invoice-attachment-link"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+              <span className="truncate max-w-[100px]">{purchase.invoice_attachment_name || 'Invoice'}</span>
+            </a>
+          )}
           {purchase.due_date && (
             <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${isOverdue ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'}`}>
               <span className={`text-[10px] uppercase font-medium ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>Due</span>

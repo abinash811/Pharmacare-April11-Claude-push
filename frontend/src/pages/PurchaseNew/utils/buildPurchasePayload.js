@@ -16,13 +16,15 @@ export const expiryToISO = (mmyy) => {
 };
 
 export const buildPurchasePayload = ({
-  status, selectedSupplier, billDate, dueDate, supplierInvoiceNo,
+  status, selectedSupplier, billDate, dueDate, supplierInvoiceNo, invoiceAttachment,
   orderType, withGST, purchaseOn, internalNote, invoiceBreakdown, items, batchPriority,
 }) => ({
   supplier_id:        selectedSupplier.id,
   purchase_date:      billDate.toISOString().split('T')[0],
   due_date:           dueDate ? dueDate.toISOString().split('T')[0] : null,
   supplier_invoice_no: supplierInvoiceNo || null,
+  invoice_attachment_data: invoiceAttachment?.data || null,
+  invoice_attachment_name: invoiceAttachment?.name || null,
   order_type: orderType, with_gst: withGST, purchase_on: purchaseOn, status,
   payment_status: purchaseOn === 'cash' && status === 'confirmed' ? 'paid' : 'unpaid',
   note: internalNote || null,

@@ -43,6 +43,7 @@ export default function PurchaseNew() {
   const [billDate,          setBillDate]          = useState(new Date());
   const [dueDate,           setDueDate]           = useState(null);
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState('');
+  const [invoiceAttachment, setInvoiceAttachment] = useState(null); // { data, name } | null
   const duplicateInvoice = useDuplicateInvoiceCheck(selectedSupplier, supplierInvoiceNo, editId);
 
   // ── Modals ────────────────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ export default function PurchaseNew() {
           setSelectedSupplier({ id: p.supplier_id, name: p.supplier_name });
           setBillDate(new Date(p.purchase_date));
           setSupplierInvoiceNo(p.supplier_invoice_no || '');
+          setInvoiceAttachment(p.invoice_attachment_data
+            ? { data: p.invoice_attachment_data, name: p.invoice_attachment_name || 'invoice' } : null);
           setOrderType(p.order_type || 'direct');
           setWithGST(p.with_gst !== false);
           setPurchaseOn(p.purchase_on || 'credit');
@@ -136,7 +139,7 @@ export default function PurchaseNew() {
     setLoading(true);
     try {
       const payload = buildPurchasePayload({
-        status, selectedSupplier, billDate, dueDate, supplierInvoiceNo,
+        status, selectedSupplier, billDate, dueDate, supplierInvoiceNo, invoiceAttachment,
         orderType, withGST, purchaseOn, internalNote, invoiceBreakdown, items, batchPriority,
       });
       if (isEditMode && editId) {
@@ -217,6 +220,7 @@ export default function PurchaseNew() {
         selectedSupplier={selectedSupplier} suppliers={suppliers} onSupplierSelect={setSelectedSupplier}
         supplierInvoiceNo={supplierInvoiceNo} onInvoiceNoChange={setSupplierInvoiceNo}
         duplicateInvoice={duplicateInvoice}
+        invoiceAttachment={invoiceAttachment} onInvoiceAttachmentChange={setInvoiceAttachment}
         purchaseOn={purchaseOn} onPurchaseOnChange={setPurchaseOn}
         dueDate={dueDate} onDueDateChange={setDueDate}
         orderType={orderType} withGST={withGST}

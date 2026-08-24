@@ -12,6 +12,8 @@
  *   supplierInvoiceNo   {string}
  *   onInvoiceNoChange   {(string) => void}
  *   duplicateInvoice    {object|null}  { purchase_number, purchase_date } when this invoice # is already used for this distributor
+ *   invoiceAttachment   {object|null}  { data, name } — scanned invoice, see InvoiceAttachmentUpload
+ *   onInvoiceAttachmentChange {(value) => void}
  *   purchaseOn          {string}  'credit'|'cash'
  *   onPurchaseOnChange  {(string) => void}
  *   dueDate             {Date|null}
@@ -26,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { FilterPills, AppButton } from '@/components/shared';
 import SupplierDropdown from './SupplierDropdown';
+import InvoiceAttachmentUpload from './InvoiceAttachmentUpload';
 
 const PURCHASE_PAYMENT_TYPES = [
   { key: 'cash',   label: 'Cash'   },
@@ -44,6 +47,7 @@ export default function PurchaseSubbar({
   billDate, onBillDateChange,
   selectedSupplier, suppliers, onSupplierSelect,
   supplierInvoiceNo, onInvoiceNoChange, duplicateInvoice,
+  invoiceAttachment, onInvoiceAttachmentChange,
   purchaseOn, onPurchaseOnChange,
   dueDate, onDueDateChange,
   withGST, orderType,
@@ -121,6 +125,16 @@ export default function PurchaseSubbar({
               </p>
             </div>
           )}
+        </div>
+
+        <ColDivider />
+
+        {/* ── INVOICE ATTACHMENT ──────────────────────────────────────── */}
+        <div className="px-5 shrink-0">
+          <span className={LABEL}>Attachment</span>
+          <div className="h-6 flex items-center">
+            <InvoiceAttachmentUpload value={invoiceAttachment} onChange={onInvoiceAttachmentChange} />
+          </div>
         </div>
 
         {/* ── DUE DATE (credit only) ───────────────────────────────────── */}

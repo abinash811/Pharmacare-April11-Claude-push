@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.12 | Last updated: August 23, 2026
+# Version: 2.13 | Last updated: August 23, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -20,11 +20,21 @@
 
 ## PHASE 1 — SINGLE STORE (Current)
 
+> **V1 launch scope confirmed with Abinash, Aug 23, 2026.** Inventory
+> (add/upload/bulk-update/filter), Purchases + Returns, Billing + Returns,
+> Reports (CSV/Excel downloads), Analytics, Settings — all at "good enough
+> for a real single pharmacy" depth, advanced features deferred to V2.
+> Forgot-password + admin-reset-password pulled into V1 from Auth Overhaul
+> below (a locked-out cashier stops billing — that's a launch blocker, not
+> a nice-to-have). Session management (force-logout) stays V2.
+
 ### Core Infrastructure
 
 | Feature | Status | Notes |
 |---------|--------|-------|
 | JWT authentication | ✅ | Login, register, token refresh |
+| Forgot password / reset flow | 📋 | V1-required — see Auth Overhaul #6 for design notes |
+| Admin reset password for other users | 📋 | V1-required — see Auth Overhaul #8 for design notes |
 | Multi-tenancy (pharmacy_id isolation) | 🔄 | Enforced on the paths that have been audited; a real signup-flow bug (fixed) proved the pattern "forgot to scope by pharmacy_id" exists — full query audit not yet done. See `13_DEPLOYMENT.md` PRE-LAUNCH BLOCKERS #2. |
 | Soft deletes | ✅ | `is_deleted` + `deleted_at` on all tables |
 | Audit logging | ✅ | All state changes logged |
@@ -330,11 +340,14 @@ Replace all centered modals for data-entry forms.
 
 ---
 
-## AUTH OVERHAUL — `📋 Planned` (build as one sprint)
+## AUTH OVERHAUL
 
-All auth improvements must be built together — they share the same architectural change (stateless JWT → DB-backed sessions).
+> #6 and #8 moved into Phase 1 (V1 launch scope, confirmed Aug 23, 2026) —
+> they don't strictly need the full DB-backed-sessions rework #7 does; a
+> simple reset-token table is enough on top of today's stateless JWT.
+> #7 (session management) stays `📋 Planned` for V2.
 
-### 6. Forgot password / reset flow — `📋 Planned`
+### 6. Forgot password / reset flow — `📋 Planned` — V1
 
 - **What:** "Forgot password?" on login → email with reset link → user sets new password
 - **Why:** Currently no self-service recovery. If a user forgets their password, they are locked out.
@@ -349,7 +362,7 @@ All auth improvements must be built together — they share the same architectur
 - **Needs:** `user_sessions` table (user_id, device, ip, last_seen, token_ref), token blacklist or DB-backed refresh tokens, `GET /users/{id}/sessions`, `DELETE /sessions/{id}` endpoints
 - **Rule:** Logging out a session must take effect within seconds — not at next JWT expiry.
 
-### 8. Admin reset password for other users — `📋 Planned`
+### 8. Admin reset password for other users — `📋 Planned` — V1
 
 - **What:** Admin sets a temporary password for any user from Team → Members
 - **Why:** Cashier forgets password → billing counter stops. Admin must be able to unblock them instantly.

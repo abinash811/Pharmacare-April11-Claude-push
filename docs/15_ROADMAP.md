@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.15 | Last updated: August 24, 2026
+# Version: 2.16 | Last updated: August 24, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -275,14 +275,38 @@ IGST/intra-inter-state (deferred — single-state sale only for now).
   matched supplier name. Fixed: added the 2 columns, wired a supplier
   filter dropdown, added a pharmacy-scoped supplier-name subquery to
   search.
+- MRP=0/negative was confirmable — nothing validated it client or
+  server side, despite it being required for `mrp_paise`. Fixed: guard
+  in `_create_stock_for_items` (confirm-time only, drafts still
+  allowed to save with it blank) plus matching frontend validation.
+- Two independently-built Purchase payment modals consolidated into
+  one (`PurchaseDetail/components/PurchasePayModal.jsx`, imported by
+  both List and Detail) — union of both originals' fields (Amount,
+  Method, Date, Reference #, Notes), payment methods centralized in
+  `PURCHASE_PAYMENT_METHOD` (`domainConstants.js`).
+- `payment_date` picked in the modal was silently discarded — the
+  column existed since the initial schema migration but the router
+  never read or forwarded it. Fixed: persisted, surfaced as
+  `last_payment_date` on the purchase detail response, displayed in
+  PurchaseDetail ("Paid on `<date>`" / "Last paid on `<date>`").
+- `purchase_returns.py` had zero audit logging (create immediately
+  confirms + deducts stock; financial edits mutate stock further) —
+  fixed, mirrors `purchases.py`'s existing `_record_audit` pattern.
+- The permission system (roles, per-module view/create/edit rules,
+  `has_permission()`) existed since the app's seed data but was wired
+  into zero endpoints anywhere in the app — not Purchases-specific,
+  app-wide. Scoped fix, discussed with Abinash first: enforced on
+  every Purchases/Purchase-Returns **write** endpoint only (GET/list/
+  detail left ungated); every other module remains unenforced for now
+  — a deliberate, known inconsistency, not a decided final state.
 - Still queued from the same audit (excluding IGST/intra-inter-state):
-  cancellation/reversal for confirmed purchases, missing payment
-  methods + duplicate payment modals, frontend float math on money,
-  locked read-only view for confirmed-purchase edit attempts, narrower
-  product search (name+SKU only), duplicate-invoice-number warning,
-  invoice attachment upload, last-purchased-price hint, stock ledger
-  schema gaps, remaining `Purchase`/`PurchaseItem`/`Supplier` schema
-  gaps.
+  cancellation/reversal for confirmed purchases, Card/Other payment
+  methods, frontend float math on money, locked read-only view for
+  confirmed-purchase edit attempts, narrower product search (name+SKU
+  only), duplicate-invoice-number warning, invoice attachment upload,
+  last-purchased-price hint, stock ledger schema gaps, remaining
+  `Purchase`/`PurchaseItem`/`Supplier` schema gaps, app-wide permission
+  rollout beyond Purchases/Purchase Returns.
 
 **Purchases — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP, eVitalRx, and Pharmasoft. Verified against real code (`backend/routers/purchases.py` — every endpoint grepped and listed: list/create/update/get/pay, no others exist), not guessed.
 
@@ -506,6 +530,7 @@ for the next entry in this table if they slip:
 | No CI/CD pipeline | Medium | Manual deploys today |
 | No staging environment | Medium | Dev → prod directly today |
 | Feature flags not connected to Roadmap items | Medium | All 📋 items should ship behind a flag |
+| Permission system (`role.permissions`, `has_permission()`) unenforced app-wide | High | Found Aug 24, 2026 auditing Purchases — the roles/permissions data and checker function exist and are seeded, but were called from zero endpoints anywhere. Enforced for Purchases/Purchase Returns writes only (deliberate, scoped, discussed with Abinash first); every other module (Billing, Inventory, Customers, Suppliers, Reports, Settings) remains fully open to any authenticated user regardless of role. Needs an explicit decision on the app-wide rollout, not silent module-by-module fixes. |
 
 ---
 

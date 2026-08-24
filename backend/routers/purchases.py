@@ -163,8 +163,18 @@ async def _create_stock_for_items(
     purchase: PurchaseORM, items: list[PurchaseItemORM],
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
 ) -> None:
-    """Create stock batches and movements when a purchase is confirmed."""
+    """Create stock batches and movements when a purchase is confirmed.
+
+    StockBatch.quantity_on_hand is in packs everywhere else it's written
+    (billing.py's _deduct_stock_and_record, purchase_returns.py's
+    _deduct_stock_and_record, batches.py's /adjust) — item.quantity_ordered
+    is in units (PurchaseItemCreate.qty_units). Convert before storing,
+    same floor-division pattern used at every other write site.
+    """
     for item in items:
+        units_per_pack = item.units_per_pack or 1
+        pack_qty = item.quantity_ordered // units_per_pack if units_per_pack > 1 else item.quantity_ordered
+
         batch = BatchORM(
             pharmacy_id=pharmacy_id,
             product_id=item.product_id,
@@ -172,8 +182,8 @@ async def _create_stock_for_items(
             expiry_date=item.expiry_date or date.today() + timedelta(days=365),
             mrp_paise=item.mrp_paise,
             cost_price_paise=item.cost_price_paise,
-            quantity_received=item.quantity_ordered,
-            quantity_on_hand=item.quantity_ordered,
+            quantity_received=pack_qty,
+            quantity_on_hand=pack_qty,
         )
         db.add(batch)
         await db.flush()
@@ -184,7 +194,7 @@ async def _create_stock_for_items(
         db.add(MovementORM(
             pharmacy_id=pharmacy_id, product_id=item.product_id, batch_id=batch.id,
             movement_type="purchase", quantity=item.quantity_ordered,
-            quantity_before=0, quantity_after=item.quantity_ordered,
+            quantity_before=0, quantity_after=pack_qty,
             reference_type="purchase", reference_id=purchase.id,
             user_id=user_id, notes=f"Purchase {purchase.purchase_number}",
         ))

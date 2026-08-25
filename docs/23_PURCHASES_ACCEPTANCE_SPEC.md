@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.1 | Last updated: August 25, 2026
+# Version: 1.2 | Last updated: August 25, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -98,8 +98,11 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 Fixed. `SupplierDropdown` now shows "+ Add '<name>' as new distributor" whenever `allowCreate` is on and the search box has text (whether or not there are other matches) — opt-in via a prop so `PurchasesList`'s read-only filter usage of the same component doesn't get a create option. Clicking it opens the existing Supplier form (moved to `components/shared/SupplierFormModal.tsx` so both Suppliers and Purchases share one implementation — was previously owned solely by the Suppliers page), prefilled with the typed name, validated with the same GSTIN/phone rules as the standalone Suppliers page. On save: posts to `POST /suppliers` (existing endpoint — already blocks duplicate names with a 400), auto-selects the new supplier, and adds it to the in-memory `suppliers` list so it's immediately searchable again without a refetch. Verified live end-to-end (zero-data: a genuinely new name, never in the system) and via 5 new component tests (`PurchaseNew/components/__tests__/SupplierDropdown.test.jsx`) plus 2 new tests on the moved form (`components/shared/__tests__/SupplierFormModal.test.jsx`).
 Real bug caught during this build (not shipped): the initial implementation read the typed name from the same state the search-popover clears on close, so the create form opened blank — fixed by capturing the name into dedicated state at click time, before the popover's close handler could clear it. Caught by live verification, not by the type-checker or lint.
 
-### UC-P03: Upload supplier bill — 🔄 Partial
-Image (jpeg/png/webp) or PDF only — no Excel/CSV import, no distinct camera-capture flow, single attachment only (not multiple). 5MB cap + mime validation enforced both client and server (`InvoiceAttachmentUpload.tsx`, backend `_validate_invoice_attachment`). Stored as base64 in a Postgres TEXT column, no dedicated secure file store or access control beyond normal purchase-record permissions.
+### UC-P03: Upload supplier bill — 🔄 Partial, scope confirmed with Abinash (Aug 25, 2026)
+Scope decision: "upload and create a purchase" means attach-a-file-for-reference, **not** AI/OCR auto-extraction of line items from the bill — that would be new architecture and real ongoing cost, and was explicitly declined for now (offered as the bigger option, not chosen).
+
+Within that scope: image (jpeg/png/webp) or PDF only — no Excel/CSV import, no distinct camera-capture flow, single attachment only (not multiple, would need a backend schema change — bigger than this batch). 5MB cap + mime validation enforced both client and server (`InvoiceAttachmentUpload.tsx`, backend `_validate_invoice_attachment`). Stored as base64 in a Postgres TEXT column, no dedicated secure file store or access control beyond normal purchase-record permissions.
+**New, Aug 25**: the attached file can now be previewed before confirming the purchase — click the chip to open it in a new tab, same pattern the already-working "view later" link on a confirmed purchase uses (`PurchaseDetail/index.jsx:128-140`, confirmed already built). Closes the "preview the file" / "view or download it later" gaps.
 
 ### UC-P04: Create purchase manually — ✅ Built
 Full flow verified end-to-end: draft → supplier → invoice# → date → due date → items/batches → totals review → save/confirm. Live-tested this session.

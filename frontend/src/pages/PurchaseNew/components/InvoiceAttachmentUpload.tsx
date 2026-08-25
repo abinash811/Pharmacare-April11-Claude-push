@@ -50,8 +50,21 @@ export default function InvoiceAttachmentUpload({ value, onChange }: Props) {
   if (value) {
     return (
       <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded-lg" data-testid="invoice-attachment-preview">
-        <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-        <span className="text-xs text-gray-700 max-w-[100px] truncate" title={value.name}>{value.name}</span>
+        {/* Opens the same base64 data: URL a saved purchase's "view invoice
+            attachment" link already opens (PurchaseDetail/index.jsx) — so a
+            pharmacist can confirm they photographed the right, legible page
+            before confirming, not only after. */}
+        <a
+          href={value.data}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 min-w-0 hover:underline"
+          data-testid="preview-invoice-attachment-link"
+          title={`Preview ${value.name}`}
+        >
+          <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <span className="text-xs text-gray-700 max-w-[100px] truncate">{value.name}</span>
+        </a>
         <AppButton
           variant="ghost" iconOnly size="sm"
           icon={<X className="w-3 h-3" />}

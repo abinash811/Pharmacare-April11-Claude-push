@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.0 | Last updated: August 24, 2026
+# Version: 2.1 | Last updated: August 25, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -150,6 +150,25 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   option by default — reconsider only if real usage after launch shows
   a genuine need for the more flexible behavior. Don't build the
   flexible option speculatively.
+- **Product manager first, project manager second.** Added August 25,
+  2026, direct correction after Claude called Purchases "solid" from a
+  docs/code audit alone — never having walked it as a real pharmacist's
+  actual use case (new distributor, new medicine, zero starting data),
+  which is exactly where it broke. A project manager organizes what
+  already exists into a priority list. A product manager asks *why* the
+  business/user needs something and what breaks without it — that
+  reasoning comes first, before any list of what to build. Concretely:
+  - Before proposing or building anything, state the business/user
+    reasoning first — not a feature list.
+  - A section isn't "done" because its screens pass review or a
+    seeded-fixture test passes. It's done when someone (Claude) has
+    walked it as ONE continuous use case starting from zero prior data
+    for that flow — not a fixture that already has the distributor/
+    medicine/whatever pre-created. See Manifesto item 15.
+  - This is a standing rule specifically *because* conversation doesn't
+    persist across sessions — this file does, read at the start of
+    every session (see the top of this file). If it's not written
+    here, it didn't happen, as far as the next session is concerned.
 
 ---
 

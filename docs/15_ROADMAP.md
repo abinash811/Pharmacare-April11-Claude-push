@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.20 | Last updated: August 25, 2026
+# Version: 2.21 | Last updated: August 25, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -234,6 +234,17 @@ Fixed by making every endpoint (`/inventory`, `/reports/low-stock`, `/analytics/
 - Schedule H1 register reads `Product.drug_schedule` — ✅, already documented
 
 ### Purchases
+
+**Full acceptance spec (Aug 25, 2026)**: `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
+— all 73 use cases from Abinash's spec mapped against real code, every row
+evidenced. Supersedes the summary table below for anything more than a
+quick status check. Headline: 5 live bugs found (not just gaps) —
+overpayment isn't rejected and corrupts the payment ledger; a blank-batch
+double-submit can create duplicate stock; the GST report page is broken
+(field-name mismatch, throws on render); the Purchases list's Cash/Credit/
+Due filter pills send params the backend ignores; stock-adjust has zero
+permission check. See that doc's Executive Summary for the full ranked list
+and the recommended build-batch order.
 
 | Feature | Status | Notes |
 |---------|--------|-------|

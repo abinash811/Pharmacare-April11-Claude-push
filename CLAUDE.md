@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.1 | Last updated: August 25, 2026
+# Version: 2.2 | Last updated: August 25, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -87,6 +87,7 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 | 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
 | 22 | `docs/22_TECH_RADAR.md`   | What's modern/cost-efficient per stack layer, sourced externally — check before adopting new infra |
+| 23 | `docs/23_PURCHASES_ACCEPTANCE_SPEC.md` | Purchases + Purchase Returns full use-case spec vs. real code — every UC rated Built/Partial/Missing with evidence. The template for future module acceptance specs. |
 
 ---
 

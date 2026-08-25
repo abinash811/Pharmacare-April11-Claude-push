@@ -91,7 +91,21 @@ async def _generate_purchase_number(pharmacy_id: uuid.UUID, db: AsyncSession) ->
     return f"{prefix}{new_num:04d}"
 
 
-def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
+async def _get_product_skus(items: list[PurchaseItemORM], db: AsyncSession) -> dict:
+    """PurchaseItem only stores product_id (its real FK) — product_sku is a
+    request/response-only convenience the frontend's edit flow round-trips
+    unchanged on save. Never populating it here meant every edit of an
+    existing draft item 404'd on save (_get_product_by_sku(pharmacy_id, "",
+    db) — the blank string the response always used to carry back)."""
+    product_ids = {i.product_id for i in items}
+    if not product_ids:
+        return {}
+    result = await db.execute(select(ProductORM.id, ProductORM.sku).where(ProductORM.id.in_(product_ids)))
+    return {pid: sku for pid, sku in result.all()}
+
+
+async def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM], db: AsyncSession) -> dict:
+    product_skus = await _get_product_skus(items, db)
     return {
         "id": str(p.id),
         "purchase_number": p.purchase_number,
@@ -131,16 +145,16 @@ def _purchase_response(p: PurchaseORM, items: list[PurchaseItemORM]) -> dict:
         "invoice_attachment_data": p.invoice_attachment_data,
         "invoice_attachment_name": p.invoice_attachment_name,
         "note": p.notes,
-        "items": [_purchase_item_response(i) for i in items],
+        "items": [_purchase_item_response(i, product_skus) for i in items],
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
 
 
-def _purchase_item_response(i: PurchaseItemORM) -> dict:
+def _purchase_item_response(i: PurchaseItemORM, product_skus: Optional[dict] = None) -> dict:
     return {
         "id": str(i.id),
-        "product_sku": "",  # filled by caller if needed
+        "product_sku": (product_skus or {}).get(i.product_id, ""),
         "product_name": i.product_name,
         "batch_no": i.batch_number,
         "expiry_date": i.expiry_date.isoformat() if i.expiry_date else None,
@@ -523,7 +537,7 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
     )
     await db.flush()
 
-    return _purchase_response(purchase, item_orms)
+    return await _purchase_response(purchase, item_orms, db)
 
 
 @router.put("/purchases/{purchase_id}")
@@ -651,7 +665,7 @@ async def update_purchase(
     # an async context). Refresh eagerly here instead of letting it lazy-load.
     await db.refresh(purchase)
 
-    return _purchase_response(purchase, item_orms)
+    return await _purchase_response(purchase, item_orms, db)
 
 
 @router.delete("/purchases/{purchase_id}")
@@ -736,7 +750,7 @@ async def get_purchase(purchase_id: str, current_user: User = Depends(
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == purchase.id))
     items = items_result.scalars().all()
 
-    resp = _purchase_response(purchase, items)
+    resp = await _purchase_response(purchase, items, db)
 
     # Enrich with supplier name
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase.supplier_id))
@@ -806,7 +820,7 @@ async def mark_purchase_paid(
     await db.refresh(purchase)  # see comment on the same pattern in update_purchase()
 
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
-    resp = _purchase_response(purchase, items_result.scalars().all())
+    resp = await _purchase_response(purchase, items_result.scalars().all(), db)
     # Not simply payment_dt — a backdated payment_date on this payment
     # could still be older than an existing payment's date, so the true
     # most-recent-by-date must be looked up rather than assumed.

@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.3 | Last updated: August 25, 2026
+# Version: 1.4 | Last updated: August 25, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -126,8 +126,14 @@ Draft correctly excluded from stock/balance/reports (verified: `_create_stock_fo
 ### UC-P07: Confirm purchase — 🔄 Partial
 Inventory/batch/ledger/payable/reports/audit all update correctly on confirm, in one atomic DB transaction (verified: `database.py:27-34`'s commit-on-success/rollback-on-exception pattern wraps the whole request — a mid-request failure like the MRP check rolls back everything, no partial posting). The one real gap: **double-confirmation is only guarded when the client sends an explicit shared batch number** — see bug #2 above.
 
-### UC-P08: Edit draft purchase — ✅ Built
-Every field editable pre-confirm, totals recalculate, permission-gated. Minor gap: no field-level diff/version history — only one generic audit entry per edit.
+### UC-P08: Edit draft purchase — 🐛 was a live bug, fixed (Aug 25, 2026)
+**This was wrongly marked ✅ Built in this spec's first pass — that came from reading the code, not from actually opening a draft and saving it. Doing that live surfaced a real bug the code read completely missed:**
+
+`get_purchase()`'s response hardcoded every item's `product_sku` to `""` (comment: "filled by caller if needed" — nothing ever did). The frontend's edit-draft flow loads a purchase via this endpoint, keeps each unchanged line item's fields as loaded, and resends them on save. `update_purchase()` rebuilds every item by looking it up via `product_sku` (`_get_product_by_sku`) — so any item the pharmacist didn't remove-and-re-add round-tripped a blank SKU back into the save request, and the lookup 404'd. **Editing and saving a draft with any pre-existing line item — the single most ordinary edit-draft scenario — was completely broken.** Confirmed live via Playwright before investigating (real 404 on the actual save click), then reproduced and fixed at the API level directly.
+
+Fix: `_purchase_response()` now resolves each item's real SKU via its `product_id` (the actual FK — `product_sku` was never a stored column, purely a request/response convenience) instead of a hardcoded blank. Fixed in all 4 places that build a purchase response (create, update, get, mark-paid) — not just the one that broke the UI, since all 4 shared the same bug. 5 new regression tests, all passing; full 124-test purchases suite unaffected. Live-verified end to end via the real browser flow (create draft → edit → change qty/batch → save → reload → confirm the change actually persisted).
+
+Once that's fixed, the rest of the use case holds: every field editable pre-confirm, totals recalculate, permission-gated. Minor remaining gap: no field-level diff/version history — only one generic audit entry per edit.
 
 ### UC-P09: Correct a confirmed purchase — ❌ Missing
 No reversal, no adjustment, no correction path of any kind exists. "Don't allow silent editing" is enforced (the 400 block); the other half of the requirement — *some* controlled way to fix a real mistake — was never built. A confirmed purchase is permanent, forever, even when wrong.

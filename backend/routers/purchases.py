@@ -538,7 +538,8 @@ async def update_purchase(
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
-    result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == pid))
+    result = await db.execute(select(PurchaseORM).where(
+        PurchaseORM.id == pid, PurchaseORM.deleted_at.is_(None)))
     purchase = result.scalar_one_or_none()
     if not purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")
@@ -653,6 +654,36 @@ async def update_purchase(
     return _purchase_response(purchase, item_orms)
 
 
+@router.delete("/purchases/{purchase_id}")
+async def delete_purchase(
+        purchase_id: str,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """Soft-delete only, and only ever a draft — a draft has never touched
+    stock or supplier balances (see _create_stock_for_items, only called on
+    confirm), so there's nothing to reverse. A confirmed purchase has real
+    downstream effects and needs a real reversal mechanism, not a delete
+    (tracked separately, not this endpoint)."""
+    await _require_purchases_permission(current_user, "edit", db)
+    pid = uuid.UUID(purchase_id)
+
+    result = await db.execute(select(PurchaseORM).where(
+        PurchaseORM.id == pid, PurchaseORM.deleted_at.is_(None)))
+    purchase = result.scalar_one_or_none()
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    if purchase.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft purchases can be deleted")
+
+    purchase.deleted_at = datetime.now(timezone.utc)
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "delete", "purchase", purchase.id,
+        {"purchase_number": purchase.purchase_number}, db,
+    )
+    await db.flush()
+    return {"message": "Draft purchase deleted"}
+
+
 # Static route — must be registered before the parameterized
 # /purchases/{purchase_id} below, same convention as inventory.py's
 # /products/* routes.
@@ -696,7 +727,8 @@ async def check_duplicate_invoice(
 @router.get("/purchases/{purchase_id}")
 async def get_purchase(purchase_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == uuid.UUID(purchase_id)))
+    result = await db.execute(select(PurchaseORM).where(
+        PurchaseORM.id == uuid.UUID(purchase_id), PurchaseORM.deleted_at.is_(None)))
     purchase = result.scalar_one_or_none()
     if not purchase:
         raise HTTPException(status_code=404, detail="Purchase not found")

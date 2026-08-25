@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.2 | Last updated: August 25, 2026
+# Version: 1.3 | Last updated: August 25, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -118,8 +118,10 @@ Full flow verified end-to-end: draft → supplier → invoice# → date → due 
 - Duplicate invoice number: warned only, never blocked (advisory by design, confirmed by test `test_does_not_block_creation_even_when_duplicate`).
 - Backdating: **no authorization gate at all** — any user with plain create/edit permission can backdate freely.
 
-### UC-P06: Save purchase as draft — ✅ Built, two gaps
-Draft correctly excluded from stock/balance/reports (verified: `_create_stock_for_items` only runs `if status=="confirmed"`). All fields round-trip on edit. Gaps: **no delete/cancel-draft endpoint exists**, and **no autosave/recovery** — a draft not explicitly saved is lost on refresh or navigation away.
+### UC-P06: Save purchase as draft — 🔄 Partial, one gap closed (Aug 25, 2026)
+Draft correctly excluded from stock/balance/reports (verified: `_create_stock_for_items` only runs `if status=="confirmed"`). All fields round-trip on edit.
+- **Fixed**: drafts can now be deleted (soft-delete, `DELETE /purchases/{id}`) — reuses the same `deleted_at` pattern already used for suppliers/customers elsewhere in this app. Restricted to `status=="draft"` only — a confirmed purchase has real stock/financial effects and gets a real correction mechanism instead (UC-P09, still not built), not a delete. While building this, found `get_purchase()` and `update_purchase()` never filtered `deleted_at` at all — a "deleted" purchase could still be fetched or edited directly by id. Fixed both in the same change. Trash icon only shows on draft rows in the Purchases list; confirmed rows never get one. 7 new backend regression tests, all passing, no regressions in the existing 36.
+- **Still missing**: no autosave/recovery — a draft not explicitly saved is lost on refresh or navigation away.
 
 ### UC-P07: Confirm purchase — 🔄 Partial
 Inventory/batch/ledger/payable/reports/audit all update correctly on confirm, in one atomic DB transaction (verified: `database.py:27-34`'s commit-on-success/rollback-on-exception pattern wraps the whole request — a mid-request failure like the MRP check rolls back everything, no partial posting). The one real gap: **double-confirmation is only guarded when the client sends an explicit shared batch number** — see bug #2 above.

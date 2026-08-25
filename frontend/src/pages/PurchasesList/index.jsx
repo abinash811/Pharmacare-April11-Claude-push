@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
-import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, FilterPills } from '@/components/shared';
+import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, FilterPills, DeleteConfirmDialog } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -41,6 +41,7 @@ export default function PurchasesList() {
     amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [delPurchase, setDelPurchase] = useState({ open: false, item: null, loading: false });
 
   const fetchData = async (pageOverride) => {
     setLoading(true);
@@ -92,6 +93,19 @@ export default function PurchasesList() {
     finally { setPaymentLoading(false); }
   };
 
+  const confirmDeletePurchase = async () => {
+    setDelPurchase(p => ({ ...p, loading: true }));
+    try {
+      await api.delete(apiUrl.purchase(delPurchase.item.id));
+      toast.success('Draft deleted');
+      setDelPurchase({ open: false, item: null, loading: false });
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to delete draft');
+      setDelPurchase(p => ({ ...p, loading: false }));
+    }
+  };
+
   const getPaymentBadge = (purchase) => {
     if (purchase.status === 'draft')          return { status: 'parked',  label: 'Parked',  clickable: false };
     if (purchase.payment_status === 'paid')   return { status: 'paid',    label: 'Paid',    clickable: false };
@@ -123,10 +137,19 @@ export default function PurchasesList() {
       </div>
 
       <PurchasesTable purchases={purchases} loading={loading} pagination={pg} isFiltered={isFiltered}
-        onPayClick={openPayModal} getPaymentBadge={getPaymentBadge} />
+        onPayClick={openPayModal} getPaymentBadge={getPaymentBadge}
+        onDeleteClick={(item) => setDelPurchase({ open: true, item, loading: false })} />
 
       <PurchasePayModal open={showPayModal} onClose={() => setShowPayModal(false)} purchase={payingPurchase}
         paymentData={paymentData} onPaymentDataChange={setPaymentData} onConfirm={handlePayment} loading={paymentLoading} />
+
+      <DeleteConfirmDialog
+        open={delPurchase.open}
+        onClose={() => setDelPurchase({ open: false, item: null, loading: false })}
+        onConfirm={confirmDeletePurchase}
+        itemName={delPurchase.item?.purchase_number ? `draft "${delPurchase.item.purchase_number}"` : 'this draft'}
+        isLoading={delPurchase.loading}
+      />
     </div>
   );
 }

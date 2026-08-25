@@ -63,7 +63,6 @@ export default function SupplierDropdown({ suppliers = [], value, onChange }) {
               value={supplierSearch}
               onChange={(e) => setSupplierSearch(e.target.value)}
               className="w-full px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand"
-              autoFocus
               data-testid="supplier-search-input"
             />
           </div>

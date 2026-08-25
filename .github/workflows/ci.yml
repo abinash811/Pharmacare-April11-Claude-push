@@ -2,7 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main (deploy branch) + the two short-lived branch prefixes this repo
+    # actually uses (docs/04_GIT_WORKFLOW.md: `claude/...` for Claude
+    # sessions, `fix/...` for quick human fixes) — so CI runs automatically
+    # on every commit to a feature branch, not just after a PR exists.
+    # Added Aug 25, 2026, direct request — before this, CI only ran on
+    # push-to-main/PR or a manual workflow_dispatch, so a whole session's
+    # worth of commits could land with zero automatic CI signal.
+    branches: [main, 'claude/**', 'fix/**']
   pull_request:
     branches: [main]
   workflow_dispatch: {}

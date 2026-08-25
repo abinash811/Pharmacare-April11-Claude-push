@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.2 | Last updated: August 25, 2026
+# Version: 2.3 | Last updated: August 25, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -170,6 +170,16 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
     persist across sessions — this file does, read at the start of
     every session (see the top of this file). If it's not written
     here, it didn't happen, as far as the next session is concerned.
+- **CI runs automatically on every push to a feature branch — not just on
+  a PR.** Added August 25, 2026, direct request, after discovering a full
+  day of commits on the session's branch had zero CI signal (the last of
+  20 CI runs on that branch was 2 days old and manually triggered).
+  `.github/workflows/ci.yml`'s `push` trigger now covers `claude/**` and
+  `fix/**`, not just `main` — see `docs/11_TESTING.md`'s CI STATUS section
+  for the full history. Never rely on "I ran the equivalent checks
+  locally" as a substitute for this — local `eslint`/`tsc`/`pytest` runs
+  and the real CI pipeline (fresh install, real seeded backend, real
+  browser E2E) have caught different bugs from each other before.
 
 ---
 

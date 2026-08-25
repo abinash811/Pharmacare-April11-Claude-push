@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.5 | Last updated: August 22, 2026
+# Version: 1.6 | Last updated: August 25, 2026
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 
@@ -111,6 +111,16 @@ Added a `workflow_dispatch` trigger so CI can run on-demand from any
 branch (`gh workflow run` or the Actions tab) — this is also what let the
 fixes below get caught the same day, instead of surfacing only once a PR
 existed.
+
+**Aug 25, 2026, direct request: even `workflow_dispatch` wasn't enough —
+it still had to be triggered by hand.** Confirmed via the real run history
+that this branch had 20 manual `workflow_dispatch` runs, the last one two
+days before a full day of further commits, meaning that day's work had
+never once been checked by CI before this. `ci.yml`'s `push` trigger now
+also covers `claude/**` and `fix/**` (the two short-lived branch prefixes
+`docs/04_GIT_WORKFLOW.md` actually uses) — every commit pushed to a real
+feature branch now runs CI automatically, no manual trigger needed. Same
+jobs, same gates; only the trigger changed.
 
 **Live-triggering CI after the fixes above surfaced two more real bugs that
 local testing had masked:**

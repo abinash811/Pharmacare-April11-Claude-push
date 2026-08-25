@@ -65,8 +65,7 @@ export default function PurchaseSubbar({
           <Popover open={showBillDatePicker} onOpenChange={setShowBillDatePicker}>
             <PopoverTrigger asChild>
               <AppButton
-                variant="ghost"
-                className="!h-auto !p-0 gap-1 text-sm font-medium text-gray-900 hover:text-brand hover:bg-transparent"
+                variant="chip"
                 data-testid="bill-date-btn"
               >
                 {fmt(billDate)}
@@ -146,8 +145,8 @@ export default function PurchaseSubbar({
               <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
                 <PopoverTrigger asChild>
                   <AppButton
-                    variant="ghost"
-                    className="!h-auto !p-0 gap-1 text-sm font-medium text-amber-700 hover:text-amber-800 hover:bg-transparent"
+                    variant="chip"
+                    tone="warning"
                     data-testid="due-date-btn"
                   >
                     {fmt(dueDate)}

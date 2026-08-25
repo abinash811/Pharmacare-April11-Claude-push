@@ -1,5 +1,5 @@
 # PharmaCare — Shared Components
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 25, 2026
 # Audience: Claude, all developers
 # Rule: Before building any UI, check if a shared component already handles it.
 #        Never rebuild what already exists. When a new shared component is created,
@@ -93,8 +93,9 @@ Raw `<button>` tags are caught by ESLint and will fail the pre-commit hook.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `variant` | `'primary' \| 'secondary' \| 'outline' \| 'danger' \| 'ghost'` | `'primary'` | Visual style |
+| `variant` | `'primary' \| 'secondary' \| 'outline' \| 'danger' \| 'ghost' \| 'chip'` | `'primary'` | Visual style |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Button size |
+| `tone` | `'neutral' \| 'warning'` | `'neutral'` | Color for `variant="chip"` only — ignored by every other variant |
 | `icon` | `ReactNode` | — | Icon shown before label |
 | `iconOnly` | `boolean` | `false` | Square button, no label |
 | `loading` | `boolean` | `false` | Shows spinner, disables click |
@@ -111,6 +112,9 @@ Raw `<button>` tags are caught by ESLint and will fail the pre-commit hook.
 | `outline` | `bg-white` + `border-gray-200` | `text-gray-700` | `hover:bg-gray-50` | Export, print, secondary CTA |
 | `danger` | `bg-red-600` | `text-white` | `hover:bg-red-700` | Delete, irreversible actions |
 | `ghost` | none | `text-gray-600` | `hover:bg-gray-100` | Icon-only, subtle, table actions |
+| `chip` | none, no padding | `tone="neutral"`: `text-gray-900` → `text-brand`; `tone="warning"`: `text-amber-700` → `text-amber-800` | text color only | An inline value that opens a picker on click (a date under a `DATE` label) — never a real action |
+
+**Why `chip` exists:** before it, screens needing this inline-text look reached for `<AppButton variant="ghost" className="!h-auto !p-0 ...">` — overriding color and padding through `className`, which the rule right below explicitly bans. `chip` is the sanctioned way to get that look. Add a new `tone` here (not a new `className` hack at the call site) if a future screen needs a color this doesn't cover.
 
 ### Usage
 
@@ -867,16 +871,26 @@ const FILTERS = [
 ];
 
 <FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
+
+// Opt-in semantic color per option (e.g. a settings toggle where each
+// choice has real meaning — "With GST" vs "Without GST"). Omit
+// activeColor to keep the default black/white pill.
+const GST_OPTIONS = [
+  { key: 'with',    label: 'With GST',    activeColor: 'green'   },
+  { key: 'without', label: 'Without GST', activeColor: 'neutral' },
+];
+<FilterPills options={GST_OPTIONS} active={gstOn ? 'with' : 'without'} onChange={...} />
 ```
 
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `Array<{ key: string, label: string }>` | ✅ | Pill options |
+| `options` | `Array<{ key: string, label: string, activeColor?: 'brand'\|'green'\|'amber'\|'neutral' }>` | ✅ | Pill options. `activeColor` is per-option and optional — omit for the default dark pill |
 | `active` | `string` | ✅ | Currently active key |
 | `onChange` | `(key: string) => void` | ✅ | Called when a pill is clicked |
 | `className` | `string` | — | Extra classes on the wrapper (layout only) |
 
-**Visual:** Active = `bg-gray-900 text-white`. Inactive = `bg-gray-100 text-gray-600`.
+**Visual:** Default active = `bg-gray-900 text-white`. Inactive = `bg-gray-100 text-gray-600`.
+With `activeColor` set, that option's active state uses a semantic pair instead (`brand` → `bg-brand-subtle text-brand`, `green` → `bg-green-50 text-green-700`, `amber` → `bg-amber-50 text-amber-700`, `neutral` → `bg-gray-200 text-gray-700` with a border) — its inactive state stays the same gray as every other pill.
 **Do NOT use AppButton for pills** — pills are toggle controls, not actions.
 
 ---

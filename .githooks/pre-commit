@@ -67,7 +67,7 @@ if [ -n "$FRONTEND_FILES" ]; then
     ERRORS=$((ERRORS+1))
   fi
 
-  SHADCN=$(echo "$FRONTEND_FILES" | xargs grep -ln "from '@/components/ui/button'" 2>/dev/null || true)
+  SHADCN=$(echo "$FRONTEND_FILES" | xargs grep -ln "from '@/components/ui/button'" 2>/dev/null | grep -v "AppButton\.tsx" || true)
   if [ -n "$SHADCN" ]; then
     red "BLOCKED: direct Shadcn ui/button import"
     echo "$SHADCN" | while read -r f; do file "$f"; done

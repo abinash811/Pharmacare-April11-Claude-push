@@ -39,4 +39,16 @@ describe('AppButton', () => {
     render(<AppButton iconOnly icon={<svg />} aria-label="Settings" />);
     expect(screen.queryByText('Settings')).not.toBeInTheDocument();
   });
+
+  it('renders variant="chip" with no chrome and the neutral tone by default', () => {
+    render(<AppButton variant="chip">25 Aug 2026</AppButton>);
+    const btn = screen.getByRole('button');
+    expect(btn).toHaveClass('p-0', 'h-auto', 'text-gray-900');
+    expect(btn).not.toHaveClass('bg-brand', 'bg-gray-100');
+  });
+
+  it('applies the warning tone on variant="chip"', () => {
+    render(<AppButton variant="chip" tone="warning">24 Sep 2026</AppButton>);
+    expect(screen.getByRole('button')).toHaveClass('text-amber-700');
+  });
 });

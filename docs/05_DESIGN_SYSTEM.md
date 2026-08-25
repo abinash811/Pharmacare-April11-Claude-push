@@ -1,5 +1,5 @@
 # PharmaCare — Design System
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: August 25, 2026
 # Audience: Claude, developers, designers
 # Rule: Every visual decision in PharmaCare is defined here.
 #        If it's not in this file, ask before inventing it.
@@ -166,6 +166,13 @@ Import: `import { AppButton } from '@/components/shared'`
 // GHOST — subtle, icon-only, table row actions
 <AppButton variant="ghost" icon={<Settings className="w-4 h-4" />} iconOnly aria-label="Settings" />
 <AppButton variant="ghost">View Details</AppButton>
+
+// CHIP — an inline, borderless, paddingless trigger that sits next to a
+// label as if it were the value itself (e.g. a date under a "DATE" label
+// that opens a calendar popover on click). Never for a real action —
+// only for "here's a value, click it to change it."
+<AppButton variant="chip">25 Aug 2026</AppButton>                    // tone="neutral" (default): gray text, brand on hover
+<AppButton variant="chip" tone="warning">24 Sep 2026</AppButton>     // amber text, e.g. a payment due date
 
 // SIZES
 <AppButton size="sm">Small</AppButton>   // px-3 py-1.5 text-xs

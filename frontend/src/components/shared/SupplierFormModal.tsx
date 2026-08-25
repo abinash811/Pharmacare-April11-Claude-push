@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppButton } from '@/components/shared';
+import AppButton from './AppButton';
 
 const supplierFormSchema = z.object({
   name:           z.string().min(1, 'Supplier name is required'),
@@ -16,12 +16,27 @@ const supplierFormSchema = z.object({
   notes:          z.string().optional().default(''),
 });
 
-const DEFAULTS = { name: '', contact_person: '', phone: '', email: '', gstin: '', credit_days: 30, address: '', notes: '' };
+// react-hook-form's TFieldValues must match the schema's pre-validation
+// (input) shape, not zodResolver's output shape — the .optional().default()
+// fields differ between the two (input: optional; output: always present).
+type SupplierFormValues = z.input<typeof supplierFormSchema>;
+
+const DEFAULTS: SupplierFormValues = { name: '', contact_person: '', phone: '', email: '', gstin: '', credit_days: 30, address: '', notes: '' };
 
 const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm';
 
-export default function SupplierFormModal({ open, editingSupplier, onClose, onSave }) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+export interface SupplierFormModalProps {
+  open: boolean;
+  editingSupplier?: any | null;
+  /** Prefill the Name field on a fresh (non-edit) form — e.g. what the user
+   *  already typed into a supplier search before choosing "add new". */
+  initialName?: string;
+  onClose: () => void;
+  onSave: (data: SupplierFormValues, editingId?: string) => Promise<boolean>;
+}
+
+export default function SupplierFormModal({ open, editingSupplier, initialName, onClose, onSave }: SupplierFormModalProps) {
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierFormSchema),
     defaultValues: DEFAULTS,
   });
@@ -36,19 +51,19 @@ export default function SupplierFormModal({ open, editingSupplier, onClose, onSa
       credit_days:    editingSupplier.credit_days || editingSupplier.payment_terms_days || 30,
       address:        editingSupplier.address                                           || '',
       notes:          editingSupplier.notes                                             || '',
-    } : DEFAULTS);
-  }, [editingSupplier, open, reset]);
+    } : { ...DEFAULTS, name: initialName || '' });
+  }, [editingSupplier, initialName, open, reset]);
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: SupplierFormValues) => {
     const ok = await onSave(data, editingSupplier?.id);
     if (ok) onClose();
   };
 
-  const err = (field) => errors[field]?.message
-    ? <p className="text-xs text-red-500 mt-1">{errors[field].message}</p>
+  const err = (field: keyof SupplierFormValues) => errors[field]?.message
+    ? <p className="text-xs text-red-500 mt-1">{errors[field]?.message}</p>
     : null;
 
-  const label = (text) => (
+  const label = (text: string) => (
     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{text}</label>
   );
 

@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.0 | Last updated: August 25, 2026
+# Version: 1.1 | Last updated: August 25, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -51,11 +51,12 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 
 ### ❌ The two biggest structural gaps
 
-6. **No way to add a new distributor or new medicine during purchase
-   entry.** Confirmed live: typing a never-seen-before name into either
-   search shows "not found" with zero path forward. Blocks the single most
-   common real-world scenario (first bill from someone new). Already
-   logged Aug 25 — this spec supersedes that entry with full detail.
+6. **No way to add a new medicine during purchase entry** (UC-P12/UC-P10).
+   Confirmed live: typing a never-seen-before name shows "not found" with
+   zero path forward. **Half of this is now fixed** — adding a new
+   *distributor* inline (UC-P02) shipped Aug 25, reusing the existing
+   Supplier form. Adding a new *medicine* inline is the same shape of gap,
+   not yet built — natural next pick.
 7. **Purchase Returns has no accept/reject/credit-pending workflow —
    creating a return is one atomic "confirmed" action.** The spec assumes
    a multi-stage supplier-approval process (9 possible statuses); the code
@@ -93,8 +94,9 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 - Inactive suppliers are silently **excluded** from the list (`active_only: true`, `PurchaseNew/index.jsx:73`), not shown-with-warning as spec'd — a real design difference, not a bug.
 - No link to open supplier detail from the picker at all.
 
-### UC-P02: Add supplier during purchase — ❌ Missing
-Confirmed live (Aug 25 walkthrough): typing a new name shows "No distributors found," no add-new path. Already logged as P0 in `docs/15_ROADMAP.md`.
+### UC-P02: Add supplier during purchase — ✅ Built (Aug 25, 2026)
+Fixed. `SupplierDropdown` now shows "+ Add '<name>' as new distributor" whenever `allowCreate` is on and the search box has text (whether or not there are other matches) — opt-in via a prop so `PurchasesList`'s read-only filter usage of the same component doesn't get a create option. Clicking it opens the existing Supplier form (moved to `components/shared/SupplierFormModal.tsx` so both Suppliers and Purchases share one implementation — was previously owned solely by the Suppliers page), prefilled with the typed name, validated with the same GSTIN/phone rules as the standalone Suppliers page. On save: posts to `POST /suppliers` (existing endpoint — already blocks duplicate names with a 400), auto-selects the new supplier, and adds it to the in-memory `suppliers` list so it's immediately searchable again without a refetch. Verified live end-to-end (zero-data: a genuinely new name, never in the system) and via 5 new component tests (`PurchaseNew/components/__tests__/SupplierDropdown.test.jsx`) plus 2 new tests on the moved form (`components/shared/__tests__/SupplierFormModal.test.jsx`).
+Real bug caught during this build (not shipped): the initial implementation read the typed name from the same state the search-popover clears on close, so the create form opened blank — fixed by capturing the name into dedicated state at click time, before the popover's close handler could clear it. Caught by live verification, not by the type-checker or lint.
 
 ### UC-P03: Upload supplier bill — 🔄 Partial
 Image (jpeg/png/webp) or PDF only — no Excel/CSV import, no distinct camera-capture flow, single attachment only (not multiple). 5MB cap + mime validation enforced both client and server (`InvoiceAttachmentUpload.tsx`, backend `_validate_invoice_attachment`). Stored as base64 in a Postgres TEXT column, no dedicated secure file store or access control beyond normal purchase-record permissions.
@@ -356,7 +358,8 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 5. Stock-adjust missing permission check (#5)
 
 **Batch 2 — the flow that blocks day-one usage**
-6. Inline add-distributor / add-medicine during purchase entry (already scoped Aug 25)
+6. ~~Inline add-distributor during purchase entry~~ — ✅ done, Aug 25 (UC-P02)
+6b. Inline add-medicine during purchase entry (UC-P12) — same shape, not yet built
 
 **Batch 3 — Purchase Returns' core workflow gap**
 7. Decide, with Abinash, whether Returns genuinely needs the full

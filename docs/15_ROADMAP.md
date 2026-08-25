@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.21 | Last updated: August 25, 2026
+# Version: 2.22 | Last updated: August 25, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -245,6 +245,13 @@ double-submit can create duplicate stock; the GST report page is broken
 Due filter pills send params the backend ignores; stock-adjust has zero
 permission check. See that doc's Executive Summary for the full ranked list
 and the recommended build-batch order.
+
+**Build progress against that spec:**
+- ✅ UC-P02 (add a new distributor inline during purchase entry) — Aug 25,
+  2026. `SupplierFormModal` moved from `pages/Suppliers/components/` to
+  `components/shared/` (now used by both Suppliers and Purchases — was
+  previously owned by one page). Full detail + a real bug caught during
+  the build in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s UC-P02 entry.
 
 | Feature | Status | Notes |
 |---------|--------|-------|

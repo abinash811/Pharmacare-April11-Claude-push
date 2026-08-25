@@ -9,6 +9,7 @@
  *   selectedSupplier    {object|null}
  *   suppliers           {Array}
  *   onSupplierSelect    {(supplier) => void}
+ *   onSupplierCreated   {(supplier) => void}
  *   supplierInvoiceNo   {string}
  *   onInvoiceNoChange   {(string) => void}
  *   duplicateInvoice    {object|null}  { purchase_number, purchase_date } when this invoice # is already used for this distributor
@@ -45,7 +46,7 @@ const fmt = (date) => date ? format(date, 'dd MMM yyyy') : '—';
 
 export default function PurchaseSubbar({
   billDate, onBillDateChange,
-  selectedSupplier, suppliers, onSupplierSelect,
+  selectedSupplier, suppliers, onSupplierSelect, onSupplierCreated,
   supplierInvoiceNo, onInvoiceNoChange, duplicateInvoice,
   invoiceAttachment, onInvoiceAttachmentChange,
   purchaseOn, onPurchaseOnChange,
@@ -92,7 +93,8 @@ export default function PurchaseSubbar({
             suppliers={suppliers}
             value={selectedSupplier}
             onChange={onSupplierSelect}
-            compact
+            allowCreate
+            onSupplierCreated={onSupplierCreated}
           />
         </div>
 

@@ -218,6 +218,7 @@ export default function PurchaseNew() {
       <PurchaseSubbar
         billDate={billDate} onBillDateChange={setBillDate}
         selectedSupplier={selectedSupplier} suppliers={suppliers} onSupplierSelect={setSelectedSupplier}
+        onSupplierCreated={(supplier) => setSuppliers(prev => [...prev, supplier])}
         supplierInvoiceNo={supplierInvoiceNo} onInvoiceNoChange={setSupplierInvoiceNo}
         duplicateInvoice={duplicateInvoice}
         invoiceAttachment={invoiceAttachment} onInvoiceAttachmentChange={setInvoiceAttachment}

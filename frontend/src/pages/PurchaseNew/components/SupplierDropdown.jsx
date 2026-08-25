@@ -1,22 +1,54 @@
 /**
  * SupplierDropdown — chip button + searchable dropdown for distributor selection.
  * Props:
- *   suppliers  {Array}
- *   value      {object|null}  selected supplier
- *   onChange   {(supplier) => void}
+ *   suppliers         {Array}
+ *   value             {object|null}  selected supplier
+ *   onChange          {(supplier) => void}
+ *   allowCreate       {boolean}  show "+ Add '<search>' as new distributor"
+ *                                when nothing matches. Off by default —
+ *                                e.g. PurchasesList uses this component as
+ *                                a read-only filter, where creating a new
+ *                                supplier makes no sense.
+ *   onSupplierCreated {(supplier) => void}  called after a successful
+ *                                create, so the parent can add it to its
+ *                                own suppliers list without a refetch.
  */
 import React, { useState } from 'react';
-import { ChevronDown, Building2 } from 'lucide-react';
+import { ChevronDown, Building2, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AppButton } from '@/components/shared';
+import { AppButton, SupplierFormModal } from '@/components/shared';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
 
-export default function SupplierDropdown({ suppliers = [], value, onChange }) {
+export default function SupplierDropdown({ suppliers = [], value, onChange, allowCreate = false, onSupplierCreated }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Captured at the moment "Add new" is clicked — the popover closing (the
+  // Dialog opening steals focus) clears supplierSearch via onOpenChange
+  // below, so the modal can't read that state directly by the time it renders.
+  const [newSupplierName, setNewSupplierName] = useState('');
 
   const filtered = suppliers.filter(s =>
     s.name.toLowerCase().includes(supplierSearch.toLowerCase())
   );
+
+  const handleCreateSupplier = async (formData) => {
+    try {
+      const res = await api.post(apiUrl.suppliers(), formData);
+      const newSupplier = res.data;
+      toast.success('Distributor added');
+      onSupplierCreated?.(newSupplier);
+      onChange(newSupplier);
+      setShowDropdown(false);
+      setSupplierSearch('');
+      return true;
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to add distributor');
+      return false;
+    }
+  };
 
   return (
     <div className="relative group">
@@ -75,6 +107,21 @@ export default function SupplierDropdown({ suppliers = [], value, onChange }) {
               ))
             )}
           </div>
+
+          {allowCreate && supplierSearch.trim() && (
+            <div className="p-1.5 border-t border-gray-100">
+              <AppButton
+                variant="ghost"
+                size="sm"
+                icon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => { setNewSupplierName(supplierSearch.trim()); setShowCreateModal(true); }}
+                className="w-full justify-start text-brand"
+                data-testid="add-new-supplier-btn"
+              >
+                Add "{supplierSearch.trim()}" as new distributor
+              </AppButton>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
 
@@ -83,6 +130,16 @@ export default function SupplierDropdown({ suppliers = [], value, onChange }) {
         <div className="absolute z-50 bottom-full left-0 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
           {value.name}
         </div>
+      )}
+
+      {showCreateModal && (
+        <SupplierFormModal
+          open
+          editingSupplier={null}
+          initialName={newSupplierName}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleCreateSupplier}
+        />
       )}
     </div>
   );

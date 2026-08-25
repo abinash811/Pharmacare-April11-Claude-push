@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import SupplierFormModal from '../components/SupplierFormModal';
+import SupplierFormModal from '../SupplierFormModal';
 
 const baseProps = {
   open: true,
@@ -54,5 +54,17 @@ describe('SupplierFormModal', () => {
     render(<SupplierFormModal {...baseProps} />);
     fireEvent.click(screen.getByText('Cancel'));
     expect(baseProps.onClose).toHaveBeenCalled();
+  });
+
+  it('prefills the name field from initialName on a fresh form', () => {
+    render(<SupplierFormModal {...baseProps} initialName="Brand New Distributor Pvt Ltd" />);
+    expect(screen.getByDisplayValue('Brand New Distributor Pvt Ltd')).toBeInTheDocument();
+    expect(screen.getByText('Add New Supplier')).toBeInTheDocument();
+  });
+
+  it('ignores initialName when editing an existing supplier', () => {
+    render(<SupplierFormModal {...baseProps} editingSupplier={{ id: '1', name: 'MedPharma' }} initialName="Should Not Appear" />);
+    expect(screen.getByDisplayValue('MedPharma')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Should Not Appear')).not.toBeInTheDocument();
   });
 });

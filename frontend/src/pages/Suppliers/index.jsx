@@ -4,14 +4,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { PageHeader, SearchInput, DateRangePicker, PaginationBar, FilterPills, AppButton } from '@/components/shared';
+import { PageHeader, SearchInput, DateRangePicker, PaginationBar, FilterPills, AppButton, SupplierFormModal } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 
 import { useSuppliers }          from './hooks/useSuppliers';
 import SuppliersList             from './components/SuppliersList';
 import SupplierDetailPanel       from './components/SupplierDetailPanel';
-import SupplierFormModal         from './components/SupplierFormModal';
 import SupplierPaymentModal      from './components/SupplierPaymentModal';
 
 const FILTERS = [

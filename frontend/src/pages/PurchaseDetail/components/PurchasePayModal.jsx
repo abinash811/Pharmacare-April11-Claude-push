@@ -18,15 +18,15 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AppButton } from '@/components/shared';
+import { AppButton, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { PURCHASE_PAYMENT_METHOD } from '@/constants/domainConstants';
 
 const PAYMENT_METHOD_OPTIONS = [
-  { value: PURCHASE_PAYMENT_METHOD.CASH,          label: 'Cash' },
-  { value: PURCHASE_PAYMENT_METHOD.UPI,           label: 'UPI' },
-  { value: PURCHASE_PAYMENT_METHOD.CHEQUE,        label: 'Cheque' },
-  { value: PURCHASE_PAYMENT_METHOD.BANK_TRANSFER, label: 'Bank Transfer' },
+  { key: PURCHASE_PAYMENT_METHOD.CASH,          label: 'Cash' },
+  { key: PURCHASE_PAYMENT_METHOD.UPI,           label: 'UPI' },
+  { key: PURCHASE_PAYMENT_METHOD.CHEQUE,        label: 'Cheque' },
+  { key: PURCHASE_PAYMENT_METHOD.BANK_TRANSFER, label: 'Bank Transfer' },
 ];
 
 export default function PurchasePayModal({ open, onClose, purchase, paymentData, onPaymentDataChange, onConfirm, loading }) {
@@ -64,15 +64,12 @@ export default function PurchasePayModal({ open, onClose, purchase, paymentData,
 
             <div>
               <Label>Payment Method</Label>
-              <div className="flex gap-2 flex-wrap mt-2">
-                {PAYMENT_METHOD_OPTIONS.map(({ value, label }) => (
-                  <AppButton key={value} size="sm"
-                    variant={paymentData.payment_method === value ? 'primary' : 'secondary'}
-                    onClick={() => onPaymentDataChange({ ...paymentData, payment_method: value })}
-                    data-testid={`payment-method-${value}`}>
-                    {label}
-                  </AppButton>
-                ))}
+              <div className="mt-2">
+                <FilterPills
+                  options={PAYMENT_METHOD_OPTIONS}
+                  active={paymentData.payment_method}
+                  onChange={(key) => onPaymentDataChange({ ...paymentData, payment_method: key })}
+                />
               </div>
             </div>
 

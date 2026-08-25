@@ -171,7 +171,7 @@ export default function PurchaseSubbar({
         <div className="flex-grow" />
 
         {/* ── GST badge ───────────────────────────────────────────────── */}
-        <div className={`px-2.5 py-0.5 rounded text-xs font-semibold mr-3 ${withGST ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+        <div className={`px-2.5 py-0.5 rounded-full text-xs font-semibold mr-3 ${withGST ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
           {withGST ? 'GST' : 'No GST'}
         </div>
 

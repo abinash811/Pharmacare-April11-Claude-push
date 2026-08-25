@@ -57,7 +57,6 @@ export default function InvoiceAttachmentUpload({ value, onChange }: Props) {
           icon={<X className="w-3 h-3" />}
           onClick={() => onChange(null)}
           aria-label="Remove invoice attachment"
-          className="!h-4 !w-4 !p-0"
           data-testid="remove-invoice-attachment-btn"
         />
       </div>

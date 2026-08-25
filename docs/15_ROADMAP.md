@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.17 | Last updated: August 24, 2026
+# Version: 2.18 | Last updated: August 25, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -42,7 +42,7 @@
 | Alembic migrations | ✅ | Schema version controlled |
 | Design system (tokens, shared components) | ✅ | AppButton, PageHeader, PageTabs, FilterPills, etc. |
 | 300-line file rule enforced | ✅ | All oversized pages split into folder/index.jsx + components/ |
-| Zero raw `<button>` tags | 🔄 | Not actually true — `scripts/design-guard.sh` Rule 1 currently finds 38 violations across the app. Rule enforced on new/changed code via pre-commit; existing violations are unfixed tech debt. |
+| Zero raw `<button>` tags | 🔄 | `scripts/design-guard.sh` Rule 1 finds 21 violations, all in BillingWorkspace/Dashboard (was 38 — Purchases/Purchase Returns' own violations fixed Aug 25, see below). Rule enforced on new/changed code via pre-commit; Billing/Dashboard violations are unfixed tech debt. |
 | Zero Shadcn `<Button>` in pages | 🔄 | Not actually true — Rule 5 currently finds 2 (`ScheduleHWarning.jsx`, `FinaliseModal.jsx`). Same as above — enforced going forward, not yet cleaned up. |
 | Consistent page layout | ✅ | All list pages use `px-8 py-6 min-h-screen bg-page` + PageHeader |
 | Consistent filter pills | ✅ | All pages use shared FilterPills component |
@@ -333,6 +333,39 @@ IGST/intra-inter-state (deferred — single-state sale only for now).
   only), last-purchased-price hint, stock ledger schema gaps, remaining
   `Purchase`/`PurchaseItem`/`Supplier` schema gaps, app-wide permission
   rollout beyond Purchases/Purchase Returns.
+
+**Purchases + Purchase Returns — Aug 25, 2026 design-system audit.** Full
+pass against `docs/05_DESIGN_SYSTEM.md`/`docs/06_COMPONENTS.md`, two
+rounds (first pass missed files invisible in a stale local checkout;
+caught and re-audited once the checkout was corrected — see chat, not
+worth a full writeup here). All findings fixed:
+- Raw `<button>` tags (PurchaseHeader, PurchaseSettingsModal,
+  SupplierDropdown) → AppButton; Material Symbols icon → Lucide.
+- Hand-rolled status pills → `StatusBadge` (PurchaseReturnDetail's was
+  hardcoded literal text `"CONFIRMED"`, not reading real status — fixed).
+- ~25 raw `.toFixed(2)` money renders (missing Indian digit grouping) →
+  shared `formatCurrency`, across nearly every Purchases/Returns file.
+- Wrong typography tokens (`font-bold`/`text-[10px]` table headers,
+  `tracking-wide` typo, invented form-label style) → the documented
+  tokens.
+- `AppButton` `className` color/padding overrides → removed; the
+  Bill Date/Due Date buttons needed a real fix, not just removal — see
+  the new `chip` variant below.
+- `bg-gray-50` → `bg-page` token; plain-text empty states → `EmptyState`.
+- Purchase Returns list's table density aligned with the Purchases list
+  (same tab bar, was visibly different).
+- New: `AppButton` `variant="chip"` (+ `tone="neutral"|"warning"`) — an
+  inline, borderless, paddingless trigger for "here's a value, click it
+  to change it" (a date under a `DATE` label). Documented in
+  `docs/05_DESIGN_SYSTEM.md`/`docs/06_COMPONENTS.md`. `FilterPills` also
+  gained an opt-in `activeColor` per option, used to migrate
+  PurchaseSettingsModal's 9 raw-button toggles and the payment-method
+  selector in the consolidated `PurchasePayModal`.
+- Not fixed, out of scope: `scripts/design-guard.sh` Rule 7's
+  `"top-full mt-1"` literal-string check is trivially evaded by
+  reordering classes (confirmed on 3 files this session) — hardening it
+  would newly surface pre-existing BillingWorkspace violations outside
+  this audit's scope.
 
 **Purchases — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP, eVitalRx, and Pharmasoft. Verified against real code (`backend/routers/purchases.py` — every endpoint grepped and listed: list/create/update/get/pay, no others exist), not guessed.
 

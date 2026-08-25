@@ -197,14 +197,14 @@ export default function PurchaseNew() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-page">
         <InlineLoader text="Loading purchase..." />
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="h-screen flex flex-col bg-page">
       <PurchaseHeader
         isEditMode={isEditMode}
         loading={loading}

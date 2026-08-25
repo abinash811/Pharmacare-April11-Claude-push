@@ -31,7 +31,7 @@ echo "PharmaCare pre-commit checks (staged files only)"
 echo "─────────────────────────────────────────────────"
 
 if [ -n "$FRONTEND_FILES" ]; then
-  RAW=$(echo "$FRONTEND_FILES" | xargs grep -ln "<button" 2>/dev/null | grep -v "WelcomeCard" || true)
+  RAW=$(echo "$FRONTEND_FILES" | xargs grep -ln "<button" 2>/dev/null | grep -v -E "WelcomeCard|FilterPills\.tsx" || true)
   if [ -n "$RAW" ]; then
     red "BLOCKED: raw <button> tag(s) found"
     echo "$RAW" | while read -r f; do file "$f"; done

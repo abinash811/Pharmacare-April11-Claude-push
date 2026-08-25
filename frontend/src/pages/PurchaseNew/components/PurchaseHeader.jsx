@@ -14,7 +14,7 @@
  */
 import React from 'react';
 import { ArrowLeft, Settings, CheckCircle, FileText } from 'lucide-react';
-import { PageBreadcrumb } from '@/components/shared';
+import { PageBreadcrumb, AppButton } from '@/components/shared';
 
 export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm, onSettings }) {
   return (
@@ -23,13 +23,13 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
 
         {/* ── Left: back + breadcrumb + title ────────────────────────── */}
         <div className="flex items-center gap-4">
-          <button
+          <AppButton
+            variant="ghost" iconOnly
+            icon={<ArrowLeft className="w-5 h-5 text-gray-600" />}
+            aria-label="Back to purchases"
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             data-testid="back-btn"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          />
           <div>
             <PageBreadcrumb crumbs={[
               { label: 'Purchases', to: '/purchases' },
@@ -45,36 +45,35 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
         <div className="flex items-center gap-2">
 
           {/* Save Draft */}
-          <button
+          <AppButton
+            variant="outline"
+            icon={<FileText className="w-4 h-4 text-gray-400" />}
             onClick={onSaveDraft}
             disabled={loading || !hasItems}
-            className="px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
             data-testid="save-draft-btn"
           >
-            <FileText className="w-4 h-4 text-gray-400" />
             Save Draft
-          </button>
+          </AppButton>
 
           {/* Settings */}
-          <button
+          <AppButton
+            variant="outline" iconOnly
+            icon={<Settings className="w-4 h-4" />}
             onClick={onSettings}
-            className="p-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-            data-testid="settings-btn"
             aria-label="Purchase settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+            data-testid="settings-btn"
+          />
 
           {/* Confirm & Save — primary CTA */}
-          <button
+          <AppButton
+            icon={<CheckCircle className="w-4 h-4" />}
             onClick={onConfirm}
             disabled={loading || !hasItems}
-            className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark flex items-center gap-1.5 transition-colors disabled:opacity-60"
+            loading={loading}
             data-testid="confirm-btn"
           >
-            <CheckCircle className="w-4 h-4" />
             {loading ? 'Saving…' : 'Confirm & Save'}
-          </button>
+          </AppButton>
         </div>
       </div>
     </header>

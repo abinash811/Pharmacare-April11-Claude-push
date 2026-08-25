@@ -28,4 +28,19 @@ describe('FilterPills', () => {
     fireEvent.click(screen.getByText('Due'));
     expect(onChange).toHaveBeenCalledWith('due');
   });
+
+  it('applies the semantic active color when activeColor is set', () => {
+    const options = [{ key: 'on', label: 'On', activeColor: 'green' as const }, { key: 'off', label: 'Off' }];
+    render(<FilterPills options={options} active="on" onChange={jest.fn()} />);
+    const onBtn = screen.getByText('On').closest('button');
+    expect(onBtn).toHaveClass('bg-green-50', 'text-green-700');
+    expect(onBtn).not.toHaveClass('bg-gray-900');
+  });
+
+  it('keeps the default dark pill when activeColor is omitted', () => {
+    const options = [{ key: 'on', label: 'On', activeColor: 'green' as const }, { key: 'off', label: 'Off' }];
+    render(<FilterPills options={options} active="off" onChange={jest.fn()} />);
+    const offBtn = screen.getByText('Off').closest('button');
+    expect(offBtn).toHaveClass('bg-gray-100', 'text-gray-600');
+  });
 });

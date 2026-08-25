@@ -18,7 +18,7 @@ export default function PurchaseReturnEditModal({ open, onClose, editType, editN
             </div>
           )}
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Billed By</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Billed By</label>
             <select value={editBilledBy} onChange={(e) => onBilledByChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand">
               <option value="">Select staff</option>
@@ -26,7 +26,7 @@ export default function PurchaseReturnEditModal({ open, onClose, editType, editN
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
             <textarea value={editNote} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
               placeholder="Add a note..."
               className="w-full h-24 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-brand" />

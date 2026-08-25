@@ -6,7 +6,8 @@
  *   onChange   {(supplier) => void}
  */
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Building2 } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 export default function SupplierDropdown({ suppliers = [], value, onChange }) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -30,19 +31,21 @@ export default function SupplierDropdown({ suppliers = [], value, onChange }) {
 
   return (
     <div className="relative group" ref={containerRef}>
-      <button
+      <AppButton
+        variant="secondary"
+        size="sm"
         onClick={() => setShowDropdown(true)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:border-brand transition-colors"
+        className="gap-1.5"
         style={{ maxWidth: '220px' }}
         data-testid="supplier-selector"
         title={value?.name || 'Select Distributor'}
       >
-        <span className="material-symbols-outlined text-gray-400 text-base">business</span>
+        <Building2 className="w-4 h-4 text-gray-400 shrink-0" strokeWidth={1.5} />
         <span className={`text-sm font-medium truncate ${value ? 'text-gray-900' : 'text-gray-400'}`}>
           {value?.name || 'Distributor'}
         </span>
         <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
-      </button>
+      </AppButton>
 
       {/* Tooltip for long names */}
       {value && value.name.length > 20 && (

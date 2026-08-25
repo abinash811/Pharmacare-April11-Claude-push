@@ -11,6 +11,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
+import { formatCurrency } from '@/utils/currency';
 import usePagination from '@/hooks/usePagination';
 
 const PURCHASES_TABS = [
@@ -84,6 +85,7 @@ export default function PurchaseReturnsList() {
         title="Purchases"
         actions={
           <AppButton
+            icon={<Plus className="w-4 h-4" />}
             onClick={() =>
               toast.info(
                 'Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return'
@@ -91,7 +93,6 @@ export default function PurchaseReturnsList() {
             }
             data-testid="new-return-btn"
           >
-            <Plus className="w-4 h-4 mr-2" />
             Purchase Return
           </AppButton>
         }
@@ -131,7 +132,7 @@ export default function PurchaseReturnsList() {
       <DataCard>
         <div className="overflow-x-auto">
           <table className="w-full" data-testid="purchase-returns-table">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return No.</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Purchase</th>
@@ -143,7 +144,7 @@ export default function PurchaseReturnsList() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
                   <td colSpan="8" className="p-0">
@@ -156,8 +157,7 @@ export default function PurchaseReturnsList() {
                     <PurchaseReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <AppButton onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
-                          <Plus className="w-4 h-4 mr-2" />
+                        <AppButton icon={<Plus className="w-4 h-4" />} onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
                           New Purchase Return
                         </AppButton>
                       }
@@ -168,53 +168,52 @@ export default function PurchaseReturnsList() {
                 pageRows.map((ret) => (
                   <tr
                     key={ret.id}
-                    className="hover:bg-brand-tint cursor-pointer"
+                    className="hover:bg-brand-tint cursor-pointer h-10"
                     onClick={() => navigate(`/purchases/returns/${ret.id}`)}
                     data-testid={`return-row-${ret.id}`}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span className="font-mono text-sm font-semibold text-brand">
                         {ret.return_number}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span className="font-mono text-sm text-gray-700">
                         {ret.purchase_number || '—'}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="font-medium text-gray-800">{ret.supplier_name || '—'}</div>
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="text-sm text-gray-700">{formatDateShort(ret.created_at)}</div>
                       <div className="text-xs text-gray-500">{formatTime(ret.created_at)}</div>
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="text-sm text-gray-700">{formatDateShort(ret.return_date)}</div>
                     </td>
 
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-2.5 text-right">
                       <span className="font-semibold tabular-nums text-red-600">
-                        -₹{(ret.total_value || 0).toFixed(2)}
+                        -{formatCurrency(ret.total_value || 0)}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-2.5 text-center">
                       <StatusBadge status={ret.status || 'pending'} />
                     </td>
 
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <AppButton
                           variant="ghost"
                           iconOnly
                           icon={<Eye className="w-4 h-4 text-blue-600" />}
                           aria-label="View"
-                          className="p-1.5 h-auto hover:bg-blue-50"
                           onClick={(e) => { e.stopPropagation(); navigate(`/purchases/returns/${ret.id}`); }}
                         />
                         <AppButton
@@ -222,7 +221,6 @@ export default function PurchaseReturnsList() {
                           iconOnly
                           icon={<Printer className="w-4 h-4 text-gray-600" />}
                           aria-label="Print"
-                          className="p-1.5 h-auto hover:bg-gray-100"
                           onClick={(e) => { e.stopPropagation(); toast.info(`Printing return #${ret.return_number}...`); }}
                         />
                       </div>

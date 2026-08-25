@@ -15,6 +15,7 @@ import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import AppButton from '@/components/shared/AppButton';
+import { formatCurrency } from '@/utils/currency';
 
 export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, onAddItem, withGST, searchInputRef }) {
   const [products,          setProducts]          = useState([]);
@@ -93,7 +94,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                 {[['#','40px'],['Medicine','200px'],['Batch','90px'],['Expiry','70px'],
                   ['Qty','60px'],['Free','60px'],['PTR','70px'],['MRP','70px'],
                   ['GST%','55px'],['LIFA','55px'],['Amount','80px'],['','40px']].map(([h,w]) => (
-                  <th key={h} className={`px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider ${['Qty','Free','PTR','MRP','Amount'].includes(h) ? (h === 'Qty' || h === 'Free' ? 'text-center' : 'text-right') : h === 'GST%' || h === 'LIFA' ? 'text-center' : ''}`} style={{ width: w }}>{h}</th>
+                  <th key={h} className={`px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${['Qty','Free','PTR','MRP','Amount'].includes(h) ? (h === 'Qty' || h === 'Free' ? 'text-center' : 'text-right') : h === 'GST%' || h === 'LIFA' ? 'text-center' : ''}`} style={{ width: w }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -163,11 +164,11 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                           <option value="LILA">LILA</option>
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-right text-sm font-semibold text-gray-800">₹{total.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right text-sm font-semibold text-gray-800">{formatCurrency(total)}</td>
                       <td className="px-2 py-2">
                         <AppButton variant="ghost" iconOnly icon={<Trash2 className="w-4 h-4 text-red-500" />}
                           aria-label={`Remove ${item.product_name}`} onClick={() => onRemoveItem(item.id)}
-                          className="hover:bg-red-50" data-testid={`delete-${index}`} />
+                          data-testid={`delete-${index}`} />
                       </td>
                     </tr>
                   );

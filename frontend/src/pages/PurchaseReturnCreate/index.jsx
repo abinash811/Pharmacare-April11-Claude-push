@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Trash2, Package } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AppButton } from '@/components/shared';
+import { AppButton, EmptyState } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
 import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModal';
 
@@ -119,10 +120,10 @@ export default function PurchaseReturnCreate() {
     return exp;
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="text-gray-500">Loading purchase...</div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-page"><div className="text-gray-500">Loading purchase...</div></div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-page">
       <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center gap-4">
           <AppButton variant="ghost" iconOnly icon={<ArrowLeft className="w-5 h-5 text-gray-600" strokeWidth={1.5} />} aria-label="Back" onClick={() => navigate('/purchases')} data-testid="back-btn" />
@@ -184,7 +185,7 @@ export default function PurchaseReturnCreate() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   {['#', 'Medicine', 'Batch', 'Expiry', 'MRP', 'Original Qty', 'Return Qty', 'PTR', 'GST%', 'Amount', ''].map((h, i) => (
-                    <th key={i} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide ${i >= 4 ? 'text-right' : 'text-left'} ${i === 5 || i === 6 ? 'text-center' : ''}`}>{h}</th>
+                    <th key={i} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'} ${i === 5 || i === 6 ? 'text-center' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -197,7 +198,7 @@ export default function PurchaseReturnCreate() {
                       <td className="px-4 py-3"><div className="font-medium text-gray-900">{item.medicine_name}</div><div className="text-xs text-gray-400">{item.product_sku}</div></td>
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>
                       <td className="px-4 py-3 text-gray-700">{formatExpiry(item.expiry_date)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-700">₹{item.mrp?.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-700">{formatCurrency(item.mrp || 0)}</td>
                       <td className="px-4 py-3 text-center font-semibold text-gray-700">{item.original_qty}</td>
                       <td className="px-4 py-3">
                         <div className="relative">
@@ -208,16 +209,20 @@ export default function PurchaseReturnCreate() {
                           {item.error && <div className="absolute -bottom-4 left-0 right-0 text-[10px] text-red-500 text-center">{item.error}</div>}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-700">₹{item.ptr?.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-700">{formatCurrency(item.ptr || 0)}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{item.gst_percent}%</td>
-                      <td className={`px-4 py-3 text-right font-mono font-semibold ${item.return_qty > 0 ? 'text-red-600' : 'text-gray-400'}`}>₹{lineAmount.toFixed(2)}</td>
+                      <td className={`px-4 py-3 text-right font-mono font-semibold ${item.return_qty > 0 ? 'text-red-600' : 'text-gray-400'}`}>{formatCurrency(lineAmount)}</td>
                       <td className="px-4 py-3 text-center">
                         <AppButton variant="ghost" iconOnly icon={<Trash2 className="h-4 w-4 text-gray-400" strokeWidth={1.5} />} aria-label="Remove item" onClick={() => setItems(items.filter((_, i) => i !== index))} />
                       </td>
                     </tr>
                   );
                 })}
-                {items.length === 0 && <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">No items available for return.</td></tr>}
+                {items.length === 0 && (
+                  <tr><td colSpan={11} className="p-0">
+                    <EmptyState icon={Package} title="No items available for return" description="Every item on this purchase has already been fully returned." />
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -230,8 +235,8 @@ export default function PurchaseReturnCreate() {
               {[
                 { label: 'Items',     value: items.filter((i) => i.return_qty > 0).length },
                 { label: 'Total Qty', value: items.reduce((s, i) => s + (i.return_qty || 0), 0) },
-                { label: 'PTR Total', value: `₹${totals.ptrTotal.toFixed(2)}` },
-                { label: 'GST',       value: `₹${totals.gstAmount.toFixed(2)}` },
+                { label: 'PTR Total', value: formatCurrency(totals.ptrTotal) },
+                { label: 'GST',       value: formatCurrency(totals.gstAmount) },
               ].map((f) => (
                 <div key={f.label}>
                   <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
@@ -241,7 +246,7 @@ export default function PurchaseReturnCreate() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
-              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(totals.netAmount)}</span>
             </div>
           </div>
           <div className="px-4 py-3 flex items-center justify-end gap-3">

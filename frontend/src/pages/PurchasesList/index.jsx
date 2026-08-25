@@ -115,7 +115,7 @@ export default function PurchasesList() {
         <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
         <SupplierDropdown suppliers={suppliers} value={supplierFilter} onChange={setSupplierFilter} />
         {supplierFilter && (
-          <AppButton variant="ghost" size="sm" onClick={() => setSupplierFilter(null)} className="text-xs text-gray-500">
+          <AppButton variant="ghost" size="sm" onClick={() => setSupplierFilter(null)}>
             Clear distributor
           </AppButton>
         )}

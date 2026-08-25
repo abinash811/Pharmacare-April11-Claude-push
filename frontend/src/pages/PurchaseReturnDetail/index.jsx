@@ -3,8 +3,10 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, Printer, Edit, FileText } from 'lucide-react';
-import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu } from '@/components/shared';
+import { ArrowLeft, Printer, Edit, FileText, Package } from 'lucide-react';
+import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu, StatusBadge, EmptyState } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
+import { formatDate } from '@/utils/dates';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 
 const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
@@ -50,7 +52,6 @@ export default function PurchaseReturnDetail() {
     finally { setIsSaving(false); }
   };
 
-  const formatDate = (d) => { if (!d) return '—'; return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); };
   const formatExpiry = (exp) => {
     if (!exp) return '—';
     if (exp.includes('/') && exp.length <= 5) return exp;
@@ -58,8 +59,8 @@ export default function PurchaseReturnDetail() {
     return exp;
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><InlineLoader text="Loading return..." /></div>;
-  if (!purchaseReturn) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="text-gray-500">Purchase return not found</div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-page"><InlineLoader text="Loading return..." /></div>;
+  if (!purchaseReturn) return <div className="min-h-screen flex items-center justify-center bg-page"><div className="text-gray-500">Purchase return not found</div></div>;
 
   const items     = purchaseReturn.items || [];
   const ptrTotal  = purchaseReturn.ptr_total || purchaseReturn.total_value || 0;
@@ -67,7 +68,7 @@ export default function PurchaseReturnDetail() {
   const netAmount = purchaseReturn.total_value || 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-page">
       <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -80,7 +81,7 @@ export default function PurchaseReturnDetail() {
               ]} />
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold font-mono text-brand">{purchaseReturn.return_number}</h1>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">CONFIRMED</span>
+                <StatusBadge status={purchaseReturn.status || 'confirmed'} label={(purchaseReturn.status || 'confirmed').toUpperCase()} />
               </div>
             </div>
           </div>
@@ -100,7 +101,7 @@ export default function PurchaseReturnDetail() {
         {/* Subbar */}
         <section className="bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2 flex-wrap text-sm">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"><span className="font-medium text-gray-700">{formatDate(purchaseReturn.return_date)}</span></div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"><span className="font-medium text-gray-700">{formatDate(purchaseReturn.return_date, '—')}</span></div>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}><span className="font-medium text-gray-900 truncate">{purchaseReturn.supplier_name}</span></div>
             {purchaseReturn.purchase_number && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
@@ -119,7 +120,7 @@ export default function PurchaseReturnDetail() {
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
                   {['#', 'Medicine', 'Batch', 'Expiry', 'MRP', 'Return Qty', 'PTR', 'GST%', 'Amount'].map((h, i) => (
-                    <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide ${i >= 4 ? 'text-right' : 'text-left'} ${i === 5 ? 'text-center' : ''}`}>{h}</th>
+                    <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'} ${i === 5 ? 'text-center' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -132,15 +133,19 @@ export default function PurchaseReturnDetail() {
                       <td className="px-4 py-3"><div className="font-medium text-gray-900">{item.product_name}</div><div className="text-xs text-gray-400">{item.product_sku}</div></td>
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>
                       <td className="px-4 py-3 text-gray-700">{formatExpiry(item.expiry_date)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.mrp || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-700">{formatCurrency(item.mrp || 0)}</td>
                       <td className="px-4 py-3 text-center font-semibold text-brand">{item.qty_units}</td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-700">₹{(item.ptr || item.cost_price_per_unit || 0).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-gray-700">{formatCurrency(item.ptr || item.cost_price_per_unit || 0)}</td>
                       <td className="px-4 py-3 text-right text-gray-700">{item.gst_percent || 5}%</td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">₹{lineAmount.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">{formatCurrency(lineAmount)}</td>
                     </tr>
                   );
                 })}
-                {items.length === 0 && <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400">No items in this return.</td></tr>}
+                {items.length === 0 && (
+                  <tr><td colSpan={9} className="p-0">
+                    <EmptyState icon={Package} title="No items in this return" description="This return has no line items." />
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -153,8 +158,8 @@ export default function PurchaseReturnDetail() {
               {[
                 { label: 'Items',     value: items.length },
                 { label: 'Total Qty', value: items.reduce((s, i) => s + (i.qty_units || 0), 0) },
-                { label: 'PTR Total', value: `₹${ptrTotal.toFixed(2)}` },
-                { label: 'GST',       value: `₹${gstAmount.toFixed(2)}` },
+                { label: 'PTR Total', value: formatCurrency(ptrTotal) },
+                { label: 'GST',       value: formatCurrency(gstAmount) },
               ].map((f) => (
                 <div key={f.label}>
                   <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
@@ -164,7 +169,7 @@ export default function PurchaseReturnDetail() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
-              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(netAmount)}</span>
             </div>
           </div>
           <div className="px-4 py-3 flex items-center justify-end gap-3">

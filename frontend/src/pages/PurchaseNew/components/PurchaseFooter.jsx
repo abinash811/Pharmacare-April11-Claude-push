@@ -7,6 +7,7 @@
  *   purchaseOn  {string}  'credit'|'cash'
  */
 import React from 'react';
+import { formatCurrency } from '@/utils/currency';
 
 export default function PurchaseFooter({ totals, purchaseOn }) {
   return (
@@ -34,14 +35,14 @@ export default function PurchaseFooter({ totals, purchaseOn }) {
       {/* Right: total amount + credit badge */}
       <div className="flex items-center gap-3">
         {purchaseOn === 'credit' && (
-          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded">
+          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full">
             Credit
           </span>
         )}
         <span className="text-sm text-gray-500">
           Net Total:{' '}
           <span className="font-bold text-gray-900 text-base tabular-nums">
-            ₹{totals.netAmount.toLocaleString('en-IN')}
+            {formatCurrency(totals.netAmount)}
           </span>
         </span>
       </div>

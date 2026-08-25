@@ -1,7 +1,7 @@
 import React from 'react';
+import { formatCurrency } from '@/utils/currency';
 
 export default function PurchaseItemsTable({ items, withGst }) {
-  const formatCurrency = (amount) => `₹${(amount || 0).toFixed(2)}`;
   const formatExpiry = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -14,17 +14,17 @@ export default function PurchaseItemsTable({ items, withGst }) {
         <table className="w-full text-left" style={{ tableLayout: 'fixed' }}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '40px' }}>#</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '200px' }}>Medicine</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '90px' }}>Batch</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider" style={{ width: '70px' }}>Expiry</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Qty</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Free</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>PTR</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>MRP</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>GST%</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>LIFA</th>
-              <th className="px-3 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right" style={{ width: '80px' }}>Amount</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '40px' }}>#</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '200px' }}>Medicine</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '90px' }}>Batch</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '70px' }}>Expiry</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Qty</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center" style={{ width: '60px' }}>Free</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>PTR</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right" style={{ width: '70px' }}>MRP</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>GST%</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center" style={{ width: '55px' }}>LIFA</th>
+              <th className="px-3 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right" style={{ width: '80px' }}>Amount</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">

@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function PurchaseReturnFinaliseModal({ open, onClose, totals, note, onNoteChange, supplierName, onSave, isSaving }) {
   return (
@@ -15,7 +16,7 @@ export default function PurchaseReturnFinaliseModal({ open, onClose, totals, not
               <div className="text-xs text-gray-500 mb-1">Supplier</div>
               <div className="font-semibold text-gray-800">{supplierName}</div>
             </div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Note</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
             <textarea value={note} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}
               placeholder="Add a note for this return..."
               className="w-full h-32 px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-brand"
@@ -25,10 +26,10 @@ export default function PurchaseReturnFinaliseModal({ open, onClose, totals, not
           {/* Breakdown */}
           <div className="space-y-2">
             {[
-              { label: 'PTR Total',   value: `₹${totals.ptrTotal.toFixed(2)}` },
-              { label: 'GST',         value: `₹${totals.gstAmount.toFixed(2)}` },
-              { label: 'Bill Amount', value: `₹${(totals.ptrTotal + totals.gstAmount).toFixed(2)}` },
-              { label: 'Round off',   value: `₹${(totals.netAmount - (totals.ptrTotal + totals.gstAmount)).toFixed(2)}` },
+              { label: 'PTR Total',   value: formatCurrency(totals.ptrTotal) },
+              { label: 'GST',         value: formatCurrency(totals.gstAmount) },
+              { label: 'Bill Amount', value: formatCurrency(totals.ptrTotal + totals.gstAmount) },
+              { label: 'Round off',   value: formatCurrency(totals.netAmount - (totals.ptrTotal + totals.gstAmount)) },
             ].map((row) => (
               <div key={row.label} className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-600">{row.label}</span>
@@ -37,7 +38,7 @@ export default function PurchaseReturnFinaliseModal({ open, onClose, totals, not
             ))}
             <div className="pt-4 mt-4 border-t border-gray-200 flex justify-between items-center">
               <span className="text-base font-bold text-gray-900">Net Return</span>
-              <span className="text-xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-xl font-semibold tabular-nums text-red-600">{formatCurrency(totals.netAmount)}</span>
             </div>
           </div>
         </div>

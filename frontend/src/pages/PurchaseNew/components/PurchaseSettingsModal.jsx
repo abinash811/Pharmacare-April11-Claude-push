@@ -13,10 +13,28 @@
  */
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AppButton } from '@/components/shared';
+import { AppButton, FilterPills } from '@/components/shared';
 
-const activeBlue  = 'bg-brand-subtle text-brand border-2 border-brand';
-const inactiveBtn = 'bg-gray-100 text-gray-600 border-2 border-transparent';
+const ORDER_TYPE_OPTIONS = [
+  { key: 'direct',      label: 'Direct',      activeColor: 'brand' },
+  { key: 'credit',      label: 'Credit',      activeColor: 'brand' },
+  { key: 'consignment', label: 'Consignment', activeColor: 'brand' },
+];
+
+const GST_OPTIONS = [
+  { key: 'with',    label: 'With GST',    activeColor: 'green' },
+  { key: 'without', label: 'Without GST', activeColor: 'neutral' },
+];
+
+const PURCHASE_ON_OPTIONS = [
+  { key: 'credit', label: 'Credit', activeColor: 'amber' },
+  { key: 'cash',   label: 'Cash',   activeColor: 'green' },
+];
+
+const BATCH_PRIORITY_OPTIONS = [
+  { key: 'LIFA', label: 'LIFA (Newest First)', activeColor: 'brand' },
+  { key: 'LILA', label: 'LILA (Oldest First)', activeColor: 'brand' },
+];
 
 export default function PurchaseSettingsModal({
   orderType, withGST, purchaseOn, batchPriority,
@@ -33,59 +51,29 @@ export default function PurchaseSettingsModal({
           {/* Order Type */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Order Type</label>
-            <div className="flex gap-2">
-              {['direct', 'credit', 'consignment'].map(type => (
-                <button key={type} onClick={() => onOrderType(type)}
-                  className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${orderType === type ? activeBlue : inactiveBtn}`}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </button>
-              ))}
-            </div>
+            <FilterPills options={ORDER_TYPE_OPTIONS} active={orderType} onChange={onOrderType} />
           </div>
 
           {/* GST */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">GST</label>
-            <div className="flex gap-2">
-              <button onClick={() => onWithGST(true)}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${withGST ? 'bg-green-50 text-green-700 border-2 border-green-400' : inactiveBtn}`}>
-                With GST
-              </button>
-              <button onClick={() => onWithGST(false)}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${!withGST ? 'bg-gray-200 text-gray-700 border-2 border-gray-400' : inactiveBtn}`}>
-                Without GST
-              </button>
-            </div>
+            <FilterPills
+              options={GST_OPTIONS}
+              active={withGST ? 'with' : 'without'}
+              onChange={(key) => onWithGST(key === 'with')}
+            />
           </div>
 
           {/* Purchase On */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Purchase On</label>
-            <div className="flex gap-2">
-              <button onClick={() => onPurchaseOn('credit')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${purchaseOn === 'credit' ? 'bg-amber-50 text-amber-700 border-2 border-amber-400' : inactiveBtn}`}>
-                Credit
-              </button>
-              <button onClick={() => onPurchaseOn('cash')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${purchaseOn === 'cash' ? 'bg-green-50 text-green-700 border-2 border-green-400' : inactiveBtn}`}>
-                Cash
-              </button>
-            </div>
+            <FilterPills options={PURCHASE_ON_OPTIONS} active={purchaseOn} onChange={onPurchaseOn} />
           </div>
 
           {/* Batch Priority */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Default Batch Priority</label>
-            <div className="flex gap-2">
-              <button onClick={() => onBatchPriority('LIFA')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${batchPriority === 'LIFA' ? activeBlue : inactiveBtn}`}>
-                LIFA (Newest First)
-              </button>
-              <button onClick={() => onBatchPriority('LILA')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${batchPriority === 'LILA' ? activeBlue : inactiveBtn}`}>
-                LILA (Oldest First)
-              </button>
-            </div>
+            <FilterPills options={BATCH_PRIORITY_OPTIONS} active={batchPriority} onChange={onBatchPriority} />
             <p className="text-[10px] text-gray-400 mt-1">Controls which batch gets sold first during billing</p>
           </div>
         </div>

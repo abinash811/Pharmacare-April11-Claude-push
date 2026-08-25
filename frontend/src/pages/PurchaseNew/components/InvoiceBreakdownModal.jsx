@@ -19,6 +19,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 const NumberInput = ({ value, onChange }) => (
   <input type="number" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
@@ -72,13 +73,13 @@ export default function InvoiceBreakdownModal({
           {/* Breakdown rows */}
           <div className="space-y-3">
             <Row label="PTR Total">
-              <span className="text-sm font-semibold">₹{breakdown.ptrTotal.toFixed(2)}</span>
+              <span className="text-sm font-semibold">{formatCurrency(breakdown.ptrTotal)}</span>
             </Row>
             <Row label="Total Discount">
               <NumberInput value={breakdown.totalDiscount} onChange={(v) => onUpdateBreakdown('totalDiscount', v)} />
             </Row>
             <Row label="GST">
-              <span className="text-sm font-semibold">₹{breakdown.gst.toFixed(2)}</span>
+              <span className="text-sm font-semibold">{formatCurrency(breakdown.gst)}</span>
             </Row>
             <Row label="CESS">
               <NumberInput value={breakdown.cess} onChange={(v) => onUpdateBreakdown('cess', v)} />
@@ -87,7 +88,7 @@ export default function InvoiceBreakdownModal({
             <hr className="border-gray-100" />
 
             <Row label="Bill Amount">
-              <span className="text-sm font-semibold">₹{breakdown.billAmount.toFixed(2)}</span>
+              <span className="text-sm font-semibold">{formatCurrency(breakdown.billAmount)}</span>
             </Row>
             <Row label="Adjusted CN/Voucher">
               <NumberInput value={breakdown.adjustedCN} onChange={(v) => onUpdateBreakdown('adjustedCN', v)} />
@@ -103,7 +104,7 @@ export default function InvoiceBreakdownModal({
             </Row>
             <Row label="Round Off">
               <span className={`text-sm font-semibold ${breakdown.roundOff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {breakdown.roundOff >= 0 ? '+' : ''}₹{breakdown.roundOff.toFixed(2)}
+                {breakdown.roundOff >= 0 ? '+' : '-'}{formatCurrency(Math.abs(breakdown.roundOff))}
               </span>
             </Row>
 
@@ -111,7 +112,7 @@ export default function InvoiceBreakdownModal({
 
             <Row label={<span className="text-base font-bold text-gray-800">Net Amount</span>}>
               <span className="text-lg font-semibold tabular-nums text-brand">
-                ₹{breakdown.netAmount.toLocaleString()}
+                {formatCurrency(breakdown.netAmount)}
               </span>
             </Row>
 

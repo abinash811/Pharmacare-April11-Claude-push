@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip } from 'lucide-react';
-import { format } from 'date-fns';
-import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu } from '@/components/shared';
+import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu, StatusBadge } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
+import { formatDate as formatDateShort } from '@/utils/dates';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 
@@ -53,9 +54,6 @@ export default function PurchaseDetail() {
     setShowPayModal(true);
   };
 
-  const formatDateShort = (d) => d ? format(new Date(d), 'dd MMM yyyy') : '—';
-  const formatCurrency  = (n) => `₹${(n || 0).toFixed(2)}`;
-
   const calculateTotals = () => {
     if (!purchase?.items) return { itemCount: 0, totalQty: 0, totalFree: 0, marginPercent: 0, gst: 0, netAmount: 0 };
     let totalQty = 0, totalFree = 0, totalPTR = 0, totalMRP = 0, totalGST = 0;
@@ -71,20 +69,20 @@ export default function PurchaseDetail() {
     return {
       itemCount: purchase.items.length, totalQty, totalFree,
       marginPercent: totalMRP > 0 ? ((totalMRP - totalPTR) / totalMRP * 100).toFixed(1) : 0,
-      gst: totalGST.toFixed(2), netAmount: purchase.total_value || 0,
+      gst: totalGST, netAmount: purchase.total_value || 0,
     };
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><InlineLoader text="Loading purchase..." /></div>;
-  if (!purchase) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="text-gray-500">Purchase not found</div></div>;
-  if (purchase.status === 'draft') return <div className="min-h-screen flex items-center justify-center bg-gray-50"><InlineLoader text="Redirecting..." /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-page"><InlineLoader text="Loading purchase..." /></div>;
+  if (!purchase) return <div className="min-h-screen flex items-center justify-center bg-page"><div className="text-gray-500">Purchase not found</div></div>;
+  if (purchase.status === 'draft') return <div className="min-h-screen flex items-center justify-center bg-page"><InlineLoader text="Redirecting..." /></div>;
 
   const isDue      = purchase.payment_status !== 'paid' && (purchase.status === 'confirmed' || purchase.status === 'received');
   const isOverdue  = isDue && purchase.due_date && new Date(purchase.due_date) < new Date();
   const totals     = calculateTotals();
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-page">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
@@ -97,9 +95,9 @@ export default function PurchaseDetail() {
               ]} />
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-gray-900">{purchase.purchase_number}</h1>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">{purchase.status?.toUpperCase() || 'CONFIRMED'}</span>
-                {isDue && <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isOverdue ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{isOverdue ? 'OVERDUE' : 'DUE'}</span>}
-                {purchase.payment_status === 'paid' && <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">PAID</span>}
+                <StatusBadge status={purchase.status || 'confirmed'} label={(purchase.status || 'confirmed').toUpperCase()} />
+                {isDue && <StatusBadge status={isOverdue ? 'overdue' : 'due'} label={isOverdue ? 'OVERDUE' : 'DUE'} />}
+                {purchase.payment_status === 'paid' && <StatusBadge status="paid" label="PAID" />}
               </div>
             </div>
           </div>
@@ -165,7 +163,7 @@ export default function PurchaseDetail() {
             <span className="text-gray-300">·</span>
             <span>Margin% <span className="font-bold text-gray-900">{totals.marginPercent}%</span></span>
             <span className="text-gray-300">·</span>
-            <span>GST <span className="font-bold text-gray-900">₹{totals.gst}</span></span>
+            <span>GST <span className="font-bold text-gray-900">{formatCurrency(totals.gst)}</span></span>
           </div>
           <div className="text-gray-600">Net Amount <span className="font-bold text-brand text-base">{formatCurrency(totals.netAmount)}</span></div>
         </div>

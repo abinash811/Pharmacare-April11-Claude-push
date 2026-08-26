@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.24 | Last updated: August 26, 2026
+# Version: 2.25 | Last updated: August 26, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -252,6 +252,14 @@ and the recommended build-batch order.
   `components/shared/` (now used by both Suppliers and Purchases — was
   previously owned by one page). Full detail + a real bug caught during
   the build in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s UC-P02 entry.
+- ✅ UC-P10/UC-P11 (add medicine by search or barcode) — Aug 26, 2026.
+  Search moved off a 500-product client-side name/SKU filter onto the
+  already-existing `GET /products?search=` (matches brand/manufacturer/
+  generic/strength server-side, previously unused by this page). Barcode
+  scan reuses Billing's exact `BarcodeScannerModal`/USB-scanner hook —
+  same component, one behavior change: never rejects a zero-stock match,
+  since a purchase is how stock gets added in the first place. Full detail
+  in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s UC-P10/UC-P11 entries.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -613,6 +621,7 @@ for the next entry in this table if they slip:
 | No staging environment | Medium | Dev → prod directly today |
 | Feature flags not connected to Roadmap items | Medium | All 📋 items should ship behind a flag |
 | Permission system (`role.permissions`, `has_permission()`) unenforced app-wide | High | Found Aug 24, 2026 auditing Purchases — the roles/permissions data and checker function exist and are seeded, but were called from zero endpoints anywhere. Enforced for Purchases/Purchase Returns writes only (deliberate, scoped, discussed with Abinash first); every other module (Billing, Inventory, Customers, Suppliers, Reports, Settings) remains fully open to any authenticated user regardless of role. Needs an explicit decision on the app-wide rollout, not silent module-by-module fixes. |
+| `npx tsc --noEmit` fails — `SupplierDropdown.test.tsx` (7 errors: implicit `any` params, mock typing on the real `api.post` signature) | Medium | Found Aug 26, 2026 while verifying the UC-P10/UC-P11 build (unrelated file, pre-existing since the Aug 25 UC-P02 commit). Not caught earlier because `tsc --noEmit` is manual-only — not wired into CI or design-guard.sh (see CLAUDE.md's Component audit checklist). Not fixed here to avoid scope creep into an unrelated file; real fix is typing the `jest.mock('@/lib/axios', ...)` return value against axios's actual signature instead of letting it fall back to inferred `never`. |
 
 ---
 

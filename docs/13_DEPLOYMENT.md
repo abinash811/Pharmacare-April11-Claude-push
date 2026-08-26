@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.2 | Last updated: August 22, 2026
+# Version: 1.3 | Last updated: August 26, 2026
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
 
@@ -48,6 +48,18 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    protection against brute-force or abuse.
 7. **TypeScript errors in test files** — `npm install --save-dev @types/jest
    @testing-library/react @testing-library/jest-dom`.
+8. **No real master medicine database** — `frontend/src/constants/
+   medicineSeedList.js` has 75 demo entries, only used for name-autocomplete
+   hints when a pharmacist manually creates a product. Real competitors
+   (Marg ERP, eVitalRx) ship with a database of tens of thousands of actual
+   Indian medicines (manufacturer, composition, packing, GST pre-filled) so
+   a pharmacist almost never types one in by hand — they search and pick.
+   Found Aug 26, 2026 during manual UAT (Abinash, comparing our purchase
+   flow's "add new medicine" against a competitor screenshot): the right
+   long-term fix is sourcing/licensing a real drug database and switching
+   "add new medicine" from the default path to a fallback for genuinely
+   novel items — explicitly deferred until pre-launch, not blocking current
+   build work. Until then, keep manual creation as the primary path.
 
 See "CI/CD — WHAT ACTUALLY EXISTS" below for infra gaps (Sentry, staging
 hosting) — not repeated here to avoid two lists disagreeing about the same

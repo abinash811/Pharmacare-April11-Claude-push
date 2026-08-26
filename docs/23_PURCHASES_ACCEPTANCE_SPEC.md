@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.6 | Last updated: August 26, 2026
+# Version: 1.7 | Last updated: August 26, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -41,9 +41,14 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    (`sales_gst.breakup`, `total_taxable`, etc.) that don't exist on what
    `GET /reports/gst` actually returns (`sales`, `purchases`,
    `net_liability`). It throws on render. Zero test coverage caught this.
-4. **The Purchases list's Cash/Credit/Due filter pills do nothing.** They
-   send `purchase_on`/`payment_status` query params the backend endpoint
-   doesn't accept — silently ignored, not filtered.
+4. ~~The Purchases list's Cash/Credit/Due filter pills do nothing.~~ —
+   ✅ **Fixed Aug 26, 2026.** `GET /purchases` now declares and applies
+   `purchase_on`/`payment_status`; also found and fixed a second bug in
+   the same endpoint while there — the list response never included
+   `purchase_on` at all, so the frontend's own "Cash" badge was
+   independently broken too. Rebuilt the filter as a single dropdown
+   (was 4 pills), matching the Distributor filter's style, per direct
+   UI feedback.
 5. **Stock adjustment has no permission check at all.** `POST
    /batches/{id}/adjust` only requires being logged in — a cashier can
    adjust any stock quantity. Every other purchase-related write endpoint
@@ -233,7 +238,7 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 
 | UC | Status | Evidence |
 |---|---|---|
-| P33 Purchase register | 🔄 Partial | `GET /purchases` filters date/supplier/status/search only — no product/category/manufacturer/payment-status/type/user filters. List UI doesn't even render the taxable-value/tax columns the API already returns. Cash/Credit/Due filter pills send params the backend ignores (bug #4). |
+| P33 Purchase register | 🔄 Partial | `GET /purchases` filters date/supplier/status/search/purchase_on/payment_status — no product/category/manufacturer/type/user filters yet. List UI doesn't even render the taxable-value/tax columns the API already returns. Payment (Cash/Credit/Due) filter fixed and rebuilt as a dropdown, Aug 26 (was bug #4). |
 | P34 Batch purchase report | ❌ Missing | No report endpoint exists; `StockBatch` has no supplier/purchase link to build one from without new joins. |
 | P35 Supplier purchase report | 🔄 Partial | `GET /suppliers/{id}/summary` gives total purchases/value/last-date/outstanding only — missing returns, net purchases, payments, avg rate, top medicines. **Also counts draft purchases in its totals** — a real accuracy bug (`suppliers.py:227`). |
 | P36 GST purchase report | 🔄 Partial + 🐛 | Backend correctly restricts to confirmed purchases and nets returns against input tax. IGST never populated (matches P21), no cess in the response despite the column existing. **Frontend is broken** (bug #3). |
@@ -366,7 +371,7 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 1. Overpayment ledger bug (#1)
 2. Double-confirm duplicate-stock bug (#2)
 3. GST report broken render (#3)
-4. Dead Cash/Credit/Due filter pills (#4)
+4. ~~Dead Cash/Credit/Due filter pills (#4)~~ — ✅ done, Aug 26
 5. Stock-adjust missing permission check (#5)
 
 **Batch 2 — the flow that blocks day-one usage**

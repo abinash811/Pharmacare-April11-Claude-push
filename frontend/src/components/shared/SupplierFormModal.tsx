@@ -87,17 +87,17 @@ export default function SupplierFormModal({ open, editingSupplier, initialName, 
             </div>
             <div>
               {label('Phone')}
-              <input {...register('phone')} className={cls} />
+              <input {...register('phone')} placeholder="9876543210" className={cls} />
               {err('phone')}
             </div>
             <div>
               {label('Email')}
-              <input type="email" {...register('email')} className={cls} />
+              <input type="email" {...register('email')} placeholder="supplier@example.com" className={cls} />
               {err('email')}
             </div>
             <div>
               {label('GSTIN')}
-              <input {...register('gstin')} className={`${cls} font-mono uppercase`} />
+              <input {...register('gstin')} placeholder="22AAAAA0000A1Z5" className={`${cls} font-mono uppercase`} />
               {err('gstin')}
             </div>
             <div>

@@ -129,6 +129,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
       {showAddMedicine && (
         <AddMedicineModal
           initialName={newMedicineName}
+          hideOpeningStock
           onClose={() => setShowAddMedicine(false)}
           onSuccess={(product) => { setShowAddMedicine(false); handleAddProduct(product); }}
         />
@@ -158,9 +159,11 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                 items.map((item, index) => {
                   const qty = parseInt(item.qty_units) || 0;
                   const ptr = parseFloat(item.ptr_per_unit) || 0;
+                  const mrp = parseFloat(item.mrp_per_unit) || 0;
                   const gst = parseFloat(item.gst_percent) || 0;
                   const lineTotal = qty * ptr;
                   const total = lineTotal + (withGST ? lineTotal * (gst / 100) : 0);
+                  const costExceedsMrp = ptr > 0 && mrp > 0 && ptr > mrp;
                   const inp = 'w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400';
                   return (
                     <tr key={item.id} className="hover:bg-brand-tint/50">
@@ -195,11 +198,15 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" step="0.01" value={item.ptr_per_unit} onChange={(e) => onUpdateItem(item.id, 'ptr_per_unit', e.target.value)}
-                          className={`${inp} text-right`} style={{ position: 'relative', zIndex: 1 }} data-testid={`ptr-${index}`} />
+                          className={`${inp} text-right ${costExceedsMrp ? 'border-amber-400 bg-amber-50' : ''}`}
+                          style={{ position: 'relative', zIndex: 1 }} data-testid={`ptr-${index}`}
+                          title={costExceedsMrp ? "PTR is higher than MRP — you'd be selling this at a loss. Double-check both values." : undefined} />
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" step="0.01" value={item.mrp_per_unit} onChange={(e) => onUpdateItem(item.id, 'mrp_per_unit', e.target.value)}
-                          className={`${inp} text-right`} style={{ position: 'relative', zIndex: 1 }} data-testid={`mrp-${index}`} />
+                          className={`${inp} text-right ${costExceedsMrp ? 'border-amber-400 bg-amber-50' : ''}`}
+                          style={{ position: 'relative', zIndex: 1 }} data-testid={`mrp-${index}`}
+                          title={costExceedsMrp ? "PTR is higher than MRP — you'd be selling this at a loss. Double-check both values." : undefined} />
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" step="0.1" value={item.gst_percent} onChange={(e) => onUpdateItem(item.id, 'gst_percent', e.target.value)}

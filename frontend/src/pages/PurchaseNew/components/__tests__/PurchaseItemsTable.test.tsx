@@ -31,9 +31,11 @@ jest.mock('@/components/BarcodeScannerModal', () => ({
 // created product back out.
 jest.mock('@/components/shared/AddMedicineModal', () => ({
   __esModule: true,
-  default: ({ initialName, onSuccess }: { initialName?: string; onSuccess: (p: unknown) => void }) => (
+  default: ({ initialName, hideOpeningStock, onSuccess }:
+    { initialName?: string; hideOpeningStock?: boolean; onSuccess: (p: unknown) => void }) => (
     <div data-testid="mock-add-medicine-modal">
       prefilled: {initialName}
+      hideOpeningStock: {String(hideOpeningStock)}
       <div role="button" onClick={() => onSuccess({ id: 'new-1', sku: 'SKU-NEW', name: initialName, gst_percent: 5 })}>
         mock-create-medicine
       </div>
@@ -99,13 +101,16 @@ describe('PurchaseItemsTable — search, barcode scan, add-new-medicine', () => 
     expect(onAddItem).not.toHaveBeenCalled();
   });
 
-  it('offers "add as new medicine" when the search finds nothing, prefilled with the typed name', async () => {
+  it('offers "add as new medicine" when the search finds nothing, prefilled with the typed name and opening stock hidden', async () => {
     mockedGet.mockResolvedValueOnce({ data: [] });
     render(<PurchaseItemsTable {...baseProps} />);
     await userEvent.type(screen.getByTestId('product-search'), 'Brand New Tablet');
 
     fireEvent.click(await screen.findByTestId('add-new-medicine-btn'));
     expect(await screen.findByText(/prefilled: Brand New Tablet/)).toBeInTheDocument();
+    // Opening Stock would post a batch outside the purchase — the purchase's
+    // own line-item batch entry is the single source of truth here instead.
+    expect(screen.getByText(/hideOpeningStock: true/)).toBeInTheDocument();
   });
 
   it('adds the newly created medicine to the purchase and closes the modal', async () => {
@@ -121,5 +126,27 @@ describe('PurchaseItemsTable — search, barcode scan, add-new-medicine', () => 
       expect.objectContaining({ sku: 'SKU-NEW', name: 'Brand New Tablet' }),
     );
     expect(screen.queryByTestId('mock-add-medicine-modal')).not.toBeInTheDocument();
+  });
+
+  it('warns on a line item where PTR (cost) is higher than MRP — selling it would lose money', () => {
+    const items = [{
+      id: 'i1', product_sku: 'SKU-1', product_name: 'Combiflam', manufacturer: '', pack_size: '',
+      batch_no: '', expiry_mmyy: '', qty_units: 1, free_qty_units: 0,
+      ptr_per_unit: 300, mrp_per_unit: 100, gst_percent: 5, batch_priority: 'LIFA',
+    }];
+    render(<PurchaseItemsTable {...baseProps} items={items} />);
+    expect(screen.getByTestId('ptr-0')).toHaveClass('border-amber-400');
+    expect(screen.getByTestId('mrp-0')).toHaveClass('border-amber-400');
+  });
+
+  it('does not warn when PTR is below MRP', () => {
+    const items = [{
+      id: 'i1', product_sku: 'SKU-1', product_name: 'Combiflam', manufacturer: '', pack_size: '',
+      batch_no: '', expiry_mmyy: '', qty_units: 1, free_qty_units: 0,
+      ptr_per_unit: 50, mrp_per_unit: 100, gst_percent: 5, batch_priority: 'LIFA',
+    }];
+    render(<PurchaseItemsTable {...baseProps} items={items} />);
+    expect(screen.getByTestId('ptr-0')).not.toHaveClass('border-amber-400');
+    expect(screen.getByTestId('mrp-0')).not.toHaveClass('border-amber-400');
   });
 });

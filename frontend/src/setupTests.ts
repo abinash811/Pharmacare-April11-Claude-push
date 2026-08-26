@@ -7,3 +7,14 @@ import '@testing-library/jest-dom';
 // "TextEncoder is not defined" before a single test body runs.
 import { TextEncoder, TextDecoder } from 'util';
 Object.assign(globalThis, { TextEncoder, TextDecoder });
+
+// jsdom doesn't implement ResizeObserver, but Radix's Popover/Command
+// (used by SuggestField, and anything built on cmdk) calls it on mount —
+// without this, any test rendering one of those fails with
+// "ResizeObserver is not defined" before a single assertion runs.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.assign(globalThis, { ResizeObserver: ResizeObserverStub });

@@ -25,6 +25,14 @@ interface Props {
   /** Pre-fills Medicine Name — e.g. when opened from a search that found
    *  nothing, so the typed text isn't retyped. */
   initialName?: string;
+  /** Hide the Opening Stock section — used when this modal is opened
+   *  mid-purchase (PurchaseItemsTable). Opening Stock posts a real batch
+   *  immediately, outside the purchase; filling it there would either
+   *  double-count stock once the purchase is later confirmed with its own
+   *  batch/qty, or leave phantom stock behind if the purchase is abandoned.
+   *  The purchase's own line-item batch entry is the single source of
+   *  truth for stock in that flow, so this section doesn't apply there. */
+  hideOpeningStock?: boolean;
 }
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm';
@@ -46,17 +54,20 @@ function Field({ label, required, hint, children }: any) {
 // pharmacist can type any shelf/room name their pharmacy actually uses.
 const LOCATION_SUGGESTIONS = ['Store A', 'Store B', 'Warehouse', 'Counter'];
 
-const FORM_INIT = {
-  name: '', category: '', dosageForm: '', gstPercent: 5,
-  manufacturer: '', brand: '', genericName: '', strength: '', unitsPerPack: 1,
-  schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false, storageLocation: '',
-  addOpeningStock: true, batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
-};
+function buildFormInit(hideOpeningStock: boolean) {
+  return {
+    name: '', category: '', dosageForm: '', gstPercent: 5,
+    manufacturer: '', brand: '', genericName: '', strength: '', unitsPerPack: 1,
+    schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false, storageLocation: '',
+    addOpeningStock: !hideOpeningStock, batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
+  };
+}
 
-export default function AddMedicineModal({ onClose, onSuccess, initialName }: Props) {
+export default function AddMedicineModal({ onClose, onSuccess, initialName, hideOpeningStock = false }: Props) {
   const [meta, setMeta] = useState<{ categories: any[]; gst_rates: number[]; dosage_forms: any[] }>({
     categories: [], gst_rates: [5], dosage_forms: [],
   });
+  const FORM_INIT = buildFormInit(hideOpeningStock);
   const [form, setForm] = useState(initialName ? { ...FORM_INIT, name: initialName } : FORM_INIT);
   const [loading, setLoading] = useState(false);
   const set = (k: string, v: unknown) => setForm((p) => ({ ...p, [k]: v }));
@@ -68,6 +79,8 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName }: Pr
   const medicineNames = SEED_MEDICINES.map((m) => m.name);
   const selectedCategory = meta.categories.find((c) => c.value === form.category);
   const selectedDosageForm = meta.dosage_forms.find((d) => d.value === form.dosageForm);
+  const costExceedsMrp = Number(form.costPrice) > 0 && Number(form.mrpPerUnit) > 0
+    && Number(form.costPrice) > Number(form.mrpPerUnit);
 
   const handleSelectMedicine = (name: string) => {
     const match = SEED_MEDICINES.find((m) => m.name === name);
@@ -99,7 +112,7 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName }: Pr
         storage_location: form.storageLocation || null,
       });
 
-      if (form.addOpeningStock && form.initialQty && form.expiryDate) {
+      if (!hideOpeningStock && form.addOpeningStock && form.initialQty && form.expiryDate) {
         await api.post(apiUrl.stockBatches(), {
           product_sku: res.data.sku,
           batch_no: form.batchNo,
@@ -189,31 +202,40 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName }: Pr
             </div>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-700">Opening Stock</h4>
-              <Switch checked={form.addOpeningStock} onCheckedChange={(v: boolean) => set('addOpeningStock', v)} />
-            </div>
-            {form.addOpeningStock && (
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Batch Number" required={form.addOpeningStock} hint="From the manufacturer/supplier — required for expiry tracking and Schedule H/H1 invoicing">
-                  <input value={form.batchNo} onChange={(e) => set('batchNo', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-batchno-input" />
-                </Field>
-                <Field label="Expiry Date" required={form.addOpeningStock}>
-                  <input type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-expiry-input" />
-                </Field>
-                <Field label="Quantity" required={form.addOpeningStock}>
-                  <input type="number" value={form.initialQty} onChange={(e) => set('initialQty', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-quantity-input" />
-                </Field>
-                <Field label="MRP per Unit" required={form.addOpeningStock}>
-                  <input type="number" step="0.01" value={form.mrpPerUnit} onChange={(e) => set('mrpPerUnit', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-mrp-input" />
-                </Field>
-                <Field label="Cost Price per Unit" hint="Optional now — needed later for margin reports">
-                  <input type="number" step="0.01" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} className={INPUT_CLS} />
-                </Field>
+          {!hideOpeningStock && (
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-700">Opening Stock</h4>
+                <Switch checked={form.addOpeningStock} onCheckedChange={(v: boolean) => set('addOpeningStock', v)} />
               </div>
-            )}
-          </div>
+              {form.addOpeningStock && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Batch Number" required={form.addOpeningStock} hint="From the manufacturer/supplier — required for expiry tracking and Schedule H/H1 invoicing">
+                    <input value={form.batchNo} onChange={(e) => set('batchNo', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-batchno-input" />
+                  </Field>
+                  <Field label="Expiry Date" required={form.addOpeningStock}>
+                    <input type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-expiry-input" />
+                  </Field>
+                  <Field label="Quantity" required={form.addOpeningStock}>
+                    <input type="number" value={form.initialQty} onChange={(e) => set('initialQty', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-quantity-input" />
+                  </Field>
+                  <Field label="MRP per Unit" required={form.addOpeningStock}>
+                    <input type="number" step="0.01" value={form.mrpPerUnit} onChange={(e) => set('mrpPerUnit', e.target.value)} className={INPUT_CLS} required={form.addOpeningStock} data-testid="medicine-mrp-input" />
+                  </Field>
+                  <div>
+                    <Field label="Cost Price per Unit" hint="Optional now — needed later for margin reports">
+                      <input type="number" step="0.01" value={form.costPrice} onChange={(e) => set('costPrice', e.target.value)} className={INPUT_CLS} data-testid="medicine-costprice-input" />
+                    </Field>
+                    {costExceedsMrp && (
+                      <p className="text-xs text-amber-600 mt-1" data-testid="cost-exceeds-mrp-warning">
+                        ⚠ Cost price is higher than MRP — you'd be selling this at a loss. Double-check both values.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <DialogFooter className="mt-6 pt-4 border-t border-gray-100">
             <AppButton type="button" variant="secondary" onClick={onClose}>Cancel</AppButton>

@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.3 | Last updated: August 25, 2026
+# Version: 2.4 | Last updated: August 26, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -151,6 +151,14 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   option by default — reconsider only if real usage after launch shows
   a genuine need for the more flexible behavior. Don't build the
   flexible option speculatively.
+- **Abinash is non-technical — keep every technical instruction dead
+  simple.** Added August 26, 2026, direct request. No jargon, no
+  assuming familiarity with terminals/git/servers. When something
+  technical must be explained (running a command, reading an error,
+  understanding why a fix works), spell it out in plain words, one
+  step at a time, and say what to click/type exactly — don't assume he
+  already knows what a step means. This applies everywhere, not just
+  chat replies.
 - **Product manager first, project manager second.** Added August 25,
   2026, direct correction after Claude called Purchases "solid" from a
   docs/code audit alone — never having walked it as a real pharmacist's

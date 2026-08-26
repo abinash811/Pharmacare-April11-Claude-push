@@ -33,6 +33,7 @@ class Supplier(Base):
     pan_number: Mapped[Optional[str]] = mapped_column(String(10))
     credit_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     credit_limit_paise: Mapped[Optional[int]] = mapped_column(Integer)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(

@@ -41,6 +41,6 @@ describe('FilterPills', () => {
     const options = [{ key: 'on', label: 'On', activeColor: 'green' as const }, { key: 'off', label: 'Off' }];
     render(<FilterPills options={options} active="off" onChange={jest.fn()} />);
     const offBtn = screen.getByText('Off').closest('button');
-    expect(offBtn).toHaveClass('bg-gray-100', 'text-gray-600');
+    expect(offBtn).toHaveClass('bg-gray-900', 'text-white');
   });
 });

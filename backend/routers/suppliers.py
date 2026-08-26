@@ -61,6 +61,7 @@ def _supplier_response(s: SupplierORM, outstanding_paise: int = 0) -> dict:
         "drug_license_number": s.drug_license_number,
         "payment_terms_days": s.credit_days,
         "credit_days": s.credit_days,
+        "notes": s.notes,
         "is_active": s.is_active,
         "outstanding": outstanding_paise / 100,
         "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -132,6 +133,7 @@ async def create_supplier(supplier_data: SupplierCreate, current_user: User = De
         email=supplier_data.email,
         gstin=supplier_data.gstin,
         address=supplier_data.address,
+        notes=supplier_data.notes,
         credit_days=(supplier_data.payment_terms_days
                      if supplier_data.credit_days is None else supplier_data.credit_days),
     )

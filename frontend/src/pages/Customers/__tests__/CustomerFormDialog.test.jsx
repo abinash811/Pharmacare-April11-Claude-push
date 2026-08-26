@@ -7,11 +7,17 @@ const baseProps = {
   open: true,
   editingCustomer: null,
   onClose: jest.fn(),
-  onSave: jest.fn().mockResolvedValue(true),
+  onSave: jest.fn(),
 };
 
 describe('CustomerFormDialog', () => {
-  beforeEach(() => jest.clearAllMocks());
+  // CRA's jest preset sets resetMocks: true, which wipes mockResolvedValue
+  // along with call history before every test — re-apply it here so it's
+  // never silently missing for a test that expects onSave to resolve true.
+  beforeEach(() => {
+    jest.clearAllMocks();
+    baseProps.onSave.mockResolvedValue(true);
+  });
 
   it('renders add form when editingCustomer is null', () => {
     render(<CustomerFormDialog {...baseProps} />);

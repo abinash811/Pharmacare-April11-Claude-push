@@ -22,14 +22,17 @@ describe('PageBreadcrumb', () => {
     expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing');
   });
 
-  it('does not render last crumb as a link', () => {
+  it('does not render last crumb as a real anchor', () => {
+    // The current page uses role="link" aria-disabled="true" (WAI-ARIA
+    // breadcrumb pattern, from the shared ui/breadcrumb primitive) so it's
+    // announced as part of the trail — but it must not be a clickable <a>.
     wrap(<PageBreadcrumb crumbs={[{ label: 'Billing', to: '/billing' }, { label: '#INV-001' }]} />);
-    expect(screen.queryByRole('link', { name: '#INV-001' })).not.toBeInTheDocument();
+    expect(screen.getByText('#INV-001').closest('a')).not.toBeInTheDocument();
   });
 
-  it('renders single crumb as page (not link)', () => {
+  it('renders single crumb as page (not a real anchor)', () => {
     wrap(<PageBreadcrumb crumbs={[{ label: 'Billing' }]} />);
     expect(screen.getByText('Billing')).toBeInTheDocument();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('Billing').closest('a')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.6 | Last updated: August 25, 2026
+# Version: 1.7 | Last updated: August 26, 2026
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 
@@ -130,6 +130,7 @@ local testing had masked:**
 | 9 | `pytest` in CI failed at collection: `tests/test_save_as_draft.py` read `os.environ.get('REACT_APP_BACKEND_URL')` with no default (every other file in the same folder defaults to `''`), so it crashed on `None.rstrip()` before any test ran. | Added the same default the other 9 files use. |
 | 10 | Every file in `backend/tests/` is an **HTTP integration test** — it logs in over `requests` against a real running backend. CI never started one, and never seeded the account (`testadmin@pharmacy.com`) those tests log in as. Locally this "worked" only because a developer (this session) manually ran `uvicorn` and `seed_admin.py` first — CI had neither step. | Added `Seed test admin account` and `Start backend` steps to `ci.yml`'s backend job, between migrations and the test step; `Test` now gets `REACT_APP_BACKEND_URL` pointing at it. |
 | 11 | `npm run lint -- --max-warnings 71` was verified locally through a pipe to `tail` — which meant the `echo "exit: $?"` right after it was checking `tail`'s exit code (always 0), not eslint's. Once checked correctly, it failed at 71 too: `--max-warnings` only gates warning-severity findings; **any** error-severity finding fails the step regardless of that number, and 21 real errors remained. | Fixed the verification (no more piping through `tail` when the exit code matters). Of the 21: 2 were `no-restricted-syntax` false positives — the "never import raw axios" rule has no exception for its own canonical wrapper (`src/lib/axios.{js,ts}`, which by definition has to); 12 were the same rule's hardcoded-hex-color check firing on `PrintReceipt.jsx`, which renders literal thermal/A4 print output where black borders are correct, not a brand-token violation. Both are real gaps in the rule's scope, not the code — added file-scoped `no-restricted-syntax: 'off'` overrides in `eslint.config.js` for exactly those two files, with the reasoning inline. The remaining 7 (`react-hooks/set-state-in-effect` ×1, `react-hooks/immutability` ×5, `react-hooks/static-components` ×1 at the time) are real, unaudited findings from `eslint-plugin-react-hooks@7`'s new React-Compiler-era rules — downgraded to `warn` (matching this file's own existing precedent for `exhaustive-deps`, same comment style), not fixed outright; still visible in the warning count below, not hidden. |
+| 12 | Aug 26, 2026 — first real auto-triggered CI run on this branch (per bug fix above) came back 1 backend + 4 frontend failures. Backend: `test_edit_supplier` — real gap, not stale: `SupplierCreate`/`SupplierUpdate` schemas and the `SupplierFormModal` UI both already had a working `notes` field, but `Supplier`'s ORM/table never had the column, so it was silently dropped on every save. Frontend: 3 of the 4 were bugs in the **tests**, not the app — `FilterPills.test.tsx`'s "keeps the default dark pill" case asserted the light/inactive classes instead of the dark/active ones its own title describes; `ErrorBoundary.test.tsx`'s reset test clicked "Try again" while the same throwing child was still mounted, which React's error-boundary semantics re-throw immediately, before the test's `rerender()` ever swapped in a non-throwing child; `PageBreadcrumb.test.tsx` asserted `role="link"` is absent from the current crumb, when `role="link" aria-disabled="true"` on the current page is the correct WAI-ARIA breadcrumb pattern (unchanged shadcn primitive) — the real behavior to check is "not a real `<a>`", not "no link role". The 4th, `CustomerFormDialog.test.jsx`, was a genuine test-infra gap: CRA's jest preset sets `resetMocks: true`, silently stripping `baseProps.onSave.mockResolvedValue(true)` (set once at module load) before every test — `onSave` still got called and recorded, but returned `undefined`, so the component's `if (ok) onClose()` correctly never fired. | Backend: added migration `6f51c99eca91` (nullable `notes` Text column on `suppliers`), wired `notes` into `_supplier_response()` and `create_supplier()`'s ORM constructor (`update_supplier()`'s existing generic field-map loop needed no change — it works automatically once the column exists). Frontend: fixed the 3 wrong assertions to check what their own test names describe; re-applied `mockResolvedValue(true)` in `CustomerFormDialog.test.jsx`'s `beforeEach` instead of only at module load, since `resetMocks: true` wipes it before every test. All 273 backend + 125 frontend tests pass after the fixes; no regressions. No new automated gate — this is Rule 14 ("verify, every time") applied to the tests themselves, not just the app: a red CI run was root-caused per-failure instead of assumed to all be one class of problem. |
 
 **The eslint/date-fns downgrades above (bug #3) were the safe fix to get
 CI running, not the modern one — asked "why not make it modern instead,"
@@ -154,25 +155,21 @@ off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
 - **Backend:** `flake8` — clean (0 violations; also fixed 660+ pre-existing
   E501/whitespace violations across the whole backend, mostly via
   `autopep8`, see CHANGELOG). `pytest` against a live seeded backend —
-  **130 passing, 1 failing, 3 skipped** (was 91/30/13 before a full
-  reconciliation pass across every remaining failure — each one either
-  a real bug, fixed below, or a genuinely stale test pointed at a route,
-  param, or field that never existed, converted to a documented
-  `pytest.skip` with the real reason inline rather than deleted or left
-  red). The 1 remaining failure (`test_edit_supplier`, asserting a
-  `notes` field that doesn't exist on `Supplier`) and the 3 skips
-  (`TestBillSequenceValidation`'s dead `/bill-sequence/preview` endpoint,
+  **273 passing, 3 skipped, 0 failing** (`test_edit_supplier` fixed Aug 26,
+  2026 — see CI bug #12 below; the 3 skips —
+  `TestBillSequenceValidation`'s dead `/bill-sequence/preview` endpoint,
   a Bill-model `SALES_RETURN` path that was never wired to the real
   credit-note sequence, and Purchase's never-implemented
-  `landing_price_per_unit` rollup) are deliberately left as documented
-  gaps, not blindly closed — see each test file's docstring for why.
+  `landing_price_per_unit` rollup — are deliberately left as documented
+  gaps, not blindly closed; see each test file's docstring for why).
 - **Frontend:** `npm run lint` — 0 errors, 68 warnings on the modernized
   toolchain (eslint 9, `@typescript-eslint` 8 — see the modernization
   table above; was 74 problems including 28 errors before this pass).
   Ratcheted as the CI ceiling (`--max-warnings 68`) rather than pretending
   it's 0 — lower this number as the backlog is worked down, per
-  file/rule breakdown below. `npm test` — 104/108 passing, verified both
-  locally and live in CI. `tsc --noEmit` — 0 errors.
+  file/rule breakdown below. `npm test` — **125/125 passing** (4 fixed
+  Aug 26, 2026 — see CI bug #12 below), verified both locally and live
+  in CI. `tsc --noEmit` — 0 errors.
 - **3 real production bugs found and fixed earlier in this arc** (not test
   bugs — actual 500 errors in the running app):
   - `POST /purchases/{id}/pay`, `PUT /purchases/{id}`, `PUT /bills/{id}`,

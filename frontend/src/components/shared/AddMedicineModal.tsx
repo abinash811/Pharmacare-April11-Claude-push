@@ -21,7 +21,10 @@ import { SEED_MEDICINES, SEED_MANUFACTURERS } from '@/constants/medicineSeedList
 
 interface Props {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (product?: any) => void;
+  /** Pre-fills Medicine Name — e.g. when opened from a search that found
+   *  nothing, so the typed text isn't retyped. */
+  initialName?: string;
 }
 
 const INPUT_CLS = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm';
@@ -50,11 +53,11 @@ const FORM_INIT = {
   addOpeningStock: true, batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
 };
 
-export default function AddMedicineModal({ onClose, onSuccess }: Props) {
+export default function AddMedicineModal({ onClose, onSuccess, initialName }: Props) {
   const [meta, setMeta] = useState<{ categories: any[]; gst_rates: number[]; dosage_forms: any[] }>({
     categories: [], gst_rates: [5], dosage_forms: [],
   });
-  const [form, setForm] = useState(FORM_INIT);
+  const [form, setForm] = useState(initialName ? { ...FORM_INIT, name: initialName } : FORM_INIT);
   const [loading, setLoading] = useState(false);
   const set = (k: string, v: unknown) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -109,7 +112,7 @@ export default function AddMedicineModal({ onClose, onSuccess }: Props) {
       }
 
       toast.success('Medicine added successfully');
-      onSuccess();
+      onSuccess(res.data);
     } catch (err: any) {
       toast.error(err.message || 'Failed to add medicine');
     } finally {

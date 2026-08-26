@@ -25,12 +25,28 @@ jest.mock('@/components/BarcodeScannerModal', () => ({
     isOpen ? <div role="button" onClick={() => onScan('8901234567890')}>mock-scan-trigger</div> : null,
 }));
 
+// The real modal is a full multi-field form (category, dosage form, GST%,
+// opening stock...) already covered by its own tests elsewhere — here we
+// only need to verify PurchaseItemsTable wires initialName in and the
+// created product back out.
+jest.mock('@/components/shared/AddMedicineModal', () => ({
+  __esModule: true,
+  default: ({ initialName, onSuccess }: { initialName?: string; onSuccess: (p: unknown) => void }) => (
+    <div data-testid="mock-add-medicine-modal">
+      prefilled: {initialName}
+      <div role="button" onClick={() => onSuccess({ id: 'new-1', sku: 'SKU-NEW', name: initialName, gst_percent: 5 })}>
+        mock-create-medicine
+      </div>
+    </div>
+  ),
+}));
+
 const PRODUCT = {
   id: 'p1', sku: 'SKU-1', name: 'Paracetamol 500mg', manufacturer: 'Cipla',
   strength: '500mg', gst_percent: 12,
 };
 
-describe('PurchaseItemsTable — search + barcode scan', () => {
+describe('PurchaseItemsTable — search, barcode scan, add-new-medicine', () => {
   beforeEach(() => jest.clearAllMocks());
 
   const baseProps = {
@@ -81,5 +97,29 @@ describe('PurchaseItemsTable — search + barcode scan', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('No product found with barcode: 000'));
     expect(onAddItem).not.toHaveBeenCalled();
+  });
+
+  it('offers "add as new medicine" when the search finds nothing, prefilled with the typed name', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [] });
+    render(<PurchaseItemsTable {...baseProps} />);
+    await userEvent.type(screen.getByTestId('product-search'), 'Brand New Tablet');
+
+    fireEvent.click(await screen.findByTestId('add-new-medicine-btn'));
+    expect(await screen.findByText(/prefilled: Brand New Tablet/)).toBeInTheDocument();
+  });
+
+  it('adds the newly created medicine to the purchase and closes the modal', async () => {
+    mockedGet.mockResolvedValueOnce({ data: [] });
+    const onAddItem = jest.fn();
+    render(<PurchaseItemsTable {...baseProps} onAddItem={onAddItem} />);
+    await userEvent.type(screen.getByTestId('product-search'), 'Brand New Tablet');
+    fireEvent.click(await screen.findByTestId('add-new-medicine-btn'));
+
+    fireEvent.click(await screen.findByText('mock-create-medicine'));
+
+    expect(onAddItem).toHaveBeenCalledWith(
+      expect.objectContaining({ sku: 'SKU-NEW', name: 'Brand New Tablet' }),
+    );
+    expect(screen.queryByTestId('mock-add-medicine-modal')).not.toBeInTheDocument();
   });
 });

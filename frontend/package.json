@@ -118,7 +118,7 @@
       "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(zod|@hookform|react-router|react-router-dom|react-day-picker|date-fns)/)"
+      "node_modules/(?!(zod|@hookform|react-router|react-router-dom|react-day-picker|date-fns|axios)/)"
     ],
     "collectCoverageFrom": [
       "src/components/shared/**/*.{js,jsx,ts,tsx}",

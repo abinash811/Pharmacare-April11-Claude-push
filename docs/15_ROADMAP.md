@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.25 | Last updated: August 26, 2026
+# Version: 2.26 | Last updated: August 26, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -260,6 +260,25 @@ and the recommended build-batch order.
   same component, one behavior change: never rejects a zero-stock match,
   since a purchase is how stock gets added in the first place. Full detail
   in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s UC-P10/UC-P11 entries.
+- ✅ UC-P12 (add a new medicine inline during purchase entry) — Aug 26,
+  2026. Same shape as UC-P02: a "no results" search state now offers
+  "+ Add '<name>' as new medicine", opening the real Add Medicine form
+  (`AddMedicineModal` moved from `pages/InventorySearch/components/` to
+  `components/shared/`, now used by both pages — same precedent as
+  `SupplierFormModal`) prefilled with the typed name; the created product
+  is added straight to the purchase's line items. Unlike UC-P02's
+  simplified inline form, this reuses the full standalone form as-is —
+  a medicine carries real compliance data (Schedule, HSN, GST) a supplier
+  record doesn't. Root-caused and fixed a real regression while building
+  this: adding `AddMedicineModal` (which calls `@/lib/axios` directly) to
+  the `components/shared` barrel made every test importing anything from
+  that barrel transitively load the real, unmocked `axios` package, which
+  jest couldn't parse (ESM-only entry point) — two previously-green test
+  suites broke. Fixed at the root by adding `axios` to jest's
+  `transformIgnorePatterns` exception list (`package.json`) instead of
+  mocking `@/lib/axios` in every affected file — the same class of fix
+  already applied to `zod`/`@hookform`/`react-router` for the same reason.
+  Full detail in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s UC-P12 entry.
 
 | Feature | Status | Notes |
 |---------|--------|-------|

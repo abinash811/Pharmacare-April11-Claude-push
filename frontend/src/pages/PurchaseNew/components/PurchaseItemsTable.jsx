@@ -16,6 +16,7 @@ import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import AppButton from '@/components/shared/AppButton';
+import AddMedicineModal from '@/components/shared/AddMedicineModal';
 import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
 import { formatCurrency } from '@/utils/currency';
 
@@ -24,6 +25,10 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
   const [searchResults,     setSearchResults]     = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showScanner,       setShowScanner]       = useState(false);
+  const [showAddMedicine,   setShowAddMedicine]   = useState(false);
+  // Captured at click time — the Popover/panel can clear searchQuery before
+  // the modal mounts, the same pitfall already fixed once in SupplierDropdown.
+  const [newMedicineName,   setNewMedicineName]   = useState('');
 
   // Server-side search — matches name/SKU/brand/manufacturer/generic name/
   // strength (GET /products already covers all of these), so a distributor
@@ -77,7 +82,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
               data-testid="product-search"
             />
-            {showSearchResults && searchResults.length > 0 && (
+            {showSearchResults && (searchResults.length > 0 || searchQuery.trim().length >= 2) && (
               <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
                 {searchResults.map(product => (
                   <div key={product.id} onClick={() => handleAddProduct(product)}
@@ -96,6 +101,15 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                     </div>
                   </div>
                 ))}
+                {searchResults.length === 0 && (
+                  <div
+                    onClick={() => { setNewMedicineName(searchQuery.trim()); setShowAddMedicine(true); }}
+                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm text-brand font-medium"
+                    data-testid="add-new-medicine-btn"
+                  >
+                    + Add &quot;{searchQuery.trim()}&quot; as new medicine
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -111,6 +125,14 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
         onClose={() => setShowScanner(false)}
         onScan={(code) => { setShowScanner(false); handleBarcodeScan(code); }}
       />
+
+      {showAddMedicine && (
+        <AddMedicineModal
+          initialName={newMedicineName}
+          onClose={() => setShowAddMedicine(false)}
+          onSuccess={(product) => { setShowAddMedicine(false); handleAddProduct(product); }}
+        />
+      )}
 
       {/* Items Table */}
       <div className="flex-1 overflow-auto px-6 py-4 min-h-0">

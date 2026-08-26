@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.5 | Last updated: August 26, 2026
+# Version: 1.6 | Last updated: August 26, 2026
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
@@ -49,15 +49,15 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    adjust any stock quantity. Every other purchase-related write endpoint
    got gated in the Aug 24 permission pass; this one was missed.
 
-### ❌ The two biggest structural gaps
+### ❌ The one remaining structural gap (down from two)
 
-6. **No way to add a new medicine during purchase entry** (UC-P12).
-   Confirmed live: typing a never-seen-before name shows "not found" with
-   zero path forward. Adding a new *distributor* inline (UC-P02, Aug 25)
-   and searching existing medicines by brand/generic/strength/barcode
-   (UC-P10/UC-P11, Aug 26) are both now built — adding a brand-new
-   *medicine* inline is the one piece of this still missing, same shape
-   as UC-P02, natural next pick.
+6. ~~No way to add a new medicine during purchase entry~~ — ✅ done, Aug 26
+   (UC-P12). Was confirmed live: typing a never-seen-before name showed
+   "not found" with zero path forward. Fixed the same day as UC-P10/UC-P11
+   (search by brand/generic/strength/barcode) and reusing UC-P02's
+   (Aug 25) add-new-distributor pattern — all three legs of "find or
+   create any medicine, from any known field, without leaving the
+   purchase" are now built.
 7. **Purchase Returns has no accept/reject/credit-pending workflow —
    creating a return is one atomic "confirmed" action.** The spec assumes
    a multi-stage supplier-approval process (9 possible statuses); the code
@@ -149,8 +149,8 @@ Was client-side name/SKU-only filtering over a 500-product preload (broke past 5
 ### UC-P11: Add medicine by barcode — ✅ Built (Aug 26, 2026)
 Reused Billing's exact `BarcodeScannerModal`/`useUSBBarcodeScanner` (camera + manual entry + passive USB listener) and `GET /products/barcode/{code}`, wired to a purchase-specific handler — the one real difference from Billing: never rejects a zero-stock match, since receiving stock for something not yet on hand is the normal purchase case, not an error. Live-verified: search "para" surfaces both a stocked and an out-of-stock product by brand/strength; manual barcode entry with an out-of-stock product's SKU adds it to the line-items table with ₹0 stock and no batches, exactly as expected pre-confirm; an unmatched code shows "No product found for barcode: …" without adding anything.
 
-### UC-P12: Add a new medicine during purchase — ❌ Missing
-Same confirmed-live gap as UC-P02 — the other half of the Aug 25 P0.
+### UC-P12: Add a new medicine during purchase — ✅ Built (Aug 26, 2026)
+Same shape as UC-P02's inline add-distributor: when a search finds nothing, a "+ Add '<typed text>' as new medicine" row opens the real Add Medicine form (`AddMedicineModal`, moved from `pages/InventorySearch/components/` to `components/shared/` — now used by both Inventory and Purchases, same precedent as `SupplierFormModal`) prefilled with the typed name. On save the newly created product is added straight to the purchase's line items — no separate trip to Inventory, no retyping. Deliberately reuses the full standalone form (category/dosage form/GST%/opening stock) rather than a stripped-down version — a medicine carries real compliance data (Schedule, HSN, GST) a supplier record doesn't, so the "same shape, fewer required fields" simplification that fit UC-P02 doesn't apply here. Live-verified: typed a never-seen medicine name, form opened prefilled, filled category/dosage form, submitted, "Medicine added successfully" toast, item appeared in the purchase's line-items table ready for batch/pricing entry.
 
 ### UC-P13: Add multiple batches of the same medicine — ✅ Built
 Each purchase's line item owns its own batch/expiry — the normal, expected path across separate purchases.
@@ -371,7 +371,7 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 
 **Batch 2 — the flow that blocks day-one usage**
 6. ~~Inline add-distributor during purchase entry~~ — ✅ done, Aug 25 (UC-P02)
-6b. Inline add-medicine during purchase entry (UC-P12) — same shape, not yet built
+6b. ~~Inline add-medicine during purchase entry~~ — ✅ done, Aug 26 (UC-P12)
 
 **Batch 3 — Purchase Returns' core workflow gap**
 7. Decide, with Abinash, whether Returns genuinely needs the full

@@ -16,8 +16,15 @@ import PurchaseHeader             from './components/PurchaseHeader';
 import PurchaseSubbar             from './components/PurchaseSubbar';
 import PurchaseItemsTable         from './components/PurchaseItemsTable';
 import PurchaseFooter             from './components/PurchaseFooter';
-import PurchaseSettingsModal      from './components/PurchaseSettingsModal';
 import InvoiceBreakdownModal      from './components/InvoiceBreakdownModal';
+
+// Order Type and Batch Priority used to be pharmacist-facing settings (a
+// gear-icon modal), but neither ever drove real behavior — order_type is
+// stored and never read again, and Batch Priority is superseded by each
+// line item's own LIFA/LILA selector in the items table. Removed the UI
+// (Aug 26, 2026, direct request); these are just the backend's own defaults.
+const ORDER_TYPE = 'direct';
+const DEFAULT_BATCH_PRIORITY = 'LIFA';
 
 export default function PurchaseNew() {
   const navigate        = useNavigate();
@@ -32,10 +39,8 @@ export default function PurchaseNew() {
   const [initialLoading,  setInitialLoading]  = useState(true);
 
   // ── Settings ──────────────────────────────────────────────────────────────
-  const [orderType,     setOrderType]     = useState('direct');
   const [withGST,       setWithGST]       = useState(true);
   const [purchaseOn,    setPurchaseOn]    = useState('credit');
-  const [batchPriority, setBatchPriority] = useState('LIFA');
 
   // ── Supplier & dates ──────────────────────────────────────────────────────
   const [suppliers,         setSuppliers]         = useState([]);
@@ -47,7 +52,6 @@ export default function PurchaseNew() {
   const duplicateInvoice = useDuplicateInvoiceCheck(selectedSupplier, supplierInvoiceNo, editId);
 
   // ── Modals ────────────────────────────────────────────────────────────────
-  const [showSettings,    setShowSettings]    = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [internalNote,    setInternalNote]    = useState('');
   const [invoiceBreakdown, setInvoiceBreakdown] = useState({
@@ -85,7 +89,6 @@ export default function PurchaseNew() {
           setSupplierInvoiceNo(p.supplier_invoice_no || '');
           setInvoiceAttachment(p.invoice_attachment_data
             ? { data: p.invoice_attachment_data, name: p.invoice_attachment_name || 'invoice' } : null);
-          setOrderType(p.order_type || 'direct');
           setWithGST(p.with_gst !== false);
           setPurchaseOn(p.purchase_on || 'credit');
           setInternalNote(p.note || '');
@@ -140,7 +143,8 @@ export default function PurchaseNew() {
     try {
       const payload = buildPurchasePayload({
         status, selectedSupplier, billDate, dueDate, supplierInvoiceNo, invoiceAttachment,
-        orderType, withGST, purchaseOn, internalNote, invoiceBreakdown, items, batchPriority,
+        orderType: ORDER_TYPE, withGST, purchaseOn, internalNote, invoiceBreakdown, items,
+        batchPriority: DEFAULT_BATCH_PRIORITY,
       });
       if (isEditMode && editId) {
         await api.put(apiUrl.purchase(editId), payload);
@@ -212,7 +216,6 @@ export default function PurchaseNew() {
         onBack={() => navigate('/purchases')}
         onSaveDraft={handleSaveDraft}
         onConfirm={handleConfirmAndSave}
-        onSettings={() => setShowSettings(true)}
       />
 
       <PurchaseSubbar
@@ -224,14 +227,14 @@ export default function PurchaseNew() {
         invoiceAttachment={invoiceAttachment} onInvoiceAttachmentChange={setInvoiceAttachment}
         purchaseOn={purchaseOn} onPurchaseOnChange={setPurchaseOn}
         dueDate={dueDate} onDueDateChange={setDueDate}
-        orderType={orderType} withGST={withGST}
+        withGST={withGST} onWithGSTChange={setWithGST}
       />
 
       <PurchaseItemsTable
         items={items}
         onUpdateItem={updateItem}
         onRemoveItem={removeItem}
-        onAddItem={(product) => addItem(product, batchPriority)}
+        onAddItem={(product) => addItem(product, DEFAULT_BATCH_PRIORITY)}
         withGST={withGST}
         searchInputRef={searchInputRef}
       />
@@ -240,14 +243,6 @@ export default function PurchaseNew() {
         totals={totals}
         purchaseOn={purchaseOn}
       />
-
-      {showSettings && (
-        <PurchaseSettingsModal
-          orderType={orderType} withGST={withGST} purchaseOn={purchaseOn} batchPriority={batchPriority}
-          onOrderType={setOrderType} onWithGST={setWithGST} onPurchaseOn={setPurchaseOn} onBatchPriority={setBatchPriority}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
 
       {showInvoiceModal && (
         <InvoiceBreakdownModal

@@ -1,7 +1,7 @@
 /**
  * PurchaseHeader — top bar for new/edit purchase.
  *
- * Action buttons [Save Draft] [⚙ Settings] [✓ Confirm & Save] live here.
+ * Action buttons [Save Draft] [✓ Confirm & Save] live here.
  *
  * Props:
  *   isEditMode  {boolean}
@@ -10,13 +10,12 @@
  *   onBack      {() => void}
  *   onSaveDraft {() => void}
  *   onConfirm   {() => void}
- *   onSettings  {() => void}
  */
 import React from 'react';
-import { ArrowLeft, Settings, CheckCircle, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FileText } from 'lucide-react';
 import { PageBreadcrumb, AppButton } from '@/components/shared';
 
-export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm, onSettings }) {
+export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm }) {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
       <div className="flex items-center justify-between">
@@ -54,15 +53,6 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
           >
             Save Draft
           </AppButton>
-
-          {/* Settings */}
-          <AppButton
-            variant="outline" iconOnly
-            icon={<Settings className="w-4 h-4" />}
-            onClick={onSettings}
-            aria-label="Purchase settings"
-            data-testid="settings-btn"
-          />
 
           {/* Confirm & Save — primary CTA */}
           <AppButton

@@ -1,8 +1,12 @@
 /**
  * PurchaseSubbar — labeled-column metadata strip for new/edit purchase.
  *
- * Columns: DISTRIBUTOR | INVOICE # | BILL DATE | DUE DATE (credit only) |
- *          PAYMENT | GST | (spacer) | ATTACHMENT
+ * Columns: DISTRIBUTOR | INVOICE # | BILL DATE | DUE DATE | PAYMENT | GST |
+ *          (spacer) | ATTACHMENT
+ *
+ * Due Date always occupies its slot (disabled when Payment is Cash) rather
+ * than mounting/unmounting — keeps the row's width stable instead of
+ * reflowing everything after it when Payment is toggled.
  *
  * Props:
  *   billDate            {Date}
@@ -21,7 +25,7 @@
  *   dueDate             {Date|null}
  *   onDueDateChange     {(Date) => void}
  *   withGST             {boolean}
- *   orderType           {string}
+ *   onWithGSTChange     {(boolean) => void}
  */
 import React, { useState } from 'react';
 import { ChevronDown, AlertTriangle } from 'lucide-react';
@@ -44,7 +48,7 @@ export default function PurchaseSubbar({
   invoiceAttachment, onInvoiceAttachmentChange,
   purchaseOn, onPurchaseOnChange,
   dueDate, onDueDateChange,
-  withGST, orderType,
+  withGST, onWithGSTChange,
 }) {
   const [showBillDatePicker, setShowBillDatePicker] = useState(false);
   const [showDueDatePicker,  setShowDueDatePicker]  = useState(false);
@@ -117,32 +121,32 @@ export default function PurchaseSubbar({
           </Popover>
         </div>
 
-        {/* ── DUE DATE (credit only) ───────────────────────────────────── */}
-        {purchaseOn === 'credit' && (
-          <div className="shrink-0">
-            <span className={LABEL}>Due Date</span>
-            <Popover open={showDueDatePicker} onOpenChange={setShowDueDatePicker}>
-              <PopoverTrigger asChild>
-                <AppButton
-                  variant="chip"
-                  tone="warning"
-                  data-testid="due-date-btn"
-                >
-                  {fmt(dueDate)}
-                  <ChevronDown className="w-3 h-3 text-amber-400" />
-                </AppButton>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={(date) => { if (date) onDueDateChange(date); setShowDueDatePicker(false); }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
+        {/* ── DUE DATE (always present — disabled on Cash, not unmounted,
+               so toggling Payment doesn't reflow the rest of the row) ──── */}
+        <div className="shrink-0">
+          <span className={LABEL}>Due Date</span>
+          <Popover open={purchaseOn === 'credit' && showDueDatePicker} onOpenChange={setShowDueDatePicker}>
+            <PopoverTrigger asChild>
+              <AppButton
+                variant="chip"
+                tone={purchaseOn === 'credit' ? 'warning' : 'neutral'}
+                disabled={purchaseOn !== 'credit'}
+                data-testid="due-date-btn"
+              >
+                {purchaseOn === 'credit' ? fmt(dueDate) : '—'}
+                <ChevronDown className={`w-3 h-3 ${purchaseOn === 'credit' ? 'text-amber-400' : 'text-gray-300'}`} />
+              </AppButton>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dueDate}
+                onSelect={(date) => { if (date) onDueDateChange(date); setShowDueDatePicker(false); }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
         {/* ── PAYMENT ─────────────────────────────────────────────────── */}
         <div className="shrink-0">
@@ -161,11 +165,20 @@ export default function PurchaseSubbar({
           </div>
         </div>
 
-        {/* ── GST badge ───────────────────────────────────────────────── */}
+        {/* ── GST ─────────────────────────────────────────────────────── */}
         <div className="shrink-0">
           <span className={LABEL}>GST</span>
-          <div className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${withGST ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {withGST ? 'With GST' : 'No GST'}
+          <div className="relative inline-flex items-center">
+            <select
+              value={withGST ? 'with' : 'without'}
+              onChange={(e) => onWithGSTChange(e.target.value === 'with')}
+              className={`${SELECT_CLS} pr-4 ${withGST ? 'text-green-700' : 'text-gray-500'}`}
+              data-testid="gst-select"
+            >
+              <option value="with">With GST</option>
+              <option value="without">No GST</option>
+            </select>
+            <ChevronDown className="w-3 h-3 text-gray-400 absolute right-0 pointer-events-none" />
           </div>
         </div>
 

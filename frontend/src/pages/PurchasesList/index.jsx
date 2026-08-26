@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
-import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, FilterPills, DeleteConfirmDialog } from '@/components/shared';
+import { Plus, Wallet, ChevronDown } from 'lucide-react';
+import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, DeleteConfirmDialog } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -16,8 +16,8 @@ const PURCHASES_TABS = [
   { key: 'returns',   label: 'Purchase Returns' },
 ];
 
-const FILTERS = [
-  { key: 'all',    label: 'All'    },
+const PAYMENT_FILTERS = [
+  { key: 'all',    label: 'All payments' },
   { key: 'cash',   label: 'Cash'   },
   { key: 'credit', label: 'Credit' },
   { key: 'due',    label: 'Due'    },
@@ -133,7 +133,18 @@ export default function PurchasesList() {
             Clear distributor
           </AppButton>
         )}
-        <FilterPills options={FILTERS} active={activeFilter} onChange={setActiveFilter} />
+        <div className="relative inline-flex items-center h-8 pl-3 pr-7 gap-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+          <Wallet className="w-4 h-4 text-gray-400 shrink-0" strokeWidth={1.5} />
+          <select
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value)}
+            className="bg-transparent border-none focus:outline-none appearance-none cursor-pointer text-xs font-semibold text-gray-700 pr-1"
+            data-testid="payment-filter-select"
+          >
+            {PAYMENT_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select>
+          <ChevronDown className="w-3 h-3 text-gray-400 absolute right-2.5 pointer-events-none" />
+        </div>
       </div>
 
       <PurchasesTable purchases={purchases} loading={loading} pagination={pg} isFiltered={isFiltered}

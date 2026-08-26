@@ -180,6 +180,7 @@ def _purchase_list_response(p: PurchaseORM, supplier_name: str = "") -> dict:
         "supplier_invoice_no": p.supplier_invoice_number,
         "status": p.status,
         "payment_status": p.payment_status,
+        "purchase_on": p.purchase_on,
         "subtotal": p.subtotal_paise / 100,
         "tax_value": p.total_gst_paise / 100,
         "total_value": p.grand_total_paise / 100,
@@ -349,6 +350,7 @@ async def _create_stock_for_items(
 async def get_purchases(
     from_date: Optional[str] = None, to_date: Optional[str] = None,
     supplier_id: Optional[str] = None, status: Optional[str] = None,
+    purchase_on: Optional[str] = None, payment_status: Optional[str] = None,
     search: Optional[str] = None, page: int = 1, page_size: int = 50,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
@@ -367,6 +369,16 @@ async def get_purchases(
         query = query.where(PurchaseORM.supplier_id == uuid.UUID(supplier_id))
     if status:
         query = query.where(PurchaseORM.status == status)
+    if purchase_on:
+        query = query.where(PurchaseORM.purchase_on == purchase_on)
+    if payment_status == "unpaid":
+        # "Due" filter: anything still owed money on — unpaid or partially
+        # paid — excluding drafts, which carry no financial obligation yet.
+        query = query.where(
+            PurchaseORM.status != "draft",
+            PurchaseORM.payment_status.in_(["unpaid", "partial"]))
+    elif payment_status:
+        query = query.where(PurchaseORM.payment_status == payment_status)
     if search:
         p = f"%{search}%"
         matching_supplier_ids = select(SupplierORM.id).where(

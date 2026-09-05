@@ -18,6 +18,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        # Added Sep 5, 2026 alongside design-guard.sh Rule 10 (tsc
+        # --noEmit): this job used to run design-guard.sh on a bare
+        # checkout with no frontend/node_modules, so Rule 10's `npx tsc`
+        # fetched an arbitrary fresh TypeScript version from the registry
+        # instead of the project's pinned one — that version rejected
+        # tsconfig.json's `baseUrl` option, which the pinned version
+        # accepts. Installing deps first fixes it at the root cause.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
       - name: Run design guard
         run: |
           chmod +x scripts/design-guard.sh

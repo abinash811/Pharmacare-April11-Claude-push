@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.7 | Last updated: September 5, 2026
+# Version: 2.8 | Last updated: September 5, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -256,6 +256,34 @@
   - This is real enforcement, not a convention — it runs automatically at
     the start of every session, not something a session has to remember
     to do.
+- **7 task-specific skills replace "remember to check the docs."** Added
+  September 5, 2026, following Anthropic's own official Skill-authoring
+  guidance (platform.claude.com/docs/agents-and-tools/agent-skills) —
+  not freehanded. Root cause: CLAUDE.md's "HOW TO BUILD" section named
+  the right order but never actually pointed at the doc for each step,
+  so following it depended on remembering, the same gap the docs
+  restructure fixed for *finding* a doc but not for being *routed* to
+  one mid-task.
+  - Fix: `.claude/skills/pharmacare-design`,
+    `pharmacare-frontend-build`, `pharmacare-backend-build`,
+    `pharmacare-database`, `pharmacare-testing`, `pharmacare-deployment`,
+    `pharmacare-ship-checklist` — each auto-triggers when its matching
+    task comes up (per Skills' own "description-matching" mechanism, not
+    a hardcoded router) and carries a short, copy-into-response
+    checklist naming the exact doc file for each step, so the long
+    reference docs stay the source of truth instead of sitting unread.
+  - Named `pharmacare-*`, not `design`/`testing`/etc., because a
+    same-named generic skill can already exist in the environment
+    (found: a global `design` canvas skill would have collided).
+  - MCP tools installed to back the skills with real capability, not
+    just instructions: `playwright` + `chrome-devtools` (project-shared,
+    `.mcp.json`) for `pharmacare-testing`'s live browser verification;
+    `postgres` (local machine config only, restricted/read-only mode,
+    local dev DB — never committed since it holds a connection string)
+    for `pharmacare-database`'s query/index analysis.
+  - `claude-code-action` (the CI-gate piece) is blocked on an
+    `ANTHROPIC_API_KEY` repo secret only Abinash can add — asked, not
+    assumed or worked around.
 
 ---
 
@@ -332,9 +360,21 @@ known — don't trust a stale memory of this section from an old session.
 ### HOW TO BUILD — mandatory order, every single feature
 
 > Skipping this order is what caused every filter bug, every 404, every patched fix.
+> Added September 5, 2026: this order is now enforced by dedicated skills
+> instead of only being written down here — see `.claude/skills/`:
+> `pharmacare-design` (visual/component compliance), `pharmacare-frontend-build`
+> (DB model → router → domainConstants → frontend, in that order),
+> `pharmacare-backend-build` (money/business-logic/cross-cutting rules),
+> `pharmacare-database` (schema/migrations/query performance),
+> `pharmacare-testing` (what needs a test and how to verify live),
+> `pharmacare-deployment` (env/CI gates), `pharmacare-ship-checklist` (the
+> final gate before calling anything done). Each one triggers automatically
+> when the matching task comes up and points to the specific doc file for
+> that step — this list is the quick summary, the skills are where the
+> actual workflow checklist lives.
 
-1. **Read the DB model first.** What columns exist? What values are actually stored? (`backend/models/` or grep the ORM)
-2. **Read the backend router.** Does the route exist? What params does it accept? What does it return?
+1. **Read the DB model first.** What columns exist? What values are actually stored? (`backend/models/` or `docs/09_DATABASE.md`)
+2. **Read the backend router.** Does the route exist? What params does it accept? What does it return? (`docs/10_API.md`)
 3. **Read domainConstants.js.** Are the status values you need already defined? If not, add them there first.
 4. **Then write the frontend.** Connected to reality — not assumptions.
 

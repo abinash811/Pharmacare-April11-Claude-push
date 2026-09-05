@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.27 | Last updated: August 26, 2026
+# Version: 2.28 | Last updated: September 5, 2026
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
 #        If it's Phase 2+, do NOT build it now — no premature architecture.
@@ -630,7 +630,7 @@ for the next entry in this table if they slip:
 
 | Issue | Priority | Notes |
 |-------|----------|-------|
-| Team's member list shows nothing while loading (`if (loading) return null` in `MembersTable.jsx`) | Medium | Found Aug 26, 2026 alongside Manifesto rule #16 (every loading state is a skeleton). Not auto-detectable like a hand-rolled `animate-pulse` div — this is a *missing* skeleton, not a duplicated one — so `design-guard.sh` Rule 9 can't catch it. Fix: swap for `TableSkeleton`. |
+| Team's member list shows nothing while loading | ✅ | Fixed Sep 5, 2026 — `MembersTable.jsx` swapped `if (loading) return null` for `TableSkeleton` (Manifesto rule #16). Found as part of a full-app skeleton audit that also fixed `PurchaseReturnCreate` (plain-text loading string) and `SalesReturnCreate` (no loading state at all — form flashed empty before the original bill loaded). |
 | Sheets not implemented — forms use centered modals | High | Next sprint |
 | Zod not on all forms — some use uncontrolled inputs | High | Next sprint |
 | Bill PDF template incomplete | Medium | Renderer exists, layout WIP |

@@ -1,11 +1,9 @@
 import React from 'react';
 import { Edit, XCircle, CheckCircle, Users } from 'lucide-react';
-import { AppButton, PaginationBar } from '@/components/shared';
+import { AppButton, PaginationBar, TableSkeleton } from '@/components/shared';
 import RoleBadge from './RoleBadge';
 
 export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate }) {
-  if (loading) return null;
-
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -20,7 +18,9 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 ? (
+            {loading ? (
+              <tr><td colSpan={5} className="p-0"><TableSkeleton rows={6} columns={5} /></td></tr>
+            ) : users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-16 text-center">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" strokeWidth={1.5} />

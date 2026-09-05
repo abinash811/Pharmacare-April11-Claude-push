@@ -6,7 +6,7 @@ import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Stethoscope, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AppButton, PageBreadcrumb } from '@/components/shared';
+import { AppButton, PageBreadcrumb, InlineLoader } from '@/components/shared';
 import { format } from 'date-fns';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 
@@ -33,6 +33,7 @@ export default function SalesReturnCreate() {
   const [showFinaliseModal, setShowFinaliseModal] = useState(false);
   const [isSaving, setIsSaving]       = useState(false);
   const [totals, setTotals]           = useState({ mrpTotal: 0, totalDiscount: 0, gstAmount: 0, netAmount: 0 });
+  const [loading, setLoading]         = useState(!!billId);
 
   useEffect(() => { if (billId) fetchOriginalBill(billId); fetchUsers(); }, [billId]); // eslint-disable-line
   useEffect(() => { calculateTotals(); }, [items]); // eslint-disable-line
@@ -62,6 +63,7 @@ export default function SalesReturnCreate() {
           is_damaged: false, error: null,
         })));
     } catch { toast.error('Failed to load bill details'); navigate('/billing/returns'); }
+    finally { setLoading(false); }
   };
 
   const fetchUsers = async () => {
@@ -113,6 +115,8 @@ export default function SalesReturnCreate() {
   };
 
   const formatExpiry = (d) => d ? format(new Date(d), 'MMM yyyy') : '-';
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><InlineLoader text="Loading bill details..." /></div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

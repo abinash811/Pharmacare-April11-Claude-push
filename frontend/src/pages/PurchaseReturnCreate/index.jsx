@@ -6,7 +6,7 @@ import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Trash2, Package } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AppButton, EmptyState } from '@/components/shared';
+import { AppButton, EmptyState, InlineLoader } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
 import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModal';
@@ -120,7 +120,7 @@ export default function PurchaseReturnCreate() {
     return exp;
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-page"><div className="text-gray-500">Loading purchase...</div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-page"><InlineLoader text="Loading purchase..." /></div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-page">

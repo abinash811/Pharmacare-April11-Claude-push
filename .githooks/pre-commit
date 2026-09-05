@@ -153,6 +153,18 @@ if [ -n "$BACKEND_FILES" ] && [ -x backend/venv/bin/flake8 ]; then
   fi
 fi
 
+if [ -n "$FRONTEND_ALL_FILES" ]; then
+  echo ""
+  echo "Running TypeScript type-check (tsc has no per-file mode, so this checks the whole project)..."
+  TSC_OUTPUT=$(cd frontend && npx tsc --noEmit 2>&1) || true
+  if [ -n "$TSC_OUTPUT" ]; then
+    red "BLOCKED: TypeScript errors found"
+    echo "$TSC_OUTPUT" | while read -r l; do file "$l"; done
+    reason "CLAUDE.md's Component audit checklist: 'npx tsc --noEmit passes with zero errors' — this was a manual checklist item nobody ran; closed Sep 5, 2026 as part of design-guard.sh Rule 10 + this matching pre-commit check."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
 echo ""
 if [ "$ERRORS" -eq 0 ]; then
   green "All pre-commit checks passed."

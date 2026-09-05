@@ -163,6 +163,19 @@ else
   green "Rule 9 PASS: No hand-rolled skeleton loaders"
 fi
 
+# ── Rule 10: TypeScript must type-check clean ────────────────────────────
+# Was a checklist item nobody ran ("manual — not yet wired into
+# design-guard.sh"). Closed Sep 5, 2026 as part of the enforcement-layer
+# setup pass -- a type error is exactly the kind of thing a human forgets
+# to check and a script never does.
+if (cd "$(dirname "$0")/../frontend" && npx tsc --noEmit > /tmp/tsc_output 2>&1); then
+  green "Rule 10 PASS: TypeScript type-checks clean"
+else
+  red "Rule 10 FAIL: TypeScript errors found"
+  cat /tmp/tsc_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -16,8 +16,8 @@ const SUPPLIERS = [
 describe('SupplierDropdown — inline "add new distributor"', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  const openAndSearch = async (props, query) => {
-    render(<SupplierDropdown suppliers={SUPPLIERS} value={null} onChange={jest.fn()} {...props} />);
+  const openAndSearch = async (props: Record<string, unknown>, query: string) => {
+    render(<SupplierDropdown suppliers={SUPPLIERS as any} value={null} onChange={jest.fn()} onSupplierCreated={jest.fn()} {...props} />);
     await userEvent.click(screen.getByTestId('supplier-selector'));
     await userEvent.type(await screen.findByTestId('supplier-search-input'), query);
   };
@@ -40,11 +40,11 @@ describe('SupplierDropdown — inline "add new distributor"', () => {
 
   it('creates the supplier, auto-selects it, and reports it to the parent — without a refetch', async () => {
     const created = { id: 'new-1', name: 'Brand New Distributor Pvt Ltd', payment_terms_days: 30 };
-    api.post.mockResolvedValueOnce({ data: created });
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: created });
     const onChange = jest.fn();
     const onSupplierCreated = jest.fn();
 
-    render(<SupplierDropdown suppliers={SUPPLIERS} value={null} onChange={onChange} allowCreate onSupplierCreated={onSupplierCreated} />);
+    render(<SupplierDropdown suppliers={SUPPLIERS as any} value={null} onChange={onChange} allowCreate onSupplierCreated={onSupplierCreated} />);
     await userEvent.click(screen.getByTestId('supplier-selector'));
     await userEvent.type(await screen.findByTestId('supplier-search-input'), 'Brand New Distributor Pvt Ltd');
     await userEvent.click(screen.getByTestId('add-new-supplier-btn'));
@@ -60,10 +60,10 @@ describe('SupplierDropdown — inline "add new distributor"', () => {
   });
 
   it('surfaces the backend error (e.g. duplicate name) instead of silently failing', async () => {
-    api.post.mockRejectedValueOnce({ response: { data: { detail: 'Supplier with this name already exists' } } });
+    (api.post as jest.Mock).mockRejectedValueOnce({ response: { data: { detail: 'Supplier with this name already exists' } } });
     const onChange = jest.fn();
 
-    render(<SupplierDropdown suppliers={SUPPLIERS} value={null} onChange={onChange} allowCreate />);
+    render(<SupplierDropdown suppliers={SUPPLIERS as any} value={null} onChange={onChange} allowCreate onSupplierCreated={jest.fn()} />);
     await userEvent.click(screen.getByTestId('supplier-selector'));
     await userEvent.type(await screen.findByTestId('supplier-search-input'), 'MedPharma Distributors');
     fireEvent.click(screen.getByTestId('add-new-supplier-btn'));

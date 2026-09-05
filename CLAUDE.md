@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.8 | Last updated: September 5, 2026
+# Version: 2.9 | Last updated: September 5, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -284,6 +284,18 @@
   - `claude-code-action` (the CI-gate piece) is blocked on an
     `ANTHROPIC_API_KEY` repo secret only Abinash can add — asked, not
     assumed or worked around.
+- **`npx tsc --noEmit` is now an automated gate, not a manual checklist
+  item.** Added September 5, 2026, closing the last item of the
+  enforcement-layer setup pass. This exact gap was already named in this
+  file's own Component audit checklist ("manual — not yet wired into
+  design-guard.sh") — closed it instead of leaving it named.
+  - `design-guard.sh` Rule 10 + a matching `.githooks/pre-commit` check
+    (gated on frontend files being staged, same as the ESLint check).
+  - Fixed 7 pre-existing type errors in
+    `SupplierDropdown.test.tsx` first (untyped test helper params, an
+    untyped jest mock, and a prop-shape mismatch from the component's
+    plain-JS default parameter) — same order as the skeleton rule: fix
+    what's already broken before turning on a new blocking gate.
 
 ---
 
@@ -406,7 +418,7 @@ Never write a frontend filter, API call, or status check before completing steps
 - [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else **(manual)**
 - [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared **(manual)**
 - [ ] Zero `import` statements after `const` declarations **(manual — ESLint may catch some cases)**
-- [ ] `npx tsc --noEmit` passes with zero errors **(manual — not yet wired into design-guard.sh)**
+- [ ] `npx tsc --noEmit` passes with zero errors **(auto — Rule 10)**
 - [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
 ### What's next

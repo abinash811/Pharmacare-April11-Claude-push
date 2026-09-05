@@ -145,6 +145,24 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 9: No hand-rolled loading skeletons — use Skeleton/TableSkeleton/
+# PageSkeleton/CardSkeleton/InlineLoader from shared ─────────────────────
+# Found Aug 26, 2026: Dashboard hand-rolled its own animate-pulse divs
+# instead of reusing the shared Skeleton system that already existed —
+# same class of duplication Rule 7 catches for "More menu" dropdowns.
+SKELETON_DUPES=$(grep -rln "animate-pulse" "$FRONTEND" "$SHARED" \
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
+  | grep -v "ui/skeleton.tsx" || true)
+
+if [ -n "$SKELETON_DUPES" ]; then
+  COUNT=$(echo "$SKELETON_DUPES" | wc -l | tr -d ' ')
+  red "Rule 9 FAIL: $COUNT file(s) hand-roll a loading skeleton instead of using the shared Skeleton system"
+  echo "$SKELETON_DUPES" | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+else
+  green "Rule 9 PASS: No hand-rolled skeleton loaders"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

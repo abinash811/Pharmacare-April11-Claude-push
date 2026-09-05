@@ -82,6 +82,14 @@ if [ -n "$FRONTEND_FILES" ]; then
     reason "This exact popover shape was independently duplicated across 3 pages before being extracted into <MoreMenu> (components/shared/MoreMenu.tsx) — one copy even shipped without a working close-on-outside-click. Use <MoreMenu items={[...]} /> instead."
     ERRORS=$((ERRORS+1))
   fi
+
+  SKELETON=$(echo "$FRONTEND_FILES" | xargs grep -ln "animate-pulse" 2>/dev/null | grep -v "ui/skeleton.tsx" || true)
+  if [ -n "$SKELETON" ]; then
+    red "BLOCKED: hand-rolled loading skeleton found"
+    echo "$SKELETON" | while read -r f; do file "$f"; done
+    reason "CLAUDE.md Manifesto rule #16: every loading state uses TableSkeleton/PageSkeleton/CardSkeleton/InlineLoader from '@/components/shared', not a raw animate-pulse div. Found Aug 26, 2026 — Dashboard hand-rolled its own instead of reusing what already existed."
+    ERRORS=$((ERRORS+1))
+  fi
 fi
 
 NEWJSX=$(git diff --name-only --cached --diff-filter=A | grep '\.jsx$' | grep -v node_modules || true)

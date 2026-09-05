@@ -1,5 +1,5 @@
 # PharmaCare — Shared Components
-# Version: 1.2 | Last updated: August 25, 2026
+# Version: 1.3 | Last updated: August 26, 2026
 # Audience: Claude, all developers
 # Rule: Before building any UI, check if a shared component already handles it.
 #        Never rebuild what already exists. When a new shared component is created,
@@ -538,7 +538,36 @@ if (loading && !data) {
   <div className="animate-spin w-6 h-6 border-2 border-brand rounded-full border-t-transparent" />
 </div>
 // → Use InlineLoader
+
+// ❌ Hand-rolled skeleton (raw animate-pulse div)
+<div className="animate-pulse space-y-4">
+  <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+</div>
+// → design-guard.sh Rule 9 blocks this. Found Aug 26, 2026 — Dashboard did
+//   exactly this instead of reusing what already existed here.
 ```
+
+**CLAUDE.md Manifesto rule #16** (added Aug 26, 2026): every loading state
+uses one of these four, no exceptions — not a spinner, not `return null`,
+not a hand-rolled `animate-pulse` div. `design-guard.sh` Rule 9 catches the
+hand-rolled case automatically (`grep`s for `animate-pulse` outside
+`ui/skeleton.tsx`); a missing skeleton entirely (e.g. `if (loading) return
+null`) isn't grep-able the same way, so it's still a manual review point.
+
+**If none of the four pre-built shapes fit** (e.g. a dashboard's own mix of
+metric cards + chart panels), don't force-fit `PageSkeleton` — compose the
+raw primitive instead, which is what `TableSkeleton`/`PageSkeleton`/
+`CardSkeleton` are themselves built on:
+
+```jsx
+import { Skeleton } from '@/components/ui/skeleton';
+
+<Skeleton className="h-28 rounded-xl bg-gray-200" />
+```
+
+Always add `bg-gray-200` (or `bg-gray-300`) — the primitive's own default
+(`bg-primary/10`) reads as too faint against `bg-page`; every existing
+skeleton in the app overrides it the same way.
 
 ---
 

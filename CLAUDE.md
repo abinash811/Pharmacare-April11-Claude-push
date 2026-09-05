@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.4 | Last updated: August 26, 2026
+# Version: 2.5 | Last updated: August 26, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -22,6 +22,7 @@
 13. **Anything outside these rules needs permission first, explained simply.** If a task can't be done inside an existing pattern in this file or `/docs` — a new library, a new architecture, bypassing a documented rule, a schema change — stop and ask before building it. Explain in plain language what's being proposed and why, no jargon, so a non-engineer can approve or reject it. Only propose modern, cost-effective options, checked against `docs/22_TECH_RADAR.md` — never just the first tool that comes to mind.
 14. **No assumptions. Verify, every time.** Don't guess what a route returns, what a doc claims, or whether a pattern still holds — check the real code or the real doc first, per the "HOW TO BUILD" order below. If something looks outdated — a doc, a dependency, a convention, an approach that used to be right — flag it explicitly and ask before deviating from it on your own judgment; don't silently route around it and don't silently keep building on it either. These rules are the law until the user changes them, not a default to override when they seem inconvenient or stale.
 15. **Think like a product manager, not just an auditor.** A use-case list built only by reading our own code rediscovers what we already built — it can't tell you what's missing. Before calling any section's use-case list complete, benchmark it against what real competitors actually ship: **eVitalRx, Marg ERP, Pharmasoft** (see `docs/01_PRODUCT.md` §10 for what's known about each). Named/researched features that we don't have are real gaps, not nice-to-haves — call them out explicitly rather than only listing what exists in our code today.
+16. **Every loading state is a skeleton, not a spinner or blank screen.** Added August 26, 2026, direct request. Use `TableSkeleton`/`PageSkeleton`/`CardSkeleton`/`InlineLoader` from `@/components/shared`; if none fits a page's actual layout, compose the raw `Skeleton` primitive (`@/components/ui/skeleton`) into a one-off shape — never a hand-rolled `animate-pulse` div, and never `return null`/nothing while data loads. Found the same day: Dashboard hand-rolled its own pulse divs instead of reusing what already existed, and Team's member list rendered nothing at all while loading. `design-guard.sh` Rule 9 catches the hand-rolled case automatically; a missing skeleton entirely isn't auto-detectable the same way, so it's still a manual review point — see the Component audit checklist.
 
 ---
 
@@ -290,6 +291,8 @@ Never write a frontend filter, API call, or status check before completing steps
 - [ ] New files use `.tsx` extension, not `.jsx` **(auto — Rule 6)**
 - [ ] Zero hand-rolled "More options" dropdowns — always `<MoreMenu>` from shared **(auto — Rule 7)**
 - [ ] `tailwind.config.js` and `colors_and_type.css` design tokens agree **(auto — Rule 8)**
+- [ ] Zero hand-rolled `animate-pulse` skeletons — always `TableSkeleton`/`PageSkeleton`/`CardSkeleton`/`InlineLoader`, or the raw `Skeleton` primitive composed for a one-off shape **(auto — Rule 9)**
+- [ ] Every loading state actually has a skeleton — no `return null`/blank screen while data fetches **(manual — a missing skeleton isn't grep-able like a hand-rolled one)**
 - [ ] Every page uses `<PageHeader>` — no inline `<h1>`, no subtitle **(manual)**
 - [ ] Every multi-view page uses `<PageTabs>` **(manual)**
 - [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-page` — never `flex flex-col h-full` **(manual)**

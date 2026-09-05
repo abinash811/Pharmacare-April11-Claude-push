@@ -1,5 +1,6 @@
 # PharmaCare — Glossary
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, developers, designers, product — anyone building PharmaCare
 # Rule: Every pharmacy or business term used in code, UI, or docs must be defined here.
 #        When a new term is introduced, add it here in the same PR.

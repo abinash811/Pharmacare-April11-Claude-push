@@ -1,5 +1,6 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.7 | Last updated: August 26, 2026
+# Version: 1.8 | Last updated: September 5, 2026
+# Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.

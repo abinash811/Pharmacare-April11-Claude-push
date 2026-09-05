@@ -1,5 +1,6 @@
 # PharmaCare — API Reference
-# Version: 1.1 | Last updated: August 22, 2026
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
 # Auth: Bearer JWT token in Authorization header (handled by axios instance automatically)

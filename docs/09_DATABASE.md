@@ -1,5 +1,6 @@
 # PharmaCare — Database
-# Version: 1.4 | Last updated: August 22, 2026
+# Version: 1.5 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
 #        Never hard DELETE from any table. Soft deletes only.

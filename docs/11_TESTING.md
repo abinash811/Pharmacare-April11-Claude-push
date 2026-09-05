@@ -1,5 +1,6 @@
 # PharmaCare — Testing
-# Version: 1.7 | Last updated: August 26, 2026
+# Version: 1.8 | Last updated: September 5, 2026
+# Type: How-To
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
 

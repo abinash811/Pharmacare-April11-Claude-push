@@ -1,5 +1,6 @@
 # PharmaCare — Accessibility
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: WCAG AA compliance is non-negotiable. Pharmacy staff use this 8+ hours a day.
 

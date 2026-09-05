@@ -1,5 +1,6 @@
 # PharmaCare — Deployment
-# Version: 1.3 | Last updated: August 26, 2026
+# Version: 1.4 | Last updated: September 5, 2026
+# Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
 

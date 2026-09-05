@@ -1,5 +1,6 @@
 # PharmaCare — Product Document
-# Version: 1.1 | Last updated: August 22, 2026
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
 # Rule: This document is updated every time a major feature ships or strategy shifts.

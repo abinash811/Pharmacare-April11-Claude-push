@@ -1,5 +1,6 @@
 # PharmaCare — Shared Components
-# Version: 1.3 | Last updated: August 26, 2026
+# Version: 1.4 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: Before building any UI, check if a shared component already handles it.
 #        Never rebuild what already exists. When a new shared component is created,

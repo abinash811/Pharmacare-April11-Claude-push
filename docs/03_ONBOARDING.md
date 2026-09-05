@@ -1,5 +1,6 @@
 # PharmaCare — Onboarding
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: September 5, 2026
+# Type: How-To
 # Audience: New developer, Claude, anyone setting up PharmaCare from scratch
 # Goal: Zero to running app in under 30 minutes. Zero questions needed.
 

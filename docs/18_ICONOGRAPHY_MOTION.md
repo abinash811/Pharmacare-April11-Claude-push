@@ -1,5 +1,6 @@
 # PharmaCare — Iconography & Motion
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: One icon library. Consistent sizes. Motion only when it communicates meaning.
 

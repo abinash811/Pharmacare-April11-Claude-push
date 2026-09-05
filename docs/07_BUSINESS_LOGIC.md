@@ -1,5 +1,6 @@
 # PharmaCare — Business Logic
-# Version: 2.3 | Last updated: August 22, 2026
+# Version: 2.4 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
 #        or compliance — read the relevant section here first.

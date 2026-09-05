@@ -1,5 +1,6 @@
 # PharmaCare — Design System
-# Version: 1.2 | Last updated: August 25, 2026
+# Version: 1.3 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, developers, designers
 # Rule: Every visual decision in PharmaCare is defined here.
 #        If it's not in this file, ask before inventing it.

@@ -1,5 +1,6 @@
 # PharmaCare — Security
-# Version: 1.1 | Last updated: August 22, 2026
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
 

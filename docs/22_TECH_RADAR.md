@@ -1,5 +1,6 @@
 # PharmaCare — Tech Radar
-# Last updated: August 2026
+# Version: 1.0 | Last updated: September 5, 2026
+# Type: Explanation
 # Audience: Claude, Abinash, future developers
 # Purpose: What's modern/efficient (cost + performance) for each layer of the stack,
 #          sourced from real external references — not guessed, not vibes.

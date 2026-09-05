@@ -1,5 +1,6 @@
 # PharmaCare — Naming Conventions
-# Version: 1.0 | Last updated: April 18, 2026
+# Version: 1.1 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: Every name in this codebase follows these rules. No exceptions, no shortcuts.
 

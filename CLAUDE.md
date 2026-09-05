@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.5 | Last updated: August 26, 2026
+# Version: 2.6 | Last updated: September 5, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -62,32 +62,63 @@
 
 ## DOCS INDEX
 
-All rules, patterns, and decisions live here. One topic per file. No overlap.
+> Restructured September 5, 2026. All rules, patterns, and decisions live
+> here. One topic per file, no overlap. File numbers/paths are unchanged —
+> only how they're grouped below changed, so every existing link still
+> works. Every doc now carries a `# Type:` line in its own header matching
+> one of the 4 groups below — check that line if a file's category is ever
+> unclear from this list.
+>
+> **Read by what you need, not top to bottom:**
+> - Need a **fact or rule** to check against? → **Reference**
+> - Need **steps to do a task**? → **How-To**
+> - Need to understand **why** something is the way it is (so you don't
+>   relitigate a decided question)? → **Explanation**
+> - Need **current state** (what's built, what's broken, what's next)? →
+>   **Living Status** — the only group that changes constantly; always
+>   re-read fresh, never trust memory of it from an old session.
+
+### Reference — facts and rules to check against
 
 | # | File | What's inside |
 |---|------|--------------|
-| 01 | `docs/01_PRODUCT.md` | Vision, personas, feature matrix, non-goals |
 | 02 | `docs/02_GLOSSARY.md` | All domain terms — MRP, PTR, Schedule H1, paise, FEFO, etc. |
-| 03 | `docs/03_ONBOARDING.md` | Setup steps, project structure, first-change checklist |
-| 04 | `docs/04_GIT_WORKFLOW.md` | Branch strategy, commit format, PR template |
 | 05 | `docs/05_DESIGN_SYSTEM.md` | All design tokens, typography, spacing, banned patterns |
 | 06 | `docs/06_COMPONENTS.md` | Every shared component — props, usage, anti-patterns |
 | 07 | `docs/07_BUSINESS_LOGIC.md` | Billing, stock, GST, H1 register — exact formulas and flows |
-| 08 | `docs/08_ARCHITECTURE.md` | System design, ADRs, request lifecycle, security rules |
 | 09 | `docs/09_DATABASE.md` | All 21 tables, columns, indexes, migration rules |
 | 10 | `docs/10_API.md` | All endpoints, request/response shapes, error codes |
-| 11 | `docs/11_TESTING.md` | pytest + jest setup, P0/P1/P2 priorities, critical tests |
 | 12 | `docs/12_ERROR_HANDLING.md` | All error states, toast rules, retry patterns |
-| 13 | `docs/13_DEPLOYMENT.md` | Env vars, migration commands, pre-deploy checklist |
 | 14 | `docs/14_SECURITY.md` | Auth patterns, multi-tenancy rules, sensitive data |
-| 15 | `docs/15_ROADMAP.md` | Built / in-progress / planned / Phase 2+ / tech debt |
 | 16 | `docs/16_NAMING_CONVENTIONS.md` | File, component, variable, DB, API naming rules |
 | 17 | `docs/17_ACCESSIBILITY.md` | WCAG AA, ARIA, focus, contrast, keyboard nav |
 | 18 | `docs/18_ICONOGRAPHY_MOTION.md` | Lucide icons, sizes, stroke, animation durations |
 | 19 | `docs/19_PERFORMANCE.md` | Lighthouse targets, lazy loading, pagination, N+1 rules |
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 | 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
+
+### How-To — step-by-step task guides
+
+| # | File | What's inside |
+|---|------|--------------|
+| 03 | `docs/03_ONBOARDING.md` | Setup steps, project structure, first-change checklist |
+| 04 | `docs/04_GIT_WORKFLOW.md` | Branch strategy, commit format, PR template |
+| 11 | `docs/11_TESTING.md` | pytest + jest setup, P0/P1/P2 priorities, critical tests |
+| 13 | `docs/13_DEPLOYMENT.md` | Env vars, migration commands, pre-deploy checklist |
+
+### Explanation — why things are the way they are
+
+| # | File | What's inside |
+|---|------|--------------|
+| 01 | `docs/01_PRODUCT.md` | Vision, personas, feature matrix, non-goals |
+| 08 | `docs/08_ARCHITECTURE.md` | System design, ADRs, request lifecycle, security rules |
 | 22 | `docs/22_TECH_RADAR.md`   | What's modern/cost-efficient per stack layer, sourced externally — check before adopting new infra |
+
+### Living Status — current state, always re-read fresh
+
+| # | File | What's inside |
+|---|------|--------------|
+| 15 | `docs/15_ROADMAP.md` | Built / in-progress / planned / Phase 2+ / tech debt |
 | 23 | `docs/23_PURCHASES_ACCEPTANCE_SPEC.md` | Purchases + Purchase Returns full use-case spec vs. real code — every UC rated Built/Partial/Missing with evidence. The template for future module acceptance specs. |
 
 ---
@@ -189,6 +220,24 @@ All rules, patterns, and decisions live here. One topic per file. No overlap.
   locally" as a substitute for this — local `eslint`/`tsc`/`pytest` runs
   and the real CI pipeline (fresh install, real seeded backend, real
   browser E2E) have caught different bugs from each other before.
+- **Docs are grouped by what you need, not read top to bottom.** Added
+  September 5, 2026, direct request, as the first of a small set of
+  "enforcement-layer" setup items (docs structure, session-reliability
+  hook, CI gate, `design-guard.sh` expansion) meant to remove repeat setup
+  work so future sessions focus only on product research + features.
+  - Root cause: 23 doc files grew ad-hoc for 6 months with no consistent
+    structure — this is why the skeleton rule (Manifesto #16) got missed
+    for months before anyone noticed.
+  - Fix: every doc now carries a `# Type:` line (Reference / How-To /
+    Explanation / Living Status) in its header, and the DOCS INDEX below
+    is grouped by that same type instead of by number. No files moved, no
+    links broken — this only changes how docs are *found*, not where they
+    live.
+  - This is a low-risk, mechanical fix (headers only, no body content
+    rewritten) — chosen deliberately over physically moving 23 files into
+    subfolders, which would have required fixing 60+ cross-references for
+    no functional gain at our team size (one AI reader, searchable either
+    way).
 
 ---
 

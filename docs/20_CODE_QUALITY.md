@@ -1,5 +1,6 @@
 # PharmaCare — Code Quality
-# Version: 1.1 | Last updated: August 21, 2026
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Claude, all developers
 # Rule: Linting and formatting are not optional. CI blocks merges on violations.
 

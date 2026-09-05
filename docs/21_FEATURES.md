@@ -1,5 +1,6 @@
 # PharmaCare — Feature Reference
-# Last updated: August 24, 2026 (rev 2)
+# Version: 1.2 | Last updated: September 5, 2026
+# Type: Reference
 # Audience: Developers, designers, new hires, product reviewers
 # Purpose: For every feature — why it exists, who uses it, how it works in the product.
 # Rule: Update this file every time a feature ships or changes behaviour.

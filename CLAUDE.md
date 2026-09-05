@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.6 | Last updated: September 5, 2026
+# Version: 2.7 | Last updated: September 5, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -238,6 +238,24 @@
     subfolders, which would have required fixing 60+ cross-references for
     no functional gain at our team size (one AI reader, searchable either
     way).
+- **Every session self-heals its environment — no manual restart dance.**
+  Added September 5, 2026, second of the enforcement-layer setup items.
+  Root cause: the dev container periodically resets and kills Postgres,
+  the backend, and/or the frontend (and sometimes wipes node_modules),
+  which had cost real time across multiple sessions to notice and
+  manually recover from.
+  - Fix: `.claude/hooks/session-start.sh`, registered in
+    `.claude/settings.json` as a `SessionStart` hook, checks Postgres,
+    pending Alembic migrations, the backend (`:8000`), frontend packages,
+    and the frontend dev server (`:3000`) — in that order — and only
+    takes action where something is actually stopped/missing. Prints a
+    plain-language summary each time.
+  - Verified live: Postgres was genuinely down when this was built: the
+    hook brought it and both servers up from cold, then a second run
+    confirmed it correctly no-ops when everything is already healthy.
+  - This is real enforcement, not a convention — it runs automatically at
+    the start of every session, not something a session has to remember
+    to do.
 
 ---
 

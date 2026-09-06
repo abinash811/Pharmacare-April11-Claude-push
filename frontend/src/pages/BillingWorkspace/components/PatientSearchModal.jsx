@@ -60,6 +60,10 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
     onClose();
   };
 
+  const activateOnKey = (handler) => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden max-h-[80vh] flex flex-col">
@@ -89,9 +93,12 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
         <div className="flex-1 overflow-y-auto">
 
           {/* Counter Sale — always first */}
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => handleSelect('counter')}
-            className="w-full px-4 py-3 text-left hover:bg-brand-subtle flex items-center gap-3 border-b border-gray-100"
+            onKeyDown={activateOnKey(() => handleSelect('counter'))}
+            className="w-full px-4 py-3 text-left hover:bg-brand-subtle flex items-center gap-3 border-b border-gray-100 cursor-pointer"
             data-testid="counter-sale-option"
           >
             <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center shrink-0">
@@ -101,7 +108,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
               <div className="font-semibold text-gray-900 text-sm">Counter Sale</div>
               <div className="text-xs text-gray-400">Walk-in customer without registration</div>
             </div>
-          </button>
+          </div>
 
           {/* Loading */}
           {loading && (
@@ -113,10 +120,13 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
 
           {/* Results */}
           {!loading && results.map((patient) => (
-            <button
+            <div
               key={patient.id}
+              role="button"
+              tabIndex={0}
               onClick={() => handleSelect(patient)}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100"
+              onKeyDown={activateOnKey(() => handleSelect(patient))}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100 cursor-pointer"
               data-testid={`patient-${patient.id}`}
             >
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
@@ -130,7 +140,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
                   {patient.gender && ` · ${patient.gender}`}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
 
           {/* Empty state */}

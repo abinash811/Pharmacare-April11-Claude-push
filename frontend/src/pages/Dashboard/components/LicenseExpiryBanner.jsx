@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { AlertTriangle, X, Settings } from 'lucide-react';
+import { AppButton } from '@/components/shared';
 
 export default function LicenseExpiryBanner({ licenseAlert, onNavigate }) {
   const [dismissed, setDismissed] = useState(false);
@@ -38,20 +39,22 @@ export default function LicenseExpiryBanner({ licenseAlert, onNavigate }) {
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        <button
+        <AppButton
+          variant="ghost"
           onClick={() => onNavigate?.('/settings')}
-          className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ${btnClass}`}
+          className={`h-auto gap-1.5 text-xs px-2.5 py-1 ${btnClass}`}
+          icon={<Settings className="w-3.5 h-3.5" />}
         >
-          <Settings className="w-3.5 h-3.5" />
           Update in Settings
-        </button>
-        <button
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          iconOnly
           onClick={() => setDismissed(true)}
-          className={`p-1 rounded-lg transition-colors ${btnClass}`}
+          className={`h-auto w-auto p-1 ${btnClass}`}
+          icon={<X className="w-3.5 h-3.5" />}
           aria-label="Dismiss"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        />
       </div>
     </div>
   );

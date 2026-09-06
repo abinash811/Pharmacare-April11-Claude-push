@@ -6,8 +6,9 @@ import { cn } from '@/lib/utils';
 type Variant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost' | 'chip';
 type Size = 'sm' | 'md' | 'lg';
 /** Color for variant="chip" only. neutral = gray text, brand on hover.
- *  warning = amber text (e.g. a due date), darker amber on hover. */
-type Tone = 'neutral' | 'warning';
+ *  warning = amber text (e.g. a due date), darker amber on hover.
+ *  danger = faint gray text, red on hover (e.g. remove-row "×"). */
+type Tone = 'neutral' | 'warning' | 'danger';
 
 export interface AppButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -46,6 +47,7 @@ const CHIP_BASE = 'h-auto p-0 gap-1 font-medium bg-transparent hover:bg-transpar
 const CHIP_TONE_CLASSES: Record<Tone, string> = {
   neutral: 'text-gray-900 hover:text-brand',
   warning: 'text-amber-700 hover:text-amber-800',
+  danger:  'text-gray-300 hover:text-red-500',
 };
 
 export default function AppButton({

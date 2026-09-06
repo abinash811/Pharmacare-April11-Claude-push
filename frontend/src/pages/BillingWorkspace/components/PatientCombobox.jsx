@@ -16,6 +16,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
+import { AppButton } from '@/components/shared';
 
 export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const [open,    setOpen]    = useState(false);
@@ -106,16 +107,17 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
     <div ref={wrapperRef} className="relative">
       {/* Trigger */}
       {!open ? (
-        <button
+        <AppButton
+          variant="chip"
           onClick={openDropdown}
-          className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors truncate max-w-full"
+          className="gap-1 text-sm truncate max-w-full"
           data-testid="patient-chip"
         >
           <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{displayValue}</span>
           <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="6 9 12 15 18 9" />
           </svg>
-        </button>
+        </AppButton>
       ) : (
         <input
           ref={inputRef}
@@ -133,13 +135,14 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
         <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
 
           {/* Walk-in always first */}
-          <button
+          <AppButton
+            variant="ghost"
             onClick={() => select('walkin')}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 border-b border-gray-100"
+            className="w-full justify-start px-3 py-2 text-sm text-gray-600 border-b border-gray-100 rounded-none"
+            icon={<User className="w-3.5 h-3.5 text-gray-400" />}
           >
-            <User className="w-3.5 h-3.5 text-gray-400" />
             Counter / Walk-in
-          </button>
+          </AppButton>
 
           {/* Loading */}
           {loading && (
@@ -151,10 +154,13 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
 
           {/* Results */}
           {results.map(p => (
-            <button
+            <div
               key={p.id}
+              role="button"
+              tabIndex={0}
               onClick={() => select(p)}
-              className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-brand/5 transition-colors"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(p); } }}
+              className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-brand/5 transition-colors cursor-pointer"
               data-testid={`patient-result-${p.id}`}
             >
               <User className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
@@ -162,19 +168,20 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
                 <div className="text-sm font-medium text-gray-900">{p.name}</div>
                 {p.phone && <div className="text-xs text-gray-500">{p.phone}</div>}
               </div>
-            </button>
+            </div>
           ))}
 
           {/* Add new */}
           {(noResults || (query.trim() && results.length < 8)) && query.trim() && (
-            <button
+            <AppButton
+              variant="ghost"
               onClick={() => { setShowAdd(true); setAddForm({ name: query.trim(), phone: '' }); }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-brand font-medium hover:bg-brand/5 border-t border-gray-100 transition-colors"
+              className="w-full justify-start px-3 py-2.5 text-sm text-brand hover:bg-brand/5 hover:text-brand border-t border-gray-100 rounded-none"
+              icon={<UserPlus className="w-3.5 h-3.5" />}
               data-testid="patient-add-new"
             >
-              <UserPlus className="w-3.5 h-3.5" />
               Add "{query.trim()}" as new customer
-            </button>
+            </AppButton>
           )}
 
           {/* Empty state */}
@@ -206,19 +213,22 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
             className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-3 focus:outline-none focus:ring-1 focus:ring-brand"
           />
           <div className="flex gap-2">
-            <button
+            <AppButton
+              variant="outline"
+              size="sm"
               onClick={() => setShowAdd(false)}
-              className="flex-1 text-xs py-1.5 border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50"
+              className="flex-1 h-auto py-1.5 text-xs rounded-md"
             >
               Back
-            </button>
-            <button
+            </AppButton>
+            <AppButton
+              size="sm"
               onClick={handleAddSave}
-              disabled={saving}
-              className="flex-1 text-xs py-1.5 bg-brand text-white rounded-md hover:bg-brand-dark disabled:opacity-50"
+              loading={saving}
+              className="flex-1 h-auto py-1.5 text-xs rounded-md"
             >
-              {saving ? 'Saving...' : 'Add & Select'}
-            </button>
+              Add &amp; Select
+            </AppButton>
           </div>
         </div>
       )}

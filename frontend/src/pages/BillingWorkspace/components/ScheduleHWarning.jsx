@@ -19,7 +19,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/shared';
 
 export default function ScheduleHWarning({ open, onCancel, onConfirm }) {
   return (
@@ -46,20 +46,20 @@ export default function ScheduleHWarning({ open, onCancel, onConfirm }) {
         </p>
 
         <DialogFooter className="mt-2 gap-2 sm:gap-2">
-          <Button
+          <AppButton
             variant="outline"
             onClick={onCancel}
             data-testid="schedule-h-cancel"
           >
             Cancel
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             className="bg-amber-500 hover:bg-amber-600 text-white"
             onClick={onConfirm}
             data-testid="schedule-h-confirm"
           >
             Confirm Prescription
-          </Button>
+          </AppButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

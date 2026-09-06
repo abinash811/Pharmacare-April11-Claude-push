@@ -136,36 +136,37 @@ export default function BillingHeader({
               >
                 Save &amp; Print
               </AppButton>
-              {/* Keep as raw button — special split-button control with border-l-0 */}
-              <button
+              <AppButton
+                variant="outline"
+                size="sm"
                 onClick={() => setShowSavePrintMenu((v) => !v)}
                 disabled={isSaving}
-                className="px-1.5 py-2 border border-l-0 border-gray-200 text-gray-600 rounded-r-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-1.5 rounded-l-none border-l-0"
+                icon={<ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSavePrintMenu ? 'rotate-180' : ''}`} />}
                 data-testid="save-print-menu-btn"
                 aria-label="More options"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSavePrintMenu ? 'rotate-180' : ''}`} />
-              </button>
+              />
 
               {showSavePrintMenu && (
                 <div className="absolute top-full right-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
-                  {/* Dropdown menu items kept as raw buttons — special layout needs */}
-                  <button
+                  <AppButton
+                    variant="ghost"
                     onClick={() => { setShowSavePrintMenu(false); onSavePrint(); }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2.5 text-sm text-gray-700"
+                    className="w-full justify-start px-4 py-2.5 text-sm text-gray-700"
+                    icon={<Printer className="w-4 h-4 text-gray-400" />}
                     data-testid="save-print-option"
                   >
-                    <Printer className="w-4 h-4 text-gray-400" />
                     Save &amp; Print
-                  </button>
-                  <button
+                  </AppButton>
+                  <AppButton
+                    variant="ghost"
                     onClick={() => { setShowSavePrintMenu(false); onParkBill(); }}
-                    className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center gap-2.5 text-sm text-gray-700 border-t border-gray-100"
+                    className="w-full justify-start px-4 py-2.5 text-sm text-gray-700 border-t border-gray-100 rounded-t-none"
+                    icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
                     data-testid="park-bill-option"
                   >
-                    <PauseCircle className="w-4 h-4 text-amber-500" />
                     Park bill
-                  </button>
+                  </AppButton>
                 </div>
               )}
             </div>
@@ -252,18 +253,20 @@ export default function BillingHeader({
             {/* Format toggle — Thermal / A4 */}
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden text-xs">
               {FORMAT_OPTIONS.map(opt => (
-                <button
+                <AppButton
                   key={opt.value}
+                  variant="ghost"
+                  aria-pressed={printFormat === opt.value}
                   onClick={() => onPrintFormatChange?.(opt.value)}
-                  className={`px-2.5 py-1.5 transition-colors font-medium ${
+                  className={`h-auto px-2.5 py-1.5 rounded-none text-xs ${
                     printFormat === opt.value
-                      ? 'bg-brand text-white'
+                      ? 'bg-brand text-white hover:bg-brand'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                   title={`Print as ${opt.label}`}
                 >
                   {opt.label}
-                </button>
+                </AppButton>
               ))}
             </div>
 

@@ -31,7 +31,7 @@ import { ChevronDown, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilterPills } from '@/components/shared';
+import { FilterPills, AppButton } from '@/components/shared';
 import DoctorDropdown from './DoctorDropdown';
 import PatientCombobox from './PatientCombobox';
 
@@ -84,13 +84,14 @@ export default function BillingSubbar({
           ) : (
             <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
               <PopoverTrigger asChild>
-                <button
-                  className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
+                <AppButton
+                  variant="chip"
+                  className="gap-1 text-sm"
                   data-testid="date-picker-btn"
                 >
                   {format(billDate, 'dd MMM yyyy')}
                   <ChevronDown className="w-3 h-3 text-gray-400" />
-                </button>
+                </AppButton>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
@@ -189,15 +190,16 @@ export default function BillingSubbar({
         {/* ── Scan (new/edit only) ─────────────────────────────────────── */}
         {!isView && onBarcodeScan && (
           <>
-            <button
+            <AppButton
+              variant="outline"
               onClick={onBarcodeScan}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:border-brand hover:text-brand hover:bg-blue-50 transition-colors mr-3"
+              className="h-auto gap-1.5 px-3 py-1.5 text-sm hover:border-brand hover:text-brand hover:bg-blue-50 mr-3"
+              icon={<ScanLine className="w-4 h-4" />}
               title="Scan barcode (Ctrl+B)"
               data-testid="barcode-scan-btn"
             >
-              <ScanLine className="w-4 h-4" />
               Scan
-            </button>
+            </AppButton>
           </>
         )}
 

@@ -23,10 +23,10 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # ── Rule 1: No raw <button> tags in pages (AppButton only) ───────────────
-# Excludes: dropdown menu items inside popovers (known exceptions in BillingHeader)
 # Excludes: WelcomeCard navigational tiles (intentional exception, documented)
+# The BillingHeader split-button exclusion was removed Sep 6, 2026 once
+# that control was migrated to AppButton — see CLAUDE.md RULE MISSES LOG.
 RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
-  | grep -v "data-testid=\"save-print-menu-btn\"" \
   | grep -v "WelcomeCard" \
   | grep -v "// raw button" \
   | wc -l | tr -d ' ' || true)
@@ -34,7 +34,6 @@ RAW_BUTTONS=$(grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" 
 if [ "$RAW_BUTTONS" -gt "0" ]; then
   red "Rule 1 FAIL: $RAW_BUTTONS raw <button> tag(s) found in pages/"
   grep -rn "<button" "$FRONTEND" --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" \
-    | grep -v "data-testid=\"save-print-menu-btn\"" \
     | grep -v "WelcomeCard" \
     | grep -v "// raw button" \
     | while read -r line; do warn "$line"; done

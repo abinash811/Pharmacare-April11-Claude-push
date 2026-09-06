@@ -18,6 +18,7 @@ import { Stethoscope } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { AppButton } from '@/components/shared';
 
 export default function DoctorDropdown({ value = '', onChange, readOnly = false }) {
   const [open,    setOpen]    = useState(false);
@@ -86,16 +87,17 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
 
       {/* Trigger / inline input — same pattern as PatientCombobox */}
       {!open ? (
-        <button
+        <AppButton
+          variant="chip"
           onClick={openField}
-          className="flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand transition-colors"
+          className="gap-1 text-sm"
           data-testid="doctor-chip"
         >
           <span className={!value ? 'text-gray-400' : ''}>{value || 'Doctor'}</span>
           <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="6 9 12 15 18 9" />
           </svg>
-        </button>
+        </AppButton>
       ) : (
         <input
           ref={inputRef}
@@ -118,10 +120,13 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
             </div>
           )}
           {results.map(doctor => (
-            <button
+            <div
               key={doctor.id}
+              role="button"
+              tabIndex={0}
               onClick={() => handleSelect(doctor)}
-              className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(doctor); } }}
+              className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
               data-testid={`doctor-option-${doctor.id}`}
             >
               <Stethoscope className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
@@ -133,7 +138,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
                   </div>
                 )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

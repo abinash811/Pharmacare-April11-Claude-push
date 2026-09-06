@@ -18,7 +18,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { AppButton } from '@/components/shared';
 
 export default function FinaliseModal({
   open,
@@ -131,18 +131,16 @@ export default function FinaliseModal({
                 <span className="font-semibold text-gray-700 capitalize">{paymentType || 'Not selected'}</span>
               </div>
 
-              <Button
+              <AppButton
                 onClick={handleConfirm}
-                disabled={isSaving}
-                className="w-full py-3 text-sm font-bold text-white flex items-center justify-center gap-2 hover:bg-brand-dark transition-colors mt-4 bg-brand"
+                loading={isSaving}
+                size="lg"
+                className="w-full mt-4"
+                icon={<span className="material-symbols-outlined">check_circle</span>}
                 data-testid="confirm-save-btn"
               >
-                {isSaving ? (
-                  <><span className="material-symbols-outlined animate-spin">progress_activity</span>Saving…</>
-                ) : (
-                  <><span className="material-symbols-outlined">check_circle</span>Confirm &amp; Save Bill</>
-                )}
-              </Button>
+                Confirm &amp; Save Bill
+              </AppButton>
             </div>
           </div>
         </div>

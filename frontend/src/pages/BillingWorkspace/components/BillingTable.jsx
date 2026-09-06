@@ -12,6 +12,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { AppButton } from '@/components/shared';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
 import api from '@/lib/axios';
@@ -107,10 +108,11 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                       data-testid="new-item-search"
                     />
                     {newItemSearch && (
-                      <button
+                      <AppButton
+                        variant="chip"
                         onMouseDown={(e) => { e.preventDefault(); setNewItemSearch(''); setSearchResults([]); setShowSearchResults(false); }}
-                        className="text-gray-300 hover:text-gray-500 text-lg leading-none"
-                      >×</button>
+                        className="text-lg leading-none"
+                      >×</AppButton>
                     )}
                   </div>
                   {showSearchResults && searchResults.length > 0 && (
@@ -176,9 +178,9 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
 
                   {/* Batch cell + panel */}
                   <td className="px-4 py-2 relative">
-                    <button onClick={() => openBatchPanel(index)} className="text-xs font-mono hover:text-brand hover:underline" data-testid={`batch-select-${index}`}>
+                    <AppButton variant="chip" onClick={() => openBatchPanel(index)} className="text-xs font-mono hover:underline" data-testid={`batch-select-${index}`}>
                       {item.batch_no}
-                    </button>
+                    </AppButton>
                     {showBatchPanel === index && batchPanelData.length > 0 && (
                       <div ref={batchPanelRef} className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-[480px] max-h-64 overflow-hidden">
                         <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -242,7 +244,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
 
                   {!isView && (
                     <td className="px-2 py-2 text-center">
-                      <button onClick={() => onRemoveItem(index)} className="text-gray-300 hover:text-red-500 transition-colors text-lg font-bold" data-testid={`remove-${index}`}>×</button>
+                      <AppButton variant="chip" tone="danger" onClick={() => onRemoveItem(index)} className="text-lg font-bold" data-testid={`remove-${index}`}>×</AppButton>
                     </td>
                   )}
                 </tr>

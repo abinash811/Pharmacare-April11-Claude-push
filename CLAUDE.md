@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.9 | Last updated: September 5, 2026
+# Version: 2.10 | Last updated: September 6, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -296,6 +296,28 @@
     untyped jest mock, and a prop-shape mismatch from the component's
     plain-JS default parameter) — same order as the skeleton rule: fix
     what's already broken before turning on a new blocking gate.
+- **`main` is now a protected branch — every gate is enforced, not just
+  informational.** Added September 6, 2026, the capstone of the
+  enforcement-layer setup pass, direct request. Found while rating the
+  overall setup: `main` had zero branch protection, meaning every CI
+  check and every `design-guard.sh` rule built this session could fail
+  and it would never actually block a merge — a red check was purely
+  visible, not a stop-sign. This is almost certainly why the pre-existing
+  BillingWorkspace/Dashboard button violations (Rule 1/Rule 5, written
+  before AppButton existed, April 2026) sat failing in CI for months
+  with nobody forced to look.
+  - Fix: GitHub branch protection on `main` — require a PR before
+    merging, require 1 approval, require `Frontend — lint + test`,
+    `Backend — lint + test`, and `E2E — Playwright` to pass before merge.
+  - `design-guard.sh`'s own CI job deliberately left out of the required
+    list for now — it currently fails on those 2 pre-existing violations,
+    so requiring it would block every merge until they're fixed. Add it
+    as required once they're cleaned up.
+  - Verified live via the GitHub API, not just the settings screen:
+    `main` now returns `"protected": true`.
+  - Caveat worth knowing: GitHub doesn't count a PR author's own approval
+    toward the required-approvals number — not a problem today, but the
+    reason if a future PR ever can't be self-approved.
 
 ---
 

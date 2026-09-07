@@ -175,6 +175,40 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 11 (warn-only): clickable <div>/<tr> should be keyboard-accessible ──
+# Found 9 real instances Sep 7, 2026 (docs/17_ACCESSIBILITY.md already
+# documented this rule — it just wasn't enforced anywhere, so it got
+# violated anyway). Tried this as a hard-fail line-proximity check first;
+# reverted to warn-only after it flagged ~30 false positives — a container
+# <div> whose child <button> has its own onClick a line or two later reads
+# identically to a real violation from grep's vantage point, and there's no
+# way to tell them apart without real JSX parsing. Loud-but-wrong would
+# train people to ignore this tool, so: advisory, not blocking.
+CLICKABLE_NOTE=0
+for tag in div tr; do
+  while IFS=: read -r file lineno _; do
+    [ -z "$file" ] && continue
+    window=$(sed -n "${lineno},$((lineno + 5))p" "$file")
+    if echo "$window" | grep -q "onClick=" && ! echo "$window" | grep -qE "tabIndex|role=|stopPropagation"; then
+      CLICKABLE_NOTE=$((CLICKABLE_NOTE + 1))
+    fi
+  done < <(grep -rn "<${tag}\b" "$FRONTEND" "$SHARED" --include="*.jsx" --include="*.tsx" 2>/dev/null | grep -v "test\|InventorySearch/index.jsx")
+done
+if [ "$CLICKABLE_NOTE" -gt "0" ]; then
+  warn "Rule 11 NOTE: $CLICKABLE_NOTE <div>/<tr> near an onClick with no role/tabIndex nearby — most are containers whose real button child is fine; manually verify any that are themselves the clickable element (see docs/17_ACCESSIBILITY.md)"
+fi
+
+# ── Rule 12 (warn-only): truncated dynamic content should keep a title ──
+# Not a hard fail — many truncate usages are fixed short labels that never
+# need one (a column header, a static button caption), and grep can't tell
+# those apart from a truncated real name/email reliably. This is a nudge to
+# check manually, same spirit as Rule 7's "trivially evaded" caveat.
+TRUNCATE_NO_TITLE=$(grep -rn "truncate" "$FRONTEND" "$SHARED" --include="*.jsx" --include="*.tsx" 2>/dev/null \
+  | grep -v "title=\|test\|line-clamp" | wc -l | tr -d ' ' || true)
+if [ "$TRUNCATE_NO_TITLE" -gt "0" ]; then
+  warn "Rule 12 NOTE: $TRUNCATE_NO_TITLE truncate usage(s) without a title= on the same line — verify each is a fixed label, not real data (see docs/05_DESIGN_SYSTEM.md's Content Truncation rule)"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -108,7 +108,7 @@ export default function SalesReturnDetail() {
               { label: 'Doctor',       value: returnData.doctor || '-' },
             ].map((f) => (
               <div key={f.label}>
-                <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
+                <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
                 <span className="text-sm font-medium text-gray-700">{f.value}</span>
               </div>
             ))}
@@ -164,13 +164,13 @@ export default function SalesReturnDetail() {
                 { label: 'GST',   value: `₹${(returnData.gst_amount || 0).toFixed(2)}` },
               ].map((f) => (
                 <div key={f.label}>
-                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
                   <span className="font-bold text-gray-700">{f.value}</span>
                 </div>
               ))}
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Amount</span>
+              <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Amount</span>
               <span className="text-2xl font-semibold tabular-nums text-red-600">₹{(returnData.net_amount || 0).toFixed(2)}</span>
             </div>
           </div>

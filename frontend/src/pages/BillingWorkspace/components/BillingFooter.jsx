@@ -47,36 +47,36 @@ export default function BillingFooter({
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between gap-4 text-sm border-b border-gray-200">
         <div className="flex items-center gap-6">
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">Items</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">Items</span>
             <span className="font-bold text-gray-700">{billItems.length}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">MRP Total</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">MRP Total</span>
             <span className="font-bold text-gray-700">₹{mrpTotal.toFixed(2)}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">Item Disc</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">Item Disc</span>
             <span className="font-bold text-red-500">-₹{itemDiscAmt.toFixed(2)}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">Bill Disc</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">Bill Disc</span>
             <span className="font-bold text-red-500">-₹{billDiscAmt.toFixed(2)}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">GST</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">GST</span>
             <span className="font-bold text-gray-700">₹{totalGst.toFixed(2)}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">CESS</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">CESS</span>
             <span className="font-bold text-gray-700">₹{totalCess.toFixed(2)}</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-400 uppercase font-semibold block">Margin</span>
+            <span className="text-[10px] text-gray-500 uppercase font-semibold block">Margin</span>
             <span className="font-bold text-green-600">₹{margin.amount.toFixed(2)} ({margin.percent.toFixed(1)}%)</span>
           </div>
         </div>
         <div className="text-right">
-          <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Payable</span>
+          <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Payable</span>
           <span className="text-2xl font-semibold tabular-nums text-gray-900">₹{grandTotal.toFixed(2)}</span>
         </div>
       </div>

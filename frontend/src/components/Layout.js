@@ -110,7 +110,7 @@ export default function Layout() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white leading-tight">PharmaCare</p>
-          <p className="text-[10px] text-gray-500 leading-tight">v1.0</p>
+          <p className="text-[10px] text-gray-400 leading-tight">v1.0</p>
         </div>
         {/* Mobile close */}
         <button
@@ -126,7 +126,7 @@ export default function Layout() {
       <nav className="flex-1 overflow-y-auto py-2 px-2">
         {visibleGroups.map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-gray-500 px-3 mt-4 mb-1 first:mt-2">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-gray-400 px-3 mt-4 mb-1 first:mt-2">
               {group.label}
             </p>
             {group.items.map((item) => (

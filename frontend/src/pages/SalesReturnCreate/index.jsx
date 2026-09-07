@@ -245,13 +245,13 @@ export default function SalesReturnCreate() {
                 { label: 'GST',            value: `₹${totals.gstAmount.toFixed(2)}` },
               ].map((f) => (
                 <div key={f.label}>
-                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
                   <span className={`font-bold ${f.cls || 'text-gray-700'}`}>{f.value}</span>
                 </div>
               ))}
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Refund Amount</span>
+              <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Refund Amount</span>
               <span className="text-2xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
             </div>
           </div>

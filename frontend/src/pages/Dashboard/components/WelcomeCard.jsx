@@ -44,7 +44,7 @@ export default function WelcomeCard({ onNavigate }) {
               className="border border-gray-200 rounded-lg p-3 hover:border-brand hover:bg-brand/5 transition-colors text-center"
             >
               <p className={`text-xs font-semibold mb-0.5 ${item.color}`}>{item.label}</p>
-              <p className="text-[10px] text-gray-400">{item.sub}</p>
+              <p className="text-[10px] text-gray-500">{item.sub}</p>
             </button>
           ))}
         </div>

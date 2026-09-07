@@ -101,7 +101,7 @@ export default function SupplierDropdown({ suppliers = [], value, onChange, allo
                 >
                   <div className="text-xs font-semibold text-gray-700">{supplier.name}</div>
                   {supplier.gstin && (
-                    <div className="text-[10px] text-gray-400">GSTIN: {supplier.gstin}</div>
+                    <div className="text-[10px] text-gray-500">GSTIN: {supplier.gstin}</div>
                   )}
                 </div>
               ))

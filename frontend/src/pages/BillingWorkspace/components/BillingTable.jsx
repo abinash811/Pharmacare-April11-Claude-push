@@ -121,7 +121,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <div key={product.sku} className="border-b border-gray-100 last:border-0">
                           <div className="px-3 py-1.5 bg-gray-50 flex items-center justify-between">
                             <span className="font-semibold text-sm text-gray-900">{product.name}</span>
-                            <span className="text-[10px] text-gray-400 font-mono">SKU: {product.sku}</span>
+                            <span className="text-[10px] text-gray-500 font-mono">SKU: {product.sku}</span>
                           </div>
                           {product.batches?.map((batch) => (
                             <div
@@ -165,7 +165,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <span className="text-sm font-semibold text-gray-900">{item.product_name}</span>
                         {isRx && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">Rx</span>}
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400">
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500">
                         <span className="font-mono">{item.batch_no}</span>
                         <span>·</span>
                         <span>LP ₹{(item.cost_price || item.unit_price * 0.7).toFixed(2)}</span>

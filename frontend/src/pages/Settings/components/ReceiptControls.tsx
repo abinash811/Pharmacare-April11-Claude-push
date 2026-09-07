@@ -70,7 +70,7 @@ export default function ReceiptControls({ print, general, onUpdatePrint, onUpdat
           >
             <span>
               <p className="text-sm font-semibold">{ps.label}</p>
-              <p className="text-[10px] text-gray-400">{ps.sub}</p>
+              <p className="text-[10px] text-gray-500">{ps.sub}</p>
             </span>
           </AppButton>
         ))}

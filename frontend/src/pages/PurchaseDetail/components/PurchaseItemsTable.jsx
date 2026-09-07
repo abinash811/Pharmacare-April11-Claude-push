@@ -41,7 +41,7 @@ export default function PurchaseItemsTable({ items, withGst }) {
                   <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                   <td className="px-3 py-2">
                     <div className="text-sm font-medium text-gray-800 truncate">{item.product_name}</div>
-                    <div className="text-[10px] text-gray-400 truncate">
+                    <div className="text-[10px] text-gray-500 truncate">
                       {item.manufacturer && `Manf. ${item.manufacturer}`}
                       {item.pack_size    && ` | Packing ${item.pack_size}`}
                       {item.salt         && ` | ${item.salt}`}

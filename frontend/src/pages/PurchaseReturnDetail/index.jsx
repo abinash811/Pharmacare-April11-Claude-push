@@ -103,7 +103,7 @@ export default function PurchaseReturnDetail() {
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}><span className="font-medium text-gray-900 truncate">{purchaseReturn.supplier_name}</span></div>
             {purchaseReturn.purchase_number && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
-                <span className="text-[10px] text-gray-400 uppercase font-medium">Orig#</span>
+                <span className="text-[10px] text-gray-500 uppercase font-medium">Orig#</span>
                 <span className="font-medium font-mono text-brand">{purchaseReturn.purchase_number}</span>
               </div>
             )}
@@ -160,13 +160,13 @@ export default function PurchaseReturnDetail() {
                 { label: 'GST',       value: formatCurrency(gstAmount) },
               ].map((f) => (
                 <div key={f.label}>
-                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">{f.label}</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
                   <span className="font-bold text-gray-700">{f.value}</span>
                 </div>
               ))}
             </div>
             <div className="text-right">
-              <span className="text-[10px] text-gray-400 uppercase font-semibold block">Net Return Amount</span>
+              <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Return Amount</span>
               <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(netAmount)}</span>
             </div>
           </div>

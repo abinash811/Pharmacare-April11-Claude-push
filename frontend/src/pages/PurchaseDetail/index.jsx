@@ -120,7 +120,7 @@ export default function PurchaseDetail() {
             <span className="font-medium text-gray-900 truncate">{purchase.supplier_name}</span>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
-            <span className="text-[10px] text-gray-400 uppercase font-medium">Inv#</span>
+            <span className="text-[10px] text-gray-500 uppercase font-medium">Inv#</span>
             <span className="font-medium text-gray-700">{purchase.supplier_invoice_no || '—'}</span>
           </div>
           {purchase.invoice_attachment_data && (

@@ -548,7 +548,7 @@ Standard table pattern. Every table follows this structure:
                 {item.bill_number}
               </td>
               <td className="px-4 py-3 text-sm font-semibold tabular-nums text-right text-gray-900">
-                ₹{(item.total_amount / 100).toFixed(2)}
+                {formatCurrency(item.total_amount / 100)}
               </td>
             </tr>
           ))
@@ -568,9 +568,35 @@ Standard table pattern. Every table follows this structure:
 - Header bg: `bg-gray-50`
 - Row divider: `divide-y divide-gray-100`
 - Row hover: `hover:bg-brand-tint`
-- Money columns: right-aligned, `font-semibold tabular-nums`
+- Money columns: right-aligned, `font-semibold tabular-nums`, always `formatCurrency()` — never a raw `.toFixed(2)` (this exact example used to show the wrong pattern; fixed Sep 7, 2026, see docs/15_ROADMAP.md's RULE MISSES LOG)
 - Primary column: `font-medium text-gray-900`
 - Empty state: always an EmptyState component, never just text
+
+**Content truncation:** defined Sep 7, 2026 — a real, repeated gap
+audited that day: 20 of 22 `truncate` usages in the app cut off dynamic
+user data (names, emails, batch numbers) with no way to see the full
+value.
+
+- Any `truncate`/`line-clamp-*` applied to **dynamic data** (a name,
+  email, note, SKU, batch number — anything that came from the database,
+  not a fixed label) **must** carry `title={theSameValue}` so a mouse
+  user can still read it on hover. Screen readers already get the full
+  text since `title` isn't what truncates it — only the CSS is.
+- Exception: fixed, short UI labels (button text, column headers) never
+  need a `title` — they don't overflow in practice, and if one does, fix
+  the label or its container width instead of masking it with a tooltip.
+- Exception: purely illustrative/mock preview content (e.g. Settings'
+  Receipt Preview panels, which render fixed sample data like "Ravi
+  Shankar", not a real customer) doesn't need it either — there's no real
+  value being hidden.
+
+```jsx
+// ✅ Correct — the full value is still reachable
+<span className="truncate" title={supplier.name}>{supplier.name}</span>
+
+// ❌ Wrong — truncated with no way to ever see the rest
+<span className="truncate">{supplier.name}</span>
+```
 
 ---
 

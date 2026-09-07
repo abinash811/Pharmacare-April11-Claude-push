@@ -100,7 +100,7 @@ export default function PurchaseReturnDetail() {
         <section className="bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
           <div className="flex items-center gap-2 flex-wrap text-sm">
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"><span className="font-medium text-gray-700">{formatDate(purchaseReturn.return_date, '—')}</span></div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}><span className="font-medium text-gray-900 truncate">{purchaseReturn.supplier_name}</span></div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}><span className="font-medium text-gray-900 truncate" title={purchaseReturn.supplier_name}>{purchaseReturn.supplier_name}</span></div>
             {purchaseReturn.purchase_number && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
                 <span className="text-[10px] text-gray-500 uppercase font-medium">Orig#</span>

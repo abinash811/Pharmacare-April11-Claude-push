@@ -112,7 +112,7 @@ export default function BillingSubbar({
         <div className="px-5 shrink-0 min-w-[120px] max-w-[180px]">
           <span className={LABEL}>Patient</span>
           {isView ? (
-            <span className="text-sm font-medium text-gray-900 truncate block">
+            <span className="text-sm font-medium text-gray-900 truncate block" title={customerName || 'Walk-in'}>
               {customerName || 'Walk-in'}
             </span>
           ) : (

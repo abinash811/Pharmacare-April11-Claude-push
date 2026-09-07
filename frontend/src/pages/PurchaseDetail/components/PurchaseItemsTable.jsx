@@ -40,7 +40,7 @@ export default function PurchaseItemsTable({ items, withGst }) {
                 <tr key={index} className="hover:bg-brand-tint/50">
                   <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                   <td className="px-3 py-2">
-                    <div className="text-sm font-medium text-gray-800 truncate">{item.product_name}</div>
+                    <div className="text-sm font-medium text-gray-800 truncate" title={item.product_name}>{item.product_name}</div>
                     <div className="text-[10px] text-gray-500 truncate">
                       {item.manufacturer && `Manf. ${item.manufacturer}`}
                       {item.pack_size    && ` | Packing ${item.pack_size}`}

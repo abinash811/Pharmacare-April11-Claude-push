@@ -63,7 +63,7 @@ export default function InvoiceAttachmentUpload({ value, onChange }: Props) {
           title={`Preview ${value.name}`}
         >
           <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-          <span className="text-xs text-gray-700 max-w-[100px] truncate">{value.name}</span>
+          <span className="text-xs text-gray-700 max-w-[100px] truncate" title={value.name}>{value.name}</span>
         </a>
         <AppButton
           variant="ghost" iconOnly size="sm"

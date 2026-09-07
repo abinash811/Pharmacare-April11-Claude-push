@@ -62,7 +62,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
                   </td>
                   <td className="px-4 py-3">
                     {supplier.phone && <div className="text-sm text-gray-700">{supplier.phone}</div>}
-                    {supplier.email && <div className="text-xs text-gray-400 truncate max-w-[150px]">{supplier.email}</div>}
+                    {supplier.email && <div className="text-xs text-gray-400 truncate max-w-[150px]" title={supplier.email}>{supplier.email}</div>}
                   </td>
                   <td className="px-4 py-3">
                     {supplier.gstin

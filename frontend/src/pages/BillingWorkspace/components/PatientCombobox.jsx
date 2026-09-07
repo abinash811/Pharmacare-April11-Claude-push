@@ -111,6 +111,7 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
           variant="chip"
           onClick={openDropdown}
           className="gap-1 text-sm truncate max-w-full"
+          title={displayValue}
           data-testid="patient-chip"
         >
           <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{displayValue}</span>

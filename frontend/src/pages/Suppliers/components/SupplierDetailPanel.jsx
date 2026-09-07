@@ -149,7 +149,7 @@ export default function SupplierDetailPanel({
                           </span>
                         </td>
                         <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">{formatCurrency(pay.amount||0)}</td>
-                        <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{pay.note || '—'}</td>
+                        <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]" title={pay.note || ''}>{pay.note || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

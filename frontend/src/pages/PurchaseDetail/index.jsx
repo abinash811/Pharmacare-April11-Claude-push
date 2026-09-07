@@ -117,7 +117,7 @@ export default function PurchaseDetail() {
             <span className="font-medium text-gray-700">{formatDateShort(purchase.purchase_date)}</span>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }}>
-            <span className="font-medium text-gray-900 truncate">{purchase.supplier_name}</span>
+            <span className="font-medium text-gray-900 truncate" title={purchase.supplier_name}>{purchase.supplier_name}</span>
           </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
             <span className="text-[10px] text-gray-500 uppercase font-medium">Inv#</span>
@@ -133,7 +133,7 @@ export default function PurchaseDetail() {
               data-testid="view-invoice-attachment-link"
             >
               <Paperclip className="w-3.5 h-3.5" />
-              <span className="truncate max-w-[100px]">{purchase.invoice_attachment_name || 'Invoice'}</span>
+              <span className="truncate max-w-[100px]" title={purchase.invoice_attachment_name || 'Invoice'}>{purchase.invoice_attachment_name || 'Invoice'}</span>
             </a>
           )}
           {purchase.due_date && (

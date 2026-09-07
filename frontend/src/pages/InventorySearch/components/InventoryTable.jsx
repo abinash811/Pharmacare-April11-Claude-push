@@ -95,7 +95,7 @@ export default function InventoryTable({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-gray-900 truncate">{item.product.name}</p>
+                      <p className="font-semibold text-gray-900 truncate" title={item.product.name}>{item.product.name}</p>
                       {item.product.strength && (
                         <span className="text-xs text-gray-500 shrink-0">{item.product.strength}</span>
                       )}
@@ -105,7 +105,7 @@ export default function InventoryTable({
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 truncate">{item.product.manufacturer || item.product.brand || '–'}</p>
+                    <p className="text-sm text-gray-500 truncate" title={item.product.manufacturer || item.product.brand || ''}>{item.product.manufacturer || item.product.brand || '–'}</p>
                     <p className="text-xs text-gray-400">{item.product.pack_info || `${item.product.units_per_pack || 1} units/pack`}</p>
                   </div>
                 </div>

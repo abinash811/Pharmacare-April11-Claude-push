@@ -131,7 +131,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                               onClick={() => handleAddItem(product, batch)}
                             >
                               <div className="flex items-center gap-4">
-                                <span className="text-xs font-mono text-gray-600 w-20 truncate">{batch.batch_no}</span>
+                                <span className="text-xs font-mono text-gray-600 w-20 truncate" title={batch.batch_no}>{batch.batch_no}</span>
                                 <span className={`text-xs ${isExpired(batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
                                   Exp {formatExpiry(batch.expiry_date)}
                                 </span>
@@ -172,7 +172,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <span>LP {formatCurrency(item.cost_price || item.unit_price * 0.7)}</span>
                         <span>·</span>
                         <span className="text-green-600">▲{(((item.unit_price - (item.cost_price || item.unit_price * 0.7)) / (item.cost_price || item.unit_price * 0.7)) * 100).toFixed(0)}%</span>
-                        {item.composition && <><span>·</span><span className="truncate max-w-[120px]">{item.composition}</span></>}
+                        {item.composition && <><span>·</span><span className="truncate max-w-[120px]" title={item.composition}>{item.composition}</span></>}
                       </div>
                     </div>
                   </td>

@@ -152,7 +152,7 @@ export default function PurchaseReturnCreate() {
               </PopoverContent>
             </Popover>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg" style={{ maxWidth: '220px' }} title={supplier.name}>
-              <span className="text-sm font-medium text-gray-900 truncate">{supplier.name}</span>
+              <span className="text-sm font-medium text-gray-900 truncate" title={supplier.name}>{supplier.name}</span>
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
               <span className="text-[10px] text-gray-500 uppercase font-medium">Inv#</span>

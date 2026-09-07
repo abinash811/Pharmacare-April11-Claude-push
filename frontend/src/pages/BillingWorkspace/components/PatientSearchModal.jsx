@@ -133,7 +133,7 @@ export default function PatientSearchModal({ open, onClose, onSelect }) {
                 <span className="material-symbols-outlined text-gray-400 text-lg">person</span>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 text-sm truncate">{patient.name}</div>
+                <div className="font-semibold text-gray-900 text-sm truncate" title={patient.name}>{patient.name}</div>
                 <div className="text-xs text-gray-400">
                   {patient.phone || patient.mobile || 'No phone'}
                   {patient.age    && ` · ${patient.age} yrs`}

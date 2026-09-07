@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit, XCircle, CheckCircle } from 'lucide-react';
-import { AppButton, DataCard, InlineLoader, PaginationBar } from '@/components/shared';
+import { AppButton, DataCard, InlineLoader, PaginationBar, EmptyState } from '@/components/shared';
+import { Users as UsersIcon } from 'lucide-react';
 
 function RoleBadge({ role }) {
   const styles = {
@@ -24,6 +25,8 @@ export default function UsersTable({ users, loading, pagination, currentUser, on
     <DataCard>
       {loading ? (
         <div className="p-8 text-center"><InlineLoader text="Loading users..." /></div>
+      ) : users.length === 0 ? (
+        <EmptyState icon={UsersIcon} title="No users yet" description="Add a team member to get started" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full" data-testid="users-table">

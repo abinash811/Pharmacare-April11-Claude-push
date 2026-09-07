@@ -115,6 +115,27 @@ module.exports = {
 			'ease-out-smooth': 'cubic-bezier(0.16, 1, 0.3, 1)',   // Sheet/drawer slide-in
 			'ease-in-smooth':  'cubic-bezier(0.4, 0, 1, 1)',       // dismiss/close
 		},
+		// ── Elevation tokens ────────────────────────────────────────────────────
+		// Mirrors PharmaCare Design System/colors_and_type.css's --elevation-0..4.
+		// Redefining shadow-sm/md/lg/xl here means every existing shadow-sm/md/lg/xl
+		// usage app-wide automatically gets these values — no call-site changes
+		// needed. The semantic names (card/dropdown/modal/toast) are aliases for
+		// the same values, for new code that wants to name the shadow by what
+		// it's for rather than by size.
+		//   shadow-sm / shadow-card     → E1, cards, inputs, default surface
+		//   shadow-md / shadow-dropdown → E2, dropdowns, popovers, tooltips
+		//   shadow-lg / shadow-modal    → E3, modals, drawers, command palette
+		//   shadow-xl / shadow-toast    → E4, toasts, critical alerts, max depth
+		boxShadow: {
+			sm:       '0 1px 2px 0 rgba(0,0,0,0.05)',
+			card:     '0 1px 2px 0 rgba(0,0,0,0.05)',
+			md:       '0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.08)',
+			dropdown: '0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -2px rgba(0,0,0,0.08)',
+			lg:       '0 10px 25px -5px rgba(0,0,0,0.12), 0 4px 6px -2px rgba(0,0,0,0.07)',
+			modal:    '0 10px 25px -5px rgba(0,0,0,0.12), 0 4px 6px -2px rgba(0,0,0,0.07)',
+			xl:       '0 20px 40px -8px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.10)',
+			toast:    '0 20px 40px -8px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.10)',
+		},
   	}
   },
   plugins: [require("tailwindcss-animate")],

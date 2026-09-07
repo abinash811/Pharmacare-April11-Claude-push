@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { FileSpreadsheet, ArrowLeft, ArrowRight, Eye, Download, FileCheck, RefreshCw, Loader2, X } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
 import StepIndicator from './StepIndicator';
 import FileUploadZone from './FileUploadZone';
@@ -147,7 +147,9 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-brand to-brand-dark rounded-t-lg">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-6 h-6 text-white" strokeWidth={1.5} />
-            <h2 className="text-xl font-semibold text-white">Excel Bulk Upload</h2>
+            <DialogTitle asChild>
+              <h2 className="text-xl font-semibold text-white">Excel Bulk Upload</h2>
+            </DialogTitle>
           </div>
           <AppButton
             variant="ghost"

@@ -150,8 +150,12 @@ transition-all duration-500
 // ✅ Panel/drawer sliding in (see InventorySearch's Filter Drawer, MoreMenu)
 <div className="animate-in slide-in-from-right duration-slower ease-out-smooth">
 
-// ✅ Sheet slides in from right (Shadcn Sheet handles this)
-// Don't override Shadcn Sheet animation — it's already correct
+// ✅ Sheet slides in from right — ui/sheet.jsx's shadcn defaults
+// (duration-300/500, plain ease-in-out) were replaced Sep 7, 2026 with the
+// real tokens: duration-slower both ways, ease-out-smooth on open,
+// ease-in-smooth on close. Same fix applied to ui/dialog.tsx and
+// ui/alert-dialog.jsx (duration-200 → duration-slow). Don't revert these
+// back to shadcn's bare defaults — that's the exact bug that was fixed.
 
 // ❌ Never use animate-bounce, animate-ping for UI elements — too playful
 // These are only for notification dots or alerts
@@ -161,16 +165,21 @@ transition-all duration-500
 
 ## REDUCED MOTION
 
+> ⚠️ **Not actually built as of Sep 7, 2026.** This section describes the
+> intended pattern — verified by grep that day: zero real usage of
+> `motion-safe:`, `motion-reduce:`, or `prefers-reduced-motion` exists
+> anywhere in `frontend/src`. Shadcn/Radix's `animate-in`/`animate-out`
+> classes do **not** auto-respect the OS setting on their own — that claim
+> below was aspirational, not verified. Treat this whole section as a
+> known gap, not a working feature, until someone actually wires it in.
+
 Always respect `prefers-reduced-motion`. Tailwind does this with `motion-safe:` and `motion-reduce:`.
 
 ```jsx
-// ✅ Suppress animation for users who prefer reduced motion
+// Intended pattern — suppress animation for users who prefer reduced motion
 <div className="motion-safe:animate-spin motion-reduce:hidden">
   <Loader className="h-4 w-4" />
 </div>
-
-// ✅ Shadcn components automatically respect prefers-reduced-motion
-// Don't override this
 ```
 
 ---
@@ -194,6 +203,6 @@ Always respect `prefers-reduced-motion`. Tailwind does this with `motion-safe:` 
 - [ ] Inline icons: `h-4 w-4` | Standalone: `h-5 w-5` | Decorative: `h-12 w-12`
 - [ ] `strokeWidth={1.5}` on all Lucide icons
 - [ ] Icon-only buttons have `aria-label`
-- [ ] No animation longer than `300ms`
+- [ ] Only the named duration tokens above are used — never a longer one invented on the spot (`duration-slower` at 350ms is the real ceiling, not 300ms)
 - [ ] No `animate-bounce` or `animate-ping` on UI elements
 - [ ] `motion-safe:` / `motion-reduce:` used for non-essential animations

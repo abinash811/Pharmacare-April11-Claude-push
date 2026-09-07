@@ -121,10 +121,22 @@ Defined in `frontend/tailwind.config.js`. Use class names, never hex.
 
 ### 1.4 Border & Shadow Tokens
 
+**Elevation scale** — fixed Sep 7, 2026: these were only ever defined in
+`PharmaCare Design System/colors_and_type.css` (which the real app never
+imports); `tailwind.config.js` now carries the same values as real
+`boxShadow` entries, so `shadow-sm/md/lg/xl` actually render them.
+
+| Class | Semantic alias | Use |
+|-------|-----------------|-----|
+| `shadow-sm` | `shadow-card` | Cards, inputs, default surface |
+| `shadow-md` | `shadow-dropdown` | Dropdowns, popovers, tooltips |
+| `shadow-lg` | `shadow-modal` | Modals, drawers, command palette |
+| `shadow-xl` | `shadow-toast` | Toasts, critical alerts — max depth |
+
+
 | Token | Classes | Use |
 |-------|---------|-----|
 | Standard border | `border border-gray-200` | All cards, tables, inputs |
-| Card shadow | `shadow-sm` | Cards, modals, headers |
 | Focus ring | `focus:ring-2 focus:ring-brand focus:outline-none` | All focusable inputs |
 | Border radius card | `rounded-xl` | Page-level cards |
 | Border radius button | `rounded-lg` | Buttons (handled by AppButton) |

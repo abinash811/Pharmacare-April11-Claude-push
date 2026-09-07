@@ -115,6 +115,13 @@ Raw `<button>` tags are caught by ESLint and will fail the pre-commit hook.
 | `ghost` | none | `text-gray-600` | `hover:bg-gray-100` | Icon-only, subtle, table actions |
 | `chip` | none, no padding | `tone="neutral"`: `text-gray-900` → `text-brand`; `tone="warning"`: `text-amber-700` → `text-amber-800` | text color only | An inline value that opens a picker on click (a date under a `DATE` label) — never a real action |
 
+**Touch targets:** every size (`sm`/`md`/`lg`/`icon`) bumps to a real 44px
+via `[@media(pointer:coarse)]:h-11` — fixed Sep 7, 2026, WCAG 2.5.5. Desktop
+mouse sizing (`h-8`/`h-9`/`h-10`) is unchanged; only touch devices get the
+larger target. Defined once in `ui/button.tsx`'s size scale, so every
+`AppButton` gets it automatically — don't add a per-instance size override
+to work around a touch-target complaint, fix the shared scale instead.
+
 **Why `chip` exists:** before it, screens needing this inline-text look reached for `<AppButton variant="ghost" className="!h-auto !p-0 ...">` — overriding color and padding through `className`, which the rule right below explicitly bans. `chip` is the sanctioned way to get that look. Add a new `tone` here (not a new `className` hack at the call site) if a future screen needs a color this doesn't cover.
 
 ### Usage

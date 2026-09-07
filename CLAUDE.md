@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.10 | Last updated: September 6, 2026
+# Version: 2.11 | Last updated: September 7, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -283,7 +283,12 @@
     for `pharmacare-database`'s query/index analysis.
   - `claude-code-action` (the CI-gate piece) is blocked on an
     `ANTHROPIC_API_KEY` repo secret only Abinash can add — asked, not
-    assumed or worked around.
+    assumed or worked around. **Decision, Sep 6, 2026: skipped for
+    now** — Abinash asked if the key needs a paid plan; once told yes,
+    he chose not to add it, since this CI-gate piece is redundant with
+    checks this session already runs manually (design-guard.sh, tsc,
+    pytest/jest) — not a launch blocker. Revisit only if he brings it
+    up again; don't re-ask each session.
 - **`npx tsc --noEmit` is now an automated gate, not a manual checklist
   item.** Added September 5, 2026, closing the last item of the
   enforcement-layer setup pass. This exact gap was already named in this

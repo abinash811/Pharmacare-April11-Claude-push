@@ -9,8 +9,6 @@ import { formatCurrency } from '@/utils/currency';
 import { formatDate } from '@/utils/dates';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function PurchaseReturnDetail() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext); // eslint-disable-line
@@ -28,7 +26,7 @@ export default function PurchaseReturnDetail() {
 
   const fetchPurchaseReturn = async () => {
     try {
-      const res = await api.get(`${API}/purchase-returns/${id}`);
+      const res = await api.get(`/purchase-returns/${id}`);
       setPurchaseReturn(res.data);
       setEditNote(res.data.note || '');
       setEditBilledBy(res.data.billed_by || '');
@@ -37,14 +35,14 @@ export default function PurchaseReturnDetail() {
   };
 
   const fetchUsers = async () => {
-    try { const res = await api.get(`${API}/users`); setUsers(res.data || []); }
+    try { const res = await api.get(`/users`); setUsers(res.data || []); }
     catch { /* silent */ }
   };
 
   const handleEditSave = async () => {
     setIsSaving(true);
     try {
-      await api.put(`${API}/purchase-returns/${id}`, { edit_type: editType, note: editNote, billed_by: editBilledBy });
+      await api.put(`/purchase-returns/${id}`, { edit_type: editType, note: editNote, billed_by: editBilledBy });
       toast.success('Return updated successfully');
       setShowEditModal(false);
       fetchPurchaseReturn();

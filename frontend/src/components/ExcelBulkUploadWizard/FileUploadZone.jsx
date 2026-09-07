@@ -4,8 +4,6 @@ import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 import api from '@/lib/axios';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function FileUploadZone({ onFileSelect, isLoading }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -25,7 +23,7 @@ export default function FileUploadZone({ onFileSelect, isLoading }) {
 
   const downloadTemplate = async () => {
     try {
-      const response = await api.get(`${API}/inventory/bulk-upload/template`, { responseType: 'blob' });
+      const response = await api.get(`/inventory/bulk-upload/template`, { responseType: 'blob' });
       const url  = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href  = url;

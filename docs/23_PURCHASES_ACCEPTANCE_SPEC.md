@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.8 | Last updated: September 5, 2026
+# Version: 1.9 | Last updated: September 7, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -25,13 +25,10 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 
 ### 🐛 Live bugs (shipped, currently wrong — not just missing)
 
-1. **Overpayment corrupts the ledger.** Paying more than the outstanding
-   balance isn't rejected anywhere (frontend or backend). The purchase's
-   `amount_paid_paise` gets silently capped at the total, but the
-   `PurchasePayment` row inserted still stores the full, uncapped amount —
-   so the sum of individual payments can permanently exceed what the
-   purchase says is paid. This is a real accounting bug, not a UX gap.
-   (`backend/routers/purchases.py:735-772`, `PurchasePayModal.jsx:34-37`)
+1. ~~Overpayment corrupts the ledger.~~ — ✅ **Fixed Sep 7, 2026.** Now
+   rejected outright with a 400 (frontend and backend) instead of silently
+   capping `amount_paid_paise` while the `PurchasePayment` row kept the raw
+   uncapped amount. See UC-P29 below for full detail and regression tests.
 2. **A genuine double-submit with no batch number creates duplicate stock.**
    The duplicate-batch guard only fires if two submissions share the exact
    same explicit `batch_no`. Leave it blank and a real double-click/retry
@@ -219,8 +216,8 @@ Credit purchases correctly default unpaid, due date computed, outstanding shown.
 ### UC-P28: Mark purchase fully paid — 🔄 Partial
 Payment recorded correctly with full audit trail. "Payment history" is only a single latest-date shown on the purchase (`last_payment_date`), not a full itemized list of every payment made.
 
-### UC-P29: Record partial payment — 🔄 Partial — contains the worst bug in this whole spec
-Everything works **except** the core safety requirement: overpayment isn't rejected anywhere, and the resulting mismatch between the `PurchasePayment` row and the purchase's own `amount_paid_paise` is a genuine, permanent ledger-integrity bug (#1 above).
+### UC-P29: Record partial payment — ✅ Fixed (Sep 7, 2026)
+Overpayment is now rejected outright (400, "Payment amount exceeds the outstanding balance of ₹X.XX") instead of silently capping `amount_paid_paise` while the `PurchasePayment` row kept the raw uncapped amount — the ledger-integrity bug (#1 above) is closed. Zero/negative amounts also rejected. `PurchasePayModal.jsx` gained the matching client-side check so the pharmacist sees the error before submitting, not just after. Backend: `backend/routers/purchases.py::mark_purchase_paid`. Regression tests: `backend/tests/test_purchase_payment_overpay.py` (overpay rejected on first payment and on a second payment overshooting the remainder; exact-balance payment still succeeds; zero/negative rejected). Live-verified: paid ₹5,000 against a ₹1,050 purchase pre-fix — confirmed via direct DB query that `purchases.amount_paid_paise` was capped at 105000 while `purchase_payments.amount_paise` stored the raw 500000, exactly as described below; post-fix the same attempt returns 400 and neither row is touched.
 
 ### UC-P30: Support payment methods — 🔄 Partial
 Cash/UPI/Bank Transfer/Cheque all present, matching the spec. Card/Other — missing (already known, already queued). No cheque-number or bank-detail sub-fields; no attachment on a payment record.
@@ -352,14 +349,14 @@ Per the spec's own bar, Purchases + Purchase Returns are **not** done. Of the
 14 conditions listed in the original spec, roughly half hold today:
 inventory updates correctly on confirm, stock movements are traceable,
 drafts don't touch stock/balances, partial returns work, negative-stock
-returns are blocked, and reports mostly match transaction totals (aside from
-the supplier-summary draft leak). The other half don't: payments don't
-update balances *safely* (overpayment bug), returns can't create negative
-stock but also can't be rejected or cancelled, credit notes can't really be
-reconciled (no status, no CGST/SGST/IGST split), permissions aren't
-enforced on every write path (stock adjust, backdating, export), audit logs
-are half-populated, and duplicate submission isn't safe in the blank-batch
-case.
+returns are blocked, payments now update balances safely (overpayment
+fixed Sep 7, 2026), and reports mostly match transaction totals (aside from
+the supplier-summary draft leak). The other half don't: returns can't
+create negative stock but also can't be rejected or cancelled, credit notes
+can't really be reconciled (no status, no CGST/SGST/IGST split), permissions
+aren't enforced on every write path (stock adjust, backdating, export),
+audit logs are half-populated, and duplicate submission isn't safe in the
+blank-batch case.
 
 ---
 
@@ -369,7 +366,7 @@ Per the instruction that came with the spec: build only the missing or
 partial items, in small batches. Suggested batch order, worst-impact first:
 
 **Batch 1 — stop active bleeding (bugs, not features)**
-1. Overpayment ledger bug (#1)
+1. ~~Overpayment ledger bug (#1)~~ — ✅ done, Sep 7
 2. Double-confirm duplicate-stock bug (#2)
 3. GST report broken render (#3)
 4. ~~Dead Cash/Credit/Due filter pills (#4)~~ — ✅ done, Aug 26

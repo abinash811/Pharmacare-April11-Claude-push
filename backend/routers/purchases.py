@@ -791,13 +791,18 @@ async def mark_purchase_paid(
         raise HTTPException(status_code=400, detail="Purchase is already fully paid")
 
     payment_paise = int(payment.amount * 100)
-    new_paid = purchase.amount_paid_paise + payment_paise
+    outstanding_paise = purchase.grand_total_paise - purchase.amount_paid_paise
 
-    if new_paid >= purchase.grand_total_paise:
-        payment_status = "paid"
-        new_paid = purchase.grand_total_paise
-    else:
-        payment_status = "partial"
+    if payment_paise <= 0:
+        raise HTTPException(status_code=400, detail="Payment amount must be greater than zero")
+    if payment_paise > outstanding_paise:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Payment amount exceeds the outstanding balance of ₹{outstanding_paise / 100:.2f}",
+        )
+
+    new_paid = purchase.amount_paid_paise + payment_paise
+    payment_status = "paid" if new_paid >= purchase.grand_total_paise else "partial"
 
     purchase.amount_paid_paise = new_paid
     purchase.payment_status = payment_status

@@ -8,8 +8,6 @@ import { format } from 'date-fns';
 import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu } from '@/components/shared';
 import SalesReturnEditModal from './components/SalesReturnEditModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 const PAYMENT_BADGES = {
   cash:              { bg: 'bg-green-50',  text: 'text-green-700',  label: 'Cash' },
   upi:               { bg: 'bg-blue-50',   text: 'text-blue-700',   label: 'UPI' },
@@ -32,7 +30,7 @@ export default function SalesReturnDetail() {
 
   const fetchReturnData = async () => {
     try {
-      const res = await api.get(`${API}/sales-returns/${id}`);
+      const res = await api.get(`/sales-returns/${id}`);
       setReturnData(res.data);
       setEditForm({ billing_for: res.data.billing_for || 'self', doctor: res.data.doctor || '', billed_by: res.data.created_by?.name || '', note: res.data.note || '' });
     } catch { toast.error('Failed to load return details'); navigate('/billing/returns'); }
@@ -42,7 +40,7 @@ export default function SalesReturnDetail() {
   const fetchRolePermissions = async () => {
     if (!user?.role) return;
     try {
-      const res = await api.get(`${API}/roles/${user.role}/permissions/returns`);
+      const res = await api.get(`/roles/${user.role}/permissions/returns`);
       setAllowFinancialEdit(res.data.allow_financial_edit_return || user.role === 'admin');
     } catch { setAllowFinancialEdit(user?.role === 'admin'); }
   };
@@ -50,7 +48,7 @@ export default function SalesReturnDetail() {
   const handleNonFinancialEdit = async () => {
     setIsSaving(true);
     try {
-      await api.put(`${API}/sales-returns/${id}?financial_edit=false`, editForm);
+      await api.put(`/sales-returns/${id}?financial_edit=false`, editForm);
       toast.success('Return updated successfully');
       setShowEditModal(false);
       fetchReturnData();

@@ -11,8 +11,6 @@ import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
 import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function PurchaseReturnCreate() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -43,7 +41,7 @@ export default function PurchaseReturnCreate() {
 
   const fetchPurchaseForReturn = async (id) => {
     try {
-      const res = await api.get(`${API}/purchases/${id}/items-for-return`);
+      const res = await api.get(`/purchases/${id}/items-for-return`);
       const data = res.data;
       setSupplier({ id: data.supplier_id, name: data.supplier_name });
       setInvoiceNo(data.invoice_no || '');
@@ -61,7 +59,7 @@ export default function PurchaseReturnCreate() {
   };
 
   const fetchUsers = async () => {
-    try { const res = await api.get(`${API}/users`); setUsers(res.data || []); } catch { /* silent */ }
+    try { const res = await api.get(`/users`); setUsers(res.data || []); } catch { /* silent */ }
   };
 
   const calculateTotals = () => {
@@ -93,7 +91,7 @@ export default function PurchaseReturnCreate() {
     if (!hasReturnItems()) { toast.error('Please enter return quantity for at least one item'); return; }
     setIsSaving(true);
     try {
-      const res = await api.post(`${API}/purchase-returns`, {
+      const res = await api.post(`/purchase-returns`, {
         supplier_id: supplier.id, purchase_id: purchaseId,
         return_date: format(returnDate, 'yyyy-MM-dd'),
         billed_by: billedBy, payment_type: paymentType, note,

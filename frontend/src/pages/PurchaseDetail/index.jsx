@@ -9,8 +9,6 @@ import { formatDate as formatDateShort } from '@/utils/dates';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function PurchaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,7 +29,7 @@ export default function PurchaseDetail() {
   const fetchPurchase = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`${API}/purchases/${id}`);
+      const res = await api.get(`/purchases/${id}`);
       setPurchase(res.data);
     } catch { toast.error('Failed to load purchase'); navigate('/purchases'); }
     finally { setLoading(false); }
@@ -40,7 +38,7 @@ export default function PurchaseDetail() {
   const handlePayment = async () => {
     setPaymentLoading(true);
     try {
-      await api.post(`${API}/purchases/${id}/pay`, paymentData);
+      await api.post(`/purchases/${id}/pay`, paymentData);
       toast.success('Payment recorded successfully');
       setShowPayModal(false);
       fetchPurchase();

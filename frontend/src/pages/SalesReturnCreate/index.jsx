@@ -10,8 +10,6 @@ import { AppButton, PageBreadcrumb, InlineLoader } from '@/components/shared';
 import { format } from 'date-fns';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function SalesReturnCreate() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -40,7 +38,7 @@ export default function SalesReturnCreate() {
 
   const fetchOriginalBill = async (id) => {
     try {
-      const res = await api.get(`${API}/bills/${id}`);
+      const res = await api.get(`/bills/${id}`);
       const bill = res.data;
       setOriginalBill(bill);
       setPatient({ id: bill.customer_id, name: bill.customer_name || 'Walk-in Customer', phone: bill.customer_mobile || '' });
@@ -67,7 +65,7 @@ export default function SalesReturnCreate() {
   };
 
   const fetchUsers = async () => {
-    try { const res = await api.get(`${API}/users`); setUsers(res.data || []); } catch { /* silent */ }
+    try { const res = await api.get(`/users`); setUsers(res.data || []); } catch { /* silent */ }
   };
 
   const calculateTotals = () => {
@@ -97,7 +95,7 @@ export default function SalesReturnCreate() {
     if (hasErrors()) { toast.error('Please fix validation errors before saving'); return; }
     setIsSaving(true);
     try {
-      const res = await api.post(`${API}/sales-returns`, {
+      const res = await api.post(`/sales-returns`, {
         original_bill_id: originalBill?.id || null,
         original_bill_no: originalBill?.bill_number || null,
         return_date: returnDate.toISOString(),

@@ -10,8 +10,6 @@ import ColumnMapping from './ColumnMapping';
 import ValidationPreview from './ValidationPreview';
 import ImportProgress from './ImportProgress';
 
-const API = `${process.env.REACT_APP_BACKEND_URL || ''}/api`;
-
 export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplete }) {
   const [currentStep, setCurrentStep]         = useState(0);
   const [isLoading, setIsLoading]             = useState(false);
@@ -38,7 +36,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await api.post(`${API}/inventory/bulk-upload/parse`, formData, {
+      const response = await api.post(`/inventory/bulk-upload/parse`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setJobId(response.data.job_id);
@@ -73,7 +71,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
     }
     setIsLoading(true);
     try {
-      const response = await api.post(`${API}/inventory/bulk-upload/validate`, {
+      const response = await api.post(`/inventory/bulk-upload/validate`, {
         job_id: jobId, column_mapping: mapping,
       });
       setValidationResults(response.data);
@@ -91,13 +89,13 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
     setIsLoading(true);
     setCurrentStep(3);
     try {
-      await api.post(`${API}/inventory/bulk-upload/import`, {
+      await api.post(`/inventory/bulk-upload/import`, {
         job_id: jobId, import_valid_only: importValidOnly,
       });
       setImportStatus('importing');
       pollingRef.current = setInterval(async () => {
         try {
-          const prog = await api.get(`${API}/inventory/bulk-upload/progress/${jobId}`);
+          const prog = await api.get(`/inventory/bulk-upload/progress/${jobId}`);
           setImportProgress(prog.data.import_progress);
           setImportStatus(prog.data.status);
           if (prog.data.status === 'completed') {
@@ -117,7 +115,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
 
   const downloadErrorReport = async () => {
     try {
-      const response = await api.get(`${API}/inventory/bulk-upload/error-report/${jobId}`, { responseType: 'blob' });
+      const response = await api.get(`/inventory/bulk-upload/error-report/${jobId}`, { responseType: 'blob' });
       const url  = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href  = url;

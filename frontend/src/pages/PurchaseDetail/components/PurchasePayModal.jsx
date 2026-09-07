@@ -31,8 +31,14 @@ const PAYMENT_METHOD_OPTIONS = [
 
 export default function PurchasePayModal({ open, onClose, purchase, paymentData, onPaymentDataChange, onConfirm, loading }) {
   const handleConfirm = () => {
-    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+    const amount = parseFloat(paymentData.amount);
+    if (!amount || amount <= 0) {
       toast.error('Enter a valid amount');
+      return;
+    }
+    const outstanding = (purchase?.total_value || 0) - (purchase?.amount_paid || 0);
+    if (amount > outstanding) {
+      toast.error(`Payment amount exceeds the outstanding balance of ${formatCurrency(outstanding)}`);
       return;
     }
     onConfirm();

@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.30 | Last updated: September 6, 2026
+# Version: 2.31 | Last updated: September 7, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -248,6 +248,24 @@ permission check. See that doc's Executive Summary for the full ranked list
 and the recommended build-batch order.
 
 **Build progress against that spec:**
+- ✅ Fixed a live, wide-reaching bug found resuming this session's live
+  testing (Sep 7, 2026): **every `PurchaseDetail`, `PurchaseReturnCreate`,
+  `PurchaseReturnDetail`, `SalesReturnCreate`, `SalesReturnDetail`, and
+  `ExcelBulkUploadWizard` API call 404'd** whenever `REACT_APP_BACKEND_URL`
+  is unset — which is the documented normal local setup since the Aug 20
+  craco-proxy change (see this file's PROJECT SNAPSHOT). Root cause: these
+  7 files each kept their own local `API` constant (falling back to `/api`
+  when the env var is unset) left over from before the shared `api` axios
+  instance existed (`lib/axios.js`, whose own `baseURL` is already `/api`)
+  — combining both doubled every URL to `/api/api/...`. First reproduced
+  live by navigating straight to
+  Purchase Detail: a "Failed to load purchase" toast, network tab showing
+  `GET /api/api/purchases/...`. Fixed by dropping the dead `const API` and
+  the `${API}` prefix from all 20 call sites across the 7 files — `api`'s
+  own baseURL already supplies `/api`. Live-verified both `PurchaseDetail`
+  and `PurchaseReturnCreate` load correctly post-fix. `npx tsc --noEmit`
+  clean, no jest tests existed for these files to break. See RULE MISSES
+  LOG below for why this sat live-broken since Aug 20 undetected.
 - ✅ UC-P02 (add a new distributor inline during purchase entry) — Aug 25,
   2026. `SupplierFormModal` moved from `pages/Suppliers/components/` to
   `components/shared/` (now used by both Suppliers and Purchases — was
@@ -606,6 +624,7 @@ behavior and real behavior):
 
 | Date | Rule violated | Why it wasn't caught | Fix applied |
 |------|---------------|----------------------|--------------|
+| Sep 7, 2026 | Manifesto rule #14 ("no assumptions, verify every time") — `PurchaseDetail`/`PurchaseReturnCreate`/`PurchaseReturnDetail`/`SalesReturnCreate`/`SalesReturnDetail`/`ExcelBulkUploadWizard` (2 files), 7 files total, 20 API call sites — every one 404'd whenever `REACT_APP_BACKEND_URL` is unset | An execution gap, not (only) a tooling gap: the Aug 20, 2026 commit (`dba464b`) that introduced this bug touched exactly these 7 files and its own commit message claimed "Verified end-to-end with a real browser session... Inventory add/search both succeed" — but Inventory doesn't use the `const API` pattern these 7 files do, so the verification covered a different page than the one actually changed. Also a tooling gap: no jest test exists for any of these 7 files, and no lint rule catches a local `API` constant duplicating an axios instance's own `baseURL`. This sat live-broken for ~7 weeks (Aug 20 → Sep 7) because REACT_APP_BACKEND_URL was still commonly set in local `.env` files until the "no longer needed locally" doc update, at which point every purchase/return/bulk-upload page silently broke for anyone following the current documented setup. | Removed the dead `const API` prefix and all 20 `${API}` template-literal usages across the 7 files — `api`'s own `baseURL` already supplies `/api`, so paths are now plain relative paths (`/purchases/${id}`, not `${API}/purchases/${id}`). Live-verified `PurchaseDetail` and `PurchaseReturnCreate` both load correctly post-fix, `npx tsc --noEmit` clean. No automated gate proposed — an ESLint rule can't distinguish a legitimate local constant from this specific footgun without false positives; the real fix is the habit this rule already states: when a fix touches N files, verify N files, not a different one that happens to be easier to click through. |
 | Sep 6, 2026 | Manifesto rule #1 (AppButton only) — 21 raw `<button>` tags across BillingWorkspace/Dashboard, some written April 2026, before AppButton existed | A tooling gap, not an execution gap: `design-guard.sh` Rule 1 has caught these on every run since it existed, but (a) it was never run as a full-repo sweep after being added, only against new/changed files via pre-commit, and (b) `main` had zero branch protection until Sep 6, 2026 — a red CI check never actually blocked a merge, so a violation sitting in CI's output was purely informational, not a stop-sign. | Replaced all 21 buttons + 2 direct Shadcn imports with AppButton (see commit `6289d38`). Gate: `main` branch protection (added same day) now requires CI to pass before merge, so a new violation can't sit unenforced the way this one did — closing the actual root cause, not just the symptom. |
 | Sep 6, 2026 | Session's own "verify, don't assume it works" discipline — playwright/chrome-devtools MCP tools reported "connected" during initial setup but had never actually launched a browser | Tooling gap: `claude mcp add` only confirms the MCP handshake succeeds and tools get listed — it doesn't exercise the tool. Nobody called a real browser action (`new_page`/`navigate`) against either server until this session's live verification, which is when it surfaced that this container has no Chrome binary at the default path and Chrome refuses to launch as root without `--no-sandbox`. The postgres MCP got an actual test query at setup time; these two didn't get the equivalent live check. | Pointed both servers at the pre-installed Chromium build with `--no-sandbox --headless` in `.mcp.json` (commit `8894f72`). No automated gate proposed — this class of gap (mistaking "connects" for "works") is closed by habit: any newly-added MCP tool should be exercised with one real action before being called verified, not just checked for a successful handshake. |
 | Aug 26, 2026 | "HOW TO BUILD" mandatory order step 1 ("Read the DB model first") — Supplier `notes` field | `SupplierCreate`/`SupplierUpdate` Pydantic schemas and the `SupplierFormModal` UI textarea were both built with a working `notes` field, but nobody had confirmed a `notes` column actually existed on `Supplier`'s table before wiring the schema/UI to it — it didn't, so every save silently dropped the value. Existed undetected until CI's `test_edit_supplier` (asserting the round-trip) went red on the first real auto-triggered run. | Added migration `6f51c99eca91` (nullable `notes` Text on `suppliers`), added `notes` to `_supplier_response()` and `create_supplier()`'s ORM constructor. `update_supplier()`'s existing generic field-map loop needed no change. `test_edit_supplier` + full 13-test supplier suite pass. No new automated gate — a lint rule can't verify a Pydantic field maps to a real column; this is the same class the "HOW TO BUILD" order already exists to prevent by habit (step 1, before step 3/4), not by tooling. |

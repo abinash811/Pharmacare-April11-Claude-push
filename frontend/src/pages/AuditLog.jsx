@@ -201,8 +201,11 @@ export default function AuditLog() {
                 displayLogs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr
-                      className="hover:bg-brand-tint cursor-pointer"
+                      className="hover:bg-brand-tint cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => toggleExpand(log.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(log.id); } }}
                       data-testid={`audit-row-${log.id}`}
                     >
                       <td className="px-4 py-3 whitespace-nowrap">

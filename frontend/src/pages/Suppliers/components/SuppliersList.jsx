@@ -49,8 +49,11 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
               return (
                 <tr
                   key={supplier.id}
-                  className={`hover:bg-brand-tint cursor-pointer transition-colors ${selectedId === supplier.id ? 'bg-brand-subtle' : ''} ${!isActive ? 'opacity-60' : ''}`}
+                  className={`hover:bg-brand-tint cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${selectedId === supplier.id ? 'bg-brand-subtle' : ''} ${!isActive ? 'opacity-60' : ''}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onRowClick(supplier)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(supplier); } }}
                   data-testid={`supplier-row-${supplier.id}`}
                 >
                   <td className="px-4 py-3">

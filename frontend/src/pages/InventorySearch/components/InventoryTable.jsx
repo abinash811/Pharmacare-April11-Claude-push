@@ -73,8 +73,11 @@ export default function InventoryTable({
         <tbody className="divide-y divide-gray-100">
           {inventory.map((item) => (
             <tr key={item.product.sku}
-              className="hover:bg-brand-tint transition-colors cursor-pointer"
+              className="hover:bg-brand-tint transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+              role="button"
+              tabIndex={0}
               onClick={() => onRowClick(item)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(item); } }}
               data-testid={`inventory-row-${item.product.sku}`}
             >
               <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>

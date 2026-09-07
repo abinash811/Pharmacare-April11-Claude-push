@@ -12,7 +12,14 @@ export default function PermissionsMatrix({ permissions, selectedPermissions, on
 
         return (
           <div key={moduleKey} className="mb-4 bg-white rounded-lg p-3 border border-gray-100">
-            <div className="flex items-center mb-2 cursor-pointer" onClick={() => onToggleModule(moduleKey)}>
+            <div
+              className="flex items-center mb-2 cursor-pointer rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              role="button"
+              tabIndex={0}
+              aria-pressed={allSelected}
+              onClick={() => onToggleModule(moduleKey)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleModule(moduleKey); } }}
+            >
               {allSelected ? (
                 <CheckSquare className="w-5 h-5 text-brand mr-2" strokeWidth={1.5} />
               ) : someSelected ? (

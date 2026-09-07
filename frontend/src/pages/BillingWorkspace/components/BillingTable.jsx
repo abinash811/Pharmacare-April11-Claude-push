@@ -197,7 +197,9 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                         <div className="max-h-40 overflow-y-auto">
                           {batchPanelData.filter(b => !hidZeroStock || b.qty_on_hand > 0).map((batch) => (
                             <div key={batch.id || batch.batch_no} onClick={() => handleSelectBatch(index, batch)}
-                              className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
+                              role="button" tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectBatch(index, batch); } }}
+                              className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
                               <span className={isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_date)}</span>
                               <span className="text-right font-semibold">{formatCurrency(batch.mrp_per_unit||0)}</span>

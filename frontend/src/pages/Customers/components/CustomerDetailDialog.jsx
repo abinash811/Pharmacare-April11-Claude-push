@@ -95,7 +95,9 @@ export default function CustomerDetailDialog({ open, customer, onClose }) {
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {purchases.slice(0, 5).map(p => (
                   <div key={p.id} onClick={() => navigate(`/billing/${p.id}`)}
-                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/billing/${p.id}`); } }}
+                    className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                     <div>
                       <p className="font-medium text-blue-600">{p.bill_number}</p>
                       <p className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</p>

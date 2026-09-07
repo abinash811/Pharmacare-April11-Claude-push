@@ -120,7 +120,9 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                     <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
                       {searchResults.map(product => (
                         <div key={product.id} onClick={() => handleAddProduct(product)}
-                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                          role="button" tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleAddProduct(product); } }}
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset">
                           <div className="flex justify-between items-start">
                             <div>
                               <div className="text-sm font-semibold text-gray-800">{product.name}</div>

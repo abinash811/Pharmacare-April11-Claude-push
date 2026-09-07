@@ -43,8 +43,11 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
               const balance = (item.total_value || 0) - (item.amount_paid || 0);
 
               return (
-                <tr key={item.id} className="hover:bg-brand-tint cursor-pointer h-10"
-                  onClick={() => navigate(`/purchases/${item.id}`)} data-testid={`purchase-row-${item.id}`}>
+                <tr key={item.id} className="hover:bg-brand-tint cursor-pointer h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                  role="button" tabIndex={0}
+                  onClick={() => navigate(`/purchases/${item.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/purchases/${item.id}`); } }}
+                  data-testid={`purchase-row-${item.id}`}>
                   <td className="px-4 py-2.5 text-sm text-gray-500">{rowNum}</td>
                   <td className="px-4 py-2.5">
                     {isParked ? <StatusBadge status="parked" /> : <span className="font-mono text-sm font-semibold text-brand">#{item.purchase_number?.replace(/^#/, '') || item.id?.slice(-6)}</span>}

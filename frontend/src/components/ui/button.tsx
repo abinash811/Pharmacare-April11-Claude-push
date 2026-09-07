@@ -15,11 +15,14 @@ const buttonVariants = cva(
         ghost:       "hover:bg-gray-100 text-gray-600",
         link:        "text-brand underline-offset-4 hover:underline",
       },
+      // [@media(pointer:coarse)]:h-11 bumps every size to a real 44px WCAG
+      // touch target on touch devices (tablet/phone) without changing the
+      // tighter desktop-mouse sizing at all.
       size: {
-        default: "h-9 px-4 py-2",
-        sm:      "h-8 px-3 text-xs",
-        lg:      "h-10 px-6",
-        icon:    "h-9 w-9",
+        default: "h-9 px-4 py-2 [@media(pointer:coarse)]:h-11",
+        sm:      "h-8 px-3 text-xs [@media(pointer:coarse)]:h-11",
+        lg:      "h-10 px-6 [@media(pointer:coarse)]:h-11",
+        icon:    "h-9 w-9 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

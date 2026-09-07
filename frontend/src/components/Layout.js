@@ -135,7 +135,7 @@ export default function Layout() {
                 to={item.path}
                 data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 h-9 rounded-lg transition-colors text-[13px] font-medium mb-0.5 ${
+                  `flex items-center gap-2.5 px-3 h-9 [@media(pointer:coarse)]:h-11 rounded-lg transition-colors text-[13px] font-medium mb-0.5 ${
                     isActive
                       ? 'bg-blue-600/20 text-white'
                       : 'text-gray-300 hover:bg-white/5 hover:text-white'
@@ -174,7 +174,7 @@ export default function Layout() {
         <button
           onClick={logout}
           data-testid="logout-btn"
-          className="w-full flex items-center gap-2 px-3 h-8 rounded-lg text-[13px] font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+          className="w-full flex items-center gap-2 px-3 h-8 [@media(pointer:coarse)]:h-11 rounded-lg text-[13px] font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           Logout

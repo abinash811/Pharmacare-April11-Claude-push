@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -100,7 +101,7 @@ export default function CustomerDetailDialog({ open, customer, onClose }) {
                       <p className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">₹{p.total_amount?.toFixed(2)}</p>
+                      <p className="font-semibold">{formatCurrency(p.total_amount)}</p>
                       <p className="text-xs text-gray-500">{p.items?.length || 0} items</p>
                     </div>
                   </div>

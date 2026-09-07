@@ -9,6 +9,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, ShoppingCart, RotateCcw } from 'lucide-react';
 import { InlineLoader } from '@/components/shared';
 import { formatDate } from '@/utils/dates';
+import { formatCurrency } from '@/utils/currency';
 
 const STATUS_COLORS = {
   paid:               'bg-green-50 text-green-700',
@@ -31,8 +32,8 @@ const CONFIG = {
       <span className="font-medium text-brand">{t.purchase_number}</span>,
       formatDate(t.date), t.supplier_name, t.supplier_invoice, t.batch_no,
       <span className="font-medium">{t.quantity}</span>,
-      `₹${t.cost_price?.toFixed(2)}`, `₹${t.mrp?.toFixed(2)}`,
-      <span className="font-medium">₹{t.line_total?.toFixed(2)}</span>,
+      formatCurrency(t.cost_price), formatCurrency(t.mrp),
+      <span className="font-medium">{formatCurrency(t.line_total)}</span>,
       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusClass(t.status)}`}>{t.status}</span>,
     ],
     testId: 'purchases-table',
@@ -47,7 +48,7 @@ const CONFIG = {
       <span className="font-medium text-orange-600">{t.return_number}</span>,
       formatDate(t.date), t.supplier_name, t.original_purchase, t.batch_no,
       <span className="font-medium text-red-600">-{t.quantity}</span>,
-      t.reason, <span className="font-medium">₹{t.line_total?.toFixed(2)}</span>,
+      t.reason, <span className="font-medium">{formatCurrency(t.line_total)}</span>,
       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusClass(t.status)}`}>{t.status}</span>,
     ],
     testId: 'purchase-returns-table',
@@ -62,9 +63,9 @@ const CONFIG = {
       <span className="font-medium text-brand">{t.bill_number}</span>,
       formatDate(t.date), t.customer_name, t.batch_no,
       <span className="font-medium">{t.quantity}</span>,
-      `₹${t.unit_price?.toFixed(2)}`,
-      <span className="text-green-600">{t.discount > 0 ? `-₹${t.discount.toFixed(2)}` : '–'}</span>,
-      <span className="font-medium">₹{t.line_total?.toFixed(2)}</span>,
+      formatCurrency(t.unit_price),
+      <span className="text-green-600">{t.discount > 0 ? formatCurrency(-t.discount) : '–'}</span>,
+      <span className="font-medium">{formatCurrency(t.line_total)}</span>,
       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusClass(t.status)}`}>{t.status}</span>,
     ],
     testId: 'sales-table',
@@ -79,7 +80,7 @@ const CONFIG = {
       <span className="font-medium text-red-600">{t.return_number}</span>,
       formatDate(t.date), t.customer_name, t.original_invoice || '–', t.batch_no,
       <span className="font-medium text-red-600">+{t.quantity}</span>,
-      <span className="font-medium text-red-600">₹{t.refund_amount?.toFixed(2)}</span>,
+      <span className="font-medium text-red-600">{formatCurrency(t.refund_amount)}</span>,
       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusClass(t.status)}`}>{t.status}</span>,
     ],
     testId: 'sales-returns-table',

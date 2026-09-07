@@ -3,6 +3,7 @@
  * IBM Plex Sans + Mono, dark header, meta row, parties, items, GST summary, footer.
  */
 import React from 'react';
+import { formatCurrency } from '@/utils/currency';
 
 interface PrintSettings {
   print_logo?:         boolean;
@@ -42,7 +43,7 @@ const MOCK_ITEMS = [
   { name: 'Vitamin D3 60K IU Cap', mfr: 'Sun Pharma',  hsn: '3004', sch: 'OTC', pack: '4 cap',  batch: 'B24-1034', expiry: 'Mar 2027', qty: 2, mrp: 4200, disc: 10, gst: 5  },
 ];
 
-function paise(p: number) { return `₹${(p / 100).toFixed(2)}`; }
+function paise(p: number) { return formatCurrency(p / 100); }
 
 function calcItem(item: typeof MOCK_ITEMS[0]) {
   const gross    = item.mrp * item.qty;

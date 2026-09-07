@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Stethoscope,
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AppButton, PageBreadcrumb, InlineLoader } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 
@@ -204,7 +205,7 @@ export default function SalesReturnCreate() {
                       <td className="px-4 py-2 text-sm text-gray-600">Unit</td>
                       <td className="px-4 py-2 text-xs font-mono text-gray-600">{item.batch_no}</td>
                       <td className="px-4 py-2 text-sm text-gray-600">{formatExpiry(item.expiry_date)}</td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-700">₹{item.mrp.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-700">{formatCurrency(item.mrp)}</td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex flex-col items-end">
                           <input type="number" min="1" max={item.original_qty} value={item.qty}
@@ -219,9 +220,9 @@ export default function SalesReturnCreate() {
                           onChange={(e) => updateItem(index, 'disc_percent', parseFloat(e.target.value) || 0)}
                           className="w-16 text-right text-sm bg-transparent border-b border-transparent focus:outline-none" data-testid={`disc-${index}`} />
                       </td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-600">₹{dPrice.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-600">{formatCurrency(dPrice)}</td>
                       <td className="px-4 py-2 text-right text-sm text-gray-600">{item.gst_percent}%</td>
-                      <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{lineTotal.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">{formatCurrency(lineTotal)}</td>
                       <td className="px-2 py-2 text-center">
                         <AppButton variant="ghost" iconOnly icon={<Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" strokeWidth={1.5} />} aria-label="Remove item" onClick={() => setItems(items.filter((_, i) => i !== index))} data-testid={`remove-${index}`} />
                       </td>
@@ -240,9 +241,9 @@ export default function SalesReturnCreate() {
             <div className="flex items-center gap-6 text-sm">
               {[
                 { label: 'Items',          value: items.length },
-                { label: 'MRP Total',      value: `₹${totals.mrpTotal.toFixed(2)}` },
-                { label: 'Total Discount', value: `-₹${totals.totalDiscount.toFixed(2)}`, cls: 'text-red-500' },
-                { label: 'GST',            value: `₹${totals.gstAmount.toFixed(2)}` },
+                { label: 'MRP Total',      value: formatCurrency(totals.mrpTotal) },
+                { label: 'Total Discount', value: formatCurrency(-totals.totalDiscount), cls: 'text-red-500' },
+                { label: 'GST',            value: formatCurrency(totals.gstAmount) },
               ].map((f) => (
                 <div key={f.label}>
                   <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
@@ -252,7 +253,7 @@ export default function SalesReturnCreate() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Refund Amount</span>
-              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(totals.netAmount)}</span>
             </div>
           </div>
           <div className="px-4 py-3 flex items-center justify-end gap-3">

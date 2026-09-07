@@ -17,6 +17,7 @@ import React from 'react';
 import { Trash2, Check } from 'lucide-react';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 function calculateMargin(mrp, costPrice) {
   if (!mrp || !costPrice || costPrice === 0) return '0.00';
@@ -111,12 +112,12 @@ export default function BatchesTab({
                         <span className="text-gray-700">{formatExpiry(batch.expiry_date, 'mmyy')}</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-right font-medium text-gray-900">₹{mrp.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-right font-medium text-gray-900">{formatCurrency(mrp)}</td>
                     {/* Discount is a product-level field (set via Bulk Update),
                         not per-batch — batch.discount_percent doesn't exist on
                         the API response and always read as 0 here before. */}
                     <td className="px-4 py-4 text-center text-gray-700">{product.discount_percent || 0}</td>
-                    <td className="px-4 py-4 text-right text-gray-700">₹{costPrice.toFixed(2)}</td>
+                    <td className="px-4 py-4 text-right text-gray-700">{formatCurrency(costPrice)}</td>
                     <td className="px-4 py-4 text-right"><span className="text-brand font-medium">{margin}%</span></td>
                   </tr>
                 );

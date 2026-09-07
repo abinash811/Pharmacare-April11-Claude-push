@@ -14,6 +14,7 @@ import React from 'react';
 import { Edit2, X, Building2, Phone, Mail, MapPin, CreditCard, FileText, Banknote } from 'lucide-react';
 import { InlineLoader, AppButton } from '@/components/shared';
 import { formatDate } from '@/utils/dates';
+import { formatCurrency } from '@/utils/currency';
 
 function Field({ icon: Icon, label, value }) {
   return (
@@ -97,7 +98,7 @@ export default function SupplierDetailPanel({
                   <tr key={p.id} className="hover:bg-brand-tint">
                     <td className="px-3 py-2 font-mono text-brand">{p.purchase_number}</td>
                     <td className="px-3 py-2 text-gray-700">{formatDate(p.purchase_date || p.created_at)}</td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">₹{(p.net_amount || p.total_amount || 0).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">{formatCurrency(p.total_value || p.net_amount || p.total_amount || 0)}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.payment_status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                         {p.payment_status === 'paid' ? 'Paid' : 'Due'}
@@ -116,7 +117,7 @@ export default function SupplierDetailPanel({
               <div>
                 <div className="text-sm text-gray-500">Current Outstanding</div>
                 <div className={`text-3xl font-bold font-mono ${outstanding > 0 ? 'text-red-600' : 'text-green-700'}`}>
-                  ₹{outstanding.toFixed(2)}
+                  {formatCurrency(outstanding)}
                 </div>
               </div>
               <AppButton onClick={onRecordPayment} disabled={outstanding <= 0} data-testid="record-payment-btn">
@@ -147,7 +148,7 @@ export default function SupplierDetailPanel({
                             {pay.type === 'purchase_return' ? 'Return' : 'Payment'}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">₹{(pay.amount||0).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">{formatCurrency(pay.amount||0)}</td>
                         <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{pay.note || '—'}</td>
                       </tr>
                     ))}

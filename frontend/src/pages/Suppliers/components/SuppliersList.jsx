@@ -11,6 +11,7 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import { DataCard, TableSkeleton, SuppliersEmptyState, AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function SuppliersList({ suppliers, selectedId, loading, searchQuery, onRowClick, onAdd }) {
   return (
@@ -68,7 +69,7 @@ export default function SuppliersList({ suppliers, selectedId, loading, searchQu
                   </td>
                   <td className="px-4 py-3 text-right">
                     {outstanding > 0
-                      ? <span className="font-semibold tabular-nums text-red-600">₹{outstanding.toFixed(2)}</span>
+                      ? <span className="font-semibold tabular-nums text-red-600">{formatCurrency(outstanding)}</span>
                       : <span className="text-gray-400">—</span>
                     }
                   </td>

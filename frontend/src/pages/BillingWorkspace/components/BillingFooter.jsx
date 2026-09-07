@@ -18,6 +18,7 @@
  */
 import React from 'react';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function BillingFooter({
   viewMode,
@@ -52,32 +53,32 @@ export default function BillingFooter({
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">MRP Total</span>
-            <span className="font-bold text-gray-700">₹{mrpTotal.toFixed(2)}</span>
+            <span className="font-bold text-gray-700">{formatCurrency(mrpTotal)}</span>
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">Item Disc</span>
-            <span className="font-bold text-red-500">-₹{itemDiscAmt.toFixed(2)}</span>
+            <span className="font-bold text-red-500">{formatCurrency(-itemDiscAmt)}</span>
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">Bill Disc</span>
-            <span className="font-bold text-red-500">-₹{billDiscAmt.toFixed(2)}</span>
+            <span className="font-bold text-red-500">{formatCurrency(-billDiscAmt)}</span>
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">GST</span>
-            <span className="font-bold text-gray-700">₹{totalGst.toFixed(2)}</span>
+            <span className="font-bold text-gray-700">{formatCurrency(totalGst)}</span>
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">CESS</span>
-            <span className="font-bold text-gray-700">₹{totalCess.toFixed(2)}</span>
+            <span className="font-bold text-gray-700">{formatCurrency(totalCess)}</span>
           </div>
           <div>
             <span className="text-[10px] text-gray-500 uppercase font-semibold block">Margin</span>
-            <span className="font-bold text-green-600">₹{margin.amount.toFixed(2)} ({margin.percent.toFixed(1)}%)</span>
+            <span className="font-bold text-green-600">{formatCurrency(margin.amount)} ({margin.percent.toFixed(1)}%)</span>
           </div>
         </div>
         <div className="text-right">
           <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Payable</span>
-          <span className="text-2xl font-semibold tabular-nums text-gray-900">₹{grandTotal.toFixed(2)}</span>
+          <span className="text-2xl font-semibold tabular-nums text-gray-900">{formatCurrency(grandTotal)}</span>
         </div>
       </div>
 

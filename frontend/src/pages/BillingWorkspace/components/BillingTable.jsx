@@ -13,6 +13,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
 import api from '@/lib/axios';
@@ -136,7 +137,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                                 </span>
                                 <span className="text-xs text-gray-400">Stock: <span className={`font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-red-500'}`}>{batch.qty_on_hand}</span></span>
                               </div>
-                              <span className="font-semibold text-sm text-gray-900">₹{batch.mrp_per_unit?.toFixed(2)}</span>
+                              <span className="font-semibold text-sm text-gray-900">{formatCurrency(batch.mrp_per_unit)}</span>
                             </div>
                           ))}
                         </div>
@@ -168,7 +169,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                       <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500">
                         <span className="font-mono">{item.batch_no}</span>
                         <span>·</span>
-                        <span>LP ₹{(item.cost_price || item.unit_price * 0.7).toFixed(2)}</span>
+                        <span>LP {formatCurrency(item.cost_price || item.unit_price * 0.7)}</span>
                         <span>·</span>
                         <span className="text-green-600">▲{(((item.unit_price - (item.cost_price || item.unit_price * 0.7)) / (item.cost_price || item.unit_price * 0.7)) * 100).toFixed(0)}%</span>
                         {item.composition && <><span>·</span><span className="truncate max-w-[120px]">{item.composition}</span></>}
@@ -199,10 +200,10 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                               className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
                               <span className={isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_date)}</span>
-                              <span className="text-right font-semibold">₹{(batch.mrp_per_unit||0).toFixed(2)}</span>
-                              <span className="text-right text-gray-400">₹{(batch.prev_mrp||batch.mrp_per_unit||0).toFixed(2)}</span>
+                              <span className="text-right font-semibold">{formatCurrency(batch.mrp_per_unit||0)}</span>
+                              <span className="text-right text-gray-400">{formatCurrency(batch.prev_mrp||batch.mrp_per_unit||0)}</span>
                               <span className="text-right">{(batch.discount_percent||0).toFixed(1)}%</span>
-                              <span className="text-right">₹{(batch.cost_price_per_unit||batch.ptr_per_unit||0).toFixed(2)}</span>
+                              <span className="text-right">{formatCurrency(batch.cost_price_per_unit||batch.ptr_per_unit||0)}</span>
                               <span className={`text-right font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                                 {batch.qty_on_hand > 0 ? batch.qty_on_hand : 'Out'}
                               </span>
@@ -218,7 +219,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                   </td>
 
                   <td className="px-4 py-2 text-right">
-                    {isView ? <span className="text-sm font-medium">₹{item.unit_price?.toFixed(2)}</span>
+                    {isView ? <span className="text-sm font-medium">{formatCurrency(item.unit_price)}</span>
                       : <input type="number" step="0.01" value={item.unit_price} onChange={(e) => onUpdateItem(index,'unit_price',parseFloat(e.target.value)||0)} className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right font-medium" data-testid={`price-${index}`} />}
                   </td>
 
@@ -231,7 +232,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                     <div className="flex flex-col items-end">
                       {isView ? <span className={`text-sm ${item.discount_percent > 0 ? 'text-red-500' : ''}`}>{item.discount_percent?.toFixed(1)}%</span>
                         : <input type="number" step="0.1" value={item.discount_percent} onChange={(e) => onUpdateItem(index,'discount_percent',parseFloat(e.target.value)||0)} className={`w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right ${item.discount_percent > 0 ? 'text-red-500' : ''}`} data-testid={`discount-${index}`} />}
-                      <span className={`text-[10px] ${itemDiscAmt > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}`}>{itemDiscAmt > 0 ? `-₹${itemDiscAmt.toFixed(2)}` : '₹0.00'}</span>
+                      <span className={`text-[10px] ${itemDiscAmt > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}`}>{itemDiscAmt > 0 ? formatCurrency(-itemDiscAmt) : '₹0.00'}</span>
                     </div>
                   </td>
 
@@ -240,7 +241,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                       : <input type="number" step="0.1" value={item.gst_percent} onChange={(e) => onUpdateItem(index,'gst_percent',parseFloat(e.target.value)||0)} className="w-full bg-transparent border-transparent focus:border-primary p-0 text-sm text-right" data-testid={`gst-${index}`} />}
                   </td>
 
-                  <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{item.net_amount?.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">{formatCurrency(item.net_amount)}</td>
 
                   {!isView && (
                     <td className="px-2 py-2 text-center">

@@ -30,7 +30,7 @@ export default function BillItemsTable({ items }) {
               <td className="py-2.5 text-center text-gray-600 text-xs">
                 {item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }) : '—'}
               </td>
-              <td className="py-2.5 text-center text-gray-600">₹{(item.mrp || 0).toFixed(2)}</td>
+              <td className="py-2.5 text-center text-gray-600">{formatCurrency(item.mrp || 0)}</td>
               <td className="py-2.5 text-center font-medium">{item.quantity}</td>
               <td className="py-2.5 text-center text-gray-600">{item.disc_percent > 0 ? `${item.disc_percent}%` : '—'}</td>
               <td className="py-2.5 text-center text-gray-600">{item.gst_percent > 0 ? `${item.gst_percent}%` : '—'}</td>

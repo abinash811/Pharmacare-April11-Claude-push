@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
   const [amount, setAmount] = useState('');
@@ -32,7 +33,7 @@ export default function SupplierPaymentModal({ supplier, onClose, onConfirm }) {
           <div className="p-3 bg-gray-50 rounded-lg">
             <div className="text-xs text-gray-500">Current Outstanding</div>
             <div className="text-xl font-bold font-mono text-red-600">
-              ₹{(supplier?.outstanding || 0).toFixed(2)}
+              {formatCurrency(supplier?.outstanding || 0)}
             </div>
           </div>
 

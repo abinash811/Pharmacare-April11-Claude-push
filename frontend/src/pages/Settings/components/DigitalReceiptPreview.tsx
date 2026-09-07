@@ -5,6 +5,7 @@
  * footer is an image (or nothing) instead of free text.
  */
 import React from 'react';
+import { formatCurrency } from '@/utils/currency';
 
 interface PrintSettings {
   print_gstin?: boolean;
@@ -51,7 +52,7 @@ const MOCK_ITEMS = [
 ];
 
 function paise(p: number) {
-  return `₹${(p / 100).toFixed(2)}`;
+  return formatCurrency(p / 100);
 }
 
 function dPrice(item: typeof MOCK_ITEMS[0]) {

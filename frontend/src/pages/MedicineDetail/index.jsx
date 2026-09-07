@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { InlineLoader } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 import { useMedicineDetail }       from './hooks/useMedicineDetail';
 import MedicineDetailHeader        from './components/MedicineDetailHeader';
@@ -81,10 +82,10 @@ export default function MedicineDetail() {
   const mrpDisplay = minMrp == null
     ? '–'
     : minMrp === maxMrp
-      ? `₹${minMrp.toFixed(2)}`
-      : `₹${minMrp.toFixed(2)}–${maxMrp.toFixed(2)}`;
+      ? formatCurrency(minMrp)
+      : `${formatCurrency(minMrp)}–${formatCurrency(maxMrp, { showSymbol: false })}`;
   const mrpTooltip = minMrp != null && minMrp !== maxMrp
-    ? `${activeBatches.length} batches in stock at different MRPs (₹${minMrp.toFixed(2)}–₹${maxMrp.toFixed(2)}). See the Batches tab below for each batch's exact price.`
+    ? `${activeBatches.length} batches in stock at different MRPs (${formatCurrency(minMrp)}–${formatCurrency(maxMrp)}). See the Batches tab below for each batch's exact price.`
     : null;
 
   if (loading) {

@@ -19,6 +19,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function FinaliseModal({
   open,
@@ -71,11 +72,11 @@ export default function FinaliseModal({
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-4">Invoice Breakdown</h4>
 
               {[
-                { label: 'MRP Total',       value: `₹${mrpTotal.toFixed(2)}`,                  cls: '' },
-                { label: 'Item Discounts',  value: `-₹${itemDiscAmt.toFixed(2)}`,               cls: 'text-red-500' },
-                { label: 'Bill Discount',   value: `-₹${billDiscAmt.toFixed(2)}`,               cls: 'text-red-500' },
-                { label: 'GST',             value: `+₹${totalGst.toFixed(2)}`,                  cls: '' },
-                { label: 'CESS',            value: `+₹${totalCess.toFixed(2)}`,                 cls: '' },
+                { label: 'MRP Total',       value: formatCurrency(mrpTotal),                  cls: '' },
+                { label: 'Item Discounts',  value: formatCurrency(-itemDiscAmt),               cls: 'text-red-500' },
+                { label: 'Bill Discount',   value: formatCurrency(-billDiscAmt),               cls: 'text-red-500' },
+                { label: 'GST',             value: formatCurrency(totalGst),                  cls: '' },
+                { label: 'CESS',            value: formatCurrency(totalCess),                 cls: '' },
                 { label: 'Round off',       value: '₹0.00',                                     cls: '' },
               ].map(({ label, value, cls }) => (
                 <div key={label} className="flex justify-between py-2 border-b border-gray-100">
@@ -87,12 +88,12 @@ export default function FinaliseModal({
               {/* Net Payable highlight */}
               <div className="flex justify-between py-4 mt-4 bg-brand-subtle rounded-lg px-4 -mx-4">
                 <span className="text-base font-bold text-gray-900">Net Payable</span>
-                <span className="text-2xl font-semibold tabular-nums text-gray-900">₹{grandTotal.toFixed(2)}</span>
+                <span className="text-2xl font-semibold tabular-nums text-gray-900">{formatCurrency(grandTotal)}</span>
               </div>
 
               <div className="flex justify-between py-2 mt-2">
                 <span className="text-sm text-gray-400">Margin</span>
-                <span className="text-sm font-semibold text-green-600">₹{margin.amount.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-green-600">{formatCurrency(margin.amount)}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-sm text-gray-400">Margin %</span>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 
 export default function SalesReturnFinaliseModal({ open, onClose, totals, note, onNoteChange, onSave, isSaving }) {
   return (
@@ -12,12 +13,12 @@ export default function SalesReturnFinaliseModal({ open, onClose, totals, note, 
           {/* Amounts */}
           <div className="space-y-2">
             {[
-              { label: 'MRP Total',       value: `₹${totals.mrpTotal.toFixed(2)}` },
-              { label: 'Total Discount',  value: `-₹${totals.totalDiscount.toFixed(2)}`, cls: 'text-red-500' },
-              { label: 'Bill Amount',     value: `₹${(totals.mrpTotal - totals.totalDiscount).toFixed(2)}` },
-              { label: 'Round off',       value: `₹${(totals.netAmount - (totals.mrpTotal - totals.totalDiscount + totals.gstAmount)).toFixed(2)}` },
-              { label: 'Net Amount',      value: `₹${totals.netAmount.toFixed(2)}` },
-              { label: 'GST',             value: `₹${totals.gstAmount.toFixed(2)}` },
+              { label: 'MRP Total',       value: formatCurrency(totals.mrpTotal) },
+              { label: 'Total Discount',  value: formatCurrency(-totals.totalDiscount), cls: 'text-red-500' },
+              { label: 'Bill Amount',     value: formatCurrency(totals.mrpTotal - totals.totalDiscount) },
+              { label: 'Round off',       value: formatCurrency(totals.netAmount - (totals.mrpTotal - totals.totalDiscount + totals.gstAmount)) },
+              { label: 'Net Amount',      value: formatCurrency(totals.netAmount) },
+              { label: 'GST',             value: formatCurrency(totals.gstAmount) },
             ].map((row) => (
               <div key={row.label} className="flex justify-between py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-600">{row.label}</span>
@@ -26,7 +27,7 @@ export default function SalesReturnFinaliseModal({ open, onClose, totals, note, 
             ))}
             <div className="pt-4 mt-4 border-t border-gray-200 flex justify-between items-center">
               <span className="text-base font-bold text-gray-900">Net Refund</span>
-              <span className="text-xl font-semibold tabular-nums text-red-600">₹{totals.netAmount.toFixed(2)}</span>
+              <span className="text-xl font-semibold tabular-nums text-red-600">{formatCurrency(totals.netAmount)}</span>
             </div>
           </div>
           {/* Note */}

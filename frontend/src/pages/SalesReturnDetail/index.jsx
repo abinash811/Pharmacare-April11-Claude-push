@@ -6,6 +6,7 @@ import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Edit, History, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu } from '@/components/shared';
+import { formatCurrency } from '@/utils/currency';
 import SalesReturnEditModal from './components/SalesReturnEditModal';
 
 const PAYMENT_BADGES = {
@@ -140,12 +141,12 @@ export default function SalesReturnDetail() {
                       <td className="px-4 py-2 text-sm text-gray-600">Unit</td>
                       <td className="px-4 py-2 text-xs font-mono text-gray-600">{item.batch_no}</td>
                       <td className="px-4 py-2 text-sm text-gray-600">{formatExpiry(item.expiry_date)}</td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-700">₹{(item.mrp || 0).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-700">{formatCurrency(item.mrp || 0)}</td>
                       <td className="px-4 py-2 text-right text-sm font-medium text-gray-700">{item.qty}</td>
                       <td className="px-4 py-2 text-right text-sm text-gray-600">{(item.disc_percent || 0).toFixed(1)}%</td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-600">₹{dPrice.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-600">{formatCurrency(dPrice)}</td>
                       <td className="px-4 py-2 text-right text-sm text-gray-600">{item.gst_percent}%</td>
-                      <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{(item.amount || 0).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">{formatCurrency(item.amount || 0)}</td>
                     </tr>
                   );
                 })}
@@ -161,7 +162,7 @@ export default function SalesReturnDetail() {
               {[
                 { label: 'Qty',   value: returnData.items?.reduce((s, i) => s + i.qty, 0) || 0 },
                 { label: 'Items', value: returnData.items?.length || 0 },
-                { label: 'GST',   value: `₹${(returnData.gst_amount || 0).toFixed(2)}` },
+                { label: 'GST',   value: formatCurrency(returnData.gst_amount || 0) },
               ].map((f) => (
                 <div key={f.label}>
                   <span className="text-[10px] text-gray-500 uppercase font-semibold block">{f.label}</span>
@@ -171,7 +172,7 @@ export default function SalesReturnDetail() {
             </div>
             <div className="text-right">
               <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Amount</span>
-              <span className="text-2xl font-semibold tabular-nums text-red-600">₹{(returnData.net_amount || 0).toFixed(2)}</span>
+              <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(returnData.net_amount || 0)}</span>
             </div>
           </div>
         </section>

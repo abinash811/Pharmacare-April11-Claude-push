@@ -50,6 +50,22 @@ body {
   background: #a8a8a8;
 }
 
+/* Reduced Motion — respects the OS-level accessibility setting for users
+   with motion sensitivity/vestibular disorders. Global, not per-component:
+   a per-component motion-reduce: class is easy to forget on new dialogs/
+   dropdowns/toasts as they're added (exactly the class of gap this app has
+   hit repeatedly with shadow/duration tokens) - this catches every current
+   and future animation, including inside third-party Radix components,
+   with nothing to remember at the call site. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Print Styles */
 @media print {
   body * {

@@ -165,22 +165,38 @@ transition-all duration-500
 
 ## REDUCED MOTION
 
-> ⚠️ **Not actually built as of Sep 7, 2026.** This section describes the
-> intended pattern — verified by grep that day: zero real usage of
-> `motion-safe:`, `motion-reduce:`, or `prefers-reduced-motion` exists
-> anywhere in `frontend/src`. Shadcn/Radix's `animate-in`/`animate-out`
-> classes do **not** auto-respect the OS setting on their own — that claim
-> below was aspirational, not verified. Treat this whole section as a
-> known gap, not a working feature, until someone actually wires it in.
+**Built Sep 7, 2026 — globally, not per-component.** A per-component
+`motion-reduce:` class is easy to forget on the next new dialog/dropdown/
+toast (the exact class of gap this app has hit repeatedly with shadow and
+duration tokens), so it's handled once in `App.css` instead:
 
-Always respect `prefers-reduced-motion`. Tailwind does this with `motion-safe:` and `motion-reduce:`.
+```css
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+```
+
+This catches every current and future animation — including inside
+third-party Radix components — with nothing to remember at the call site.
+Live-verified: the rule is present in the loaded stylesheet.
+
+Per-component `motion-safe:`/`motion-reduce:` classes are still fine to
+reach for when an animation should be fully **hidden** (not just
+instant) under reduced motion — e.g. a purely decorative loading spinner:
 
 ```jsx
-// Intended pattern — suppress animation for users who prefer reduced motion
 <div className="motion-safe:animate-spin motion-reduce:hidden">
   <Loader className="h-4 w-4" />
 </div>
 ```
+
+But the global rule above is the actual safety net — don't rely on every
+new component remembering to add one of these.
 
 ---
 

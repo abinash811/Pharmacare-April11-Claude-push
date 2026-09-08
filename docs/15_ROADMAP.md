@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.32 | Last updated: September 8, 2026
+# Version: 2.33 | Last updated: September 8, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -656,6 +656,8 @@ for the next entry in this table if they slip:
 | Issue | Priority | Notes |
 |-------|----------|-------|
 | AppButton primary variant (white on brand blue #4682B4) fails WCAG AA text contrast — 4.11:1, needs 4.5:1 | Low | Found Sep 7, 2026 via a real Lighthouse/axe audit — the one contrast violation left unfixed out of 17 found. Deliberate: fixing it means darkening the primary brand color's resting state everywhere (not just a badge), so asked Abinash first. Decision: leave as-is for now. Revisit if this becomes a real complaint or a stricter compliance need arises. |
+| `/login` Lighthouse performance score is 0.60, against the documented ≥90 target | Medium | Found Sep 8, 2026 wiring up Lighthouse CI (`docs/19_PERFORMANCE.md` LIGHTHOUSE CI section). Likely drivers: 623KB gzipped main JS bundle (target is 250KB) and no route-level code splitting yet (`docs/19_PERFORMANCE.md` already documents lazy-loading routes as the fix, just not done). CI gate set to the real 0.60 baseline with buffer, not the 90 target, so it can't silently regress further — but closing the actual gap (code-split routes, trim the bundle) is separate, larger work not done in this pass. |
+| Lighthouse CI only audits `/login` | Low | The only page reachable with zero auth state for a static `lhci` run. Auditing authenticated pages (Dashboard, BillingWorkspace) needs a `puppeteerScript` login step wired into `lighthouserc.js` — not built yet. |
 | Team's member list shows nothing while loading | ✅ | Fixed Sep 5, 2026 — `MembersTable.jsx` swapped `if (loading) return null` for `TableSkeleton` (Manifesto rule #16). Found as part of a full-app skeleton audit that also fixed `PurchaseReturnCreate` (plain-text loading string) and `SalesReturnCreate` (no loading state at all — form flashed empty before the original bill loaded). |
 | Sheets not implemented — forms use centered modals | High | Next sprint |
 | Zod not on all forms — some use uncontrolled inputs | High | Next sprint |

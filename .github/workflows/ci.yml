@@ -241,6 +241,54 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 7
 
+  lighthouse:
+    name: Lighthouse — performance + a11y + best-practices + SEO
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    # Audits a real production build (npm run build + serve -s), not the dev
+    # server — the dev server's unminified bundle scores misleadingly low on
+    # performance. Only /login is audited: it's the one page reachable with
+    # zero auth state, so it's the only page a static Lighthouse run can hit
+    # without a puppeteerScript to log in first (see lighthouserc.js). Auditing
+    # authenticated pages is real follow-up work, tracked in
+    # docs/19_PERFORMANCE.md, not done here.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build
+        run: npm run build
+        env:
+          DISABLE_ESLINT_PLUGIN: true
+          CI: false
+
+      # ubuntu-latest ships Google Chrome preinstalled — chrome-launcher (the
+      # library Lighthouse uses to find a browser) auto-detects it with no
+      # CHROME_PATH needed. That auto-detect only works on a real CI runner;
+      # a sandboxed container without Chrome at a standard path needs
+      # CHROME_PATH set explicitly (see docs/19_PERFORMANCE.md).
+      - name: Run Lighthouse CI
+        run: npx lhci autorun --config=./lighthouserc.js
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: frontend/.lighthouseci/
+          retention-days: 7
+
   definition-of-done:
     name: Definition of Done — source changes need a matching test change
     runs-on: ubuntu-latest

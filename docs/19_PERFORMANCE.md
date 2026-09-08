@@ -1,5 +1,5 @@
 # PharmaCare — Performance
-# Version: 1.1 | Last updated: September 5, 2026
+# Version: 1.2 | Last updated: September 8, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Pharmacists open this app 50+ times a day. Every second of delay compounds into frustration.
@@ -17,6 +17,41 @@
 | API response time (P95) | < 500ms | Data loads feel instant |
 | Bundle size (initial JS) | < 250KB gzipped | Fast on clinic wifi |
 | Lighthouse score | ≥ 90 | Benchmark target |
+
+---
+
+## LIGHTHOUSE CI
+
+> Added Sep 8, 2026. Before this, Lighthouse only ran manually (via the
+> `chrome-devtools` MCP tool, in a live session) — real findings, but never
+> re-checked automatically, so a regression could ship silently between
+> audits. `.github/workflows/ci.yml`'s `lighthouse` job now runs
+> `npx lhci autorun` (config: `frontend/lighthouserc.js`) against a real
+> production build (`npm run build` + `serve -s`, not the dev server — the
+> dev server's unminified bundle scores misleadingly low) on every push/PR.
+
+**Scope: `/login` only, for now.** It's the one page reachable with zero
+auth state — the only page a static Lighthouse run can hit without a
+`puppeteerScript` to log in first. Auditing authenticated pages (Dashboard,
+BillingWorkspace) needs that login script wired in — real follow-up work,
+not built here; tracked in `docs/15_ROADMAP.md`.
+
+**CI gate is the real measured baseline, not the ≥90 target above** — same
+ratchet approach this repo already uses for ESLint's `--max-warnings`
+(`docs/11_TESTING.md` CI STATUS): starting at an honest floor that passes
+today, not a number that fails on day one. Measured 3-run median on
+`/login`, Sep 8, 2026: performance 0.60, accessibility 0.96, best-practices
+0.96, SEO 0.91. CI thresholds (`lighthouserc.js`) set with buffer below
+that: performance ≥ 0.50, accessibility ≥ 0.90, best-practices ≥ 0.90,
+SEO ≥ 0.85. Raise these as the real score improves — never lower them to
+match a regression.
+
+Performance sitting at 0.60 against a ≥90 target is a real, known gap, not
+hidden by this gate — see `docs/15_ROADMAP.md` KNOWN ISSUES/TECH DEBT for
+what's driving it (likely candidates: the 623KB gzipped main bundle,
+already flagged above as over the 250KB target, and no route-level code
+splitting yet — both separate, larger work, not something this CI-wiring
+pass fixes).
 
 ---
 

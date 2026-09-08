@@ -44,16 +44,19 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Lint
-        # 68 is the real current backlog (see docs/11_TESTING.md), not an
-        # aspirational number — CI had never once run this step before
-        # (npm ci itself failed on every prior run), so this repo has never
-        # actually been lint-checked. Ratchet this down as the backlog is
-        # worked through; the goal is 0, this is where "0" would have
-        # instantly failed on day one of turning the check on for real.
+        # 175 is the real current backlog (see docs/11_TESTING.md), not an
+        # aspirational number. Was 68 until Sep 8, 2026, when
+        # eslint-plugin-jsx-a11y (already a devDependency, never wired into
+        # eslint.config.js) got wired in — that surfaced 108 real,
+        # previously-invisible accessibility findings (mostly
+        # label-has-associated-control) in one step. Ratchet this down as
+        # the backlog is worked through; the goal is 0, this is where "0"
+        # would have instantly failed on day one of turning the check on
+        # for real.
         # Note: --max-warnings only gates warning-severity findings — any
         # error-severity finding fails the step regardless of this number,
         # so 0 real errors is a hard requirement, not a target.
-        run: npm run lint -- --max-warnings 68
+        run: npm run lint -- --max-warnings 175
 
       - name: Test
         run: npm test -- --watchAll=false --passWithNoTests

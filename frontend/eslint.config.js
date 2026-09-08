@@ -4,6 +4,7 @@ const js            = require('@eslint/js');
 const globals       = require('globals');
 const reactPlugin   = require('eslint-plugin-react');
 const reactHooks    = require('eslint-plugin-react-hooks');
+const jsxA11y       = require('eslint-plugin-jsx-a11y');
 const tsParser      = require('@typescript-eslint/parser');
 const tsPlugin      = require('@typescript-eslint/eslint-plugin');
 
@@ -17,6 +18,7 @@ module.exports = [
     plugins: {
       react:        reactPlugin,
       'react-hooks': reactHooks,
+      'jsx-a11y':   jsxA11y,
     },
 
     languageOptions: {
@@ -59,6 +61,34 @@ module.exports = [
       // broken right now."
       'react-hooks/immutability': 'warn',
       'react-hooks/static-components': 'warn',
+
+      // jsx-a11y — installed since the project's start but never actually
+      // wired into a config until now (found Sep 2026 auditing why 9 real
+      // keyboard-access bugs shipped with the dependency sitting unused).
+      // Real AST-based checks, not grep — catches exactly the class of bug
+      // design-guard.sh's Rule 11 tried and failed to catch reliably
+      // (a clickable <div>/<tr> with no keyboard handler), with none of
+      // that rule's false positives on container elements. Starts at
+      // 'warn' pending a full-repo baseline pass, same precedent as the
+      // react-hooks rules above.
+      ...jsxA11y.configs.recommended.rules,
+      'jsx-a11y/click-events-have-key-events': 'warn',
+      'jsx-a11y/no-static-element-interactions': 'warn',
+      'jsx-a11y/no-noninteractive-element-interactions': 'warn',
+      // Real, pre-existing gap: 88 <label> elements across 8 files (Settings,
+      // Suppliers, Team, Users) aren't linked to their input via htmlFor/id
+      // or nesting. Same precedent as react-hooks above — surface it via
+      // `npm run lint` output, don't let an unaudited backlog block CI.
+      // Logged in docs/15_ROADMAP.md RULE MISSES LOG; fix the 88 instances
+      // in a dedicated pass, then flip this back to 'error'.
+      'jsx-a11y/label-has-associated-control': 'warn',
+      // Real, pre-existing pattern: 3 modal/panel inputs use autoFocus so
+      // typing starts immediately on open (PatientCombobox, PatientSearchModal,
+      // BarcodeScannerModal). Intentional UX, but a real accessibility trade-off
+      // (unexpected focus jump for screen-reader users) that was never reviewed
+      // against that lens. Same precedent as above — warn, don't block, revisit
+      // deliberately rather than silently keep or silently strip autoFocus.
+      'jsx-a11y/no-autofocus': 'warn',
 
       // React
       'react/jsx-uses-react':   'off',   // not needed with React 17+ JSX transform
@@ -155,6 +185,21 @@ module.exports = [
     rules: { 'no-restricted-syntax': 'off' },
   },
 
+  // Shadcn/UI primitives (src/components/ui/**) are thin wrappers that spread
+  // `{...props}` onto a native element (e.g. AlertTitle -> <h5 {...props} />,
+  // PaginationLink -> <a {...props} />) — real content always arrives from
+  // the call site via that spread, but jsx-a11y's static AST check can't see
+  // through it and flags the wrapper itself as empty. Confirmed false
+  // positive on both files it fired on (alert.jsx, pagination.jsx); disabling
+  // for the whole folder since every primitive here follows the same pattern.
+  {
+    files: ['src/components/ui/**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'jsx-a11y/heading-has-content': 'off',
+      'jsx-a11y/anchor-has-content': 'off',
+    },
+  },
+
   // TypeScript files: the core no-unused-vars rule doesn't understand TS-only
   // syntax (interface properties, type-only imports) and misreads them as
   // unused variables (e.g. flagging `value: string;` inside an interface).
@@ -175,6 +220,13 @@ module.exports = [
     files: ['src/**/*.test.{js,jsx,ts,tsx}', 'src/setupTests.js'],
     languageOptions: {
       globals: { ...globals.jest },
+    },
+    // jsx-a11y checks real accessibility of shipped UI. Test files render
+    // throwaway mock markup to exercise component logic (e.g. a fake
+    // interactive row with role="button" that isn't meant to be a real,
+    // fully-accessible element) — those aren't UI regressions.
+    rules: {
+      'jsx-a11y/interactive-supports-focus': 'off',
     },
   },
 

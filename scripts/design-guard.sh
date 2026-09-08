@@ -184,6 +184,11 @@ fi
 # identically to a real violation from grep's vantage point, and there's no
 # way to tell them apart without real JSX parsing. Loud-but-wrong would
 # train people to ignore this tool, so: advisory, not blocking.
+# Superseded Sep 8, 2026 by `eslint-plugin-jsx-a11y` (real AST parsing, wired
+# into eslint.config.js — see docs/11_TESTING.md CI STATUS), which catches
+# this exact class reliably via `npm run lint`, with none of this grep
+# check's false positives. Left running here too since it's free and
+# harmless, but `npm run lint` is now the real gate for this class of bug.
 CLICKABLE_NOTE=0
 for tag in div tr; do
   while IFS=: read -r file lineno _; do

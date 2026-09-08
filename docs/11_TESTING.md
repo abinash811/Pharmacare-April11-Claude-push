@@ -163,14 +163,27 @@ off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
   credit-note sequence, and Purchase's never-implemented
   `landing_price_per_unit` rollup — are deliberately left as documented
   gaps, not blindly closed; see each test file's docstring for why).
-- **Frontend:** `npm run lint` — 0 errors, 68 warnings on the modernized
-  toolchain (eslint 9, `@typescript-eslint` 8 — see the modernization
-  table above; was 74 problems including 28 errors before this pass).
-  Ratcheted as the CI ceiling (`--max-warnings 68`) rather than pretending
-  it's 0 — lower this number as the backlog is worked down, per
-  file/rule breakdown below. `npm test` — **125/125 passing** (4 fixed
-  Aug 26, 2026 — see CI bug #12 below), verified both locally and live
-  in CI. `tsc --noEmit` — 0 errors.
+- **Frontend:** `npm run lint` — 0 errors, 175 warnings (was 68 until Sep 8,
+  2026 — see RULE MISSES LOG in `docs/15_ROADMAP.md`: `eslint-plugin-jsx-a11y`
+  had been an installed devDependency since the project's start but was
+  never wired into `eslint.config.js`, so it caught nothing. Wiring it in
+  surfaced 108 real, previously-invisible findings in one pass — mostly
+  `jsx-a11y/label-has-associated-control` (88 `<label>`s not linked to their
+  input), plus 3 `jsx-a11y/no-autofocus` and a handful of
+  `click-events-have-key-events`/`no-static-element-interactions`. All new
+  findings downgraded to `warn`, same precedent as the react-hooks rules
+  below, rather than either hiding them or letting an unaudited backlog
+  block every unrelated PR. Two false positives also found and eliminated
+  outright, not downgraded: `jsx-a11y/heading-has-content` and
+  `anchor-has-content` both fired on Shadcn/UI wrapper primitives
+  (`alert.jsx`, `pagination.jsx`) that spread `{...props}` onto a native
+  element — real content arrives from the call site, but the static AST
+  check can't see through the spread; disabled both rules for
+  `src/components/ui/**` where every primitive follows that same pattern.)
+  Ratcheted as the CI ceiling (`--max-warnings 175`) rather than pretending
+  it's 0 — lower this number as the backlog is worked down. `npm test` —
+  **125/125 passing** (4 fixed Aug 26, 2026 — see CI bug #12 below),
+  verified both locally and live in CI. `tsc --noEmit` — 0 errors.
 - **3 real production bugs found and fixed earlier in this arc** (not test
   bugs — actual 500 errors in the running app):
   - `POST /purchases/{id}/pay`, `PUT /purchases/{id}`, `PUT /bills/{id}`,

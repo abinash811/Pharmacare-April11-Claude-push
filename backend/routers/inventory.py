@@ -117,12 +117,20 @@ def _product_response(p: ProductORM) -> dict:
 
 
 def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
+    # mrp_paise is already stored as a per-UNIT price (confirmed by batches.py's
+    # own batch response, which returns mrp_paise/100 with no conversion) —
+    # units_per_pack only converts a pack-based quantity to loose units
+    # (total_units below), it never applies to price. Found Sep 11, 2026 via a
+    # live billing walkthrough: a ₹2.50/tablet, 10-tablet-strip medicine was
+    # being sold for ₹0.25 — the extra "/ units_per_pack" here divided an
+    # already-per-unit price a second time. Confirmed live in a real bill and
+    # root-caused before fixing (see docs/15_ROADMAP.md RULE MISSES LOG).
     return {
         "batch_id": str(b.id), "batch_no": b.batch_number,
         "expiry_date": b.expiry_date.strftime("%d-%m-%Y") if b.expiry_date else "N/A",
         "expiry_iso": b.expiry_date.isoformat() if b.expiry_date else None,
         "qty_on_hand": b.quantity_on_hand, "total_units": b.quantity_on_hand * units_per_pack,
-        "mrp": b.mrp_paise / 100, "mrp_per_unit": b.mrp_paise / 100 / max(units_per_pack, 1),
+        "mrp": b.mrp_paise / 100, "mrp_per_unit": b.mrp_paise / 100,
         "cost_price": b.cost_price_paise / 100,
     }
 

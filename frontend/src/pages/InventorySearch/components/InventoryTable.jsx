@@ -116,7 +116,13 @@ export default function InventoryTable({
                 <span className="text-gray-500 text-sm ml-1">units</span>
               </td>
 
-              <td className="px-4 py-4 text-gray-700">{item.location || item.product.location || 'Default'}</td>
+              {/* item.location / item.product.location never existed on GET
+                  /inventory's real response — the field is
+                  product.storage_location. Found Sep 11, 2026: this column
+                  showed "Default" for every product regardless of what was
+                  actually set, even though Medicine Detail displayed the
+                  real value correctly from the same field. */}
+              <td className="px-4 py-4 text-gray-700">{item.product.storage_location || 'Default'}</td>
 
               <td className="px-4 py-4 text-right text-gray-700">{item.product.discount_percent || 0}%</td>
 

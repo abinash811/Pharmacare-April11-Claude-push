@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.11 | Last updated: September 7, 2026
+# Version: 2.12 | Last updated: September 11, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -323,6 +323,30 @@
   - Caveat worth knowing: GitHub doesn't count a PR author's own approval
     toward the required-approvals number — not a problem today, but the
     reason if a future PR ever can't be self-approved.
+- **Every new feature ships through one fixed loop: Research → Build →
+  Test → Review → Feedback → Loop.** Added September 11, 2026, direct
+  request. Not a new invention — this names and locks in a sequence the
+  skills already implied piece by piece, so it stops depending on memory:
+  - **Research** — business/user reasoning first (Manifesto #15 + the
+    "product manager first" rule above): why does this feature matter,
+    what breaks without it, how do real competitors (eVitalRx, Marg,
+    Pharmasoft) handle it. Use the `product-review` skill for a section,
+    or the same reasoning inline for a smaller feature.
+  - **Build** — `pharmacare-frontend-build`/`pharmacare-backend-build`'s
+    DB → router → constants → UI order, following existing patterns.
+  - **Test** — `pharmacare-testing`: pytest/jest at the right P0/P1/P2
+    priority, plus a live walkthrough from zero data, not a fixture.
+  - **Review** — `pharmacare-ship-checklist`: cross-cutting consumers
+    checked, docs/roadmap updated, nothing hand-waved as "done."
+  - **Feedback** — stop here and report back in plain language before
+    starting the next feature. Don't chain straight into the next item
+    on a list on the assumption that silence means approval.
+  - **Loop** — the next feature (or a revision this one's feedback
+    surfaced) re-enters at Research, not at Build — a fix based on
+    feedback still gets sized against the real reasoning, not bolted on.
+  - This governs feature-sized work. A one-line bug fix doesn't need a
+    full Research pass — use judgment, but don't skip Test/Review/Feedback
+    even on a small change.
 
 ---
 

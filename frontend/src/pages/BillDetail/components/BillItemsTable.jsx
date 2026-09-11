@@ -20,7 +20,7 @@ export default function BillItemsTable({ items }) {
         </thead>
         <tbody className="divide-y divide-gray-50">
           {(items || []).map((item, idx) => (
-            <tr key={item.id || idx} className="hover:bg-brand-tint">
+            <tr key={item.id || idx} className="hover:bg-brand-tint transition-colors">
               <td className="py-2.5 text-gray-400">{idx + 1}</td>
               <td className="py-2.5">
                 <div className="font-medium text-gray-800">{item.product_name || item.medicine_name}</div>

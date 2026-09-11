@@ -136,6 +136,16 @@ module.exports = {
 			xl:       '0 20px 40px -8px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.10)',
 			toast:    '0 20px 40px -8px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.10)',
 		},
+		// Tailwind's built-in `aria` variant list (checked/disabled/expanded/
+		// hidden/pressed/readonly/required/selected) does NOT include
+		// `invalid` — found Sep 11, 2026 auditing the component state matrix:
+		// every form input already gets `aria-invalid` set (shadcn's
+		// FormControl, or set directly), but nothing in CSS ever reacted to
+		// it, so an invalid field never looked different from a valid one.
+		// Adding it here makes `aria-invalid:` usable app-wide.
+		aria: {
+			invalid: 'invalid="true"',
+		},
   	}
   },
   plugins: [require("tailwindcss-animate")],

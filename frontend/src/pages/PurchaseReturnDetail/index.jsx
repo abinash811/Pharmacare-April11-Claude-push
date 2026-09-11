@@ -126,7 +126,7 @@ export default function PurchaseReturnDetail() {
                 {items.map((item, index) => {
                   const lineAmount = item.line_total || (item.qty_units * (item.ptr || item.cost_price_per_unit || 0));
                   return (
-                    <tr key={item.id || index} className="hover:bg-brand-tint">
+                    <tr key={item.id || index} className="hover:bg-brand-tint transition-colors">
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3"><div className="font-medium text-gray-900">{item.product_name}</div><div className="text-xs text-gray-400">{item.product_sku}</div></td>
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>

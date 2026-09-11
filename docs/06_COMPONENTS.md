@@ -1,5 +1,5 @@
 # PharmaCare — Shared Components
-# Version: 1.4 | Last updated: September 5, 2026
+# Version: 1.5 | Last updated: September 11, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before building any UI, check if a shared component already handles it.
@@ -83,9 +83,59 @@ import { AppButton } from '@/components/shared';
 
 ---
 
+## COMPONENT STATE MATRIX
+
+> Added Sep 11, 2026. Every interactive primitive needs a defined, consistent
+> answer for each of these states — "we'll figure it out per page" is how a
+> field ends up validated but visually unchanged (see below). ✅ = handled
+> centrally, one fix covers every usage. ⚠️ = handled, but only where a
+> specific screen wires it manually — not guaranteed elsewhere yet. ❌ = not
+> handled anywhere yet, real gap.
+
+| Component | Default | Hover | Focus-visible | Active/Pressed | Disabled | Loading | Error/Invalid |
+|-----------|---------|-------|----------------|-----------------|----------|---------|----------------|
+| `AppButton` / `ui/button.tsx` | ✅ | ✅ per-variant | ✅ `ring-brand` | ✅ `active:scale-[0.98]` | ✅ `opacity-50` | ✅ spinner via `loading` prop | N/A — buttons don't have an invalid state |
+| `ui/input.tsx` (shared `Input`) | ✅ | N/A | ✅ `ring-ring` | N/A | ✅ `opacity-50` | N/A | ✅ `aria-invalid:border-red-500` |
+| `ui/textarea.jsx` | ✅ | N/A | ✅ `ring-ring` | N/A | ✅ `opacity-50` | N/A | ✅ `aria-invalid:border-red-500` |
+| `ui/select.jsx` (`SelectTrigger`) | ✅ | N/A | ✅ `ring-ring` | N/A | ✅ `opacity-50` | N/A | ✅ `aria-invalid:border-red-500` |
+| Raw `<input>`/`<textarea>` in a page not using the shared `Input`/`Textarea` (e.g. `SupplierFormModal.tsx`) | ✅ | N/A | ✅ | N/A | — | N/A | ⚠️ only where the page explicitly sets `aria-invalid={!!errors.field}` itself — the CSS is ready app-wide, but each raw-input form has to wire the attribute; not all of them do yet |
+| `ui/checkbox.jsx`, `ui/switch.jsx` | ✅ | N/A | ✅ `ring-ring` | N/A | ✅ `opacity-50` | N/A | ❌ no invalid styling — not yet a real reported gap (no checkbox/switch in the app is currently required-with-validation), logged here so it isn't rediscovered as a surprise later |
+| `MoreMenu` trigger | ✅ (built on `AppButton`) | ✅ | ✅ | ✅ (inherits button fix above) | N/A | N/A | N/A |
+
+**Two real, confirmed gaps found and fixed in this pass** (not guessed —
+each verified by reading the actual component code, then confirmed live in
+a browser):
+
+1. **No button had a pressed/press-down state.** Hover and focus-visible
+   both existed on every variant, but nothing responded to the actual click
+   moment. Fixed once in `ui/button.tsx` (`active:scale-[0.98]`, using the
+   existing `duration-fast` token) — cascades to every `AppButton` and
+   anything built on the shared `Button`, including `MoreMenu`.
+2. **A field marked invalid never looked different from a valid one.**
+   Zod/react-hook-form forms already set `aria-invalid` (via shadcn's
+   `FormControl`, or manually), but no CSS ever reacted to it — a failed
+   validation showed a red message paragraph below the field with the input
+   box itself unchanged, so a user scanning the form by eye had no visual
+   cue which box the message belonged to. Fixed by adding an `invalid` key
+   to `tailwind.config.js`'s `theme.extend.aria` (Tailwind's built-in `aria`
+   variant list doesn't include it by default) and `aria-invalid:` classes
+   to `ui/input.tsx`, `ui/textarea.jsx`, `ui/select.jsx`, and
+   `SupplierFormModal.tsx` (a raw-input form, retrofitted as the reference
+   example — see the row above for what's still manual on other raw-input
+   forms). Verified live: an empty required field now shows a red border +
+   ring, not just a message underneath.
+
+**Adding a new interactive component?** Check every column of this table
+against it before calling it done — a missing row here is the same class of
+gap `docs/17_ACCESSIBILITY.md`'s manual review checklist already asks for on
+focus management specifically; this table is the same discipline applied to
+every state, not just focus.
+
+---
+
 ## 1. AppButton
 
-**File:** `frontend/src/components/shared/AppButton.jsx`
+**File:** `frontend/src/components/shared/AppButton.tsx`
 
 The only way to render any interactive button in PharmaCare.
 Raw `<button>` tags are caught by ESLint and will fail the pre-commit hook.
@@ -96,11 +146,12 @@ Raw `<button>` tags are caught by ESLint and will fail the pre-commit hook.
 |------|------|---------|-------------|
 | `variant` | `'primary' \| 'secondary' \| 'outline' \| 'danger' \| 'ghost' \| 'chip'` | `'primary'` | Visual style |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Button size |
-| `tone` | `'neutral' \| 'warning'` | `'neutral'` | Color for `variant="chip"` only — ignored by every other variant |
+| `tone` | `'neutral' \| 'warning' \| 'danger'` | `'neutral'` | Color for `variant="chip"` only — ignored by every other variant |
 | `icon` | `ReactNode` | — | Icon shown before label |
 | `iconOnly` | `boolean` | `false` | Square button, no label |
 | `loading` | `boolean` | `false` | Shows spinner, disables click |
 | `disabled` | `boolean` | `false` | Disables click |
+| `shortcut` | `string` | — | Keyboard shortcut hint rendered as a `<kbd>` badge (e.g. `"Ctrl+B"`) — ignored when `iconOnly` |
 | `className` | `string` | `''` | Layout overrides ONLY (width, margin) |
 | `...rest` | — | — | All standard button props (onClick, type, data-testid) |
 

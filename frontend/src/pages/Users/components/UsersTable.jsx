@@ -41,7 +41,7 @@ export default function UsersTable({ users, loading, pagination, currentUser, on
             </thead>
             <tbody className="divide-y divide-gray-100">
               {users.map((user) => (
-                <tr key={user.id} className="h-10 hover:bg-brand-tint">
+                <tr key={user.id} className="h-10 hover:bg-brand-tint transition-colors">
                   <td className="px-4 py-2.5 text-sm font-medium text-gray-900">{user.name}</td>
                   <td className="px-4 py-2.5 text-sm text-gray-600">{user.email}</td>
                   <td className="px-4 py-2.5"><RoleBadge role={user.role} /></td>

@@ -191,7 +191,7 @@ export default function PurchaseReturnCreate() {
                 {items.map((item, index) => {
                   const lineAmount = item.return_qty * item.ptr;
                   return (
-                    <tr key={item.id} className="hover:bg-brand-tint">
+                    <tr key={item.id} className="hover:bg-brand-tint transition-colors">
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3"><div className="font-medium text-gray-900">{item.medicine_name}</div><div className="text-xs text-gray-400">{item.product_sku}</div></td>
                       <td className="px-4 py-3 font-mono text-gray-700">{item.batch_no}</td>

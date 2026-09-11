@@ -87,7 +87,7 @@ export default function BatchesTab({
 
                 return (
                   <tr key={batch.id}
-                    className={`hover:bg-brand-tint ${expired ? 'bg-red-50' : soon ? 'bg-orange-50' : ''}`}
+                    className={`hover:bg-brand-tint transition-colors ${expired ? 'bg-red-50' : soon ? 'bg-orange-50' : ''}`}
                     data-testid={`batch-row-${batch.id}`}>
                     <td className="px-4 py-4">
                       <input type="checkbox" checked={selectedBatches.has(batch.id)}

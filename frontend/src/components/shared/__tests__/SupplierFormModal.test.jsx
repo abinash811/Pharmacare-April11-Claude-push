@@ -31,6 +31,19 @@ describe('SupplierFormModal', () => {
     expect(baseProps.onSave).not.toHaveBeenCalled();
   });
 
+  it('marks the invalid field itself, not just the message below it', async () => {
+    // Regression test for the component-state-matrix fix (Sep 11, 2026):
+    // this form used to show a red error message with no visual change on
+    // the input box it belonged to. aria-invalid is what the CSS
+    // (aria-invalid:border-red-500) hooks into, so asserting the attribute
+    // is the real check here, not just that some red text exists somewhere.
+    render(<SupplierFormModal {...baseProps} />);
+    const nameInput = screen.getByTestId('supplier-name-input');
+    expect(nameInput).toHaveAttribute('aria-invalid', 'false');
+    fireEvent.click(screen.getByTestId('submit-supplier-btn'));
+    await waitFor(() => expect(nameInput).toHaveAttribute('aria-invalid', 'true'));
+  });
+
   it('shows GSTIN validation error for invalid format', async () => {
     render(<SupplierFormModal {...baseProps} />);
     await userEvent.type(screen.getByTestId('supplier-name-input'), 'MedPharma');

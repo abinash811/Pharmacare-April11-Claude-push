@@ -43,7 +43,7 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
               const balance = (item.total_value || 0) - (item.amount_paid || 0);
 
               return (
-                <tr key={item.id} className="hover:bg-brand-tint cursor-pointer h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                <tr key={item.id} className="hover:bg-brand-tint transition-colors cursor-pointer h-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
                   role="button" tabIndex={0}
                   onClick={() => navigate(`/purchases/${item.id}`)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/purchases/${item.id}`); } }}

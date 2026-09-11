@@ -168,7 +168,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                   const costExceedsMrp = ptr > 0 && mrp > 0 && ptr > mrp;
                   const inp = 'w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400';
                   return (
-                    <tr key={item.id} className="hover:bg-brand-tint/50">
+                    <tr key={item.id} className="hover:bg-brand-tint/50 transition-colors">
                       <td className="px-3 py-2 text-xs text-gray-400">{index + 1}</td>
                       <td className="px-3 py-2">
                         <div className="text-sm font-medium text-gray-800 truncate" title={item.product_name}>{item.product_name}</div>

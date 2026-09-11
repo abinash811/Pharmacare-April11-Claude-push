@@ -33,7 +33,7 @@ export default function LedgerTab({ movements }) {
               <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">No stock movements found</td></tr>
             ) : (
               movements.map((m, idx) => (
-                <tr key={idx} className="hover:bg-brand-tint">
+                <tr key={idx} className="hover:bg-brand-tint transition-colors">
                   <td className="px-4 py-3 text-sm text-gray-700">
                     {new Date(m.performed_at).toLocaleString('en-GB')}
                   </td>

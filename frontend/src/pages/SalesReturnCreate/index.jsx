@@ -195,7 +195,7 @@ export default function SalesReturnCreate() {
                   const dPrice = item.qty > 0 ? after / item.qty : 0;
                   const lineTotal = after + after * (item.gst_percent / 100);
                   return (
-                    <tr key={item.id} className="hover:bg-brand-tint/50">
+                    <tr key={item.id} className="hover:bg-brand-tint/50 transition-colors">
                       <td className="px-4 py-2">
                         <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                         <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer mt-0.5">

@@ -4,7 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // active:scale-[0.98] is the one state every variant was missing: hover
+  // and focus-visible give feedback, but nothing responded to the actual
+  // press/click moment (found Sep 11, 2026 auditing the component state
+  // matrix). A subtle press-down, not a color change, so it reads on every
+  // variant (including transparent ghost/chip) without per-variant tuning.
+  // duration-fast (100ms) matches the existing "hover states, button press"
+  // token comment in tailwind.config.js.
+  // Switched transition-colors -> transition (Tailwind's default transition
+  // list includes transform, transition-colors doesn't) so active:scale
+  // below actually animates instead of snapping instantly.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition duration-fast active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

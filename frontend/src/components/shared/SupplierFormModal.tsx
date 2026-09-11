@@ -23,7 +23,12 @@ type SupplierFormValues = z.input<typeof supplierFormSchema>;
 
 const DEFAULTS: SupplierFormValues = { name: '', contact_person: '', phone: '', email: '', gstin: '', credit_days: 30, address: '', notes: '' };
 
-const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm';
+// aria-invalid:* reacts to the aria-invalid attribute set below on each
+// validated field — added Sep 11, 2026, component state matrix audit: this
+// form showed a red error message under a field but never marked the field
+// itself invalid, so a user scanning the form by eye had no visual cue
+// which box the message belonged to.
+const cls = 'w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand text-sm aria-invalid:border-red-500 aria-invalid:focus:ring-red-500';
 
 export interface SupplierFormModalProps {
   open: boolean;
@@ -78,7 +83,7 @@ export default function SupplierFormModal({ open, editingSupplier, initialName, 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               {label('Supplier Name *')}
-              <input {...register('name')} className={cls} data-testid="supplier-name-input" />
+              <input {...register('name')} aria-invalid={!!errors.name} className={cls} data-testid="supplier-name-input" />
               {err('name')}
             </div>
             <div>
@@ -87,22 +92,22 @@ export default function SupplierFormModal({ open, editingSupplier, initialName, 
             </div>
             <div>
               {label('Phone')}
-              <input {...register('phone')} placeholder="9876543210" className={cls} />
+              <input {...register('phone')} placeholder="9876543210" aria-invalid={!!errors.phone} className={cls} />
               {err('phone')}
             </div>
             <div>
               {label('Email')}
-              <input type="email" {...register('email')} placeholder="supplier@example.com" className={cls} />
+              <input type="email" {...register('email')} placeholder="supplier@example.com" aria-invalid={!!errors.email} className={cls} />
               {err('email')}
             </div>
             <div>
               {label('GSTIN')}
-              <input {...register('gstin')} placeholder="22AAAAA0000A1Z5" className={`${cls} font-mono uppercase`} />
+              <input {...register('gstin')} placeholder="22AAAAA0000A1Z5" aria-invalid={!!errors.gstin} className={`${cls} font-mono uppercase`} />
               {err('gstin')}
             </div>
             <div>
               {label('Credit Days')}
-              <input type="number" {...register('credit_days')} className={cls} />
+              <input type="number" {...register('credit_days')} aria-invalid={!!errors.credit_days} className={cls} />
               {err('credit_days')}
             </div>
             <div className="col-span-2">

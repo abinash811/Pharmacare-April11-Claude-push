@@ -193,7 +193,7 @@ export default function ScheduleH1Register() {
                 </tr>
               ) : (
                 pageRows.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-brand-tint" data-testid={`h1-row-${entry.id}`}>
+                  <tr key={entry.id} className="hover:bg-brand-tint transition-colors" data-testid={`h1-row-${entry.id}`}>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-700">{formatDateShort(entry.supply_date)}</div>
                     </td>

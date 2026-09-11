@@ -123,7 +123,7 @@ export default function TransactionTab({ type, transactions, loading }) {
                 <tr><td colSpan={cfg.colSpan} className="px-4 py-12 text-center text-gray-500">{cfg.emptyMsg}</td></tr>
               ) : (
                 rows.map((txn, idx) => (
-                  <tr key={idx} className="hover:bg-brand-tint">
+                  <tr key={idx} className="hover:bg-brand-tint transition-colors">
                     {cfg.row(txn).map((cell, i) => (
                       <td key={i} className={`px-4 py-3 text-sm text-gray-700 ${
                         ['Cost','MRP','Total','Amount','Unit Price','Discount','Refund Amount'].includes(cfg.cols[i]) ? 'text-right' :

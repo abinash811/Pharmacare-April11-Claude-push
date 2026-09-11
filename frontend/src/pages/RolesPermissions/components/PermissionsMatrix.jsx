@@ -31,7 +31,7 @@ export default function PermissionsMatrix({ permissions, selectedPermissions, on
             </div>
             <div className="ml-7 space-y-1">
               {module.permissions.map((perm) => (
-                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-brand-tint p-1 rounded">
+                <label key={perm.id} className="flex items-center cursor-pointer hover:bg-brand-tint transition-colors p-1 rounded">
                   <input
                     type="checkbox"
                     checked={selectedPermissions.includes(perm.id)}

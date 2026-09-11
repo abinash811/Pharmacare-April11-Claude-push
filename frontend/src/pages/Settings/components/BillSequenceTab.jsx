@@ -80,7 +80,7 @@ export default function BillSequenceTab({ billSequences, sequenceLoading, onSave
                   </tr>
                 ) : (
                   billSequences.map((seq, idx) => (
-                    <tr key={idx} className="hover:bg-brand-tint">
+                    <tr key={idx} className="hover:bg-brand-tint transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{seq.label || seq.document_type}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2.5 py-1 bg-blue-50 text-blue-800 text-sm font-mono rounded">{seq.prefix}</span>

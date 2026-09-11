@@ -133,7 +133,7 @@ export default function SalesReturnDetail() {
                   const discAmount  = baseAmount * ((item.disc_percent || 0) / 100);
                   const dPrice      = item.qty > 0 ? (baseAmount - discAmount) / item.qty : 0;
                   return (
-                    <tr key={item.id || index} className="hover:bg-brand-tint/50">
+                    <tr key={item.id || index} className="hover:bg-brand-tint/50 transition-colors">
                       <td className="px-4 py-2">
                         <div className="text-sm font-semibold text-gray-900">{item.medicine_name}</div>
                         {item.is_damaged && <span className="text-[10px] text-amber-600 font-medium">Damaged</span>}

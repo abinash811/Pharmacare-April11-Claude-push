@@ -201,7 +201,7 @@ export default function AuditLog() {
                 displayLogs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr
-                      className="hover:bg-brand-tint cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                      className="hover:bg-brand-tint transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
                       role="button"
                       tabIndex={0}
                       onClick={() => toggleExpand(log.id)}

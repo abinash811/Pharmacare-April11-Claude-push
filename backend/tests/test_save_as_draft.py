@@ -259,10 +259,10 @@ class TestSaveAsDraftFeature:
         assert stock_after_paid is not None, "Could not find stock after paid bill"
         print(f"Stock after paid bill: {stock_after_paid}")
 
-        # Stock should be DEDUCTED (qty_on_hand is in packs)
-        # Note: if units_per_pack > 1, the deduction is qty_to_sell / units_per_pack
-        units_per_pack = self.test_product.get('units_per_pack', 1)
-        expected_deduction = qty_to_sell / units_per_pack
+        # Stock should be DEDUCTED. qty_on_hand is stored in real units
+        # (migration a343c922f896) — the deduction equals qty_to_sell exactly,
+        # regardless of units_per_pack.
+        expected_deduction = qty_to_sell
 
         assert stock_after_paid < initial_stock, (
             f"Stock should be deducted for paid bill. "

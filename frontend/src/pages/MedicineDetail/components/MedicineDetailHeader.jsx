@@ -2,8 +2,9 @@
  * MedicineDetailHeader — breadcrumb, product info, 6 stats cards, Edit button.
  * Props:
  *   product      {object}
- *   totalStock   {number}  packs
- *   totalUnits   {number}  units
+ *   totalStock   {number}          total stock in real units (batch qty_on_hand summed)
+ *   totalPacks   {number | null}   packs-equivalent (totalStock / units_per_pack),
+ *                                  null when units_per_pack is 1 (packs == units)
  *   mrpDisplay   {string}  "–", "₹X.XX", or "₹X.XX–₹Y.YY" — MRP is per-batch, not
  *                          per-product, so a range means batches in stock disagree
  *                          on price rather than picking one silently.
@@ -47,7 +48,7 @@ function StatCard({ icon: Icon, label, value, tooltip, className = '' }) {
   );
 }
 
-export default function MedicineDetailHeader({ product, totalStock, totalUnits, mrpDisplay, mrpTooltip, onEdit }) {
+export default function MedicineDetailHeader({ product, totalStock, totalPacks, mrpDisplay, mrpTooltip, onEdit }) {
   return (
     <div className="bg-white border-b border-gray-100">
       <div className="px-6 py-4">
@@ -112,7 +113,7 @@ export default function MedicineDetailHeader({ product, totalStock, totalUnits, 
         {/* Stats cards */}
         <div className="grid grid-cols-6 gap-4 mt-6">
           <StatCard icon={Percent}  label="GST"         value={`${product.gst_percent || 0}%`} />
-          <StatCard icon={Package}  label="STOCK"       value={`${totalStock} (${totalUnits})`} />
+          <StatCard icon={Package}  label="STOCK"       value={totalPacks != null ? `${totalStock} (${totalPacks} packs)` : `${totalStock}`} />
           <StatCard icon={Hash}     label="HSN"         value={product.hsn_code || '–'} />
           <StatCard icon={CreditCard} label="MRP"       value={mrpDisplay} tooltip={mrpTooltip} />
           <StatCard icon={Calendar} label="SCHEDULE"    value={product.schedule || 'Non-Restricted'} />

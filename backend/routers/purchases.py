@@ -271,11 +271,15 @@ async def _create_stock_for_items(
 ) -> None:
     """Create stock batches and movements when a purchase is confirmed.
 
-    StockBatch.quantity_on_hand is in packs everywhere else it's written
-    (billing.py's _deduct_stock_and_record, purchase_returns.py's
-    _deduct_stock_and_record, batches.py's /adjust) — item.quantity_ordered
-    is in units (PurchaseItemCreate.qty_units). Convert before storing,
-    same floor-division pattern used at every other write site.
+    StockBatch.quantity_on_hand is in real units everywhere it's written
+    (billing.py, purchase_returns.py, sales_returns.py, batches.py/adjust)
+    — item.quantity_ordered is also in units (PurchaseItemCreate.qty_units),
+    so no conversion happens here. Before Sep 11, 2026 (migration
+    a343c922f896) this floor-divided by units_per_pack to get a pack count
+    — found live: ordering 25 units of a 10-unit-pack product created a
+    batch with quantity_on_hand=2 (packs), silently losing 5 of the 25
+    units actually paid for and received. See docs/15_ROADMAP.md RULE
+    MISSES LOG.
 
     free_qty_units (bonus units received but not billed) are real
     physical stock and go into quantity_received/quantity_on_hand same
@@ -296,10 +300,7 @@ async def _create_stock_for_items(
                 status_code=400,
                 detail=f"MRP for {item.product_name} must be greater than ₹0 to confirm this purchase")
 
-        units_per_pack = item.units_per_pack or 1
-        paid_pack_qty = item.quantity_ordered // units_per_pack if units_per_pack > 1 else item.quantity_ordered
-        free_pack_qty = item.free_qty_units // units_per_pack if units_per_pack > 1 else item.free_qty_units
-        pack_qty = paid_pack_qty + free_pack_qty
+        total_units = (item.quantity_ordered or 0) + (item.free_qty_units or 0)
         batch_number = item.batch_number or f"PUR-{purchase.purchase_number[:8]}"
 
         # Same duplicate check POST /stock/batches already enforces — this
@@ -326,8 +327,8 @@ async def _create_stock_for_items(
             expiry_date=item.expiry_date or date.today() + timedelta(days=365),
             mrp_paise=item.mrp_paise,
             cost_price_paise=item.cost_price_paise,
-            quantity_received=pack_qty,
-            quantity_on_hand=pack_qty,
+            quantity_received=total_units,
+            quantity_on_hand=total_units,
         )
         db.add(batch)
         await db.flush()
@@ -337,8 +338,8 @@ async def _create_stock_for_items(
 
         db.add(MovementORM(
             pharmacy_id=pharmacy_id, product_id=item.product_id, batch_id=batch.id,
-            movement_type="purchase", quantity=item.quantity_ordered + item.free_qty_units,
-            quantity_before=0, quantity_after=pack_qty,
+            movement_type="purchase", quantity=total_units,
+            quantity_before=0, quantity_after=total_units,
             reference_type="purchase", reference_id=purchase.id,
             user_id=user_id, notes=f"Purchase {purchase.purchase_number}",
         ))

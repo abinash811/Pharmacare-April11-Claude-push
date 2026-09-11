@@ -90,9 +90,9 @@ class TestBatchPriceNotDividedByPackSize(_AuthedTestBase):
             f"mrp_per_unit was divided by units_per_pack again — got "
             f"{batch['mrp_per_unit']}, expected 2.50 (the real per-unit MRP)")
         assert batch["mrp"] == pytest.approx(2.50)
-        # units_per_pack must still convert the pack-based on-hand quantity —
-        # that part of the function was always correct, don't regress it.
-        assert batch["total_units"] == 1000
+        # qty_on_hand is stored in real units (migration a343c922f896) —
+        # total_units is a plain alias, never multiplied by units_per_pack.
+        assert batch["total_units"] == 100
 
     def test_barcode_lookup_returns_real_per_unit_mrp(self):
         barcode = f"BC{uuid.uuid4().hex[:10]}"

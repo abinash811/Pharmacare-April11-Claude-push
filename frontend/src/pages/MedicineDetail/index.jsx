@@ -62,8 +62,11 @@ export default function MedicineDetail() {
     if (deleted > 0) { setSelectedBatches(new Set()); fetchBatches(hideZeroQty); }
   };
 
+  // qty_on_hand is stored in real units (migration a343c922f896) — totalStock
+  // IS the total unit count, no units_per_pack multiplication needed.
   const totalStock = batches.reduce((sum, b) => sum + (b.qty_on_hand || 0), 0);
-  const totalUnits = totalStock * (product?.units_per_pack || 1);
+  const unitsPerPack = product?.units_per_pack || 1;
+  const totalPacks = unitsPerPack > 1 ? Math.floor(totalStock / unitsPerPack) : null;
 
   // The MRP stat card shows what's actually in stock, not a single
   // "product MRP" — MRP lives per batch, not per product (a pharmacy can
@@ -103,7 +106,7 @@ export default function MedicineDetail() {
       <MedicineDetailHeader
         product={product}
         totalStock={totalStock}
-        totalUnits={totalUnits}
+        totalPacks={totalPacks}
         mrpDisplay={mrpDisplay}
         mrpTooltip={mrpTooltip}
         onEdit={() => setShowEditModal(true)}

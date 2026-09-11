@@ -119,17 +119,18 @@ def _product_response(p: ProductORM) -> dict:
 def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
     # mrp_paise is already stored as a per-UNIT price (confirmed by batches.py's
     # own batch response, which returns mrp_paise/100 with no conversion) —
-    # units_per_pack only converts a pack-based quantity to loose units
-    # (total_units below), it never applies to price. Found Sep 11, 2026 via a
+    # units_per_pack never applies to price. Found Sep 11, 2026 via a
     # live billing walkthrough: a ₹2.50/tablet, 10-tablet-strip medicine was
     # being sold for ₹0.25 — the extra "/ units_per_pack" here divided an
     # already-per-unit price a second time. Confirmed live in a real bill and
     # root-caused before fixing (see docs/15_ROADMAP.md RULE MISSES LOG).
+    # quantity_on_hand is stored in real units, not packs, as of migration
+    # a343c922f896 — total_units is just an alias, no multiplication needed.
     return {
         "batch_id": str(b.id), "batch_no": b.batch_number,
         "expiry_date": b.expiry_date.strftime("%d-%m-%Y") if b.expiry_date else "N/A",
         "expiry_iso": b.expiry_date.isoformat() if b.expiry_date else None,
-        "qty_on_hand": b.quantity_on_hand, "total_units": b.quantity_on_hand * units_per_pack,
+        "qty_on_hand": b.quantity_on_hand, "total_units": b.quantity_on_hand,
         "mrp": b.mrp_paise / 100, "mrp_per_unit": b.mrp_paise / 100,
         "cost_price": b.cost_price_paise / 100,
     }
@@ -284,8 +285,7 @@ async def lookup_by_barcode(
                 product.gst_rate),
             "barcode": product.barcode,
             "total_stock": total_qty,
-            "total_units": total_qty *
-            product.units_per_pack},
+            "total_units": total_qty},
         "batches": batches,
         "suggested_batch": batches[0],
     }
@@ -324,7 +324,7 @@ async def search_products_with_batches(q: str,
             "units_per_pack": product.units_per_pack, "default_mrp": 0,
             "gst_percent": float(product.gst_rate), "schedule": product.drug_schedule,
             "scheduleH": product.drug_schedule in ["H", "H1"],
-            "total_qty": total_qty, "total_units": total_qty * product.units_per_pack,
+            "total_qty": total_qty, "total_units": total_qty,
             "batches": batches, "suggested_batch": batches[0],
         })
     return results

@@ -205,18 +205,18 @@ async def _deduct_stock_and_record(
     disagreeing with nobody told. Same message pattern as billing.py's
     _deduct_stock_and_record insufficient-stock check.
     """
-    units_per_pack = product.units_per_pack or 1
-    qty_packs = qty_units // units_per_pack if units_per_pack > 1 else qty_units
+    # qty_units is already in real units, same as quantity_on_hand — see
+    # models/products.py's StockBatch comment (migration a343c922f896).
     old_qty = batch.quantity_on_hand
 
-    if old_qty < qty_packs:
+    if old_qty < qty_units:
         raise HTTPException(
             status_code=400,
             detail=(f"Insufficient stock for {product.name} in batch {batch.batch_number}: "
-                    f"{old_qty} available, {qty_packs} requested"))
+                    f"{old_qty} available, {qty_units} requested"))
 
-    batch.quantity_on_hand = old_qty - qty_packs
-    batch.quantity_returned = (batch.quantity_returned or 0) + qty_packs
+    batch.quantity_on_hand = old_qty - qty_units
+    batch.quantity_returned = (batch.quantity_returned or 0) + qty_units
 
     db.add(MovementORM(
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
@@ -634,12 +634,12 @@ async def update_purchase_return(
                 "Purchase return edit adjustment", db,
             )
         elif qty_diff < 0:
-            # Less being returned — restore stock
-            units_per_pack = product_orm.units_per_pack or 1
-            restore_packs = abs(qty_diff) // units_per_pack if units_per_pack > 1 else abs(qty_diff)
+            # Less being returned — restore stock. abs(qty_diff) is already
+            # in real units, same as quantity_on_hand (migration a343c922f896).
+            restore_units = abs(qty_diff)
             old_qty_hand = batch.quantity_on_hand
-            batch.quantity_on_hand = old_qty_hand + restore_packs
-            batch.quantity_returned = max(0, (batch.quantity_returned or 0) - restore_packs)
+            batch.quantity_on_hand = old_qty_hand + restore_units
+            batch.quantity_returned = max(0, (batch.quantity_returned or 0) - restore_units)
 
             db.add(MovementORM(
                 pharmacy_id=pharmacy_id, product_id=product_orm.id, batch_id=batch.id,

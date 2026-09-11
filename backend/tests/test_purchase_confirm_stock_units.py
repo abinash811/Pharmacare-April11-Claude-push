@@ -1,18 +1,20 @@
 """
-Regression tests for the August 24, 2026 purchase-confirmation unit-
-conversion fix.
+Regression tests for the Sep 11, 2026 stock-quantity architecture fix
+(migration a343c922f896 + Option A).
 
-Bug: routers/purchases.py's _create_stock_for_items wrote
-item.quantity_ordered (units, from PurchaseItemCreate.qty_units) directly
-into StockBatch.quantity_on_hand/quantity_received, which every other
-write site (billing.py's _deduct_stock_and_record, purchase_returns.py's
-_deduct_stock_and_record, batches.py's /adjust) treats as PACKS. For any
-product with units_per_pack > 1, confirming a purchase inflated on-hand
-stock by units_per_pack, and every downstream read that re-multiplies by
-units_per_pack (e.g. _batch_response's total_units) compounded the error.
+Bug: StockBatch.quantity_on_hand (and sibling quantity_* columns) were
+stored in whole PACKS while every sale/purchase/return/adjustment quantity
+is expressed in loose UNITS. Every write site independently floor-divided
+by units_per_pack before storing, silently discarding the loose-unit
+remainder for any quantity that wasn't an exact multiple of the pack size.
+Concretely: selling 2 tablets from a 10-tablet-strip product deducted
+2 // 10 = 0 packs — stock never moved at all.
 
-Fix: convert quantity_ordered to packs before storing, using the same
-floor-division pattern already used at every other write site.
+Fix: StockBatch quantity_* columns now store real units directly, with
+zero pack conversion at any write site (purchases.py, billing.py,
+sales_returns.py, purchase_returns.py, batches.py). This file replaces an
+earlier (Aug 24, 2026) test suite that asserted the old packs-based
+behavior — that behavior is now the bug, not the fix.
 """
 import pytest
 import requests
@@ -108,8 +110,11 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
             f"units_per_pack=1 should store qty_on_hand=20 (packs==units), got {batches[0]}")
         assert batches[0]["total_units"] == 20
 
-    def test_units_per_pack_greater_than_1_converts_to_packs(self):
-        """units_per_pack=10, 50 units ordered -> 5 packs stored, not 50."""
+    def test_units_per_pack_greater_than_1_stores_real_units_no_conversion(self):
+        """units_per_pack=10, 50 units ordered -> 50 real units stored, never
+        floor-divided into packs. This is the exact scenario that used to lose
+        stock: ordering a non-exact-multiple quantity (e.g. 5 units of a
+        10-unit pack) used to store 5 // 10 = 0."""
         product = self._create_product(units_per_pack=10)
         supplier_id = self._get_or_create_supplier()
 
@@ -117,12 +122,25 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
 
         batches = self._get_batches(product["sku"])
         assert len(batches) == 1
-        assert batches[0]["qty_on_hand"] == 5, (
-            f"units_per_pack=10, 50 units ordered should store qty_on_hand=5 packs "
-            f"(the pre-fix bug stored 50), got {batches[0]}")
-        # total_units re-derives units_per_pack * qty_on_hand — must round-trip
-        # back to the real 50 units ordered, not units_per_pack^2 * the real figure.
+        assert batches[0]["qty_on_hand"] == 50, (
+            f"units_per_pack=10, 50 units ordered should store qty_on_hand=50 "
+            f"real units (the pre-fix bug stored 5, discarding the pack framing "
+            f"entirely for non-exact quantities), got {batches[0]}")
         assert batches[0]["total_units"] == 50
+
+    def test_units_per_pack_non_exact_multiple_is_not_lost(self):
+        """The actual bug scenario: ordering fewer units than one full pack
+        must still create real stock, not zero."""
+        product = self._create_product(units_per_pack=10)
+        supplier_id = self._get_or_create_supplier()
+
+        self._create_purchase(supplier_id, product["sku"], product["name"], qty_units=5)
+
+        batches = self._get_batches(product["sku"])
+        assert len(batches) == 1
+        assert batches[0]["qty_on_hand"] == 5, (
+            f"Ordering 5 units of a 10-unit-pack product must store 5 units, "
+            f"not 5 // 10 = 0 (the pre-fix bug), got {batches[0]}")
 
     def test_draft_purchase_does_not_create_stock(self):
         product = self._create_product(units_per_pack=1)
@@ -150,10 +168,10 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
             f"got {len(purchase_movements)}: {purchase_movements}")
 
         m = purchase_movements[0]
-        # quantity_before/after mirror the batch's own on-hand unit (packs),
-        # matching the convention already used by billing.py/purchase_returns.py.
+        # quantity_before/after mirror the batch's own on-hand unit (real
+        # units, as of migration a343c922f896).
         assert m["quantity_before"] == 0
-        assert m["quantity_after"] == 5
+        assert m["quantity_after"] == 50
 
     def test_repeat_confirm_via_edit_is_blocked_stock_not_doubled(self):
         product = self._create_product(units_per_pack=10)
@@ -182,7 +200,7 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
 
         batches = self._get_batches(product["sku"])
         assert len(batches) == 1, "Stock must not be created a second time"
-        assert batches[0]["qty_on_hand"] == 5
+        assert batches[0]["qty_on_hand"] == 50
 
     def test_purchase_response_shape_unchanged(self):
         product = self._create_product(units_per_pack=10)
@@ -202,17 +220,17 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
         assert item["free_qty_units"] == 0
         assert item["received_qty_units"] == 0
 
-    def test_purchase_return_still_correct_after_fix(self):
-        """Existing purchase-return unit logic (unchanged by this fix) must
-        still behave correctly against a batch created by the fixed
-        confirm path."""
+    def test_purchase_return_of_non_exact_multiple_deducts_correctly(self):
+        """Purchase return of a quantity that is NOT an exact multiple of
+        units_per_pack must still deduct the exact real units returned —
+        this is the same class of bug the confirm-path fix addresses."""
         product = self._create_product(units_per_pack=10)
         supplier_id = self._get_or_create_supplier()
 
         purchase = self._create_purchase(
             supplier_id, product["sku"], product["name"], qty_units=50)
         batches_before = self._get_batches(product["sku"])
-        assert batches_before[0]["qty_on_hand"] == 5
+        assert batches_before[0]["qty_on_hand"] == 50
 
         return_resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json={
             "supplier_id": supplier_id,
@@ -222,7 +240,7 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
                 "product_sku": product["sku"],
                 "product_name": product["name"],
                 "batch_id": batches_before[0]["id"],
-                "return_qty_units": 20,
+                "return_qty_units": 15,
                 "cost_price_per_unit": 10.0,
                 "gst_percent": 5.0,
             }],
@@ -230,7 +248,7 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
         assert return_resp.status_code == 200, return_resp.text
 
         batches_after = self._get_batches(product["sku"])
-        # 20 units returned / units_per_pack=10 = 2 packs deducted: 5 - 2 = 3.
-        assert batches_after[0]["qty_on_hand"] == 3, (
-            f"Purchase return against a units_per_pack>1 batch created by the "
-            f"fixed confirm path should deduct 2 packs (20 units / 10), got {batches_after}")
+        assert batches_after[0]["qty_on_hand"] == 35, (
+            f"Returning 15 units (not a multiple of units_per_pack=10) should "
+            f"deduct exactly 15 real units: 50 - 15 = 35 (the pre-fix bug "
+            f"floor-divided 15 // 10 = 1 pack deducted), got {batches_after}")

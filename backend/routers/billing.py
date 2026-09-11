@@ -256,22 +256,25 @@ async def _deduct_stock_and_record(
     batch: BatchORM, product: ProductORM, quantity: int, is_sale: bool,
     bill_id: uuid.UUID, pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
 ) -> None:
-    """Deduct (or restore) stock and create a movement record."""
-    units_per_pack = product.units_per_pack or 1
-    pack_change = quantity // units_per_pack if units_per_pack > 1 else quantity
+    """Deduct (or restore) stock and create a movement record.
+
+    quantity is already in real units, same as quantity_on_hand — see
+    models/products.py's StockBatch comment (migration a343c922f896).
+    units_per_pack is never applied to a stored quantity.
+    """
     old_qty = batch.quantity_on_hand
 
     if is_sale:
-        if old_qty < pack_change:
+        if old_qty < quantity:
             raise HTTPException(
                 status_code=400,
                 detail=(f"Insufficient stock for {product.name} in batch {batch.batch_number}: "
-                        f"{old_qty} available, {pack_change} requested"))
-        batch.quantity_on_hand = old_qty - pack_change
-        batch.quantity_sold = (batch.quantity_sold or 0) + pack_change
+                        f"{old_qty} available, {quantity} requested"))
+        batch.quantity_on_hand = old_qty - quantity
+        batch.quantity_sold = (batch.quantity_sold or 0) + quantity
         qty_delta = -quantity
     else:
-        batch.quantity_on_hand = old_qty + pack_change
+        batch.quantity_on_hand = old_qty + quantity
         qty_delta = quantity
 
     db.add(MovementORM(

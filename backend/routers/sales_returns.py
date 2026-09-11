@@ -173,13 +173,13 @@ async def _restore_stock(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, ref_id: uuid.UUID,
     reason: str, db: AsyncSession,
 ) -> None:
-    units_per_pack = product.units_per_pack or 1
-    qty_packs = qty_units // units_per_pack if units_per_pack > 1 else qty_units
+    # qty_units is already in real units, same as quantity_on_hand — see
+    # models/products.py's StockBatch comment (migration a343c922f896).
     old_qty = batch.quantity_on_hand
 
     if return_to_stock:
-        batch.quantity_on_hand = old_qty + qty_packs
-    batch.quantity_returned = (batch.quantity_returned or 0) + qty_packs
+        batch.quantity_on_hand = old_qty + qty_units
+    batch.quantity_returned = (batch.quantity_returned or 0) + qty_units
 
     db.add(MovementORM(
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
@@ -196,13 +196,11 @@ async def _reverse_stock(
     db: AsyncSession,
 ) -> None:
     """Reverse a previous stock restoration (for financial edits)."""
-    units_per_pack = product.units_per_pack or 1
-    qty_packs = qty_units // units_per_pack if units_per_pack > 1 else qty_units
     old_qty = batch.quantity_on_hand
 
     if was_return_to_stock:
-        batch.quantity_on_hand = max(0, old_qty - qty_packs)
-    batch.quantity_returned = max(0, (batch.quantity_returned or 0) - qty_packs)
+        batch.quantity_on_hand = max(0, old_qty - qty_units)
+    batch.quantity_returned = max(0, (batch.quantity_returned or 0) - qty_units)
 
     db.add(MovementORM(
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,

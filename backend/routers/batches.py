@@ -93,7 +93,6 @@ class StockAdjustment(BaseModel):
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _batch_response(b: BatchORM, product: ProductORM) -> dict:
-    units_per_pack = product.units_per_pack or 1
     return {
         "id": str(b.id),
         "product_sku": product.sku,
@@ -102,8 +101,10 @@ def _batch_response(b: BatchORM, product: ProductORM) -> dict:
         "batch_no": b.batch_number,
         "manufacture_date": b.manufacture_date.isoformat() if b.manufacture_date else None,
         "expiry_date": b.expiry_date.isoformat() if b.expiry_date else None,
+        # qty_on_hand and total_units are both already real units (migration
+        # a343c922f896) — kept as two keys for API back-compat, same value.
         "qty_on_hand": b.quantity_on_hand,
-        "total_units": b.quantity_on_hand * units_per_pack,
+        "total_units": b.quantity_on_hand,
         "cost_price_per_unit": b.cost_price_paise / 100,
         "mrp_per_unit": b.mrp_paise / 100,
         "location": "default",
@@ -204,10 +205,14 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
     db.add(batch)
     await db.flush()
 
-    units_per_pack = product.units_per_pack or 1
+    # quantity_received/quantity_on_hand above are stored directly, in real
+    # units (migration a343c922f896) — the movement record must match, not
+    # multiply by units_per_pack again. Before this fix the ledger's own
+    # "quantity" figure disagreed with the batch's own stored field for
+    # every opening-stock entry.
     await _record_movement(
         pharmacy_id=pharmacy_id, product_id=product.id, batch_id=batch.id,
-        movement_type="opening_stock", quantity=batch_data.qty_on_hand * units_per_pack,
+        movement_type="opening_stock", quantity=batch_data.qty_on_hand,
         qty_before=0, qty_after=batch_data.qty_on_hand,
         ref_type="opening", ref_id=batch.id,
         user_id=uuid.UUID(current_user.id), notes="Initial stock entry", db=db,
@@ -345,30 +350,30 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    units_per_pack = product.units_per_pack or 1
+    # qty_units is already in real units, same as quantity_on_hand — see
+    # models/products.py's StockBatch comment (migration a343c922f896).
     qty_delta_units = adjustment.qty_units if adjustment.adjustment_type == "add" else -adjustment.qty_units
-    pack_delta = qty_delta_units / units_per_pack
     old_qty = batch.quantity_on_hand
-    new_qty = old_qty + pack_delta
+    new_qty = old_qty + qty_delta_units
 
     if new_qty < 0:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot remove {adjustment.qty_units} units. Only {int(old_qty * units_per_pack)} units available.")
+            detail=f"Cannot remove {adjustment.qty_units} units. Only {old_qty} units available.")
 
-    batch.quantity_on_hand = int(new_qty)
+    batch.quantity_on_hand = new_qty
 
     await _record_movement(
         pharmacy_id=batch.pharmacy_id, product_id=batch.product_id, batch_id=batch.id,
         movement_type="adjustment", quantity=qty_delta_units,
-        qty_before=old_qty, qty_after=int(new_qty),
+        qty_before=old_qty, qty_after=new_qty,
         ref_type="adjustment", ref_id=uuid.uuid4(),
         user_id=uuid.UUID(current_user.id), notes=adjustment.reason, db=db,
     )
     await db.flush()
 
-    return {"message": "Stock adjusted successfully", "new_qty_packs": new_qty,
-            "new_qty_units": int(new_qty * units_per_pack), "adjustment_units": qty_delta_units}
+    return {"message": "Stock adjusted successfully", "new_qty_units": new_qty,
+            "adjustment_units": qty_delta_units}
 
 
 @router.post("/batches/{batch_id}/writeoff-expiry")
@@ -383,8 +388,8 @@ async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_use
     if batch.expiry_date and batch.expiry_date >= date.today():
         raise HTTPException(status_code=400, detail="Batch is not expired yet")
 
-    units_per_pack = product.units_per_pack or 1
-    qty_units = int(batch.quantity_on_hand * units_per_pack)
+    # quantity_on_hand is already in real units (migration a343c922f896).
+    qty_units = batch.quantity_on_hand
     if qty_units <= 0:
         raise HTTPException(status_code=400, detail="No stock to write off")
 
@@ -416,21 +421,18 @@ async def create_stock_movement(movement_data: StockMovementCreate, current_user
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
     batch = await _get_batch(movement_data.batch_id, db)
 
-    # StockBatch.quantity_on_hand is in packs everywhere it's written
-    # (billing.py, purchase_returns.py, /adjust above) — qty_delta_units
-    # is in units, same convention as those. This endpoint used to log a
-    # movement without ever applying it to the batch; now it does both,
-    # with the same negative-stock guard /adjust uses.
-    units_per_pack = product.units_per_pack or 1
-    pack_delta = (movement_data.qty_delta_units // units_per_pack
-                  if units_per_pack > 1 else movement_data.qty_delta_units)
+    # StockBatch.quantity_on_hand is in real units everywhere it's written
+    # (billing.py, purchase_returns.py, /adjust above) — qty_delta_units is
+    # also units, so no conversion (migration a343c922f896). This endpoint
+    # used to log a movement without ever applying it to the batch; now it
+    # does both, with the same negative-stock guard /adjust uses.
     old_qty = batch.quantity_on_hand
-    new_qty = old_qty + pack_delta
+    new_qty = old_qty + movement_data.qty_delta_units
     if new_qty < 0:
         raise HTTPException(
             status_code=400,
             detail=(f"Cannot record this movement: batch {batch.batch_number} would go negative "
-                    f"({old_qty} on hand, delta of {pack_delta})"))
+                    f"({old_qty} on hand, delta of {movement_data.qty_delta_units})"))
 
     batch.quantity_on_hand = new_qty
 

@@ -147,16 +147,19 @@ class TestPostStockMovementAppliesToBatch(_AuthedTestBase):
             "POST /stock-movements must actually apply the delta to the batch, "
             f"got {updated}")
 
-    def test_positive_delta_units_per_pack_greater_than_1_converts_to_packs(self):
+    def test_positive_delta_units_per_pack_greater_than_1_adds_real_units(self):
+        """StockBatch quantities are real units (migration a343c922f896) —
+        units_per_pack must never convert a movement delta."""
         product = self._create_product(units_per_pack=10)
-        batch = self._create_batch(product["sku"], qty_on_hand=5)  # 5 packs
+        batch = self._create_batch(product["sku"], qty_on_hand=5)
 
-        resp = self._post_movement(product, batch, qty_delta_units=30)  # 30 units = 3 packs
+        resp = self._post_movement(product, batch, qty_delta_units=30)
         assert resp.status_code == 200, resp.text
 
         updated = self._get_batch_by_id(product["sku"], batch["id"])
-        assert updated["qty_on_hand"] == 8, (
-            f"30 units / units_per_pack=10 should add 3 packs (5 -> 8), got {updated}")
+        assert updated["qty_on_hand"] == 35, (
+            f"A +30 unit delta must add 30 real units regardless of "
+            f"units_per_pack (5 -> 35), got {updated}")
 
     def test_negative_delta_within_stock_decreases_batch(self):
         product = self._create_product(units_per_pack=1)

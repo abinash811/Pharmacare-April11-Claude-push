@@ -111,17 +111,18 @@ class TestPurchaseFreeQtyUnits(_AuthedTestBase):
         assert batch["qty_on_hand"] == 25, (
             f"20 paid + 5 free units_per_pack=1 should total 25 packs on hand, got {batch}")
 
-    def test_free_qty_units_converted_to_packs_units_per_pack_greater_than_1(self):
+    def test_free_qty_units_added_as_real_units_units_per_pack_greater_than_1(self):
+        """StockBatch quantities are real units (migration a343c922f896) —
+        units_per_pack must never convert paid/free quantities into packs."""
         product = self._create_product(units_per_pack=10)
         supplier_id = self._get_or_create_supplier()
 
-        # 50 paid units = 5 packs, 20 free units = 2 packs -> 7 packs total.
         self._confirm_purchase(
             supplier_id, product["sku"], product["name"], qty_units=50, free_qty_units=20)
 
         batch = self._get_batch(product["sku"])
-        assert batch["qty_on_hand"] == 7, (
-            f"5 paid packs + 2 free packs should total 7, got {batch}")
+        assert batch["qty_on_hand"] == 70, (
+            f"50 paid + 20 free real units should total 70, got {batch}")
 
     def test_zero_free_qty_units_unaffected(self):
         """Regression: omitting free_qty_units behaves exactly as before this fix."""

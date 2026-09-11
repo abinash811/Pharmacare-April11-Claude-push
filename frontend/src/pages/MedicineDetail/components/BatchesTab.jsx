@@ -80,7 +80,11 @@ export default function BatchesTab({
               batches.map(batch => {
                 const expired = isExpired(batch.expiry_date);
                 const soon    = isExpiringSoon(batch.expiry_date, nearExpiryDays);
-                const qtyUnits = batch.qty_on_hand * (product.units_per_pack || 1);
+                // batch.qty_on_hand is stored in real units (migration
+                // a343c922f896) — packsEquivalent is a display-only conversion
+                // back to packs, shown only when the pack size is meaningful.
+                const unitsPerPack = product.units_per_pack || 1;
+                const packsEquivalent = unitsPerPack > 1 ? Math.floor(batch.qty_on_hand / unitsPerPack) : null;
                 const mrp = batch.mrp_per_unit || 0;
                 const costPrice = batch.cost_price_per_unit || 0;
                 const margin = calculateMargin(mrp, costPrice);
@@ -97,7 +101,9 @@ export default function BatchesTab({
                     <td className="px-4 py-4 font-medium text-gray-900">{batch.batch_no || '–'}</td>
                     <td className="px-4 py-4 text-center">
                       <span className="text-gray-900">{batch.qty_on_hand}</span>
-                      <span className="text-gray-500 text-sm ml-1">({qtyUnits})</span>
+                      {packsEquivalent != null && (
+                        <span className="text-gray-500 text-sm ml-1">({packsEquivalent} packs)</span>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-center">
                       {expired ? (

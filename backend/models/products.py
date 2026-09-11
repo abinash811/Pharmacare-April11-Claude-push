@@ -85,6 +85,20 @@ class StockBatch(Base):
     mrp_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_price_paise: Mapped[int] = mapped_column(Integer, nullable=False)
     sale_price_paise: Mapped[Optional[int]] = mapped_column(Integer)
+    # All five quantity_* columns are in real, loose UNITS (individual
+    # tablets/capsules/etc.), never packs — changed Sep 11, 2026 (migration
+    # a343c922f896). Before this, every one of these was stored in whole
+    # packs, and every write site independently floor-divided a units
+    # figure by the product's units_per_pack to get a pack count before
+    # storing — found live: selling 2 loose tablets from a 10-tablet strip
+    # computed `2 // 10 = 0` packs, so the batch's stock never moved at
+    # all. The same floor-division bug existed independently in purchases,
+    # purchase returns, and manual stock adjustments — one root cause
+    # (packs as the storage unit, units as the input unit), not four
+    # separate bugs. Storing units directly removes the conversion (and
+    # its rounding loss) everywhere. Product.units_per_pack still exists
+    # for display (how many units come in a strip) and for purchase-order
+    # convenience — it's just never used to convert a stored quantity.
     quantity_received: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     quantity_on_hand: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     quantity_sold: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

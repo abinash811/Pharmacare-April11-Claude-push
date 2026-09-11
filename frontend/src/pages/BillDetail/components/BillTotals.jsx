@@ -49,6 +49,11 @@ export default function BillTotals({ bill, gstRows, isParked }) {
               <span>GST</span><span>{formatCurrency(bill.tax_amount)}</span>
             </div>
           )}
+          {Math.abs(bill.round_off || 0) >= 0.005 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Round off</span><span>{formatCurrency(bill.round_off)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-gray-900 text-base border-t pt-2 mt-2">
             <span>Total</span><span>{formatCurrency(bill.total_amount || 0)}</span>
           </div>

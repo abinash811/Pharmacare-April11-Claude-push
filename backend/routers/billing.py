@@ -128,6 +128,13 @@ def _bill_response(b: BillORM, items: list[BillItemORM]) -> dict:
         "tax_rate": 0,
         "tax_amount": b.total_gst_paise / 100,
         "total_amount": b.grand_total_paise / 100,
+        # grand_total_paise is rounded to the nearest rupee at create time
+        # (see create_bill) — round_off is whatever remains after every
+        # other explicit term, not a fake constant. Same derivation as
+        # purchases.py's _purchase_response.
+        "round_off": (b.grand_total_paise - (
+            b.subtotal_paise + b.total_gst_paise - b.bill_discount_paise
+        )) / 100,
         "paid_amount": b.amount_paid_paise / 100,
         "due_amount": b.balance_paise / 100,
         "payment_method": b.payment_method,

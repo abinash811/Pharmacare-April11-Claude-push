@@ -49,6 +49,11 @@ export default function FinaliseModal({
     ? mrpTotal * (billDiscount / 100)
     : billDiscount;
   const itemDiscAmt = totalDiscount - billDiscAmt;
+  // grandTotal (prop) is already rounded to the nearest rupee, matching
+  // create_bill's own rounding — Round off is the exact delta from the raw,
+  // pre-round total, same pattern as SalesReturnFinaliseModal.
+  const rawTotal = mrpTotal - totalDiscount + totalGst + totalCess;
+  const roundOff = grandTotal - rawTotal;
 
   const handleConfirm = () => onConfirm({ internalNote, deliveryNote });
 
@@ -77,7 +82,7 @@ export default function FinaliseModal({
                 { label: 'Bill Discount',   value: formatCurrency(-billDiscAmt),               cls: 'text-red-500' },
                 { label: 'GST',             value: formatCurrency(totalGst),                  cls: '' },
                 { label: 'CESS',            value: formatCurrency(totalCess),                 cls: '' },
-                { label: 'Round off',       value: '₹0.00',                                     cls: '' },
+                { label: 'Round off',       value: formatCurrency(roundOff),                  cls: '' },
               ].map(({ label, value, cls }) => (
                 <div key={label} className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-sm text-gray-600">{label}</span>

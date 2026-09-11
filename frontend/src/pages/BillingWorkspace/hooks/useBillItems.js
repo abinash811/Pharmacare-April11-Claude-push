@@ -48,7 +48,12 @@ export function useBillItems(billDiscount = 0, billDiscountType = '%') {
     setTotalDiscount(itemDisc + billDiscAmt);
     setTotalGst(gst);
     setTotalCess(cess);
-    setGrandTotal(grand);
+    // Rounded to the nearest rupee, matching create_bill's own rounding
+    // (backend/routers/billing.py) and Sales Return's netAmount pattern —
+    // the single source of truth shown everywhere (footer, finalise modal,
+    // print) must be the figure that's actually charged, not a raw float
+    // the backend then silently rounds differently.
+    setGrandTotal(Math.round(grand));
     setMargin({ amount: mAmt, percent: cost > 0 ? (mAmt / cost) * 100 : 0 });
   }, [billItems, billDiscount, billDiscountType]);
 

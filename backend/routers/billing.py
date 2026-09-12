@@ -544,17 +544,6 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
         gst_paise += line_gst_paise
         cost_total_paise += line_cost_paise
 
-    # Nothing stopped this from creating a real, finalized "Paid" tax
-    # invoice with zero items — either bill_data.items arrived empty, or
-    # every item's batch/product silently failed to resolve (the `continue`
-    # above). Both used to fall through to a ₹0.00 invoice, burning a real
-    # sequential GST invoice number for nothing. Reject before a Bill row
-    # (and its invoice number) is ever created.
-    if not item_orms:
-        raise HTTPException(
-            status_code=400,
-            detail="Add at least one medicine to create a bill.")
-
     bill_discount_paise = int((bill_data.discount or 0) * 100)
     total_discount_paise = item_discount_paise + bill_discount_paise
     grand_total_paise = subtotal_paise + gst_paise - bill_discount_paise
@@ -595,6 +584,19 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
     if bill_data.doctor_id:
         await get_owned_or_404(
             db, DoctorORM, bill_data.doctor_id, pharmacy_id, not_found_detail="Doctor not found")
+
+    # Nothing stopped this from creating a real, finalized "Paid" tax
+    # invoice with zero items — either bill_data.items arrived empty, or
+    # every item's batch/product silently failed to resolve (the `continue`
+    # above). Both used to fall through to a ₹0.00 invoice, burning a real
+    # sequential GST invoice number for nothing. Reject before a Bill row
+    # (and its invoice number) is ever created — after the ownership checks
+    # above, so a cross-tenant customer_id/doctor_id still correctly 404s
+    # regardless of what the caller put in items.
+    if not item_orms:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one medicine to create a bill.")
 
     if status == "due":
         await _check_credit_limit(

@@ -13,6 +13,15 @@ every batch_id was bad/stale, sailed straight through to a real invoice.
 
 Fix: both endpoints now reject with a 400 before a Bill row (and its real
 invoice number) is ever created if zero items resolved.
+
+The first version of this fix placed the empty-items check right after the
+items loop — before create_bill's existing customer_id/doctor_id ownership
+check further down. That broke test_multi_tenancy_isolation.py's
+test_b_cannot_use_a_customer_id_on_own_bill/doctor_id tests: they
+intentionally send `items: []` (they only care about the ownership check)
+and expect a 404, but got this fix's 400 instead, firing first. Moved the
+check to run after the ownership checks instead — see
+test_bad_customer_id_still_wins_over_empty_items below.
 """
 import pytest
 import requests
@@ -81,6 +90,22 @@ class TestBillingRejectsEmptyItems(_AuthedTestBase):
         })
         assert resp.status_code == 400, resp.text
         assert "medicine" in resp.json()["detail"].lower()
+
+    def test_bad_customer_id_still_wins_over_empty_items(self):
+        """The ownership check (ambiguous/unowned customer_id -> 404) must
+        run before the empty-items check (-> 400) — this is exactly the
+        ordering that broke test_multi_tenancy_isolation.py's
+        test_b_cannot_use_a_customer_id_on_own_bill/doctor_id, which
+        intentionally send items: [] because they only care about the
+        ownership check. A random, non-existent customer_id exercises the
+        same code path without needing a second tenant."""
+        resp = self.session.post(f"{BASE_URL}/api/bills", json={
+            "customer_id": str(uuid.uuid4()),  # doesn't exist for anyone
+            "payment_method": "cash", "status": "draft", "tax_rate": 5,
+            "items": [],
+        })
+        assert resp.status_code == 404, resp.text
+        assert "customer" in resp.json()["detail"].lower()
 
     def test_a_real_item_still_bills_normally(self):
         """Regression guard: the new check must not block a real sale."""

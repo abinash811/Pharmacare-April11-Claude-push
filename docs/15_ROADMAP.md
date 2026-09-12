@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.53 | Last updated: September 12, 2026
+# Version: 2.54 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -553,6 +553,16 @@ class as the dead-schema misses already fixed this session
 to a user, so it's not a broken use case — just flagged so nobody builds
 enforcement logic against a column that was never really wired.
 
+**Competitor-validated gaps below** (added Sep 12, 2026 — these were
+researched and sourced into `docs/01_PRODUCT.md` §10 at the same time as
+the rest of this audit, but only summarized as one line there instead of
+being turned into real phased use cases here, which the `product-review`
+skill's own output format requires. Naming the miss: this is exactly the
+"named/researched competitor feature we don't have is a real gap, not a
+nice-to-have" rule (Manifesto #15) not being followed all the way
+through on first pass — closing it now rather than leaving it as a
+one-liner.):
+
 **Use case: a store manager raises a formal Purchase Order to a
 distributor before the goods arrive, distinct from recording a direct
 receipt.**
@@ -563,6 +573,63 @@ receipt.**
   Real, but a bigger, later-stage workflow than today's core buy-receive-
   pay loop needs.
 - **Phase: v3.**
+
+**Use case: a store manager wants distributors nudged automatically about
+what's owed to them, instead of remembering to call each one.**
+- **Today: missing.** Named Marg ERP feature — WhatsApp delivery of
+  outstanding/ledger/payment reminders to distributors. Depends on the
+  same WhatsApp Business API integration already deferred for Customers'
+  equivalent reminder use case (v2 there too) — build once, wire to both.
+- **Phase: v2.**
+
+**Use case: a pharmacist wants near-expiry stock flagged for return to
+the supplier before it has to be written off as a loss.**
+- **Today: missing.** Named Pharmasoft feature (return-to-supplier before
+  expiry write-off). PharmaCare's purchase-return flow is real but
+  reactive (damaged/wrong item, manually initiated) — nothing proactively
+  surfaces near-expiry batches as return candidates. Real money-saving
+  gap, not just a nicety, but depends on inventory's existing expiry-
+  tracking surfacing the candidate list first.
+- **Phase: v2.**
+
+**Use case: a store manager wants to compare price/offers/schemes across
+distributors before choosing who to buy from.**
+- **Today: missing.** Named Marg ERP feature (check offers/schemes/stock
+  rates per distributor). Real, but a differentiator rather than
+  table-stakes — most pharmacies still do this by phone/memory today.
+- **Phase: v3.**
+
+**Use case: a pharmacist wants to import a distributor's purchase bill
+directly (email/Excel/CSV) instead of retyping every line item.**
+- **Today: missing.** Named Pharmasoft feature (one-click bill import).
+  Real time-saver for high-volume purchase entry, but needs a parser per
+  distributor bill format — bigger investment than today's core loop
+  needs yet.
+- **Phase: v3.**
+
+**Use case: a store manager wants purchase orders sent to a distributor
+automatically (email/WhatsApp) once raised, instead of a phone call.**
+- **Today: missing.** Named Pharmasoft feature. Bundles naturally with
+  the formal PO workflow above — build together, not separately.
+- **Phase: v3.**
+
+**Use case: a store manager wants to pay a distributor digitally from
+inside PharmaCare, with the payment auto-reconciled against the
+outstanding balance.**
+- **Today: missing.** Named eVitalRx feature (digital payments to
+  distributors with automatic reconciliation). Real, but needs a payment
+  gateway integration — same class of infra dependency as WhatsApp, just
+  bigger. Today's "Record Payment" (v1, now fixed) only records a payment
+  made elsewhere; it doesn't move money.
+- **Phase: v3.**
+
+**Not phased — out of scope for a single-store product, flagged not
+built:** eVitalRx's distributor purchase marketplace (ordering directly
+from a "Digital Shortbook" of connected distributors). This needs real
+distributor-side integration/partnerships PharmaCare has none of — a
+platform-level differentiator, the same class as the Phase 2/3 items
+already marked "🚫 Do not build now" elsewhere in this doc, not a v2/v3
+item for this module.
 
 **Build list:**
 - **v1 — done Sep 12, 2026:** (1) fixed `get_suppliers()` to compute real
@@ -580,8 +647,16 @@ receipt.**
 - **v2:** audit-log entries for supplier create/edit/delete (payment now
   has one — see above); a Suppliers Excel export (with real outstanding);
   outstanding/credit-days visibility in `SupplierDropdown.jsx` during a
-  new purchase.
-- **v3:** a formal Purchase Order workflow distinct from direct receipt.
+  new purchase; WhatsApp outstanding/payment reminders to distributors
+  (build once, shared with Customers' equivalent v2 item); proactive
+  near-expiry-stock return-to-supplier surfacing.
+- **v3:** a formal Purchase Order workflow distinct from direct receipt,
+  with automatic email/WhatsApp delivery once raised; distributor price/
+  offers/scheme comparison; one-click distributor bill import (email/
+  Excel/CSV); digital in-app payments to distributors with automatic
+  reconciliation. Not phased at all: eVitalRx's distributor marketplace
+  (needs real distributor-side integration PharmaCare has none of —
+  platform-level, same class as Phase 2/3 items elsewhere in this doc).
 
 ### Customers
 

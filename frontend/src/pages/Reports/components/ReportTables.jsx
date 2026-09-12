@@ -6,7 +6,7 @@
  *   expiryDays    {number}
  */
 import React from 'react';
-import { FileText, Package, Clock, TrendingUp, Undo2 } from 'lucide-react';
+import { FileText, Package, Clock, TrendingUp, Undo2, LineChart } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
@@ -229,6 +229,56 @@ function PurchaseReturnsTable({ data }) {
   );
 }
 
+// ── Price Variation ───────────────────────────────────────────────────────────
+function PriceChangeBadge({ change, percent }) {
+  if (change === 0) return <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">No change</span>;
+  const up = change > 0;
+  return (
+    <span className={`px-2 py-1 rounded text-xs font-medium ${up ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'}`}>
+      {up ? '+' : ''}{formatCurrency(change)} ({up ? '+' : ''}{percent}%)
+    </span>
+  );
+}
+
+function PriceVariationTable({ data }) {
+  return (
+    <table className="w-full" data-testid="price-variation-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['Product', 'First MRP', 'Latest MRP', 'MRP Change', 'First Cost', 'Latest Cost', 'Cost Change'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">
+            <LineChart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No product has 2+ purchases in the selected period yet</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3">
+              <div className="font-medium">{row.product_name}</div>
+              <div className="text-xs text-gray-500">SKU: {row.sku}</div>
+            </td>
+            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.first_mrp)}</td>
+            <td className="px-4 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.latest_mrp)}</td>
+            <td className="px-4 py-3 text-right">
+              <PriceChangeBadge change={row.mrp_change} percent={row.mrp_change_percent} />
+            </td>
+            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.first_cost_price)}</td>
+            <td className="px-4 py-3 text-right tabular-nums font-semibold">{formatCurrency(row.latest_cost_price)}</td>
+            <td className="px-4 py-3 text-right">
+              <PriceChangeBadge change={row.cost_change} percent={row.cost_change_percent} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 export default function ReportTables({ activeReport, reportData, expiryDays }) {
   return (
@@ -239,6 +289,7 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       {activeReport === 'margin'    && <MarginTable   data={reportData?.data} />}
       {activeReport === 'sales-returns'    && <SalesReturnsTable    data={reportData?.data} />}
       {activeReport === 'purchase-returns' && <PurchaseReturnsTable data={reportData?.data} />}
+      {activeReport === 'price-variation'  && <PriceVariationTable data={reportData?.data} />}
     </div>
   );
 }

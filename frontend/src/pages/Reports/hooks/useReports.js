@@ -34,6 +34,7 @@ export function useReports() {
       'margin':    { endpoint: 'reports/margin',         params: { from_date: from, to_date: to }, cacheKey: `report_margin_${from}_${to}` },
       'sales-returns':    { endpoint: 'reports/sales-returns',    params: { from_date: from, to_date: to }, cacheKey: `report_sales_returns_${from}_${to}` },
       'purchase-returns': { endpoint: 'reports/purchase-returns', params: { from_date: from, to_date: to }, cacheKey: `report_purchase_returns_${from}_${to}` },
+      'price-variation':  { endpoint: 'reports/price-variation',  params: { from_date: from, to_date: to }, cacheKey: `report_price_variation_${from}_${to}` },
     };
 
     const cfg = CONFIGS[reportType] || CONFIGS['sales'];
@@ -87,6 +88,7 @@ export function useReports() {
     const NAMES = {
       sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report', margin: 'Margin_Report',
       'sales-returns': 'Sales_Returns_Report', 'purchase-returns': 'Purchase_Returns_Report',
+      'price-variation': 'Price_Variation_Report',
     };
     try {
       exportToExcel(formatReportForExcel(activeReport, reportData), NAMES[activeReport] || 'Report', {

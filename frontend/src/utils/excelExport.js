@@ -89,6 +89,8 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatSalesReturnsReport(reportData);
     case 'purchase-returns':
       return formatPurchaseReturnsReport(reportData);
+    case 'price-variation':
+      return formatPriceVariationReport(reportData);
     default:
       return reportData.data || reportData;
   }
@@ -178,6 +180,23 @@ const formatPurchaseReturnsReport = (data) => {
     'Supplier': item.supplier_name,
     'Reason': item.reason,
     'Amount (₹)': item.total_value,
+  }));
+};
+
+const formatPriceVariationReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/price-variation's real response exactly.
+  return data.data.map((item) => ({
+    'Product': item.product_name,
+    'SKU': item.sku,
+    'First MRP (₹)': item.first_mrp,
+    'Latest MRP (₹)': item.latest_mrp,
+    'MRP Change (₹)': item.mrp_change,
+    'MRP Change %': item.mrp_change_percent,
+    'First Cost (₹)': item.first_cost_price,
+    'Latest Cost (₹)': item.latest_cost_price,
+    'Cost Change (₹)': item.cost_change,
+    'Cost Change %': item.cost_change_percent,
   }));
 };
 

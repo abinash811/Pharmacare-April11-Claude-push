@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.45 | Last updated: September 12, 2026
+# Version: 2.46 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -456,16 +456,20 @@ worth a full writeup here). All findings fixed:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Dashboard analytics | ✅ | Revenue, bills, top products, dynamic thresholds from settings |
+| Dashboard analytics | ✅ | Revenue, bills, top products, dynamic thresholds from settings, purchases card (Batch 6) |
 | Drug license expiry banner | ✅ | Amber strip above metrics, dismissible, links to Settings |
-| GST report (GSTR-1 summary) | ✅ | Grouped by HSN, date range |
+| GST report (GSTR-1 summary) | ✅ | Grouped by HSN, date range. HSN-wise/B2B detail — deferred to Phase 2 (Sep 12, 2026) |
 | Sales report | ✅ | By date range |
-| Margin report | 🔄 | Data exists, UI WIP |
-| Stock valuation report | 📋 | Cost × qty on hand |
+| Margin report | ✅ | Fixed Sep 12, 2026 (Batch 6) — item-wise + category rollup + summary |
+| Sales returns report | ✅ | Added Sep 12, 2026 (Batch 7) |
+| Purchase returns report | ✅ | Added Sep 12, 2026 (Batch 7) |
+| Price variation report | ✅ | Added Sep 12, 2026 (Batch 8) — first-vs-latest confirmed-purchase MRP/cost per product |
+| Stock valuation report | 📋 | Cost × qty on hand — not built |
 | Purchase report | ✅ | By date range, supplier |
-| Expiry report | 📋 | Batches expiring in N days |
+| Expiry report | ✅ | Batches expiring in N days |
 | Schedule H1 register | ✅ | Read-only compliance view |
-| Audit log viewer | ✅ | Read-only, all actions |
+| Audit log viewer | ✅ | Read-only, all actions, `old_values`/`ip_address` populated (Batch 5) |
+| Dead-stock report / physical stock reconciliation | 📋 | Deferred to Phase 2 (Sep 12, 2026 — Batch 8 decision) |
 
 ### Settings
 
@@ -473,7 +477,7 @@ worth a full writeup here). All findings fixed:
 |---------|--------|-------|
 | Pharmacy profile (name, address, GSTIN, logo, DL, FSSAI, PAN) | ✅ | Drag & drop logo, inline validation, DL expiry warning |
 | Receipt & Print settings | ✅ | Live bill preview, paper size (A4/A5/58mm/80mm), show/hide toggles, header/footer |
-| Tax & GST settings | ✅ | Composition scheme, IGST toggle, default rate, HSN defaults, round off |
+| Tax & GST settings | ✅ | IGST toggle, default rate, HSN defaults, round off. Composition scheme toggle removed Sep 12, 2026 (was non-functional — see RULE MISSES LOG/`docs/24` GST11) |
 | Notifications settings | ✅ | Low stock, near expiry, drug license alerts — toggle + threshold stepper |
 | Bill number prefix + sequence config | ✅ | |
 | Inventory settings | ✅ | Near expiry days, low stock threshold |
@@ -625,6 +629,7 @@ behavior and real behavior):
 
 | Date | Rule violated | Why it wasn't caught | Fix applied |
 |------|---------------|----------------------|--------------|
+| Sep 12, 2026 | Manifesto rule 14 ("no assumptions, verify every time") — new `GET /reports/price-variation` (Batch 8, MAR05) ordered its price history by `purchase_date` alone | Execution gap, caught only because CLAUDE.md's own "verify via a live walkthrough, not just tests" habit was followed: all 5 new pytest tests passed, because every test used purchase dates 30 days apart — none exercised two confirmed purchases sharing the *same* `purchase_date`. Live-testing in the real browser did exactly that (a same-day top-up purchase) and the report showed an MRP **decrease** for what was actually a real increase — Postgres has no guaranteed row order for a tied `ORDER BY` column, so "first" and "latest" were silently swappable. | Added `PurchaseORM.created_at` as a secondary sort key (`routers/reports.py`) so same-day purchases resolve by real confirm order, not date alone. Added `test_same_day_purchases_ordered_by_confirm_time_not_just_date` regression test; confirmed it fails against the pre-fix ordering and passes after. Re-verified live: the same two same-day purchases now correctly show First MRP ₹20 → Latest MRP ₹28 (+40%). No automated gate proposed for the general class (a lint rule can't detect "this ORDER BY needs a tiebreaker") — the fix is the same live-walkthrough habit that caught it, applied consistently before calling a new report done. |
 | Sep 12, 2026 | Manifesto rule 10 ("every error notification must say why") — `useReports.js`/`useDashboard.js` (Reports/Dashboard rebuild, Batches 6-7) | Execution gap: `design-guard.sh`/`tsc`/the test suites all stayed green because none of them check this rule — I relied on "tools are green" as a proxy for "rules are followed" instead of manually walking the Manifesto checklist before calling each batch done. Caught only because the user asked to double-check, not by any process of mine. A user-prompted repo-wide sweep with the new checker (below) then found the identical pattern already live in 5 more pre-existing files unrelated to this session's own work — `App.js`'s OAuth callback, `AuditLog.jsx`, `ScheduleH1Register.jsx`, and 3 of 4 near-identical billing actions in `useBillActions.js` (the 4th, `saveBill`, already extracted the real reason correctly — copy-paste drift lost it in the other three) — confirming this was a systemic, pre-existing gap, not unique to the new code. | Fixed all 7 sites to show `error.message`/`err.response?.data?.detail` instead of a hardcoded string. **Gate closed, automated**: new `scripts/check_error_messages.py` finds every `catch (name)` block whose `toast.error(...)` argument is a plain string literal with no reference to `name.message` or `response?.data?.detail`, wired in as `design-guard.sh` Rule 14 (its own CI workflow) and a matching pre-commit check gated on staged frontend files. A `// error-reason-fixed: <why>` comment marks a deliberate, reviewed exception, mirroring the `# tenant-safe:` precedent from Rule 13. Verified precise (zero false positives) against the real codebase before wiring in as a hard block, not a warn-only note. |
 | Sep 12, 2026 | Manifesto rule 1 ("one component, one way") + rule 14 ("flag it explicitly and ask before deviating from it on your own judgment... don't silently keep building on it either") — Reports page's raw `<input type="date">` pairs vs. the shared `DateRangePicker` | Execution gap, and specifically a rule-14 one: this violation was already known and named in Batch 1 (GSTReport.js was fixed to use `DateRangePicker`; the Reports landing page's own Sales tab was explicitly flagged as still using raw inputs, left as tracked debt). In Batches 6-7 I then added 3 more tabs (Margin, Sales Returns, Purchase Returns) matching that same known-wrong pattern, reasoning it was more consistent than mixing two date-picker styles on one page mid-batch — a call I made unilaterally instead of asking first. Rule 14 says to ask *before* deviating from (or continuing to build on) something already flagged as wrong; I flagged it again in my own end-of-batch report, but only after extending it three more times, not before. | Retrofitted `useReports.js`'s `dateRange` state from `{from, to}` ISO strings to `{start, end}` Date objects (`DateRangePicker`'s own contract), converting to ISO strings only at the API-call boundary in `Reports/index.jsx` (same local `toApiDate` pattern `GSTReport.js` already uses); `ReportFilters.jsx` now renders one shared `<DateRangePicker>` for all 4 date-driven tabs. Live-verified: picker opens with the real Today/This Month/Last Month/This FY/All Time presets, switching ranges + Refresh correctly re-fetches real data. No automated gate proposed for the underlying class (a lint rule can't tell "matching an already-known-wrong local pattern for consistency" apart from a legitimate new local pattern) — the real fix is the habit rule 14 already states, applied correctly next time: ask before extending a flagged violation, not after. |
 | Sep 12, 2026 | `docs/14_SECURITY.md`'s multi-tenancy expectation — same class as the Sep 12 fix above, found again in a query shape the automated check doesn't cover | - Found while starting the Reports & Compliance use-case research (Audit Log is part of that module): `get_entity_audit_trail` (`GET /audit-logs/entity/{entity_type}/{entity_id}`, `routers/billing.py`) had **zero** `pharmacy_id` filter — proved live, pharmacy B pulled pharmacy A's real audit trail for A's bill (customer name, totals, old/new values) by knowing the id. <br>- Tooling gap: `scripts/check_tenant_isolation.py` (built earlier the same day for the by-id-lookup class) only flags a bare `Model.id ==` — this endpoint filters on `entity_id`, a different attribute name, and it's a *list* query (can return many rows) rather than a single-row `get_owned_or_404` lookup, so neither the checker's pattern nor the helper's shape caught it. Confirms the earlier fix pass closed the *by-id-lookup* class specifically, not "every unscoped query" — a narrower win than it looked like at the time. | - Added `AuditLog.pharmacy_id == pharmacy_id` to the query. <br>- Added `TestAuditLogIsolation` (2 tests) to `backend/tests/test_multi_tenancy_isolation.py` — confirmed it fails pre-fix (real cross-tenant data returned) and passes post-fix. <br>- No new automated gate added for this broader "any list query missing pharmacy_id" class yet — it's a strictly harder static check than the by-id case (would need to reason about every `select(Model).where(...)` in every router, not just ones containing `.id ==`, with a much higher false-positive risk against legitimate non-tenant-scoped tables). Flagged here rather than silently left as a known gap; a full audit of every `select(...)` in `backend/routers/*.py` for a missing `pharmacy_id` filter is real follow-up work, not done in this pass. |

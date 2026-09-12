@@ -5,7 +5,7 @@
  * Pharmacist only changes if their setup differs.
  */
 import React from 'react';
-import { Receipt, Hash, FileText, Info } from 'lucide-react';
+import { Receipt, Hash, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch.jsx';
@@ -44,31 +44,8 @@ function ToggleRow({ label, description, checked, onChange }: {
 }
 
 export default function GSTTab({ gst, onUpdate }: Props) {
-  const isComposition = !!gst.is_composition_scheme;
-
   return (
     <div className="max-w-2xl">
-
-      {/* Composition scheme — honest "not yet implemented" notice */}
-      {isComposition && (
-        <div className="flex items-start gap-3 p-4 mb-6 bg-amber-50 border border-amber-200 rounded-xl">
-          <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700">
-            This needs to be researched better and implemented properly.
-          </p>
-        </div>
-      )}
-
-      {/* GST Registration */}
-      <SectionHeading icon={<Receipt className="w-3.5 h-3.5" />} title="GST Registration" />
-      <div className="bg-gray-50 rounded-xl px-4 divide-y divide-gray-100">
-        <ToggleRow
-          label="Composition Scheme"
-          description="Enable if registered under GST composition scheme (turnover < ₹1.5Cr)"
-          checked={isComposition}
-          onChange={v => onUpdate('is_composition_scheme', v)}
-        />
-      </div>
 
       {/* Default rates */}
       <SectionHeading icon={<Receipt className="w-3.5 h-3.5" />} title="Default GST Rate" />

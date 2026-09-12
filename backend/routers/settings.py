@@ -251,7 +251,6 @@ async def get_settings(current_user: User = Depends(get_current_user),
         },
         "gst": {
             "default_gst_rate": float(ps.default_gst_rate) if ps else 5.0,
-            "is_composition_scheme": ps.is_composition_scheme if ps else False,
             "default_hsn_medicines": ps.default_hsn_medicines if ps else "3004",
             "default_hsn_surgical": ps.default_hsn_surgical if ps else "9018",
             "auto_apply_hsn": ps.auto_apply_hsn if ps else True,
@@ -362,7 +361,7 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
                 setattr(ps, model_field, value)
 
     gst = settings_data.get("gst", {})
-    for field in ["default_gst_rate", "is_composition_scheme", "default_hsn_medicines",
+    for field in ["default_gst_rate", "default_hsn_medicines",
                   "default_hsn_surgical", "auto_apply_hsn",
                   "round_off_amount", "print_gst_summary"]:
         if field in gst:

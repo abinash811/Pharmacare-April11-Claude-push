@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.5 | Last updated: September 5, 2026
+# Version: 1.6 | Last updated: September 12, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -142,7 +142,7 @@ to be its own series.
 | Column | Type | Default | Notes |
 |--------|------|---------|-------|
 | `default_gst_rate` | Numeric(5,2) | `5.00` | Default GST rate for new products |
-| `is_composition_scheme` | Boolean | `false` | Composition dealer — no ITC, no GST on bill |
+| `is_composition_scheme` | Boolean | `false` | **Unused as of Sep 12, 2026** — column still exists (no migration to drop it, harmless) but its Settings UI toggle and read/write API wiring were removed since nothing ever consumed the value; see `docs/24_REPORTS_ACCEPTANCE_SPEC.md` GST11 |
 | `default_hsn_medicines` | String(10) | `"3004"` | Default HSN code for medicine products |
 | `default_hsn_surgical` | String(10) | `"9018"` | Default HSN code for surgical/non-medicine products |
 | `auto_apply_hsn` | Boolean | `true` | Auto-fill HSN from category on product create |

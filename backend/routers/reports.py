@@ -296,9 +296,9 @@ async def get_sales_report(
 # batch cost); this mirrors that exact definition per line item via
 # BillItem.line_total_paise/line_cost_paise so the two never disagree.
 # MAR03 (category-wise) is a cheap rollup of the same rows, included here
-# rather than as a separate endpoint. MAR04 (low-margin alert) and MAR05
-# (price-variation history) are out of scope — see docs/24 Batch 8, both
-# need their own threshold/product decision first.
+# rather than as a separate endpoint. MAR04 (low-margin alert) is out of
+# scope — see docs/24 Batch 8, still needs its own threshold decision.
+# MAR05 (price-variation) is built separately below, get_price_variation_report.
 
 
 @router.get("/reports/margin")
@@ -383,6 +383,109 @@ async def get_margin_report(
         }
     except Exception as e:
         logger.error(f"Margin report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── price-variation report ────────────────────────────────────────────────────
+# UC-MAR05 — how a product's purchase MRP/cost changed across successive
+# purchases. Each PurchaseItem already snapshots its own mrp_paise/
+# cost_price_paise at the time it was confirmed, so this is a pure read of
+# existing history, not a new write path. Only products with 2+ confirmed
+# purchases in the selected range are included — a single data point has no
+# "variation" to show. Sorted by |mrp_change_percent| descending so the
+# biggest price movers surface first, matching the margin report's own
+# highest-margin-first ordering.
+
+
+@router.get("/reports/price-variation")
+async def get_price_variation_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+                 PurchaseORM.deleted_at.is_(None)]
+        if from_date:
+            conds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+
+        stmt = (
+            select(
+                PurchaseItemORM.product_id, PurchaseItemORM.product_name, ProductORM.sku,
+                PurchaseORM.purchase_date, PurchaseORM.purchase_number,
+                SupplierORM.name.label("supplier_name"),
+                PurchaseItemORM.mrp_paise, PurchaseItemORM.cost_price_paise,
+            )
+            .join(PurchaseORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+            .join(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .outerjoin(ProductORM, PurchaseItemORM.product_id == ProductORM.id)
+            .where(*conds)
+            # purchase_date alone isn't a reliable "first vs. latest" order —
+            # two purchases confirmed the same calendar day tie on it, and
+            # without a secondary key Postgres can return them in either
+            # order. created_at (a real timestamp) breaks the tie correctly.
+            # Found live-testing this exact scenario: two same-day purchases
+            # rendered as an MRP *decrease* when the true order was an increase.
+            .order_by(PurchaseItemORM.product_id, PurchaseORM.purchase_date, PurchaseORM.created_at)
+        )
+        rows = (await db.execute(stmt)).all()
+
+        by_product: dict = {}
+        for r in rows:
+            bucket = by_product.setdefault(str(r.product_id), {
+                "product_id": str(r.product_id),
+                "product_name": r.product_name,
+                "sku": r.sku or "",
+                "price_points": [],
+            })
+            bucket["price_points"].append({
+                "purchase_date": r.purchase_date.isoformat(),
+                "purchase_number": r.purchase_number,
+                "supplier_name": r.supplier_name,
+                "mrp": _p2r(r.mrp_paise),
+                "cost_price": _p2r(r.cost_price_paise),
+            })
+
+        data = []
+        for bucket in by_product.values():
+            points = bucket["price_points"]
+            if len(points) < 2:
+                continue
+            first, latest = points[0], points[-1]
+            mrp_change = round(latest["mrp"] - first["mrp"], 2)
+            mrp_change_percent = round(
+                (mrp_change / first["mrp"] * 100) if first["mrp"] > 0 else 0, 2)
+            cost_change = round(latest["cost_price"] - first["cost_price"], 2)
+            cost_change_percent = round(
+                (cost_change / first["cost_price"] * 100) if first["cost_price"] > 0 else 0, 2)
+            bucket.update({
+                "first_mrp": first["mrp"],
+                "latest_mrp": latest["mrp"],
+                "mrp_change": mrp_change,
+                "mrp_change_percent": mrp_change_percent,
+                "first_cost_price": first["cost_price"],
+                "latest_cost_price": latest["cost_price"],
+                "cost_change": cost_change,
+                "cost_change_percent": cost_change_percent,
+            })
+            data.append(bucket)
+
+        data.sort(key=lambda x: abs(x["mrp_change_percent"]), reverse=True)
+
+        return {
+            "summary": {
+                "products_tracked": len(data),
+                "products_with_mrp_increase": sum(1 for d in data if d["mrp_change"] > 0),
+                "products_with_mrp_decrease": sum(1 for d in data if d["mrp_change"] < 0),
+            },
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Price-variation report error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

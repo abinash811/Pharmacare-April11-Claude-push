@@ -1,5 +1,5 @@
 # PharmaCare — Feature Reference
-# Version: 1.2 | Last updated: September 5, 2026
+# Version: 1.3 | Last updated: September 12, 2026
 # Type: Reference
 # Audience: Developers, designers, new hires, product reviewers
 # Purpose: For every feature — why it exists, who uses it, how it works in the product.
@@ -69,25 +69,24 @@ Each feature entry answers 4 questions:
 ### Tax & GST
 **What:** Configure how GST is calculated, what HSN codes are auto-applied, and how GST appears on bills.
 
-**Why:** Indian pharmacy GST has nuances: most medicines are 5% or 12%, surgical items differ, composition scheme pharmacies calculate GST differently, interstate sales use IGST not CGST+SGST. Wrong GST = wrong filing = penalties. Smart defaults mean the average pharmacist never has to touch this.
+**Why:** Indian pharmacy GST has nuances: most medicines are 5% or 12%, surgical items differ, interstate sales use IGST not CGST+SGST. Wrong GST = wrong filing = penalties. Smart defaults mean the average pharmacist never has to touch this.
 
 **Who:** Rajesh (Owner) sets up once. Meena (Accountant) may adjust for GST filing period.
 
 **How:**
 1. Settings → Tax & GST tab
-2. **Composition Scheme** — toggle ON if pharmacy is registered under GST composition scheme (turnover < ₹1.5 Cr). Shows info banner when enabled. GST calculation changes to flat rate
-3. **Interstate Sales (IGST)** — toggle ON if pharmacy bills customers from other states. Switches from CGST+SGST split to single IGST
-4. **Default GST Rate** — click 0% / 5% / 12% / 18% button. Applied automatically when adding a new product without a specified rate
-5. **Default HSN Codes** — pre-filled: 3004 for medicines (global standard for pharma), 9018 for surgical. Override if needed
-6. **Auto-apply HSN** — when ON, new products in inventory get HSN auto-filled from these defaults
-7. **Round off amount** — rounds grand total to nearest rupee on every bill
-8. **Print GST summary table** — shows HSN-wise CGST/SGST breakdown at the bottom of printed bills
+2. **Interstate Sales (IGST)** — toggle ON if pharmacy bills customers from other states. Switches from CGST+SGST split to single IGST
+3. **Default GST Rate** — click 0% / 5% / 12% / 18% button. Applied automatically when adding a new product without a specified rate
+4. **Default HSN Codes** — pre-filled: 3004 for medicines (global standard for pharma), 9018 for surgical. Override if needed
+5. **Auto-apply HSN** — when ON, new products in inventory get HSN auto-filled from these defaults
+6. **Round off amount** — rounds grand total to nearest rupee on every bill
+7. **Print GST summary table** — shows HSN-wise CGST/SGST breakdown at the bottom of printed bills
 
 **Key rules:**
 - Default HSN 3004 covers most oral, topical, and injectable medicines
 - Default HSN 9018 covers surgical instruments, syringes, diagnostic equipment
-- Composition scheme and IGST are mutually exclusive workflows
 - `default_gst_rate` stored as Numeric(5,2) — never a float in business logic
+- No Composition Scheme toggle — removed Sep 12, 2026, `docs/24_REPORTS_ACCEPTANCE_SPEC.md` GST11. It was a saveable setting nothing ever read, so a composition-scheme pharmacy silently got a regular dealer's GST report. Decided (with Abinash) to remove it rather than half-build the real flat-rate logic; revisit only if a real composition-scheme pharmacy needs it.
 
 ---
 

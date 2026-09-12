@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.4 | Last updated: September 12, 2026
+# Version: 2.5 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -375,7 +375,7 @@ just annoy her, it risks a real penalty for a real small business.
 | GST08 | HSN-wise breakdown (not just rate-wise) | ❌ Missing | Real GSTR-1 filing is HSN-wise ([ClearTax](https://docs.cleartax.in/product-help-and-support/for-large-businesses/cleargst/generate-reports/sales-and-g1/gstr-1-hsn-summary-report)); `hsn_code` exists on both `BillItem`/`PurchaseItem` but is never read in `get_gst_report` |
 | GST09 | B2B vs. B2C bifurcation | ❌ Missing | Real GSTR-1 Table 12 requires this split ([ClearTax](https://cleartax.in/s/gstr-1)); `Customer` has no GSTIN-for-invoicing concept at all — schema gap, not just a report gap |
 | GST10 | IGST (interstate sales) | ❌ Not populated, by design | Matches the already-known, deliberately-deferred single-state-only Phase 1 decision |
-| GST11 | Composition-scheme pharmacy handling | ❌ Missing | `PharmacySettings.is_composition_scheme` is a real, saveable toggle (`settings.py:254,365`) but is **never read anywhere except Settings itself** — a composition dealer (flat-rate GST, no ITC claim, different return type — GSTR-4 not GSTR-1) gets the exact same CGST/SGST/ITC report as a regular dealer. Not previously flagged in this spec; found while building this section. Real compliance risk for any pharmacy that has this flag on. |
+| GST11 | Composition-scheme pharmacy handling | ✅ Resolved — toggle removed Sep 12, 2026 | Was a real, saveable toggle (`PharmacySettings.is_composition_scheme`) that never did anything — no report or bill logic ever read it, so a composition dealer got the exact same CGST/SGST/ITC report as a regular dealer, a real compliance risk. Asked Abinash directly: build it properly, or remove the non-functional toggle. **Decision: remove** — no confirmed composition-scheme pharmacy today, and a switch that looks like it works but doesn't is worse than no switch. UI toggle + its read/write wiring in `settings.py`/`useSettings.js`/`GSTTab.tsx` removed. The underlying DB column is left in place (harmless, unused, no migration needed) — cheap to revive if a real composition-scheme pharmacy signs up later. |
 | GST12 | Export to CSV/Excel | ❌ Unreachable | Code exists (`GSTReport.js:36-60`) but the page crashes before the button can appear |
 | GST13 | Export in a filing-ready format (GSTR-1 JSON/Excel template) | ❌ Missing | Today's export (once reachable) is a plain dump of internal numbers, not shaped for the GST portal or a CA's working file — Marg ERP/Pharmasoft both name this explicitly |
 | GST14 | Permission gate | ❌ Missing | Live-confirmed a cashier gets 200 OK |
@@ -391,9 +391,8 @@ raw date-input pairs with `DateRangePicker`; add a "Group by: GST Rate |
 HSN Code" toggle over the existing tables (additive, `hsn_code` already
 exists — GST08); B2B/B2C split and a filing-ready export are bigger scope
 needing their own schema conversation (GST09/GST13) — not proposed for
-the current batch. GST11 (composition scheme) needs a product decision
-with you first: does PharmaCare support composition-scheme pharmacies at
-all today, or should the Settings toggle be removed until it's real?
+the current batch. GST11 (composition scheme) resolved — see Batch 8
+below.
 
 ### B. SALES REPORT (UC-SAL01 – UC-SAL10)
 
@@ -482,7 +481,7 @@ over a column that already sits correctly populated in the database today.
 | MAR02 | Overall margin trend (period over period) | ✅ Fixed Sep 12, 2026 | Same endpoint's `summary` block (total revenue/cost/margin/margin%) for the pharmacist-picked date range — "trend" is comparing periods via the existing date filter, same pattern as Sales/GST reports, not a separate chart |
 | MAR03 | Category-wise margin | ✅ Fixed Sep 12, 2026 | Same endpoint's `by_category[]` rollup, grouped from the same rows |
 | MAR04 | Low-margin/loss-making product alert | ❌ Missing | No threshold/alert concept exists — needs its own product decision (Batch 8) |
-| MAR05 | Price-variation report (MRP changes over time across purchases) | ❌ Missing | Named eVitalRx feature; each purchase already snapshots its own MRP per batch, so history technically exists, just never surfaced as a report |
+| MAR05 | Price-variation report (MRP changes over time across purchases) | ✅ Fixed Sep 12, 2026 | `GET /reports/price-variation` — per-product first-vs-latest confirmed-purchase MRP/cost comparison, sorted by biggest mover. New "Price Variation" Reports tab, CSV/Excel export, `reports:view`-gated. Only products with 2+ confirmed purchases in range are shown (a single point has no variation). |
 | MAR06 | Export/print | ✅ Fixed Sep 12, 2026 | CSV/Excel export both live-verified working from the new Margin tab, same mechanism as every other Reports tab |
 
 **Recommendation:** the clearest "new work, but cheap" candidate in this
@@ -643,10 +642,10 @@ not new scope. This section adds what the fuller use-case pass surfaced:
 17. ~~Net-sales-after-returns as a starting point (RET07)~~ — bundled directly into both new report endpoints' summaries (`net_sales`/`net_purchases`) rather than a separate call, since "how much did I net after returns this period" belongs right where returns are being reported.
 18. ~~Sales/purchase return reports proper (RET01/RET02)~~ — `GET /reports/sales-returns` and `GET /reports/purchase-returns` built, two new Reports tabs (row-level + summary with return-rate/refund-method breakdown), `reports:view`-gated, CSV/Excel export. 8 new pytest regression tests (both endpoints' math + zero-data path) + live browser verification with real data. RET03/RET05 (reason/product breakdowns) still deferred — real reason capture is a prerequisite, not built here (`docs/23` PR03).
 
-**Batch 8 — bigger scope, needs its own conversation before any code**
-19. GST composition-scheme decision (GST11) — is this a real supported pharmacy type or should the toggle be removed?
-20. HSN-wise/B2B GST detail (GST08/GST09) — B2B needs a GSTIN-capture flow on Customer that doesn't exist.
-21. Physical stock reconciliation ("Barcode v/s Stock", STK08), dead-stock report (STK05), price-variation report (MAR05).
+**Batch 8 — bigger scope, needed its own conversation before any code**
+19. ~~GST composition-scheme decision (GST11)~~ — ✅ Decided + done Sep 12, 2026. Asked Abinash directly; decision was to remove the non-functional toggle rather than half-build the real flat-rate logic. See GST11 row above.
+20. HSN-wise/B2B GST detail (GST08/GST09) — **Deferred to Phase 2**, decided Sep 12, 2026. B2B needs a GSTIN-capture flow on Customer that doesn't exist — bigger scope, no confirmed pharmacist need yet.
+21. ~~Price-variation report (MAR05)~~ — ✅ Done Sep 12, 2026. `GET /reports/price-variation` compares each product's first vs. latest confirmed-purchase MRP/cost in the selected range, new "Price Variation" Reports tab, CSV/Excel export, `reports:view`-gated (same pattern as every sibling report). 5 pytest regression tests + live browser verification with real data (including a same-day-purchases edge case caught only by driving the real UI — see below). Dead-stock report (STK05) and physical stock reconciliation ("Barcode v/s Stock", STK08) — **deferred to Phase 2**, decided Sep 12, 2026 (not picked when offered alongside price-variation).
 
 Everything in this document was verified via direct code reads, a live
 zero-data browser walkthrough, real API calls, and — for the Audit Log

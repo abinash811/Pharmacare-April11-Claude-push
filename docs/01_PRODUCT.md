@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.2 | Last updated: September 5, 2026
+# Version: 1.3 | Last updated: September 12, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -281,9 +281,9 @@ Clarity on non-goals is as important as goals. These are explicitly out of scope
 
 **Our moat:** The combination of modern UX + India-specific compliance + batch-level tracking + no-training-needed simplicity. No one else has all four.
 
-**Competitor feature notes (researched Aug 22, 2026 — refresh before relying on these, they age fast):**
-- **Marg ERP:** batch + expiry tracking with tiered alerts (30/60/90 days before expiry, broadcast automatically), FEFO/expiry-based promotions, expiry-loss prevention via **return-to-supplier before full write-off**, real-time stock deduction on invoice, reorder-point triggers feeding a "smart ordering" flow. [Source](https://margcompusoft.com/m/how-pharmacy-billing-software-simplifies-stock-and-inventory-management-for-chemists/)
-- **eVitalRx:** **digital shortbook** (running reorder list, auto-populated from low stock, feeds ordering), **purchase marketplace** (order from distributors inside the app), unlimited CSV upload, FMCG barcode scanning, daily stock reconciliation. [Source](https://www.softwaresuggest.com/evitalrx)
+**Competitor feature notes (researched Aug 22, 2026, reconfirmed Sep 12, 2026 for Inventory — refresh before relying on these, they age fast):**
+- **Marg ERP:** batch + expiry tracking with tiered alerts (30/60/90 days before expiry, broadcast automatically), FEFO/expiry-based promotions, expiry-loss prevention via **return-to-supplier before full write-off**, real-time stock deduction on invoice, reorder-point triggers feeding a "smart ordering" flow, and a named **"Barcode v/s Stock" physical-count reconciliation report** (Daily Reports → Inventory Reports) — scan or key in physical counts, compare against system stock. [Source](https://margcompusoft.com/m/how-pharmacy-billing-software-simplifies-stock-and-inventory-management-for-chemists/), [Source](https://care.margcompusoft.com/margerp/inventory-reports/2748/1/How-to-check-Barcode-v-s)
+- **eVitalRx:** **digital shortbook** (running reorder list, auto-populated from low stock, feeds ordering), **purchase marketplace** (order from distributors inside the app), unlimited CSV upload, FMCG barcode scanning **and printing** (100,000+ FMCG barcodes, 400,000+ medicines in its own catalogue — feeds the substitute-lookup gap below too), daily stock reconciliation. [Source](https://www.softwaresuggest.com/evitalrx), [Source](https://www.capterra.com/p/237227/eVitalRx/)
 - **Pharmasoft:** one-click near-expiry view with 3-month advance notice, item-wise full purchase→sales history, **one-click import of a distributor's purchase bill** (Excel/CSV/email) straight into a purchase record — not just catalog upload. [Source](https://yadavsoftware.com/)
 
 These three named terms — **short book / demand book** (auto-reorder list), **tiered expiry alerts**, and **return-to-supplier before write-off** — are standard in this market and are gaps in PharmaCare today (see `docs/15_ROADMAP.md`'s Inventory section).

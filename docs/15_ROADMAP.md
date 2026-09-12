@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.44 | Last updated: September 12, 2026
+# Version: 2.45 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -648,15 +648,44 @@ behavior and real behavior):
 | Aug 22, 2026 | Rule 14 ("no assumptions, verify every time") | Both real Edit Product screens (Inventory list and Medicine Detail) called `PUT /products/{sku}` — a string that was never a valid route, since the only real route takes a UUID `product_id`. `uuid.UUID(sku)` always raised, so **every save on every field, for every pharmacy, always 500'd** — not a strength/refrigeration-specific bug, a total break of "edit a medicine" itself. It read as correct in both files (a plausible-looking `apiUrl.productBySku()` call) and was never caught because nobody had actually clicked Save and watched it fail — found only while live-testing the unrelated strength/refrigeration addition in the same modal. A real `PUT /products/{id}` helper (`apiUrl.product(id)`) already existed and was already used correctly elsewhere in the codebase. | Fixed both modals to call `apiUrl.product(product.id)`. Also found and fixed a second bug in the same flow while there: the "MRP per Unit" field was marked `required` but is never populated (MRP lives per-batch, not per-product, in this schema) — blocking every save behind a permanently-blank required field even after the URL fix. Regression tests: `test_product_strength_refrigeration.py::test_update_by_real_id_saves_strength_and_refrigeration`, `::test_put_by_sku_is_not_a_valid_route`. No automated gate proposed for this class of bug — an E2E test that actually clicks "Edit → change a field → Save → reload → confirm it stuck" is the real fix, and one now exists for Inventory (`inventory.spec.ts`) but not yet for this specific edit flow — flagged as a follow-up, not built here to avoid scope creep beyond what this pass already covers. **Update, same day:** the deferred "real redesign" mentioned above was done in a follow-up pass — both modals now send only real `ProductUpdate` fields; HSN shows read-only/derived (matching Add Medicine), Composition is properly bound to `generic_name`, and the non-functional Status dropdown was removed rather than left showing a state (`is_active`) nothing in the codebase can ever set to false. |
 | Aug 22, 2026 | Rule 14 ("no assumptions, verify every time") | `useInventorySearch.js`'s `refetch()` busted the filter-options cache with `_filterCache = null` — code that reads correct (a comment literally said "bust filter cache so categories refresh") but was never actually true in a single-page app: nulling a module variable doesn't make the already-mounted component re-fetch, so a brand/category/location added mid-session silently never appeared in `FilterDrawer`/`BulkUpdateModal` until a hard reload. Written, looked deliberate, never verified live — found only because this pass's own Playwright script tried to select a just-created brand from the Bulk Update dropdown and it wasn't there. | Extracted the fetch into a reusable `loadFilterOptions(force)`; `refetch()` now calls `loadFilterOptions(true)` for a real re-fetch instead of an inert cache-null. Live-verified: create a product with a brand new to the pharmacy → immediately open Bulk Update → new brand is selectable, no reload. No automated gate proposed — this class of bug (a cache invalidation that looks right but never fires because of SPA lifetime assumptions) is caught by actually driving the UI, not by a unit test; the fix was verified the same way it was found. |
 
-**Rules known to still be manual-only (flagged proactively, not yet
-violated in a way that's been caught)** — these are the honest candidates
-for the next entry in this table if they slip:
-- Rule 11 (cross-cutting consumers) — no automated check that every linked
-  domain in `docs/08_ARCHITECTURE.md`'s cross-cutting map was actually
-  verified before calling a change done.
-- Rule 9 (no unverified routes / magic strings) — nothing lints that a
-  called API route or a hardcoded status string actually exists/matches
-  `constants/domainConstants.js`.
+**Rules 9 and 11 — closed Sep 12, 2026 via a real Claude Code agent hook,
+not a script.** Both were listed below as "manual-only" earlier the same
+day. Root cause of why no script covers them: telling a *legitimate*
+"Shared helper"/"Computed on read" consumer apart from a genuinely missed
+"Independent direct query" one (docs/08_ARCHITECTURE.md's own three-way
+distinction), or a valid new local status string apart from a real magic
+string, is a judgment call over the actual diff content — not a regex- or
+AST-matchable pattern. A naive "you touched billing.py, go check
+reports.py" script would have flagged the same false positives the
+abandoned PageHeader/PageTabs check (below) proved a naive rule always
+does on this kind of judgment. So instead of a script, `.claude/settings.json`
+now runs a real `"type": "agent"` hook on `PreToolUse` for every
+`git commit`: a cheap `.claude/hooks/cross-cutting-precheck.sh` grep-check
+runs first (staged diff only) and short-circuits with zero agent reasoning
+cost when nothing relevant changed; only when it flags a hit does the
+agent actually Read/Grep the real files (domainConstants.js, the backend
+routers, docs/08_ARCHITECTURE.md's map) and decide, denying the commit
+with a specific file:line + rule number + fix if it confirms a real
+violation. This is also why it's a `PreToolUse` hook, not `Stop`, despite
+being requested as a Stop-time check initially — Claude Code's own
+`"type": "agent"`/`"prompt"` hooks are documented as available only for
+`PreToolUse`/`PostToolUse`/`PermissionRequest`, so gating on the
+`git commit*` command itself (same pattern as the existing
+`design-guard-gate.sh pretooluse` hook) is the correct supported shape,
+and still catches the same class of issue before it ships. Not yet proven
+against a real confirmed-violation commit (only proven to pipe/jq-validate
+and to correctly no-op on a clean diff) — the real test is the first time
+it actually denies a genuine one.
+
+**Rules still manual-only** (flagged proactively, not yet violated in a
+way that's been caught):
+- "Every page uses `<PageHeader>`" — deliberately NOT automated. Grepping
+  found `PurchaseDetail/index.jsx` legitimately uses `<PageBreadcrumb>` +
+  a plain `<h1>` instead, a real, intentional detail-page pattern — a
+  naive "every page needs PageHeader" check would misfire on correct
+  architecture. Needs page-TYPE classification (list vs. detail), which
+  is a judgment call a lint rule can't safely make; left manual rather
+  than shipping something that trains everyone to ignore it.
 
 ---
 

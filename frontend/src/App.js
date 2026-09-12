@@ -34,6 +34,7 @@ import GSTReport from '@/pages/GSTReport';
 import ScheduleH1Register from '@/pages/ScheduleH1Register';
 import AuditLog from '@/pages/AuditLog';
 import StockMovementLog from '@/pages/StockMovementLog';
+import ReorderList from '@/pages/ReorderList';
 import Layout from '@/components/Layout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
@@ -147,6 +148,7 @@ function AppRoutes({ user }) {
         <Route path="inventory/product/:sku" element={<MedicineDetail />} />
         <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
         <Route path="inventory/stock-movements" element={<StockMovementLog />} />
+        <Route path="inventory/reorder" element={<ReorderList />} />
         <Route path="purchases" element={<PurchasesList />} />
         <Route path="purchases/create" element={<PurchaseNew />} />
         <Route path="purchases/edit/:id" element={<PurchaseNew />} />

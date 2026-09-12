@@ -61,6 +61,7 @@ class ProductCreate(BaseModel):
     gst_percent: float = 5.0
     schedule: Optional[str] = "OTC"
     low_stock_threshold_units: Optional[int] = 10
+    reorder_quantity_units: Optional[int] = 100
     strength: Optional[str] = None
     requires_refrigeration: bool = False
     storage_location: Optional[str] = None
@@ -83,6 +84,7 @@ class ProductUpdate(BaseModel):
     gst_percent: Optional[float] = None
     schedule: Optional[str] = None
     low_stock_threshold_units: Optional[int] = None
+    reorder_quantity_units: Optional[int] = None
     strength: Optional[str] = None
     requires_refrigeration: Optional[bool] = None
     storage_location: Optional[str] = None
@@ -120,6 +122,7 @@ def _product_response(p: ProductORM) -> dict:
         "requires_refrigeration": p.requires_refrigeration,
         "storage_location": p.storage_location,
         "low_stock_threshold_units": p.reorder_level,
+        "reorder_quantity_units": p.reorder_quantity,
         "status": "active" if p.is_active else "inactive",
         "created_at": p.created_at.isoformat() if p.created_at else None,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
@@ -174,6 +177,7 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
         units_per_pack=data.units_per_pack, category=data.category, barcode=data.barcode,
         gst_rate=data.gst_percent, hsn_code=hsn_code,
         drug_schedule=data.schedule or "OTC", reorder_level=data.low_stock_threshold_units or 10,
+        reorder_quantity=data.reorder_quantity_units or 100,
         strength=data.strength, requires_refrigeration=data.requires_refrigeration,
         storage_location=data.storage_location,
     )
@@ -375,7 +379,8 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
     field_map = {
         "gst_percent": "gst_rate",
         "schedule": "drug_schedule",
-        "low_stock_threshold_units": "reorder_level"}
+        "low_stock_threshold_units": "reorder_level",
+        "reorder_quantity_units": "reorder_quantity"}
     updates = data.model_dump(exclude_unset=True)
     for key, value in updates.items():
         setattr(product, field_map.get(key, key), value)
@@ -602,6 +607,68 @@ async def get_inventory_with_health(
         "summary": {"critical_count": sum(1 for i in items if i["severity"] == 1),
                     "warning_count": sum(1 for i in items if i["severity"] == 2),
                     "healthy_count": sum(1 for i in items if i["severity"] == 3)},
+    }
+
+
+@router.get("/inventory/reorder-list")
+async def get_reorder_list(
+    page: int = 1,
+    page_size: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The running "short book" / auto-reorder list — every product whose
+    summed active-batch stock has fallen to or below its own reorder_level,
+    regardless of expiry status (get_inventory_with_health's "low_stock"
+    status deliberately excludes a product that's ALSO near-expiry/expired,
+    since expiry outranks it there — but a product needing restock still
+    needs restocking even if some of what's left is about to expire, so
+    this list uses the bare stock<=reorder_level comparison directly).
+
+    Reuses the exact same comparison as get_inventory_with_health
+    (total_qty <= product.reorder_level) rather than a new definition —
+    this codebase has already paid once for four disagreeing low-stock
+    definitions drifting apart (see docs/15_ROADMAP.md RULE MISSES LOG,
+    Aug 22, 2026), so any new "is this low stock" check reuses that one
+    comparison, not a fifth.
+    """
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+
+    products = (await db.execute(select(ProductORM).where(
+        ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None)
+    ))).scalars().all()
+    product_ids = [p.id for p in products]
+    batch_rows = (await db.execute(select(BatchORM).where(
+        BatchORM.product_id.in_(product_ids), BatchORM.is_active))).scalars().all()
+    batches_by_pid: dict = {}
+    for b in batch_rows:
+        batches_by_pid.setdefault(b.product_id, []).append(b)
+
+    items = []
+    for product in products:
+        current_stock = sum(b.quantity_on_hand for b in batches_by_pid.get(product.id, []))
+        if current_stock > product.reorder_level:
+            continue
+        items.append({
+            "product": _product_response(product),
+            "current_stock": current_stock,
+            "reorder_level": product.reorder_level,
+            "reorder_quantity": product.reorder_quantity,
+            # How many units below the threshold right now — not a
+            # suggested order quantity (that's reorder_quantity, the
+            # pharmacist's own configured value); purely for sorting and
+            # showing how urgent this row is.
+            "shortfall": max(product.reorder_level - current_stock, 0),
+        })
+
+    items.sort(key=lambda i: (-i["shortfall"], i["product"]["name"].lower()))
+    total_items = len(items)
+    start = (page - 1) * page_size
+    return {
+        "items": items[start:start + page_size],
+        "pagination": {"current_page": page, "page_size": page_size, "total_items": total_items,
+                       "total_pages": (total_items + page_size - 1) // page_size,
+                       "has_next": page * page_size < total_items, "has_prev": page > 1},
     }
 
 

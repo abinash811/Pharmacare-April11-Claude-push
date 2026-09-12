@@ -19,11 +19,7 @@ import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
-
-const INVENTORY_TABS = [
-  { key: 'products',        label: 'Products'        },
-  { key: 'stock-movements', label: 'Stock Movements' },
-];
+import { INVENTORY_TABS, inventoryTabRoute } from './inventoryTabs';
 
 // Movement type display config
 const MOVEMENT_TYPES = [
@@ -114,7 +110,7 @@ export default function StockMovementLog() {
       <PageTabs
         tabs={INVENTORY_TABS}
         activeTab="stock-movements"
-        onChange={() => navigate('/inventory')}
+        onChange={(key) => navigate(inventoryTabRoute(key))}
       />
 
       {/* Filters */}

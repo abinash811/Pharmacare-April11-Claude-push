@@ -8,11 +8,7 @@ import { toast } from 'sonner';
 import { Plus, Upload } from 'lucide-react';
 import { InlineLoader, TableSkeleton, PageHeader, PageTabs, AppButton } from '@/components/shared';
 import ExcelBulkUploadWizard from '@/components/ExcelBulkUploadWizard';
-
-const INVENTORY_TABS = [
-  { key: 'products',        label: 'Products'        },
-  { key: 'stock-movements', label: 'Stock Movements' },
-];
+import { INVENTORY_TABS, inventoryTabRoute } from '../inventoryTabs';
 
 import { useInventorySearch }  from './hooks/useInventorySearch';
 import InventorySearchBar      from './components/InventorySearchBar';
@@ -104,7 +100,7 @@ export default function InventorySearch() {
       <PageTabs
         tabs={INVENTORY_TABS}
         activeTab="products"
-        onChange={() => navigate('/inventory/stock-movements')}
+        onChange={(key) => navigate(inventoryTabRoute(key))}
       />
 
       <div>

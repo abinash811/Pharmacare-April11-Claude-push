@@ -46,9 +46,10 @@ export const API_ENDPOINTS = {
   },
 
   INVENTORY: {
-    LIST:    'inventory',
-    FILTERS: 'inventory/filters',
-    SEARCH:  'inventory/search',
+    LIST:         'inventory',
+    FILTERS:      'inventory/filters',
+    SEARCH:       'inventory/search',
+    REORDER_LIST: 'inventory/reorder-list',
   },
 
   // Stock Batches & Movements
@@ -224,6 +225,7 @@ export const apiUrl = {
   inventory:        (params) => `inventory${qs(params)}`,
   inventoryFilters: ()       => API_ENDPOINTS.INVENTORY.FILTERS,
   inventorySearch:  (params) => `inventory/search${qs(params)}`,
+  reorderList:      (params) => `${API_ENDPOINTS.INVENTORY.REORDER_LIST}${qs(params)}`,
 
   // Stock
   stockBatches:     (params) => `stock/batches${qs(params)}`,

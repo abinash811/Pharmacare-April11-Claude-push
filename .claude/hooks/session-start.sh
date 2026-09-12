@@ -90,5 +90,18 @@ else
   say "  [WAIT] Frontend is starting in the background (usually 20-30s) — check /tmp/pharmacare-frontend.log."
 fi
 
+# ── 6. Git hooks path ────────────────────────────────────────────────────
+# Found Sep 12, 2026: .githooks/pre-commit (ESLint/flake8/tenant-isolation/
+# error-message checks) had never fired in this remote/ephemeral container
+# — `git config core.hooksPath` is a machine-level setting, not tracked in
+# the repo, so it's wiped every time this container is freshly cloned.
+# Re-setting it here every session closes that gap. Purely a config write
+# (`git config`, not `git checkout`/`reset`/etc.) — doesn't touch the
+# working tree or history, consistent with this hook's "never touches git
+# state" rule above (that rule is about not discarding work, not about
+# read-only config).
+cd "$PROJECT_DIR" && git config core.hooksPath .githooks
+say "  [OK] Git hooks path set to .githooks (pre-commit checks now active)."
+
 say ""
 say "Done. Full details logged to $LOG."

@@ -18,7 +18,7 @@ from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -1190,6 +1190,14 @@ async def get_audit_logs(
     page: int = 1, page_size: int = 50,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
+    # Found Sep 12, 2026: no permission gate existed here at all — any
+    # logged-in role, cashier included, could read the full action history
+    # of every user in the pharmacy. Reuses reports:view since Audit Log is
+    # grouped under "Reports & Compliance" and this preserves the same
+    # admin/manager-only shape as Schedule H1's own gate.
+    if not await has_permission(current_user, "reports:view", db):
+        raise HTTPException(
+            status_code=403, detail="Your role does not have permission to view the audit log")
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     query = select(AuditLog).where(AuditLog.pharmacy_id == pharmacy_id)
     if entity_type:
@@ -1239,6 +1247,9 @@ async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user:
     # filters on `entity_id`, a different attribute name, on a *list* query
     # rather than a single-row by-id lookup, so get_owned_or_404 doesn't fit
     # here either. See docs/15_ROADMAP.md RULE MISSES LOG.
+    if not await has_permission(current_user, "reports:view", db):
+        raise HTTPException(
+            status_code=403, detail="Your role does not have permission to view the audit log")
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(
         select(AuditLog)

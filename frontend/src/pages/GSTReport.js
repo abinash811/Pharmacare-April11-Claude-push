@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton } from '../components/shared';
+import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton, DateRangePicker } from '../components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatCurrency } from '@/utils/currency';
@@ -12,22 +12,30 @@ const REPORTS_TABS = [
   { key: 'gst',     label: 'GST Report' },
 ];
 
+const toApiDate = (d) => d.toISOString().split('T')[0];
+
 export default function GSTReport() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
-  const [dateRange, setDateRange] = useState({
-    start_date: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0],
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
   });
 
   const fetchGSTReport = async () => {
+    if (!dateRange.start || !dateRange.end) {
+      toast.error('Select a start and end date first');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await api.get(apiUrl.reportGst(dateRange));
+      const response = await api.get(apiUrl.reportGst({
+        start_date: toApiDate(dateRange.start), end_date: toApiDate(dateRange.end),
+      }));
       setReportData(response.data);
-    } catch {
-      toast.error('Failed to generate GST report');
+    } catch (error) {
+      toast.error(error.message || 'Failed to generate GST report');
     } finally {
       setLoading(false);
     }
@@ -39,22 +47,22 @@ export default function GSTReport() {
     let csv = 'GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
 
     csv += '\nSales GST (Output Tax)\n';
-    reportData.sales_gst.breakup.forEach((row) => {
+    reportData.sales.forEach((row) => {
       csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
     });
-    csv += `Total,${reportData.sales_gst.total_taxable},${reportData.sales_gst.total_cgst},${reportData.sales_gst.total_sgst},${reportData.sales_gst.total_igst},${reportData.sales_gst.total_gst}\n`;
+    csv += `Total,${reportData.sales_summary.total_taxable},${reportData.sales_summary.cgst},${reportData.sales_summary.sgst},${reportData.sales_summary.igst},${reportData.sales_summary.total_gst}\n`;
 
     csv += '\nPurchase GST (Input Tax Credit)\n';
-    reportData.purchase_gst.breakup.forEach((row) => {
+    reportData.purchases.forEach((row) => {
       csv += `${row.gst_rate}%,${row.taxable_amount},${row.cgst},${row.sgst},${row.igst},${row.total_gst}\n`;
     });
-    csv += `Total,${reportData.purchase_gst.total_taxable},${reportData.purchase_gst.total_cgst},${reportData.purchase_gst.total_sgst},${reportData.purchase_gst.total_igst},${reportData.purchase_gst.total_gst}\n`;
+    csv += `Total,${reportData.purchases_summary.total_taxable},${reportData.purchases_summary.cgst},${reportData.purchases_summary.sgst},${reportData.purchases_summary.igst},${reportData.purchases_summary.total_gst}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gst_report_${dateRange.start_date}_to_${dateRange.end_date}.csv`;
+    a.download = `gst_report_${toApiDate(dateRange.start)}_to_${toApiDate(dateRange.end)}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -74,25 +82,7 @@ export default function GSTReport() {
       <DataCard className="mb-6" noPadding={false}>
         <div className="p-4">
           <div className="flex items-end gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
-              <input
-                type="date"
-                value={dateRange.start_date}
-                onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">End Date</label>
-              <input
-                type="date"
-                value={dateRange.end_date}
-                onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
             <AppButton onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
               <Calendar className="w-4 h-4 mr-2" />
@@ -133,7 +123,7 @@ export default function GSTReport() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {reportData.sales_gst.breakup.map((row, idx) => (
+                  {reportData.sales.map((row, idx) => (
                     <tr key={idx} className="hover:bg-brand-tint">
                       <td className="px-4 py-3 text-sm font-medium text-brand">{row.gst_rate}%</td>
                       <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
@@ -145,11 +135,11 @@ export default function GSTReport() {
                   ))}
                   <tr className="bg-gray-50 font-semibold">
                     <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_gst.total_igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.sales_gst.total_gst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.sales_summary.total_gst)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -175,7 +165,7 @@ export default function GSTReport() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {reportData.purchase_gst.breakup.map((row, idx) => (
+                  {reportData.purchases.map((row, idx) => (
                     <tr key={idx} className="hover:bg-brand-tint">
                       <td className="px-4 py-3 text-sm font-medium text-brand">{row.gst_rate}%</td>
                       <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
@@ -187,11 +177,11 @@ export default function GSTReport() {
                   ))}
                   <tr className="bg-gray-50 font-semibold">
                     <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchase_gst.total_igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.purchase_gst.total_gst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.total_taxable)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.cgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.sgst)}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.igst)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.purchases_summary.total_gst)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -206,29 +196,29 @@ export default function GSTReport() {
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <p className="text-xs font-semibold text-green-600 uppercase">Output Tax (Sales)</p>
                   <p className="text-2xl font-bold text-green-700 mt-1">
-                    {formatCurrency(reportData.sales_gst.total_gst)}
+                    {formatCurrency(reportData.sales_summary.total_gst)}
                   </p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                   <p className="text-xs font-semibold text-blue-600 uppercase">Input Tax Credit (Purchases)</p>
                   <p className="text-2xl font-bold text-blue-700 mt-1">
-                    {formatCurrency(reportData.purchase_gst.total_gst)}
+                    {formatCurrency(reportData.purchases_summary.total_gst)}
                   </p>
                 </div>
                 <div className={`rounded-lg p-4 border ${
-                  reportData.net_gst_liability >= 0
+                  reportData.net_liability >= 0
                     ? 'bg-red-50 border-red-200'
                     : 'bg-green-50 border-green-200'
                 }`}>
                   <p className={`text-xs font-semibold uppercase ${
-                    reportData.net_gst_liability >= 0 ? 'text-red-600' : 'text-green-600'
+                    reportData.net_liability >= 0 ? 'text-red-600' : 'text-green-600'
                   }`}>
-                    {reportData.net_gst_liability >= 0 ? 'Net GST Payable' : 'Net ITC Available'}
+                    {reportData.net_liability >= 0 ? 'Net GST Payable' : 'Net ITC Available'}
                   </p>
                   <p className={`text-2xl font-bold mt-1 ${
-                    reportData.net_gst_liability >= 0 ? 'text-red-700' : 'text-green-700'
+                    reportData.net_liability >= 0 ? 'text-red-700' : 'text-green-700'
                   }`}>
-                    {formatCurrency(Math.abs(reportData.net_gst_liability))}
+                    {formatCurrency(Math.abs(reportData.net_liability))}
                   </p>
                 </div>
               </div>

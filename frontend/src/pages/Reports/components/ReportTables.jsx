@@ -124,18 +124,6 @@ function ExpiryTable({ data, expiryDays }) {
 
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 export default function ReportTables({ activeReport, reportData, expiryDays }) {
-  if (activeReport === 'inventory') {
-    return (
-      <div className="p-6 text-center text-gray-500">
-        <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-        <p>Full inventory report available in Inventory section</p>
-        <a href="/inventory-v2" className="inline-block mt-4 px-4 py-2 border rounded-md text-sm hover:bg-brand-tint transition-colors">
-          Go to Inventory
-        </a>
-      </div>
-    );
-  }
-
   return (
     <div className="overflow-x-auto">
       {activeReport === 'sales'     && <SalesTable    data={reportData?.data} />}

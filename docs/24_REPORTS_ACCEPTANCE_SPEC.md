@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.0 | Last updated: September 12, 2026
+# Version: 2.1 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -40,9 +40,9 @@ know to double check it by hand.
 
 ## EXECUTIVE SUMMARY — READ THIS FIRST
 
-### 🐛 Live bugs (shipped, currently wrong — not just missing)
+### 🐛 Live bugs — Batch 1 fixed Sep 12, 2026, verified live + regression tests
 
-1. **The GST Report page hard-crashes, 100% of the time, with zero or real data.**
+1. ~~The GST Report page hard-crashes, 100% of the time, with zero or real data.~~ ✅ **Fixed.**
    Live-confirmed: registered a genuinely fresh pharmacy, created one real bill,
    clicked "Generate Report" — full React error boundary ("Something went
    wrong — Cannot read properties of undefined (reading 'breakup')"), not a
@@ -56,7 +56,7 @@ know to double check it by hand.
    still true, and worse than that summary implied: **every** top-level field
    the component reads is wrong, not just a couple, so nothing on the page
    can ever render once a report is generated. Zero test coverage.
-2. **The GST report silently excludes every credit sale from output tax.**
+2. ~~The GST report silently excludes every credit sale from output tax.~~ ✅ **Fixed.**
    `get_gst_report`'s sales-side query filters `BillORM.status == "paid"`
    only (`reports.py:292`) — but a `status="due"` bill is a fully confirmed,
    stock-deducted, non-draft sale (`billing.py:511-518`) that simply hasn't
@@ -70,43 +70,27 @@ know to double check it by hand.
    wrong number), but must be fixed in the same change — fixing only the
    field names would ship a GST report that *looks* right and is still
    silently wrong for any pharmacy with outstanding credit sales.
-3. **The Reports page's "Stock" tab has no real backend behind it.**
-   `useReports.js`'s report-type config map has no `'inventory'` key
-   (`hooks/useReports.js:23-29`), so selecting the "Stock" tab silently
-   falls back to the **Sales** report's data — confirmed live: the tab
-   showed "Total Sales: ₹105.00 / Total Bills: 1" (leftover sales-report
-   numbers) instead of any stock figure, plus a stub message and a
-   **dead link to `/inventory-v2`**, a route that doesn't exist anywhere
-   in `App.js` (only `/inventory` does — confirmed live: clicking it
-   silently redirects to `/dashboard`). If a pharmacist exports from this
-   tab, the file is titled "Inventory_Report" but is either today's raw
-   sales rows (CSV) or entirely blank columns (Excel) — see bug #5.
-4. **Excel export is broken for 3 of 4 exportable reports** (Low Stock,
-   Expiry, "Inventory") — `frontend/src/utils/excelExport.js`'s formatter
-   functions read field names (`item.name`, `.status`, `.category`,
-   `.stock`, `.days_left`, `.value`, `.total_stock`, `.stock_value`,
-   `.brand`) that don't exist on the real report payloads (real fields are
-   `product_name`, `current_stock`, `qty`, `days_to_expiry`,
-   `stock_value`, etc.) — every mismatched column exports **blank**. Only
-   Sales' Excel export and all three reports' CSV exports (which build
-   columns generically from whatever keys are present, not hardcoded
-   names) are unaffected.
-5. **No permission gate on 10 of this router's 12 endpoints** — a cashier
-   can pull the GST report, the Sales/Low-Stock/Expiry reports, and the
-   full Dashboard analytics. Only Schedule H1 Register and the admin data
-   backup export are gated. This directly extends
-   `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s finding #15 ("no permission
-   gate — a cashier can export the GST report") — confirmed true of
-   `reports.py`'s own endpoints directly, live-tested with a real cashier
-   account (200 OK on `/reports/gst`, `/reports/sales-summary`,
-   `/analytics/dashboard`; correctly 403 on
-   `/compliance/schedule-h1-register`).
-6. Schedule H1 Register's permission gate exists but is a hardcoded
-   `role not in ["admin","manager"]` string check (`reports.py:386-389`),
-   not the real `has_permission()`/`ALL_PERMISSIONS` catalog used
-   elsewhere in the app (Suppliers/Products, fixed Sep 12, 2026) — the
-   same "hardcoded role string instead of the real permission system"
-   pattern already found and fixed once before in this codebase.
+3. ~~The Reports page's "Stock" tab has no real backend behind it.~~ ✅
+   **Fixed — removed entirely** (decision made per the spec's own lean:
+   none of eVitalRx/Marg/Pharmasoft have a separate "Stock" report either;
+   real inventory reporting already lives at `/inventory`). Was: silently
+   fell back to Sales data under a "Stock Report" heading, plus a dead
+   link to `/inventory-v2` (a route that never existed).
+4. ~~Excel export is broken for 3 of 4 exportable reports~~ ✅ **Fixed**
+   for Low Stock and Expiry (real field names now used, plus a derived
+   Status label matching the on-screen badge). The "Inventory" case was
+   removed along with the Stock tab (bug #3) rather than fixed, since the
+   tab itself no longer exists.
+5. ~~No permission gate on 10 of this router's 12 endpoints~~ ✅ **Fixed**
+   for GST/Sales/Low-Stock/Expiry/Schedule H1/Audit Log (both endpoints) —
+   all now require `reports:view`, the permission that already existed in
+   the catalog and that manager already had granted. Dashboard analytics
+   deliberately left ungated (a product decision, not an oversight — see
+   the Cross-Cutting Permissions Matrix below).
+6. ~~Schedule H1 Register's permission gate ... hardcoded~~ ✅ **Fixed** —
+   migrated to `has_permission(current_user, "reports:view", db)`, which
+   preserves identical real-world access (admin has `"*"`, manager has
+   `reports:view`, cashier/inventory_staff don't).
 
 ### ❌ Structural gaps (not bugs — never built)
 
@@ -296,17 +280,18 @@ real surfaces:
 
 ## RECOMMENDED BUILD ORDER — SMALL BATCHES, NOT ONE SWEEP
 
-**Batch 1 — GST report, stop the active bleeding (this is the module's core promise)**
-1. Fix `GSTReport.js`'s field names to match the real response (`sales`/`purchases`/`sales_summary`/`purchases_summary`/`net_liability`) — the render-crash fix.
-2. Fix the sales-side status filter to `status IN ("paid","due")`, matching every sibling endpoint — do this in the *same* change as #1, not after, so the "fixed" report doesn't ship still wrong.
-3. Add a permission gate to `GET /reports/gst` (and the rest of `reports.py`'s currently-ungated 10 endpoints) using the real `has_permission()` catalog.
+**Batch 1 — GST report, stop the active bleeding (this is the module's core promise)** — ✅ done, Sep 12, 2026
+1. ~~Fix `GSTReport.js`'s field names~~ — done, plus swapped both raw date-input pairs (Reports landing + GST) for the existing `DateRangePicker` component.
+2. ~~Fix the sales-side status filter to `status IN ("paid","due")`~~ — done, same change as #1.
+3. ~~Add a permission gate to `GET /reports/gst`~~ — done for GST/Sales/Low-Stock/Expiry/Schedule H1/Audit Log (both endpoints), using the real `reports:view` permission. Dashboard analytics left ungated by design.
+   6 regression tests added (`test_reports_gst_and_permissions.py`), confirmed to fail against the pre-fix code via `git stash` and pass after. Full 364-test backend suite passes (2 unrelated pre-existing order-dependent flakes, confirmed to pass in isolation).
 
-**Batch 2 — the fake "Stock" tab**
-4. Decide with Abinash: wire it to a real inventory-summary endpoint, or remove the tab (real inventory reporting already exists at `/inventory`) — currently actively misleading, not just missing.
+**Batch 2 — the fake "Stock" tab** — ✅ done, Sep 12, 2026
+4. ~~Decide: wire it to a real inventory-summary endpoint, or remove the tab~~ — removed. None of eVitalRx/Marg/Pharmasoft have a separate "Stock" report either; real inventory reporting already lives at `/inventory`.
 
-**Batch 3 — export correctness**
-5. Fix `excelExport.js`'s `formatLowStockReport`/`formatExpiryReport` field names.
-6. Add a real Excel/portable export to the GST report once #1-3 land.
+**Batch 3 — export correctness** — ✅ done, Sep 12, 2026
+5. ~~Fix `excelExport.js`'s `formatLowStockReport`/`formatExpiryReport` field names~~ — done, with a derived Status label matching each table's own on-screen badge. The dead "Inventory" case was removed along with the Stock tab rather than fixed.
+6. Add a real Excel/portable export to the GST report — not yet done, still pending (GST13, bigger scope — a filing-ready format, not just enabling the existing broken export code).
 
 **Batch 4 — real gaps, prioritize with Abinash**
 7. HSN-wise GST grouping (competitor-validated, schema already supports it).
@@ -646,12 +631,12 @@ not new scope. This section adds what the fuller use-case pass surfaced:
 
 **Batch 5 — Audit Log correctness (small, same class as Batch 1)**
 11. ~~Fix `get_entity_audit_trail`'s missing `pharmacy_id` filter~~ — ✅ done, Sep 12, 2026 (this pass).
-12. Add a real permission gate to `GET /audit-logs`/`GET /audit-logs/entity/...` (AL07).
-13. Populate `old_values`/`ip_address` app-wide (AL04/AL05) — one fix, many call sites, do it once rather than per-module.
+12. ~~Add a real permission gate to `GET /audit-logs`/`GET /audit-logs/entity/...`~~ — ✅ done, Sep 12, 2026, same `reports:view` permission and same regression-test file as Batch 1.
+13. Populate `old_values`/`ip_address` app-wide (AL04/AL05) — one fix, many call sites, do it once rather than per-module. Not yet done.
 
 **Batch 6 — cheapest real feature wins (data already exists)**
-14. Margin report (MAR01/MAR02) — `Bill.margin_paise` already computed and stored; this is a query, not new logic.
-15. Wire `/analytics/purchases` as a 4th Reports tab (PU01/PU03) — endpoint already correct, zero new backend work.
+14. Margin report (MAR01/MAR02) — `Bill.margin_paise` already computed and stored; this is a query, not new logic. Reclassified during a follow-up discussion: per the product's own Reports-vs-Analytics split (Reports = filterable + downloadable, Analytics = visual metrics), the *downloadable margin report* stays a Reports tab; a *visual margin trend* would separately belong on Dashboard, not built here.
+15. ~~Wire `/analytics/purchases` as a 4th Reports tab (PU01/PU03)~~ — **re-scoped**: `/analytics/purchases` returns aggregate metrics (totals, counts), which is Analytics-shaped per the same split, not a Reports-page tab. It belongs on Dashboard as a visual card instead. A real "Purchase Register" (row-level, filterable, downloadable — matching Sales Report's shape) would be the actual Reports-page equivalent, and is separate, new work, not just wiring the existing endpoint.
 
 **Batch 7 — return reports (genuinely new, no existing endpoint to lean on)**
 16. Net-sales-after-returns as a starting point (RET07) — the subtraction logic already exists inside `get_gst_report`, extractable into its own summary.

@@ -26,7 +26,7 @@ from models.purchases import (
 )
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, has_permission
 
 router = APIRouter(prefix="/api", tags=["reports"])
 logger = logging.getLogger(__name__)
@@ -35,6 +35,17 @@ logger = logging.getLogger(__name__)
 def _p2r(paise: int) -> float:
     """Paise → rupees for API responses."""
     return round((paise or 0) / 100, 2)
+
+
+async def _require_reports_permission(current_user: User, db: AsyncSession) -> None:
+    """Found Sep 12, 2026: `reports:view` already existed in the real
+    permission catalog (constants.py) and manager already had it granted —
+    it just wasn't wired into any endpoint, so every report (including GST)
+    was readable by any logged-in role, cashier included. Same pattern as
+    the Suppliers/Inventory ACL gap fixed earlier this session."""
+    if not await has_permission(current_user, "reports:view", db):
+        raise HTTPException(
+            status_code=403, detail="Your role does not have permission to view reports")
 
 
 # ── sales summary ─────────────────────────────────────────────────────────────
@@ -47,6 +58,7 @@ async def get_sales_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await _require_reports_permission(current_user, db)
     try:
         pid = current_user.pharmacy_id
         conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(
@@ -93,6 +105,7 @@ async def get_sales_summary(
 @router.get("/reports/low-stock")
 async def get_low_stock_report(db: AsyncSession = Depends(
         get_db), current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
     try:
         pid = current_user.pharmacy_id
         stock_sub = (
@@ -139,6 +152,7 @@ async def get_low_stock_report(db: AsyncSession = Depends(
 @router.get("/reports/expiry")
 async def get_expiry_report(days: int = 30, db: AsyncSession = Depends(
         get_db), current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
     try:
         pid = current_user.pharmacy_id
         today = date.today()
@@ -283,13 +297,22 @@ async def get_gst_report(
         end_date: str,
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
     pid = current_user.pharmacy_id
     start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
 
-    # Sales side — bill items
+    # Sales side — bill items. GST liability arises at the point of supply,
+    # not at payment collection: a "due" bill is a fully confirmed,
+    # stock-deducted sale that just hasn't been paid yet (billing.py's
+    # create_bill only ever sets status to draft/paid/due, never anything
+    # else for a non-draft sale) — excluding it here silently understated
+    # every pharmacy's real GST liability for any credit sale. Found Sep 12,
+    # 2026; every sibling endpoint in this file already used this same
+    # status list. See docs/24_REPORTS_ACCEPTANCE_SPEC.md UC-GST07.
     sales_items = (await db.execute(
         select(BillItemORM).join(BillORM, BillORM.id == BillItemORM.bill_id)
-        .where(BillORM.pharmacy_id == pid, BillORM.status == "paid", BillORM.deleted_at.is_(None),
+        .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
+               BillORM.deleted_at.is_(None),
                BillORM.bill_date >= start, BillORM.bill_date <= end)
     )).scalars().all()
     sales_by_gst: dict = {}
@@ -383,10 +406,13 @@ async def get_schedule_h1_register(
         to_date: Optional[str] = None,
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["admin", "manager"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied. Schedule H1 register is restricted to admin and manager roles.")
+    # Was a hardcoded `role not in ["admin","manager"]` string check — same
+    # "not the real permission catalog" pattern already found and fixed
+    # once before (Suppliers/Inventory ACL). `reports:view` happens to
+    # preserve identical real-world access today (admin has "*", manager
+    # has reports:view, cashier/inventory_staff don't) while being the
+    # standard mechanism instead of a hand-rolled one.
+    await _require_reports_permission(current_user, db)
     pid = current_user.pharmacy_id
     conds = [H1ORM.pharmacy_id == pid]
     if from_date:

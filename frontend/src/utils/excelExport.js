@@ -83,8 +83,6 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatLowStockReport(reportData);
     case 'expiry':
       return formatExpiryReport(reportData);
-    case 'inventory':
-      return formatInventoryReport(reportData);
     default:
       return reportData.data || reportData;
   }
@@ -104,40 +102,34 @@ const formatSalesReport = (data) => {
 
 const formatLowStockReport = (data) => {
   if (!data?.data) return [];
+  // Field names and the derived Status label match GET /reports/low-stock's
+  // real response and ReportTables.jsx's own on-screen badge exactly — the
+  // backend has no `name`/`status`/`category` fields on this row at all
+  // (found Sep 12, 2026: every column here was silently blank before).
   return data.data.map((item) => ({
-    'Product': item.name,
+    'Product': item.product_name,
     'SKU': item.sku,
     'Current Stock': item.current_stock,
     'Reorder Level': item.reorder_level,
     'Shortage': item.shortage,
-    'Status': item.status,
-    'Category': item.category || '-',
+    'Status': item.current_stock === 0 ? 'Out of Stock' : 'Low Stock',
   }));
 };
 
 const formatExpiryReport = (data) => {
   if (!data?.data) return [];
+  // Field names and the derived Status label match GET /reports/expiry's
+  // real response and ReportTables.jsx's own ExpiryDaysBadge exactly (found
+  // Sep 12, 2026: `stock`/`days_left`/`value`/`status` don't exist on the
+  // real row — real fields are `qty`/`days_to_expiry`/`stock_value`).
   return data.data.map((item) => ({
     'Product': item.product_name,
     'Batch': item.batch_no,
-    'Stock': item.stock,
+    'Stock': item.qty,
     'Expiry Date': item.expiry_date,
-    'Days Left': item.days_left,
-    'Value (₹)': item.value,
-    'Status': item.status,
-  }));
-};
-
-const formatInventoryReport = (data) => {
-  if (!data?.data) return [];
-  return data.data.map((item) => ({
-    'Product': item.name,
-    'SKU': item.sku,
-    'Category': item.category || '-',
-    'Brand': item.brand || '-',
-    'Total Stock': item.total_stock,
-    'Stock Value (₹)': item.stock_value,
-    'Status': item.status,
+    'Days Left': item.days_to_expiry,
+    'Value (₹)': item.stock_value,
+    'Status': item.days_to_expiry < 0 ? 'Expired' : `${item.days_to_expiry} days left`,
   }));
 };
 

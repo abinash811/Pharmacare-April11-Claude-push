@@ -74,7 +74,7 @@ export function useReports() {
 
   const handleExportExcel = useCallback((activeReport) => {
     if (!reportData?.data?.length) { toast.error('No data to export'); return; }
-    const NAMES = { sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report', inventory: 'Inventory_Report' };
+    const NAMES = { sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report' };
     try {
       exportToExcel(formatReportForExcel(activeReport, reportData), NAMES[activeReport] || 'Report', {
         sheetName: activeReport.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),

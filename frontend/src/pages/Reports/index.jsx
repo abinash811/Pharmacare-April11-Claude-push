@@ -4,7 +4,7 @@
  */
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, AlertCircle, Clock, Package } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 
@@ -17,25 +17,28 @@ const REPORTS_TABS = [
   { key: 'gst',     label: 'GST Report' },
 ];
 
+// A "Stock" tab used to live here — removed Sep 12, 2026: it had no real
+// endpoint behind it at all (useReports.js's CONFIGS map never had an
+// 'inventory' key), so it silently reused Sales report data under a "Stock
+// Report" heading and linked to a route that doesn't exist (/inventory-v2).
+// Real, correct inventory reporting already lives at /inventory — see
+// docs/24_REPORTS_ACCEPTANCE_SPEC.md UC-STK04.
 const REPORT_TYPES = [
   { key: 'sales',     label: 'Sales'     },
   { key: 'low-stock', label: 'Low Stock' },
   { key: 'expiry',    label: 'Expiry'    },
-  { key: 'inventory', label: 'Stock'     },
 ];
 
 const REPORT_TITLES = {
   sales:       'Sales Report',
   'low-stock': 'Low Stock Report',
   expiry:      'Expiry Report',
-  inventory:   'Stock Report',
 };
 
 const REPORT_ICONS = {
   sales:       <TrendingUp  className="w-5 h-5 text-blue-600"   />,
   'low-stock': <AlertCircle className="w-5 h-5 text-orange-600" />,
   expiry:      <Clock       className="w-5 h-5 text-red-600"    />,
-  inventory:   <Package     className="w-5 h-5 text-green-600"  />,
 };
 
 export default function Reports() {

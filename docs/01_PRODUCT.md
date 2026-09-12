@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.4 | Last updated: September 12, 2026
+# Version: 1.5 | Last updated: September 12, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -294,6 +294,13 @@ These three named terms — **short book / demand book** (auto-reorder list), **
 - **Pharmasoft:** auto-generates **GSTR-1/GSTR-2** in a CA/filing-ready export format. [Source](https://yadavsoftware.com/), [Source](https://pharma247.in/blogs/gst-report-generator-download-gstr-1-3b-purchase-gst-reports-instantly)
 
 Real gaps this surfaces: HSN-wise GST grouping (PharmaCare groups by GST rate only — see `docs/24_REPORTS_ACCEPTANCE_SPEC.md`), a GST-portal-ready export format, item-wise margin report, price-variation report, Tally export. Separately, and more urgently: PharmaCare's own GST report is currently non-functional — see `docs/24_REPORTS_ACCEPTANCE_SPEC.md`'s executive summary.
+
+**Customers competitor notes (researched Sep 12, 2026):**
+- **Marg ERP:** **live credit limit management** — an operator sets a primary limit in the customer ledger, a manager sets a final limit (by amount, bill count, or days), and the ledger can be configured to only *indicate* the limit or *strictly enforce* it. Family-wise consolidated ledgers (bill an entire family under one ledger group). WhatsApp delivery of invoices, outstanding balances, ledger statements, and payment reminders. [Source](https://care.margcompusoft.com/margerp/rate-and-discount-master/38672/1/Credit-Limit-Management-Overview-and), [Source](https://care.margcompusoft.com/margerp/all-ledgers/38630/utils/common)
+- **eVitalRx:** a real, customizable **loyalty points program** for customer retention, plus a CRM module and automated WhatsApp refill/pill/payment reminders. [Source](https://www.evitalrx.in/solutions/loyalty-program), [Source](https://www.evitalrx.in/solutions/customer-relationships/)
+- **Pharmasoft:** patient-wise outstanding tracking, family group-wise billing, and pensioner/BPL flags on the customer record; doctor/patient-wise sales reports. [Source](https://yadavsoftware.com/)
+
+Real gaps this surfaces: family-wise/group billing, WhatsApp outstanding/payment reminders. More urgently — PharmaCare already *has* UI + schema for credit limit, outstanding balance, and loyalty points (matching what all three competitors ship as real features), but none of the three actually function — see `docs/15_ROADMAP.md`'s Customers section for the full audit.
 
 ---
 

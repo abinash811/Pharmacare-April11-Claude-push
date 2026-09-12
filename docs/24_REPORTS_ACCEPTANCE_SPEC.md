@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 1.0 | Last updated: September 12, 2026
+# Version: 1.1 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -317,3 +317,182 @@ real surfaces:
 Everything in the recommended batches was verified via direct code reads,
 a live zero-data browser walkthrough, and a real API call — not inferred
 from a variable name or docstring.
+
+---
+
+## PRE-BUILD RESEARCH — FEATURES, FLOW, VISUAL DESIGN, USE CASES
+
+> Added Sep 12, 2026, before any Batch 1-4 work starts, per direct request
+> ("before building let's research on what all features should be there
+> how the flow should be, visual design and use cases to cover"). This
+> section decides *what Reports should become*; the batches above are
+> *what's currently broken*. Bug fixes (Batch 1) proceed regardless of
+> this section's answer — a crash is a crash. Anything that reshapes a
+> screen or adds a new report type waits for a plain-language go-ahead
+> per report, not a blanket "build all of this."
+
+### Why this section exists, not just a feature list
+
+Per Manifesto #15 and the "product manager first" rule: a feature list
+built only from competitor names is a checklist, not reasoning. For each
+report below, the question answered first is *what does the pharmacist
+literally lose if this doesn't exist*, then what competitors named prove
+it's a real, standard expectation — not a nice-to-have invented for
+completeness.
+
+### Design-system constraint (checked first, per the design HARD STOP)
+
+No dedicated Reports/GST preview exists in `PharmaCare Design System/
+preview/` (only generic `data-table.html` and `design-dashboard-zero.html`)
+— so nothing below invents new visual language. Every proposal reuses
+components that already exist and are already documented in
+`docs/06_COMPONENTS.md`:
+
+- **`DateRangePicker`** (`components/shared/DateRangePicker.jsx`) — Today/
+  This Month/Last Month/Financial Year presets, defaults to the current
+  Indian FY. **`ScheduleH1Register.jsx` already uses this correctly**
+  (confirmed live: "01 Apr 2026 — 31 Mar 2027" button). **Both the Reports
+  landing page and `GSTReport.js` use raw native `<input type="date">`
+  pairs instead** — a real "one component, one way" violation (Manifesto
+  #1) independent of the field-mapping bugs already found, and worse UX
+  for the exact accountant use case this module exists for: Meena files
+  monthly/quarterly, so "This Month"/"Last Month" presets save her from
+  hand-picking two dates every single time. **Recommendation: replace
+  both raw date-input pairs with `DateRangePicker` as part of the GST
+  fix batch — same component Schedule H1 already proves works here.**
+- **`DataCard`** — already used correctly for GST's 3-tile summary
+  (Output Tax / Input Tax Credit / Net Payable) and should also back any
+  new summary tiles (e.g. a margin report's Gross Margin/Margin % tiles).
+- **`FilterPills`** — not currently used anywhere in Reports; worth
+  considering for a future HSN-code or product-category filter on the GST
+  report, not for this batch.
+- **`TableSkeleton`** — Manifesto #16 requires this on every loading
+  state; confirmed present already on the Reports landing page's table
+  fetch (not separately audited for GSTReport.js/H1 in this pass — check
+  before shipping the GST rebuild).
+
+### 1. GST Report — the module's core promise, researched in most depth
+
+**Business reasoning:** Meena visits specifically to file GSTR-1/GSTR-3B.
+Her job needs two things the current report can't give her even once
+Batch 1 lands: a number she can trust, and a shape she can actually use
+for filing (real GSTR-1 filing is done **HSN-wise**, per
+[ClearTax](https://docs.cleartax.in/product-help-and-support/for-large-businesses/cleargst/generate-reports/sales-and-g1/gstr-1-hsn-summary-report)/
+[Tally](https://help.tallysolutions.com/export-gstr-1-in-ms-excel-csv-formats-update-rate-wise-hsn-sac-summary/),
+not just rate-wise). Without HSN-wise output, Meena has to manually
+re-derive the HSN breakdown from raw bills before she can file — the
+report doesn't actually save her the work it exists to save.
+
+**Competitor-validated use cases** (Marg ERP/eVitalRx/Pharmasoft, researched
+Sep 12, 2026 — see Competitor Benchmark above and `docs/01_PRODUCT.md` §10):
+- HSN-wise summary, not just rate-wise (Marg ERP's headline GST feature).
+- **B2B vs. B2C bifurcation** — real GSTR-1 Table 12 requires this split
+  today ([ClearTax](https://cleartax.in/s/gstr-1)); PharmaCare has no
+  concept of a B2B sale at all yet (no GSTIN captured on `Customer` for
+  invoicing purposes) — a genuine schema gap, not just a report gap.
+- Export in a **filing-ready format** (Marg ERP: "GST-portal-ready";
+  Pharmasoft: "CA/filing-ready"; Tally: real GSTR-1 JSON upload) — today's
+  CSV/Excel export is a plain dump of internal numbers, not shaped for
+  the actual GST portal or a CA's working file.
+- Item-wise margin report, price-variation report (eVitalRx) — related to
+  GST tangentially (same Reports section) but not GST-report scope
+  itself; listed separately below.
+
+**Proposed flow** (fix-then-extend, not a rewrite):
+1. Replace both raw date inputs with `DateRangePicker` (Today/This Month/
+   Last Month/FY presets) — cheap, matches Schedule H1's proven pattern.
+2. Fix the field-mapping crash and the `status IN ("paid","due")` filter
+   (Batch 1 — already scoped, proceeds regardless of this section).
+3. Add a permission gate (Batch 1).
+4. *Then*, as a separate, explicitly-approved follow-on: add an HSN
+   column/grouping toggle ("by rate" / "by HSN") over the existing
+   rate-bucket data — `hsn_code` already exists on both `BillItem` and
+   `PurchaseItem`, so this is additive, not a schema change.
+5. B2B/B2C bifurcation and a real GSTR-1-shaped export are bigger
+   scope (B2B needs a GSTIN-capture flow on Customer that doesn't exist
+   today) — flagged as a real gap, explicitly **not** proposed for this
+   batch; needs its own go/no-go conversation given the schema work involved.
+
+**Visual design:** Keep the existing 2-table + 3-tile layout (Sales GST /
+Purchase GST tables + Output/ITC/Net Payable summary cards) — it already
+matches `DataCard`/table conventions correctly once the field names are
+fixed. Add a "Group by: GST Rate | HSN Code" toggle above the Sales GST
+table for step 4 above, using the same segmented-control pattern
+`PageTabs` already establishes elsewhere, not a new control type.
+
+### 2. Sales Report — mostly solid, one real use-case gap
+
+**Business reasoning:** Rajesh checks this for day-to-day sales visibility
+between Dashboard glances; Suresh uses it to spot slow periods.
+
+**Use cases already covered, confirmed live:** date-range sales list with
+bill#/date/customer/items/payment/amount, correct CSV/Excel export.
+
+**Gap vs. competitors:** no payment-method breakdown (cash vs. UPI vs.
+credit totals), no customer-type segmentation. Lower priority than GST —
+not proposed for the current batch, named here so it isn't lost.
+
+### 3. Purchase Report — structural gap, already named in the Purchases spec
+
+**Business reasoning:** Suresh needs to see purchase volume/spend by
+supplier/date without leaving Reports. Today this only exists on the
+Purchases list page itself (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md` P33-P43) —
+**there is no Purchases tab on the Reports landing page at all**, a real
+structural absence `docs/21_FEATURES.md` doesn't document either.
+
+**Recommendation:** don't build a new, separate Purchases report here —
+`docs/23`'s Batch 5 already prioritizes wiring the frontend to the
+existing, already-correct `GET /analytics/purchases` endpoint (currently
+dead code, per this spec's UC-R15). Cheapest real win: surface that
+endpoint's data as a 4th tab on the Reports landing page instead of
+building anything new. Flagged here for sequencing awareness, not
+re-scoped into this batch — belongs to the Purchases spec's own batch order.
+
+### 4. "Stock"/Inventory Report — decide: fix or remove
+
+Already covered in UC-R04 above. Two honest options, not a recommendation
+to pick one without you: **(a)** wire it to a real inventory-summary
+endpoint (current stock value, category breakdown, dead-stock list — none
+of which exist as an endpoint today, real new work), or **(b)** remove
+the tab entirely, since real inventory reporting already lives at
+`/inventory` and this tab currently actively misleads (wrong numbers, dead
+link). Given Batch 2 already flags this as a decision point, this section
+adds the competitor angle: none of eVitalRx/Marg/Pharmasoft's "reports"
+lists include a bare "Stock" report separate from their Inventory module
+either — their inventory reporting lives inside Inventory, same as
+PharmaCare's `/inventory` page already does. **This weakly favors (b),
+remove it** — but it's your call, not assumed.
+
+### 5. Margin/Profitability Report — real, named competitor gap, not built at all
+
+**Business reasoning:** Rajesh's #1 stated fear-driver per
+`docs/01_PRODUCT.md` persona notes is not knowing which products actually
+make money. Nothing in PharmaCare answers this today at the report level
+(Dashboard shows top-selling by revenue, not margin).
+
+**Competitor-validated:** eVitalRx names this explicitly ("Item-wise
+Margin Reports"). Real gap, zero existing endpoint or UI.
+
+**Not scoped into the current fix batch** — flagged as the clearest
+"genuinely new work" candidate for after Batch 1-3 land, since
+`cost_price_paise`/`mrp_paise`/`sale_price_paise` already exist per-batch
+and per-bill-item, so the data to compute this already exists; it's a new
+aggregation endpoint + a new report tab, not a schema change.
+
+### 6. Schedule H1 Register — no changes proposed
+
+Already the one clean surface in this module (UC-R11-R13). Only open item
+is UC-R12 (hardcoded role check vs. the real permission catalog) —
+consistent with Batch 1's permission-gate work, worth doing in the same
+pass since it's the same class of fix.
+
+### What this section is NOT proposing
+
+No new pages, no new navigation structure, no new component types. Every
+proposal above either fixes a bug already in Batch 1-3, swaps a
+wrong-component-choice for an existing correct one (`DateRangePicker`), or
+is explicitly named as bigger, separately-approved future work (HSN
+grouping, B2B/B2C, margin report, Purchase report tab). Nothing here
+should be read as "go build all of this" — each bigger item needs its own
+plain-language go-ahead per the Research→Build→Test→Review→Feedback→Loop
+rule, not a blanket approval from this document existing.

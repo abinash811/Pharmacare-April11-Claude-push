@@ -1230,9 +1230,20 @@ async def get_audit_logs(
 @router.get("/audit-logs/entity/{entity_type}/{entity_id}")
 async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # Found Sep 12, 2026 alongside the multi-tenancy fix pass: this had no
+    # pharmacy_id filter at all — any logged-in user from any pharmacy could
+    # pull another pharmacy's full audit trail (old/new values, including
+    # customer names and totals) for any entity_id, just by knowing or
+    # guessing one. Missed by scripts/check_tenant_isolation.py's static
+    # check because that check only flags a bare `Model.id ==` — this
+    # filters on `entity_id`, a different attribute name, on a *list* query
+    # rather than a single-row by-id lookup, so get_owned_or_404 doesn't fit
+    # here either. See docs/15_ROADMAP.md RULE MISSES LOG.
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     result = await db.execute(
         select(AuditLog)
-        .where(AuditLog.entity_type == entity_type, AuditLog.entity_id == uuid.UUID(entity_id))
+        .where(AuditLog.pharmacy_id == pharmacy_id, AuditLog.entity_type == entity_type,
+               AuditLog.entity_id == uuid.UUID(entity_id))
         .order_by(AuditLog.created_at)
     )
     logs = result.scalars().all()

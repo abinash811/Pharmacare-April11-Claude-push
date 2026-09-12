@@ -390,6 +390,28 @@ class TestBillIsolation:
         assert resp.status_code == 404, resp.text
 
 
+class TestAuditLogIsolation:
+    """get_entity_audit_trail (GET /audit-logs/entity/{type}/{id}) had zero
+    pharmacy_id filter at all — found Sep 12, 2026 while researching the
+    Reports & Compliance module (Audit Log is part of that module). Proved
+    live: pharmacy B could pull pharmacy A's full audit trail for A's real
+    bill (customer name, totals, old/new values) just by knowing the id.
+    Missed by check_tenant_isolation.py's static check because it filters
+    on `entity_id`, not a bare `.id ==`, on a list query rather than a
+    single-row by-id lookup."""
+
+    def test_b_cannot_read_a_own_bill_audit_trail(self, tenants, owned):
+        resp = tenants["b"].get(f"{BASE_URL}/api/audit-logs/entity/invoice/{owned['bill_id']}")
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == [], (
+            f"B could read A's audit trail for A's bill — cross-tenant leak: {resp.text}")
+
+    def test_a_can_read_its_own_bill_audit_trail(self, tenants, owned):
+        resp = tenants["a"].get(f"{BASE_URL}/api/audit-logs/entity/invoice/{owned['bill_id']}")
+        assert resp.status_code == 200, resp.text
+        assert len(resp.json()) >= 1, resp.text
+
+
 class TestUserIsolation:
     def test_b_cannot_read_a_user(self, tenants, owned):
         resp = tenants["b"].get(f"{BASE_URL}/api/users/{owned['user_id']}")

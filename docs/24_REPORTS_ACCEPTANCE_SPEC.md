@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 1.1 | Last updated: September 12, 2026
+# Version: 2.0 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -320,179 +320,349 @@ from a variable name or docstring.
 
 ---
 
-## PRE-BUILD RESEARCH — FEATURES, FLOW, VISUAL DESIGN, USE CASES
+## FULL USE-CASE COVERAGE — FEATURES, FLOW, VISUAL DESIGN
 
-> Added Sep 12, 2026, before any Batch 1-4 work starts, per direct request
-> ("before building let's research on what all features should be there
-> how the flow should be, visual design and use cases to cover"). This
-> section decides *what Reports should become*; the batches above are
-> *what's currently broken*. Bug fixes (Batch 1) proceed regardless of
-> this section's answer — a crash is a crash. Anything that reshapes a
-> screen or adds a new report type waits for a plain-language go-ahead
-> per report, not a blanket "build all of this."
-
-### Why this section exists, not just a feature list
-
-Per Manifesto #15 and the "product manager first" rule: a feature list
-built only from competitor names is a checklist, not reasoning. For each
-report below, the question answered first is *what does the pharmacist
-literally lose if this doesn't exist*, then what competitors named prove
-it's a real, standard expectation — not a nice-to-have invented for
-completeness.
+> Rewritten Sep 12, 2026 to the same rigor as `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
+> (numbered UCs, each with a Built/Partial/Missing verdict and file:line or
+> live evidence), per direct request ("before building let's research on
+> what all features should be there how the flow should be, visual design
+> and use cases to cover") followed by confirmation that the first pass
+> (a shallow per-report-type paragraph) wasn't exhaustive enough. This
+> section replaces that first pass. It decides *what Reports & Compliance
+> should become*; the Executive Summary and Batches above are *what's
+> currently broken*. A bug fix proceeds regardless of this section — a
+> crash is a crash. Anything that reshapes a screen or adds a new report
+> type still needs its own plain-language go-ahead, not a blanket "build
+> all of this" from this document existing.
+>
+> Scope note: "Reports & Compliance" per `docs/21_FEATURES.md` and the
+> app's own left-nav grouping covers GST Report, Schedule H1 Register,
+> and Audit Log as named pages, plus the Reports landing page (Sales/Low
+> Stock/Expiry/Stock) and Dashboard analytics as the module's other real
+> surfaces. Two gaps in the first pass are fixed here: **Return Reports**
+> (sales returns + purchase returns) had no section at all despite being
+> a confirmed, total gap; **Audit Log** had no numbered UCs despite being
+> one of the three named Compliance pages — and while researching it, a
+> live, exploitable cross-tenant data leak was found and fixed in the same
+> pass (`get_entity_audit_trail` had no `pharmacy_id` filter at all — see
+> `docs/15_ROADMAP.md` RULE MISSES LOG, Sep 12, 2026).
 
 ### Design-system constraint (checked first, per the design HARD STOP)
 
 No dedicated Reports/GST preview exists in `PharmaCare Design System/
 preview/` (only generic `data-table.html` and `design-dashboard-zero.html`)
-— so nothing below invents new visual language. Every proposal reuses
-components that already exist and are already documented in
-`docs/06_COMPONENTS.md`:
+— nothing below invents new visual language. Every proposal reuses
+components already documented in `docs/06_COMPONENTS.md`:
 
-- **`DateRangePicker`** (`components/shared/DateRangePicker.jsx`) — Today/
-  This Month/Last Month/Financial Year presets, defaults to the current
-  Indian FY. **`ScheduleH1Register.jsx` already uses this correctly**
-  (confirmed live: "01 Apr 2026 — 31 Mar 2027" button). **Both the Reports
-  landing page and `GSTReport.js` use raw native `<input type="date">`
-  pairs instead** — a real "one component, one way" violation (Manifesto
-  #1) independent of the field-mapping bugs already found, and worse UX
-  for the exact accountant use case this module exists for: Meena files
-  monthly/quarterly, so "This Month"/"Last Month" presets save her from
-  hand-picking two dates every single time. **Recommendation: replace
-  both raw date-input pairs with `DateRangePicker` as part of the GST
-  fix batch — same component Schedule H1 already proves works here.**
-- **`DataCard`** — already used correctly for GST's 3-tile summary
-  (Output Tax / Input Tax Credit / Net Payable) and should also back any
-  new summary tiles (e.g. a margin report's Gross Margin/Margin % tiles).
-- **`FilterPills`** — not currently used anywhere in Reports; worth
-  considering for a future HSN-code or product-category filter on the GST
-  report, not for this batch.
-- **`TableSkeleton`** — Manifesto #16 requires this on every loading
-  state; confirmed present already on the Reports landing page's table
-  fetch (not separately audited for GSTReport.js/H1 in this pass — check
-  before shipping the GST rebuild).
+- **`DateRangePicker`** — Today/This Month/Last Month/Financial Year
+  presets, defaults to the current Indian FY. **`ScheduleH1Register.jsx`
+  already uses this correctly** (confirmed live: "01 Apr 2026 — 31 Mar
+  2027" button). **Both the Reports landing page and `GSTReport.js` use
+  raw native `<input type="date">` pairs instead** — a real "one
+  component, one way" violation (Manifesto #1), and worse UX for the
+  exact accountant use case this module exists for: Meena files monthly/
+  quarterly, so "This Month"/"Last Month" presets save her from
+  hand-picking two dates every time she visits.
+- **`DataCard`** — already used correctly for GST's 3-tile summary and
+  should back any new summary tiles (margin report's Gross Margin tile,
+  a returns report's Total Refunded tile, etc.).
+- **`FilterPills`** — not used anywhere in Reports today; a real candidate
+  for an HSN-code or product-category filter, not required for the fix batch.
+- **`TableSkeleton`** — Manifesto #16 requires this on every loading state.
 
-### 1. GST Report — the module's core promise, researched in most depth
+### A. GST REPORT (UC-GST01 – UC-GST20)
 
-**Business reasoning:** Meena visits specifically to file GSTR-1/GSTR-3B.
-Her job needs two things the current report can't give her even once
-Batch 1 lands: a number she can trust, and a shape she can actually use
-for filing (real GSTR-1 filing is done **HSN-wise**, per
-[ClearTax](https://docs.cleartax.in/product-help-and-support/for-large-businesses/cleargst/generate-reports/sales-and-g1/gstr-1-hsn-summary-report)/
-[Tally](https://help.tallysolutions.com/export-gstr-1-in-ms-excel-csv-formats-update-rate-wise-hsn-sac-summary/),
-not just rate-wise). Without HSN-wise output, Meena has to manually
-re-derive the HSN breakdown from raw bills before she can file — the
-report doesn't actually save her the work it exists to save.
+**Business reasoning:** Meena's one job in this system is producing a
+number she can file with, in a shape she can actually use. Real GSTR-1
+filing is HSN-wise and B2B/B2C-split; a wrong or unusable report doesn't
+just annoy her, it risks a real penalty for a real small business.
 
-**Competitor-validated use cases** (Marg ERP/eVitalRx/Pharmasoft, researched
-Sep 12, 2026 — see Competitor Benchmark above and `docs/01_PRODUCT.md` §10):
-- HSN-wise summary, not just rate-wise (Marg ERP's headline GST feature).
-- **B2B vs. B2C bifurcation** — real GSTR-1 Table 12 requires this split
-  today ([ClearTax](https://cleartax.in/s/gstr-1)); PharmaCare has no
-  concept of a B2B sale at all yet (no GSTIN captured on `Customer` for
-  invoicing purposes) — a genuine schema gap, not just a report gap.
-- Export in a **filing-ready format** (Marg ERP: "GST-portal-ready";
-  Pharmasoft: "CA/filing-ready"; Tally: real GSTR-1 JSON upload) — today's
-  CSV/Excel export is a plain dump of internal numbers, not shaped for
-  the actual GST portal or a CA's working file.
-- Item-wise margin report, price-variation report (eVitalRx) — related to
-  GST tangentially (same Reports section) but not GST-report scope
-  itself; listed separately below.
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| GST01 | Generate report for a date range | 🐛 Broken | Live-confirmed hard crash on every "Generate Report" click — `GSTReport.js:136`, see UC-R05 |
+| GST02 | Output tax (sales-side) breakdown by rate | ✅ Built (once render is fixed) | Math correct, `reports.py:290-303` |
+| GST03 | Input tax credit (purchase-side) breakdown by rate | ✅ Built (once render is fixed) | `reports.py:322-335` |
+| GST04 | Net GST liability (output − input) | ✅ Built (once render is fixed) | `reports.py:373` |
+| GST05 | Sales returns reduce output tax | ✅ Built | Formula verified against `create_sales_return`'s own pricing, `reports.py:309-324` |
+| GST06 | Purchase returns reduce input tax credit | ✅ Built | Formula verified against `create_purchase_return`'s own pricing, `reports.py:346-361` |
+| GST07 | Credit ("due") sales included in output tax | 🐛 Missing | `status == "paid"` only excludes confirmed unpaid sales — see UC-R06 |
+| GST08 | HSN-wise breakdown (not just rate-wise) | ❌ Missing | Real GSTR-1 filing is HSN-wise ([ClearTax](https://docs.cleartax.in/product-help-and-support/for-large-businesses/cleargst/generate-reports/sales-and-g1/gstr-1-hsn-summary-report)); `hsn_code` exists on both `BillItem`/`PurchaseItem` but is never read in `get_gst_report` |
+| GST09 | B2B vs. B2C bifurcation | ❌ Missing | Real GSTR-1 Table 12 requires this split ([ClearTax](https://cleartax.in/s/gstr-1)); `Customer` has no GSTIN-for-invoicing concept at all — schema gap, not just a report gap |
+| GST10 | IGST (interstate sales) | ❌ Not populated, by design | Matches the already-known, deliberately-deferred single-state-only Phase 1 decision |
+| GST11 | Composition-scheme pharmacy handling | ❌ Missing | `PharmacySettings.is_composition_scheme` is a real, saveable toggle (`settings.py:254,365`) but is **never read anywhere except Settings itself** — a composition dealer (flat-rate GST, no ITC claim, different return type — GSTR-4 not GSTR-1) gets the exact same CGST/SGST/ITC report as a regular dealer. Not previously flagged in this spec; found while building this section. Real compliance risk for any pharmacy that has this flag on. |
+| GST12 | Export to CSV/Excel | ❌ Unreachable | Code exists (`GSTReport.js:36-60`) but the page crashes before the button can appear |
+| GST13 | Export in a filing-ready format (GSTR-1 JSON/Excel template) | ❌ Missing | Today's export (once reachable) is a plain dump of internal numbers, not shaped for the GST portal or a CA's working file — Marg ERP/Pharmasoft both name this explicitly |
+| GST14 | Permission gate | ❌ Missing | Live-confirmed a cashier gets 200 OK |
+| GST15 | Drill down from a rate/HSN bucket to the underlying bills | ❌ Missing | No linkage from a summary row to source transactions anywhere in the UI |
+| GST16 | Draft/cancelled transactions excluded | ✅ Built | Sales side already filters non-draft implicitly via status; purchase side filters `status=="confirmed"` and `deleted_at IS NULL` |
+| GST17 | Print/PDF view | ❌ Missing | No print button anywhere on this page (unlike Schedule H1) |
+| GST18 | Date-range presets matching filing cadence (month/quarter/FY) | ❌ Missing | Raw date inputs, not `DateRangePicker` — see Design-system constraint above |
+| GST19 | Rounding/reconciliation display (does the report tie to the bills that generated it) | ❌ Missing | No reconciliation view; a discrepancy would be invisible |
+| GST20 | Cess handling | 🔄 Partial | Purchase-side `cess_paise` is a real, captured field (per `docs/23`'s UC-P21) but never appears anywhere in the GST report response at all — silently dropped from the one place it would matter most |
 
-**Proposed flow** (fix-then-extend, not a rewrite):
-1. Replace both raw date inputs with `DateRangePicker` (Today/This Month/
-   Last Month/FY presets) — cheap, matches Schedule H1's proven pattern.
-2. Fix the field-mapping crash and the `status IN ("paid","due")` filter
-   (Batch 1 — already scoped, proceeds regardless of this section).
-3. Add a permission gate (Batch 1).
-4. *Then*, as a separate, explicitly-approved follow-on: add an HSN
-   column/grouping toggle ("by rate" / "by HSN") over the existing
-   rate-bucket data — `hsn_code` already exists on both `BillItem` and
-   `PurchaseItem`, so this is additive, not a schema change.
-5. B2B/B2C bifurcation and a real GSTR-1-shaped export are bigger
-   scope (B2B needs a GSTIN-capture flow on Customer that doesn't exist
-   today) — flagged as a real gap, explicitly **not** proposed for this
-   batch; needs its own go/no-go conversation given the schema work involved.
+**Recommended flow once Batch 1 (GST01/GST07/GST14) lands:** replace both
+raw date-input pairs with `DateRangePicker`; add a "Group by: GST Rate |
+HSN Code" toggle over the existing tables (additive, `hsn_code` already
+exists — GST08); B2B/B2C split and a filing-ready export are bigger scope
+needing their own schema conversation (GST09/GST13) — not proposed for
+the current batch. GST11 (composition scheme) needs a product decision
+with you first: does PharmaCare support composition-scheme pharmacies at
+all today, or should the Settings toggle be removed until it's real?
 
-**Visual design:** Keep the existing 2-table + 3-tile layout (Sales GST /
-Purchase GST tables + Output/ITC/Net Payable summary cards) — it already
-matches `DataCard`/table conventions correctly once the field names are
-fixed. Add a "Group by: GST Rate | HSN Code" toggle above the Sales GST
-table for step 4 above, using the same segmented-control pattern
-`PageTabs` already establishes elsewhere, not a new control type.
+### B. SALES REPORT (UC-SAL01 – UC-SAL10)
 
-### 2. Sales Report — mostly solid, one real use-case gap
-
-**Business reasoning:** Rajesh checks this for day-to-day sales visibility
+**Business reasoning:** Rajesh checks this for day-to-day visibility
 between Dashboard glances; Suresh uses it to spot slow periods.
 
-**Use cases already covered, confirmed live:** date-range sales list with
-bill#/date/customer/items/payment/amount, correct CSV/Excel export.
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| SAL01 | List bills for a date range | ✅ Built | `reports.py:43-87` ↔ `ReportTables.jsx:31-38`, live-verified zero-data → real bill |
+| SAL02 | CSV/Excel export | ✅ Built | Both formats correct, field names match |
+| SAL03 | Payment-method breakdown (cash/UPI/card/credit totals) | ❌ Missing | Row-level payment method shown, no aggregate breakdown |
+| SAL04 | Customer-wise sales | ❌ Missing | Exists on Dashboard ("Top Customers") but not as a filterable report |
+| SAL05 | Product/category-wise sales | ❌ Missing | Exists on Dashboard ("Top Products") but not as a filterable report here |
+| SAL06 | Cashier/user-wise sales | ❌ Missing | No "who sold what" breakdown anywhere |
+| SAL07 | Drill down from a row to the bill detail | ❌ Missing | Table rows aren't clickable |
+| SAL08 | Print view | ❌ Missing | No print button (unlike Schedule H1) |
+| SAL09 | Period-over-period comparison | ❌ Missing | Dashboard has this (vs. yesterday/last week/last month); this report doesn't |
+| SAL10 | Draft/refunded bills correctly excluded | ✅ Built | `status IN (paid, due)` per §1 table above |
 
-**Gap vs. competitors:** no payment-method breakdown (cash vs. UPI vs.
-credit totals), no customer-type segmentation. Lower priority than GST —
-not proposed for the current batch, named here so it isn't lost.
+Lower priority than GST — named here so it isn't lost, not proposed for
+the current fix batch.
 
-### 3. Purchase Report — structural gap, already named in the Purchases spec
+### C. PURCHASE REPORTS (UC-PU01 – UC-PU06)
 
-**Business reasoning:** Suresh needs to see purchase volume/spend by
-supplier/date without leaving Reports. Today this only exists on the
-Purchases list page itself (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md` P33-P43) —
-**there is no Purchases tab on the Reports landing page at all**, a real
-structural absence `docs/21_FEATURES.md` doesn't document either.
+Already comprehensively covered in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
+§7-8 (UC-P33 – UC-P43) — not re-litigated here in full. The Reports-module-
+specific angle:
 
-**Recommendation:** don't build a new, separate Purchases report here —
-`docs/23`'s Batch 5 already prioritizes wiring the frontend to the
-existing, already-correct `GET /analytics/purchases` endpoint (currently
-dead code, per this spec's UC-R15). Cheapest real win: surface that
-endpoint's data as a 4th tab on the Reports landing page instead of
-building anything new. Flagged here for sequencing awareness, not
-re-scoped into this batch — belongs to the Purchases spec's own batch order.
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| PU01 | A Purchases tab on the Reports landing page | ❌ Missing | Real tabs are Sales/Low Stock/Expiry/Stock only (`Reports/index.jsx:20-25`) — no Purchases tab exists; `docs/21_FEATURES.md` doesn't document this absence either |
+| PU02 | Purchase register / GST purchase report | 🔄 Partial | Lives entirely on the Purchases list page itself, not Reports — see `docs/23` P33/P36 |
+| PU03 | Purchase dashboard metrics (value today/month, payable, overdue) | ❌ Missing but built server-side | `GET /analytics/purchases` is fully correct and unused — dead code, see UC-R15 |
+| PU04 | Supplier/product purchase analytics | ❌ Missing | See `docs/23` P41/P42 |
+| PU05 | Purchase variance report | ❌ Missing | See `docs/23` P38 |
+| PU06 | Purchase profitability impact | ❌ Missing | See `docs/23` P43 |
 
-### 4. "Stock"/Inventory Report — decide: fix or remove
+**Recommendation, unchanged from the earlier pass:** wire the existing,
+correct `/analytics/purchases` endpoint into a 4th Reports tab before
+building anything new (PU01/PU03 together) — cheapest real win in this
+whole spec, zero new backend work.
 
-Already covered in UC-R04 above. Two honest options, not a recommendation
-to pick one without you: **(a)** wire it to a real inventory-summary
-endpoint (current stock value, category breakdown, dead-stock list — none
-of which exist as an endpoint today, real new work), or **(b)** remove
-the tab entirely, since real inventory reporting already lives at
-`/inventory` and this tab currently actively misleads (wrong numbers, dead
-link). Given Batch 2 already flags this as a decision point, this section
-adds the competitor angle: none of eVitalRx/Marg/Pharmasoft's "reports"
-lists include a bare "Stock" report separate from their Inventory module
-either — their inventory reporting lives inside Inventory, same as
-PharmaCare's `/inventory` page already does. **This weakly favors (b),
-remove it** — but it's your call, not assumed.
+### D. STOCK / INVENTORY REPORT (UC-STK01 – UC-STK08)
 
-### 5. Margin/Profitability Report — real, named competitor gap, not built at all
+**Business reasoning:** Rajesh/Suresh need stock valuation and dead-stock
+visibility without leaving Reports; today this is scattered across
+`/inventory` and Reports' broken "Stock" tab.
 
-**Business reasoning:** Rajesh's #1 stated fear-driver per
-`docs/01_PRODUCT.md` persona notes is not knowing which products actually
-make money. Nothing in PharmaCare answers this today at the report level
-(Dashboard shows top-selling by revenue, not margin).
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| STK01 | Low stock report | ✅ Built | See UC-R02 |
+| STK02 | Expiry report | ✅ Built | See UC-R03 |
+| STK03 | Current stock valuation (total value, by category) | ❌ Missing on Reports | Exists on Dashboard as one number (`quick_stats.stock_value`), not a filterable report |
+| STK04 | The "Stock" tab itself | 🐛 Fake | Silently reuses Sales data, links to a dead route — see UC-R04 |
+| STK05 | Dead/non-moving stock report | ❌ Missing | No endpoint anywhere computes "hasn't sold in N days" |
+| STK06 | Batch-wise stock report | ❌ Missing on Reports | Exists per-product on Medicine Detail, not as a Reports-level report |
+| STK07 | Stock movement/ledger report | ✅ Built, elsewhere | `StockMovementLog` page (`batches.py`'s `/stock-movements`) — a real, separate page, not under Reports |
+| STK08 | Physical stock reconciliation ("Barcode v/s Stock") | ❌ Missing | Named, real Marg ERP feature (see Competitor Benchmark) — no equivalent anywhere |
 
-**Competitor-validated:** eVitalRx names this explicitly ("Item-wise
-Margin Reports"). Real gap, zero existing endpoint or UI.
+**Recommendation:** decide STK04 first (fix vs. remove, per the earlier
+pass's reasoning: none of the three named competitors have a bare "Stock"
+report separate from their Inventory module either). STK03/STK05/STK08
+are real, competitor-validated gaps but genuinely new work — sequence
+after the fix batches.
 
-**Not scoped into the current fix batch** — flagged as the clearest
-"genuinely new work" candidate for after Batch 1-3 land, since
-`cost_price_paise`/`mrp_paise`/`sale_price_paise` already exist per-batch
-and per-bill-item, so the data to compute this already exists; it's a new
-aggregation endpoint + a new report tab, not a schema change.
+### E. MARGIN / PROFITABILITY REPORT (UC-MAR01 – UC-MAR06)
 
-### 6. Schedule H1 Register — no changes proposed
+**Business reasoning:** Rajesh's #1 named fear per `docs/01_PRODUCT.md`'s
+persona notes is not knowing which products actually make money. Nothing
+in Reports answers this today.
 
-Already the one clean surface in this module (UC-R11-R13). Only open item
-is UC-R12 (hardcoded role check vs. the real permission catalog) —
-consistent with Batch 1's permission-gate work, worth doing in the same
-pass since it's the same class of fix.
+**Stronger finding than the first pass had:** this isn't just "the data
+exists to compute it" — **`Bill.margin_paise`/`margin_percent` are
+already computed and stored on every single bill**, correctly, on both
+the create and update paths (`billing.py:520-521,754-756` —
+`margin_paise = grand_total_paise - cost_total_paise`). The one frontend
+reference to margin (`useBillActions.js:177`) only shows it live during
+bill creation, then the stored value is **never read back by anything** —
+not Reports, not Dashboard, not any endpoint in `reports.py` (confirmed:
+zero occurrences of "margin"/"profit" anywhere in that file). A margin
+report here is not new computation logic — it's a `SUM`/`GROUP BY` query
+over a column that already sits correctly populated in the database today.
 
-### What this section is NOT proposing
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| MAR01 | Item-wise margin report | ❌ Missing | eVitalRx names this explicitly; `BillItem.cost_price_paise` + `mrp_paise` already exist per-line |
+| MAR02 | Overall margin trend (period over period) | ❌ Missing | `Bill.margin_paise` already stored per bill — a trivial aggregation |
+| MAR03 | Category-wise margin | ❌ Missing | `Product.category` already exists to group by |
+| MAR04 | Low-margin/loss-making product alert | ❌ Missing | No threshold/alert concept exists |
+| MAR05 | Price-variation report (MRP changes over time across purchases) | ❌ Missing | Named eVitalRx feature; each purchase already snapshots its own MRP per batch, so history technically exists, just never surfaced as a report |
+| MAR06 | Export/print | ❌ Missing | N/A — no report exists to export |
 
-No new pages, no new navigation structure, no new component types. Every
-proposal above either fixes a bug already in Batch 1-3, swaps a
-wrong-component-choice for an existing correct one (`DateRangePicker`), or
-is explicitly named as bigger, separately-approved future work (HSN
-grouping, B2B/B2C, margin report, Purchase report tab). Nothing here
-should be read as "go build all of this" — each bigger item needs its own
-plain-language go-ahead per the Research→Build→Test→Review→Feedback→Loop
-rule, not a blanket approval from this document existing.
+**Recommendation:** the clearest "new work, but cheap" candidate in this
+whole spec, once GST (Batch 1) lands — the hard part (computing margin
+correctly per sale) is already solved and already running in production.
+
+### F. RETURN REPORTS (UC-RET01 – UC-RET08) — previously missing from this spec entirely
+
+**Business reasoning:** Suresh needs to see return volume/value/reasons to
+catch a bad supplier batch or a recurring customer complaint pattern; Rajesh
+needs total refund exposure. Confirmed live via direct grep: **zero
+report or analytics endpoint exists for either return type** —
+`GET /sales-returns` and `GET /purchase-returns` are both plain paginated
+lists backing their own list pages, not aggregations (`sales_returns.py:389`,
+`purchase_returns.py:469`). `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`'s
+Section 10 already stated this for purchase returns ("No purchase-return-
+specific report endpoint exists at all") — confirmed here it's equally
+true for sales returns, which that spec didn't cover.
+
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| RET01 | Sales return report (credit notes issued, by date range) | ❌ Missing | No aggregation endpoint exists |
+| RET02 | Purchase return report (debit notes issued, by date range) | ❌ Missing | Same — matches `docs/23` Section 10 |
+| RET03 | Return reason breakdown | ❌ Missing | The underlying data barely exists either — `docs/23` PR03 already found the frontend never sends a real reason (`"return"` hardcoded); `sales_returns.py`'s `SalesReturnCreate.note` is closer to a real reason field but still unstructured free text |
+| RET04 | Return rate (% of sales value returned) | ❌ Missing | `net_purchases` (purchases minus returns) is the one derivable number that exists today (`analytics/purchases`), and even that endpoint is dead/unwired (UC-R15) |
+| RET05 | Product-wise return frequency (defect/quality tracking) | ❌ Missing | No breakdown by product exists |
+| RET06 | Refund-method breakdown | ❌ Missing | `SalesReturn.refund_method` is a real, captured field but never aggregated anywhere |
+| RET07 | Net sales after returns (as its own report, not just netted into GST) | 🔄 Partial | The GST report correctly nets returns into tax liability (GST05/GST06) but there's no plain "net sales" report a non-accountant would read |
+| RET08 | Export/print | ❌ Missing | N/A — no report exists to export |
+
+**Recommendation:** genuinely new work across the board — no existing
+endpoint to wire, unlike Purchases (PU03). Lowest-effort starting point
+would be RET07 (net sales), since the subtraction logic already exists
+correctly inside `get_gst_report` and could be extracted into its own
+lightweight summary.
+
+### G. SCHEDULE H1 REGISTER (UC-H101 – UC-H108)
+
+The one clean surface in this module — kept brief since UC-R11-R13 above
+already cover it in detail.
+
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| H101 | View/filter register by date range | ✅ Built | UC-R11 |
+| H102 | Search by drug/patient/doctor | ✅ Built | `ScheduleH1Register.jsx:41` search box, live-verified present |
+| H103 | Auto-population from billing | ✅ Built | `_create_h1_entry` (`billing.py`), confirmed in `docs/07_BUSINESS_LOGIC.md` |
+| H104 | Export CSV | ✅ Built | UC-R13 |
+| H105 | Print for inspector | ✅ Built | UC-R13 |
+| H106 | Permission gate | 🔄 Partial | Gated, but hardcoded role string not the real catalog — UC-R12 |
+| H107 | Prescriber registration number captured | ✅ Built | Real field, `reports.py:401`, matches `docs/21_FEATURES.md`'s description |
+| H108 | Excel export | ❌ Missing | Not flagged as a gap — CSV/print are the formats this use case actually needs |
+
+No changes proposed beyond H106 (bundle with the other permission-gate fixes in Batch 1).
+
+### H. AUDIT LOG (UC-AL01 – UC-AL07) — previously missing from this spec entirely
+
+**Business reasoning:** Rajesh reviews this when a dispute arises (a
+cashier deleted a bill, changed a price). Its entire value is being
+trustworthy and complete — a log a pharmacy owner can't actually rely on
+(missing entries, or worse, showing someone else's pharmacy's data) is
+worse than no log.
+
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| AL01 | List all actions, paginated | ✅ Built | `GET /audit-logs` (`billing.py:1186-1227`), correctly `pharmacy_id`-scoped |
+| AL02 | Filter by entity type/id/action | ✅ Built | Same endpoint, real filters |
+| AL03 | View one entity's full audit trail | 🐛 Was a live cross-tenant leak, fixed Sep 12, 2026 | `get_entity_audit_trail` had zero `pharmacy_id` filter — proved live, pharmacy B read pharmacy A's real bill audit trail (customer name, totals). Fixed same day; see `docs/15_ROADMAP.md` RULE MISSES LOG. Regression tests added (`TestAuditLogIsolation`, `test_multi_tenancy_isolation.py`). |
+| AL04 | `old_values` populated (before/after diff) | ❌ Missing | Column exists, defined on the schema, **never written anywhere** — every row's `old_value` is permanently `NULL` (already flagged for Purchases specifically in `docs/23` finding #16; confirmed here it's true app-wide, not just for purchases) |
+| AL05 | `ip_address` populated | ❌ Missing | Same — column exists, never written, always `NULL` |
+| AL06 | Export/print | ❌ Missing | No export button exists on the Audit Log page for this data at all |
+| AL07 | Permission gate (who can view the audit log) | ❌ Missing | No role check anywhere on `GET /audit-logs` — confirmed via code read, not yet live-tested with a cashier account; matches the same "no gate" pattern found on 10 of `reports.py`'s 12 endpoints |
+
+**Recommendation:** AL07 bundles naturally into the same Batch 1
+permission-gate work as GST14/H106. AL04/AL05 (`old_values`/`ip_address`)
+are a real, cross-module gap already named once in `docs/23` — worth
+fixing app-wide in one pass rather than per-module, since the columns and
+the one `_record_audit`-family of helpers already exist; just nothing
+ever populates them.
+
+### I. DASHBOARD ANALYTICS (UC-DASH01 – UC-DASH06)
+
+Already the one fully clean consumer in this whole audit (UC-R14) —
+listed here only for completeness of the numbered scheme.
+
+| UC | Use case | Status | Evidence |
+|---|---|---|---|
+| DASH01 | Today/week/month/all-time sales with trend | ✅ Built | UC-R14 |
+| DASH02 | Sales trend chart (14-day) | ✅ Built | `daily_trend[]`, live-verified rendering |
+| DASH03 | Category sales breakdown | ✅ Built | `category_sales[]` |
+| DASH04 | Top products/customers | ✅ Built | `top_products[]`/`top_customers[]` — by revenue, not margin (see MAR02) |
+| DASH05 | Low-stock/expiring-soon alerts | ✅ Built | `low_stock[]`/`expiring_soon[]` |
+| DASH06 | Drug-license expiry banner | ✅ Built | `license_alert` |
+
+No gaps found. Not proposed for any batch.
+
+### J. CROSS-CUTTING PERMISSIONS MATRIX
+
+Consolidating GST14/AL07/H106 and the earlier finding that 10 of
+`reports.py`'s 12 endpoints have no gate at all:
+
+| Surface | Gated today? | Real gate needed |
+|---|---|---|
+| GST Report | ❌ No | `reports:gst` or similar, via `has_permission()` |
+| Sales/Low-Stock/Expiry reports | ❌ No | Same catalog |
+| Dashboard analytics | ❌ No | Arguably fine ungated (every role needs Dashboard) — a product decision, not assumed here |
+| Schedule H1 Register | 🔄 Hardcoded `role in [admin,manager]` | Migrate to `has_permission()` |
+| Audit Log (list + entity trail) | ❌ No | A real gap — a cashier can currently read the full action history of every user in the pharmacy |
+| Backup export (`/backup/export`) | ✅ `role == "admin"` (hardcoded) | Lower priority — already the most-restricted endpoint in the router |
+
+### K. OPERATIONAL EDGE CASES
+
+| Case | Status | Note |
+|---|---|---|
+| Multi-store/consolidated reporting | ❌ Not built | Correctly out of scope — explicit Phase 2 per `docs/01_PRODUCT.md` §7.4, not a gap |
+| Report scheduling/emailing (e.g. auto-email GST report monthly) | ❌ Not built | Not named as a current competitor feature in this round of research; worth a future search if a persona asks for it |
+| Cross-tenant data leak on export | ✅ Fixed | Covered by this session's broader multi-tenancy fix pass — every report endpoint scopes by the caller's own `pharmacy_id` |
+| Report access itself creates an audit trail | ❌ Not built | Pulling the GST report isn't logged anywhere — for a compliance-sensitive report, arguably should be, once AL07's permission gate exists |
+| Loading skeleton per Manifesto #16 | 🔄 Partial | Present on the Reports landing page's table fetch; not separately re-verified for `GSTReport.js`/`ScheduleH1Register.jsx` in this pass — check before shipping the GST rebuild |
+
+---
+
+## DEFINITION OF DONE — REVISED VERDICT
+
+Reports & Compliance is further from done than the first pass's verdict
+suggested, once Return Reports and Audit Log are counted as part of the
+module (they weren't in the first pass). Of what a pharmacist/accountant
+would actually expect from a "Reports & Compliance" section:
+
+- **Working today**: Sales/Low-Stock/Expiry reports, Schedule H1 Register,
+  Dashboard analytics, Audit Log's list/filter view (now correctly scoped).
+- **Broken today**: GST Report (crash + liability bug + no gate), the
+  fake Stock tab, 3 of 4 Excel exports, Audit Log's entity-trail view (now
+  fixed).
+- **Never built at all**: HSN-wise/B2B GST detail, composition-scheme
+  handling, margin/profitability reporting (despite the data already
+  existing), return reports of any kind, a Purchases tab on this page,
+  `old_values`/`ip_address` audit population, permission gates on 10+
+  endpoints.
+
+---
+
+## REVISED RECOMMENDED BUILD ORDER
+
+Batches 1-4 above are unchanged and still come first — they're bug fixes,
+not new scope. This section adds what the fuller use-case pass surfaced:
+
+**Batch 5 — Audit Log correctness (small, same class as Batch 1)**
+11. ~~Fix `get_entity_audit_trail`'s missing `pharmacy_id` filter~~ — ✅ done, Sep 12, 2026 (this pass).
+12. Add a real permission gate to `GET /audit-logs`/`GET /audit-logs/entity/...` (AL07).
+13. Populate `old_values`/`ip_address` app-wide (AL04/AL05) — one fix, many call sites, do it once rather than per-module.
+
+**Batch 6 — cheapest real feature wins (data already exists)**
+14. Margin report (MAR01/MAR02) — `Bill.margin_paise` already computed and stored; this is a query, not new logic.
+15. Wire `/analytics/purchases` as a 4th Reports tab (PU01/PU03) — endpoint already correct, zero new backend work.
+
+**Batch 7 — return reports (genuinely new, no existing endpoint to lean on)**
+16. Net-sales-after-returns as a starting point (RET07) — the subtraction logic already exists inside `get_gst_report`, extractable into its own summary.
+17. Sales/purchase return reports proper (RET01/RET02), then reason/product breakdowns (RET03/RET05) once real reason capture exists (a prerequisite already named in `docs/23` PR03).
+
+**Batch 8 — bigger scope, needs its own conversation before any code**
+18. GST composition-scheme decision (GST11) — is this a real supported pharmacy type or should the toggle be removed?
+19. HSN-wise/B2B GST detail (GST08/GST09) — B2B needs a GSTIN-capture flow on Customer that doesn't exist.
+20. Physical stock reconciliation ("Barcode v/s Stock", STK08), dead-stock report (STK05), price-variation report (MAR05).
+
+Everything in this document was verified via direct code reads, a live
+zero-data browser walkthrough, real API calls, and — for the Audit Log
+finding — a live two-tenant exploit reproduction, not inferred from a
+variable name or docstring.

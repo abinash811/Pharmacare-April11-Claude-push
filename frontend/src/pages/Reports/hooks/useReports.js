@@ -38,7 +38,7 @@ export function useReports() {
       }, forceRefresh);
       setReportData(data);
     } catch (error) {
-      toast.error('Failed to load report');
+      toast.error(error.message || 'Failed to load report');
       console.error('Report error:', error);
     } finally {
       setLoading(false);
@@ -87,7 +87,7 @@ export function useReports() {
       });
       toast.success('Report exported to Excel');
     } catch (error) {
-      toast.error('Failed to export Excel');
+      toast.error(error.message || 'Failed to export Excel');
       console.error('Excel export error:', error);
     }
   }, [reportData]);

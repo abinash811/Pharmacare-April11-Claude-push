@@ -29,7 +29,7 @@ export function useDashboard() {
       setData(dashboardRes.data);
       setPurchaseSummary(purchasesRes.data);
     } catch (error) {
-      toast.error('Failed to load dashboard data');
+      toast.error(error.message || 'Failed to load dashboard data');
       console.error(error);
     } finally {
       setLoading(false);

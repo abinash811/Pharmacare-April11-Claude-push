@@ -288,6 +288,104 @@ async def get_sales_report(
         bill_data), "total_sales": _p2r(total_sales), "total_tax": _p2r(total_tax)}}
 
 
+# ── margin report ────────────────────────────────────────────────────────────
+# UC-MAR01 (item-wise margin) / UC-MAR02 (overall margin trend, via the date
+# range the pharmacist picks) — Bill.margin_paise/margin_percent already
+# exist and are computed at create_bill/update_bill time as
+# grand_total_paise - cost_total_paise (revenue inclusive of GST minus real
+# batch cost); this mirrors that exact definition per line item via
+# BillItem.line_total_paise/line_cost_paise so the two never disagree.
+# MAR03 (category-wise) is a cheap rollup of the same rows, included here
+# rather than as a separate endpoint. MAR04 (low-margin alert) and MAR05
+# (price-variation history) are out of scope — see docs/24 Batch 8, both
+# need their own threshold/product decision first.
+
+
+@router.get("/reports/margin")
+async def get_margin_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(
+            ["paid", "due"]), BillORM.deleted_at.is_(None)]
+        if from_date:
+            conds.append(BillORM.bill_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(BillORM.bill_date <= date.fromisoformat(to_date))
+
+        stmt = (
+            select(
+                BillItemORM.product_id, BillItemORM.product_name, ProductORM.sku, ProductORM.category,
+                func.sum(BillItemORM.quantity).label("qty_sold"),
+                func.sum(BillItemORM.line_total_paise).label("revenue_paise"),
+                func.sum(BillItemORM.line_cost_paise).label("cost_paise"),
+            )
+            .join(BillORM, BillItemORM.bill_id == BillORM.id)
+            .outerjoin(ProductORM, BillItemORM.product_id == ProductORM.id)
+            .where(*conds)
+            .group_by(BillItemORM.product_id, BillItemORM.product_name, ProductORM.sku, ProductORM.category)
+        )
+        rows = (await db.execute(stmt)).all()
+
+        data = []
+        by_category: dict = {}
+        total_revenue_paise = total_cost_paise = 0
+        for r in rows:
+            revenue = _p2r(r.revenue_paise)
+            cost = _p2r(r.cost_paise)
+            margin = round(revenue - cost, 2)
+            margin_percent = round((margin / revenue * 100) if revenue > 0 else 0, 2)
+            category = r.category or "Uncategorized"
+            data.append({
+                "product_name": r.product_name,
+                "sku": r.sku or "",
+                "category": category,
+                "qty_sold": int(r.qty_sold or 0),
+                "revenue": revenue,
+                "cost": cost,
+                "margin": margin,
+                "margin_percent": margin_percent,
+            })
+            total_revenue_paise += r.revenue_paise or 0
+            total_cost_paise += r.cost_paise or 0
+            cat_bucket = by_category.setdefault(category, {"category": category, "revenue": 0.0, "cost": 0.0})
+            cat_bucket["revenue"] += revenue
+            cat_bucket["cost"] += cost
+
+        data.sort(key=lambda x: x["margin"], reverse=True)
+
+        for cat in by_category.values():
+            cat["revenue"] = round(cat["revenue"], 2)
+            cat["cost"] = round(cat["cost"], 2)
+            cat["margin"] = round(cat["revenue"] - cat["cost"], 2)
+            cat["margin_percent"] = round((cat["margin"] / cat["revenue"] * 100) if cat["revenue"] > 0 else 0, 2)
+        by_category_list = sorted(by_category.values(), key=lambda x: x["margin"], reverse=True)
+
+        total_revenue = _p2r(total_revenue_paise)
+        total_cost = _p2r(total_cost_paise)
+        total_margin = round(total_revenue - total_cost, 2)
+        total_margin_percent = round((total_margin / total_revenue * 100) if total_revenue > 0 else 0, 2)
+
+        return {
+            "summary": {
+                "total_items": len(data),
+                "total_revenue": total_revenue,
+                "total_cost": total_cost,
+                "total_margin": total_margin,
+                "margin_percent": total_margin_percent,
+            },
+            "by_category": by_category_list,
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Margin report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── GST report ────────────────────────────────────────────────────────────────
 
 

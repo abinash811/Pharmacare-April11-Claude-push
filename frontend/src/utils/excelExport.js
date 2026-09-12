@@ -83,6 +83,8 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatLowStockReport(reportData);
     case 'expiry':
       return formatExpiryReport(reportData);
+    case 'margin':
+      return formatMarginReport(reportData);
     default:
       return reportData.data || reportData;
   }
@@ -130,6 +132,21 @@ const formatExpiryReport = (data) => {
     'Days Left': item.days_to_expiry,
     'Value (₹)': item.stock_value,
     'Status': item.days_to_expiry < 0 ? 'Expired' : `${item.days_to_expiry} days left`,
+  }));
+};
+
+const formatMarginReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/margin's real response exactly.
+  return data.data.map((item) => ({
+    'Product': item.product_name,
+    'SKU': item.sku,
+    'Category': item.category,
+    'Qty Sold': item.qty_sold,
+    'Revenue (₹)': item.revenue,
+    'Cost (₹)': item.cost,
+    'Margin (₹)': item.margin,
+    'Margin %': item.margin_percent,
   }));
 };
 

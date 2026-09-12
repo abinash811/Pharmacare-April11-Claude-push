@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.2 | Last updated: September 12, 2026
+# Version: 2.3 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -109,9 +109,10 @@ know to double check it by hand.
    defined, but nothing in the app ever calls them. Real, working code
    nobody can reach — same shape as the Purchases spec's UC-P16
    (`units_per_pack` UI) and P40 (`/analytics/purchases`) findings.
-9. No margin/profitability report, no Tally export, no price-variation
-   report, no scheduled-drugs report — all named, real features on
-   competitor sites (see Competitor Benchmark).
+9. ~~No margin/profitability report~~ ✅ **Fixed Sep 12, 2026** — see
+   MAR01/02/03 below. No Tally export, no price-variation report, no
+   scheduled-drugs report remain — all named, real features on competitor
+   sites (see Competitor Benchmark).
 10. No supplier-wise or product-wise breakdown on any report; no
     GSTR-3B-shaped export (a raw JSON/CSV of the numbers, not a
     government-portal-ready file).
@@ -423,17 +424,16 @@ specific angle:
 
 | UC | Use case | Status | Evidence |
 |---|---|---|---|
-| PU01 | A Purchases tab on the Reports landing page | ❌ Missing | Real tabs are Sales/Low Stock/Expiry/Stock only (`Reports/index.jsx:20-25`) — no Purchases tab exists; `docs/21_FEATURES.md` doesn't document this absence either |
+| PU01 | A Purchases tab on the Reports landing page | ❌ Not applicable — re-scoped | `/analytics/purchases` returns aggregate metrics (totals/counts), Analytics-shaped per the product's Reports-vs-Analytics split, not Reports-page-shaped (no filters, no download). See PU03. |
 | PU02 | Purchase register / GST purchase report | 🔄 Partial | Lives entirely on the Purchases list page itself, not Reports — see `docs/23` P33/P36 |
-| PU03 | Purchase dashboard metrics (value today/month, payable, overdue) | ❌ Missing but built server-side | `GET /analytics/purchases` is fully correct and unused — dead code, see UC-R15 |
+| PU03 | Purchase dashboard metrics (value today/month, payable, overdue) | ✅ Fixed Sep 12, 2026 | `GET /analytics/purchases` (already correct) now wired into Dashboard as a visual card row — "Purchases (Month)"/"Purchase Returns (Month)"/"Net Purchases (Month)", each clickable through to `/purchases`/`/purchases/returns`. Live-verified in browser with real non-zero data. |
 | PU04 | Supplier/product purchase analytics | ❌ Missing | See `docs/23` P41/P42 |
 | PU05 | Purchase variance report | ❌ Missing | See `docs/23` P38 |
 | PU06 | Purchase profitability impact | ❌ Missing | See `docs/23` P43 |
 
-**Recommendation, unchanged from the earlier pass:** wire the existing,
-correct `/analytics/purchases` endpoint into a 4th Reports tab before
-building anything new (PU01/PU03 together) — cheapest real win in this
-whole spec, zero new backend work.
+**Note:** a real "Purchase Register" (row-level, filterable, downloadable —
+matching Sales Report's shape) would be the actual Reports-page equivalent
+of PU01/PU02, and remains separate, new work — not built here.
 
 ### D. STOCK / INVENTORY REPORT (UC-STK01 – UC-STK08)
 
@@ -478,12 +478,12 @@ over a column that already sits correctly populated in the database today.
 
 | UC | Use case | Status | Evidence |
 |---|---|---|---|
-| MAR01 | Item-wise margin report | ❌ Missing | eVitalRx names this explicitly; `BillItem.cost_price_paise` + `mrp_paise` already exist per-line |
-| MAR02 | Overall margin trend (period over period) | ❌ Missing | `Bill.margin_paise` already stored per bill — a trivial aggregation |
-| MAR03 | Category-wise margin | ❌ Missing | `Product.category` already exists to group by |
-| MAR04 | Low-margin/loss-making product alert | ❌ Missing | No threshold/alert concept exists |
+| MAR01 | Item-wise margin report | ✅ Fixed Sep 12, 2026 | `GET /reports/margin` — per-product qty sold/revenue/cost/margin/margin%, mirrors `Bill.margin_paise`'s own definition (`line_total_paise - line_cost_paise`) so the two never disagree. New "Margin" tab on the Reports page. |
+| MAR02 | Overall margin trend (period over period) | ✅ Fixed Sep 12, 2026 | Same endpoint's `summary` block (total revenue/cost/margin/margin%) for the pharmacist-picked date range — "trend" is comparing periods via the existing date filter, same pattern as Sales/GST reports, not a separate chart |
+| MAR03 | Category-wise margin | ✅ Fixed Sep 12, 2026 | Same endpoint's `by_category[]` rollup, grouped from the same rows |
+| MAR04 | Low-margin/loss-making product alert | ❌ Missing | No threshold/alert concept exists — needs its own product decision (Batch 8) |
 | MAR05 | Price-variation report (MRP changes over time across purchases) | ❌ Missing | Named eVitalRx feature; each purchase already snapshots its own MRP per batch, so history technically exists, just never surfaced as a report |
-| MAR06 | Export/print | ❌ Missing | N/A — no report exists to export |
+| MAR06 | Export/print | ✅ Fixed Sep 12, 2026 | CSV/Excel export both live-verified working from the new Margin tab, same mechanism as every other Reports tab |
 
 **Recommendation:** the clearest "new work, but cheap" candidate in this
 whole spec, once GST (Batch 1) lands — the hard part (computing margin
@@ -634,18 +634,19 @@ not new scope. This section adds what the fuller use-case pass surfaced:
 12. ~~Add a real permission gate to `GET /audit-logs`/`GET /audit-logs/entity/...`~~ — ✅ done, Sep 12, 2026, same `reports:view` permission and same regression-test file as Batch 1.
 13. ~~Populate `old_values`/`ip_address` app-wide (AL04/AL05)~~ — ✅ Done Sep 12, 2026.
 
-**Batch 6 — cheapest real feature wins (data already exists)**
-14. Margin report (MAR01/MAR02) — `Bill.margin_paise` already computed and stored; this is a query, not new logic. Reclassified during a follow-up discussion: per the product's own Reports-vs-Analytics split (Reports = filterable + downloadable, Analytics = visual metrics), the *downloadable margin report* stays a Reports tab; a *visual margin trend* would separately belong on Dashboard, not built here.
-15. ~~Wire `/analytics/purchases` as a 4th Reports tab (PU01/PU03)~~ — **re-scoped**: `/analytics/purchases` returns aggregate metrics (totals, counts), which is Analytics-shaped per the same split, not a Reports-page tab. It belongs on Dashboard as a visual card instead. A real "Purchase Register" (row-level, filterable, downloadable — matching Sales Report's shape) would be the actual Reports-page equivalent, and is separate, new work, not just wiring the existing endpoint.
+**Batch 6 — cheapest real feature wins (data already exists)** — ✅ Done Sep 12, 2026
+14. ~~Margin report (MAR01/MAR02/MAR03)~~ — `GET /reports/margin` built, new "Margin" Reports tab (item-wise + category rollup + summary), CSV/Excel export, `reports:view`-gated (same as every sibling report). 4 new pytest regression tests + live browser verification (real data, correct sort, exports downloading cleanly).
+15. ~~Wire `/analytics/purchases` into Dashboard as a visual card (PU03)~~ — Dashboard gained a "Purchases (Month)/Purchase Returns (Month)/Net Purchases (Month)" row, each card clickable through to `/purchases`/`/purchases/returns`. Live-verified with real non-zero data and working navigation. A real, filterable, downloadable "Purchase Register" (the Reports-page equivalent of PU01/PU02) remains separate, new work.
+16. Drive-by fix: 3 dead `/inventory-v2` links found while editing Dashboard (`index.jsx` Stock Value card, `AlertsPanel.jsx` x2 "View All" buttons) — corrected to the real `/inventory` route (Manifesto rule 9, "no unverified routes"). Same class of bug the Reports page's own dead Stock tab had (Batch 1).
 
 **Batch 7 — return reports (genuinely new, no existing endpoint to lean on)**
-16. Net-sales-after-returns as a starting point (RET07) — the subtraction logic already exists inside `get_gst_report`, extractable into its own summary.
-17. Sales/purchase return reports proper (RET01/RET02), then reason/product breakdowns (RET03/RET05) once real reason capture exists (a prerequisite already named in `docs/23` PR03).
+17. Net-sales-after-returns as a starting point (RET07) — the subtraction logic already exists inside `get_gst_report`, extractable into its own summary.
+18. Sales/purchase return reports proper (RET01/RET02), then reason/product breakdowns (RET03/RET05) once real reason capture exists (a prerequisite already named in `docs/23` PR03).
 
 **Batch 8 — bigger scope, needs its own conversation before any code**
-18. GST composition-scheme decision (GST11) — is this a real supported pharmacy type or should the toggle be removed?
-19. HSN-wise/B2B GST detail (GST08/GST09) — B2B needs a GSTIN-capture flow on Customer that doesn't exist.
-20. Physical stock reconciliation ("Barcode v/s Stock", STK08), dead-stock report (STK05), price-variation report (MAR05).
+19. GST composition-scheme decision (GST11) — is this a real supported pharmacy type or should the toggle be removed?
+20. HSN-wise/B2B GST detail (GST08/GST09) — B2B needs a GSTIN-capture flow on Customer that doesn't exist.
+21. Physical stock reconciliation ("Barcode v/s Stock", STK08), dead-stock report (STK05), price-variation report (MAR05).
 
 Everything in this document was verified via direct code reads, a live
 zero-data browser walkthrough, real API calls, and — for the Audit Log

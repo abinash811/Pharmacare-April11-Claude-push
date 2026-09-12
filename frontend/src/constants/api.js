@@ -279,6 +279,7 @@ export const apiUrl = {
   analyticsSummary: (params) => `analytics/summary${qs(params)}`,
   analyticsDashboard:(params)=> `analytics/dashboard${qs(params)}`,
   analyticsDaily:   (params) => `analytics/daily${qs(params)}`,
+  analyticsPurchases:(params)=> `analytics/purchases${qs(params)}`,
   scheduleH1:       (params) => `compliance/schedule-h1-register${qs(params)}`,
 
   // Users & Roles

@@ -39,7 +39,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
                   <span className="font-bold text-orange-600">{item.qty} left</span>
                 </div>
               ))}
-              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory-v2')}>View All</AppButton>
+              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory')}>View All</AppButton>
             </div>
           ) : (
             <p className="text-center text-gray-400 py-4 text-sm">All stock levels healthy</p>
@@ -72,7 +72,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
                   <span className="text-xs font-semibold text-red-600">{item.expiry_date}</span>
                 </div>
               ))}
-              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory-v2')}>View All</AppButton>
+              <AppButton variant="ghost" size="sm" onClick={() => onNavigate('/inventory')}>View All</AppButton>
             </div>
           ) : (
             <p className="text-center text-gray-400 py-4 text-sm">No items expiring soon</p>

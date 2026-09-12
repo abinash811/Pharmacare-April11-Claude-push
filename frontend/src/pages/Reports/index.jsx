@@ -4,7 +4,7 @@
  */
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, AlertCircle, Clock } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, PieChart } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 
@@ -27,18 +27,21 @@ const REPORT_TYPES = [
   { key: 'sales',     label: 'Sales'     },
   { key: 'low-stock', label: 'Low Stock' },
   { key: 'expiry',    label: 'Expiry'    },
+  { key: 'margin',    label: 'Margin'    },
 ];
 
 const REPORT_TITLES = {
   sales:       'Sales Report',
   'low-stock': 'Low Stock Report',
   expiry:      'Expiry Report',
+  margin:      'Margin Report',
 };
 
 const REPORT_ICONS = {
   sales:       <TrendingUp  className="w-5 h-5 text-blue-600"   />,
   'low-stock': <AlertCircle className="w-5 h-5 text-orange-600" />,
   expiry:      <Clock       className="w-5 h-5 text-red-600"    />,
+  margin:      <PieChart    className="w-5 h-5 text-green-600"  />,
 };
 
 export default function Reports() {
@@ -92,6 +95,7 @@ export default function Reports() {
               {reportData.summary.total_value !== undefined && <span>Total Value: <strong>{formatCurrency(reportData.summary.total_value)}</strong></span>}
               {reportData.summary.total_sales !== undefined && <span>Total Sales: <strong>{formatCurrency(reportData.summary.total_sales)}</strong></span>}
               {reportData.summary.total_bills !== undefined && <span>Total Bills: <strong>{reportData.summary.total_bills}</strong></span>}
+              {reportData.summary.total_margin !== undefined && <span>Total Margin: <strong>{formatCurrency(reportData.summary.total_margin)}</strong> ({reportData.summary.margin_percent}%)</span>}
             </div>
           )}
         </div>

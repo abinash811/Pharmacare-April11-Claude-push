@@ -24,6 +24,7 @@ export function useReports() {
       'sales':     { endpoint: 'reports/sales-summary', params: { from_date: from, to_date: to }, cacheKey: `report_sales_${from}_${to}` },
       'low-stock': { endpoint: apiUrl.reportLowStock(),  params: {},                               cacheKey: 'report_low_stock' },
       'expiry':    { endpoint: apiUrl.reportExpiry(),    params: { days },                         cacheKey: `report_expiry_${days}` },
+      'margin':    { endpoint: 'reports/margin',         params: { from_date: from, to_date: to }, cacheKey: `report_margin_${from}_${to}` },
     };
 
     const cfg = CONFIGS[reportType] || CONFIGS['sales'];
@@ -74,7 +75,7 @@ export function useReports() {
 
   const handleExportExcel = useCallback((activeReport) => {
     if (!reportData?.data?.length) { toast.error('No data to export'); return; }
-    const NAMES = { sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report' };
+    const NAMES = { sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report', margin: 'Margin_Report' };
     try {
       exportToExcel(formatReportForExcel(activeReport, reportData), NAMES[activeReport] || 'Report', {
         sheetName: activeReport.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),

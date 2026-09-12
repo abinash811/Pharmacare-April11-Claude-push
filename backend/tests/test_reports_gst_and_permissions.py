@@ -162,6 +162,7 @@ class TestReportsPermissionGates(_AuthedTestBase):
         "/api/reports/sales-summary",
         "/api/reports/low-stock",
         "/api/reports/expiry",
+        "/api/reports/margin",
         "/api/compliance/schedule-h1-register",
         "/api/audit-logs",
     ]

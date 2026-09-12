@@ -6,7 +6,7 @@
  *   expiryDays    {number}
  */
 import React from 'react';
-import { FileText, Package, Clock } from 'lucide-react';
+import { FileText, Package, Clock, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
@@ -122,6 +122,46 @@ function ExpiryTable({ data, expiryDays }) {
   );
 }
 
+// ── Margin ────────────────────────────────────────────────────────────────────
+function MarginTable({ data }) {
+  return (
+    <table className="w-full" data-testid="margin-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['Product','Category','Qty Sold','Revenue','Cost','Margin','Margin %'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i <= 1 ? 'text-left' : i === 2 ? 'text-center' : 'text-right'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">
+            <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No sales data for selected period</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3">
+              <div className="font-medium">{row.product_name}</div>
+              <div className="text-xs text-gray-500">SKU: {row.sku}</div>
+            </td>
+            <td className="px-4 py-3">{row.category}</td>
+            <td className="px-4 py-3 text-center">{row.qty_sold}</td>
+            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.revenue)}</td>
+            <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.cost)}</td>
+            <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.margin)}</td>
+            <td className="px-4 py-3 text-right">
+              <span className={`px-2 py-1 rounded text-xs font-medium ${row.margin_percent >= 20 ? 'bg-green-50 text-green-700' : row.margin_percent >= 0 ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700'}`}>
+                {row.margin_percent}%
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 export default function ReportTables({ activeReport, reportData, expiryDays }) {
   return (
@@ -129,6 +169,7 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       {activeReport === 'sales'     && <SalesTable    data={reportData?.data} />}
       {activeReport === 'low-stock' && <LowStockTable data={reportData?.data} />}
       {activeReport === 'expiry'    && <ExpiryTable   data={reportData?.data} expiryDays={expiryDays} />}
+      {activeReport === 'margin'    && <MarginTable   data={reportData?.data} />}
     </div>
   );
 }

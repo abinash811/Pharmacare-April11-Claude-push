@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, BarChart3, ShoppingCart,
-  CreditCard, Clock, RefreshCw, Package,
+  CreditCard, Clock, RefreshCw, Package, Truck, Undo2, Wallet,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
 import { PageHeader, AppButton } from '@/components/shared';
@@ -23,7 +23,7 @@ import LicenseExpiryBanner   from './components/LicenseExpiryBanner';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data, loading, refreshing, fetchDashboardData } = useDashboard();
+  const { data, purchaseSummary, loading, refreshing, fetchDashboardData } = useDashboard();
 
   useEffect(() => { fetchDashboardData(); }, []); // eslint-disable-line
 
@@ -95,11 +95,21 @@ export default function Dashboard() {
           />
 
           {/* Row 5: Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing')} />
             <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing')} />
             <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red" />
-            <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory-v2')} />
+            <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory')} />
+          </div>
+
+          {/* Row 6: Purchases (this month) — analytics/purchases already existed,
+              correct and real, but was never wired into any screen. Visual
+              metric only, no filters/download, per the product's own
+              Reports-vs-Analytics split. */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <QuickStatCard title="Purchases (Month)"        value={formatCompact(purchaseSummary?.total_purchases_value)}        icon={<Truck className="w-4 h-4" />}  color="indigo" onClick={() => navigate('/purchases')} />
+            <QuickStatCard title="Purchase Returns (Month)" value={formatCompact(purchaseSummary?.total_purchase_returns_value)} icon={<Undo2 className="w-4 h-4" />}  color="red"    onClick={() => navigate('/purchases/returns')} />
+            <QuickStatCard title="Net Purchases (Month)"    value={formatCompact(purchaseSummary?.net_purchases)}                icon={<Wallet className="w-4 h-4" />} color="gray"   onClick={() => navigate('/purchases')} />
           </div>
         </>
       )}

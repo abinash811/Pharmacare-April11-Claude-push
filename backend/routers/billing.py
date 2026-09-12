@@ -544,6 +544,17 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
         gst_paise += line_gst_paise
         cost_total_paise += line_cost_paise
 
+    # Nothing stopped this from creating a real, finalized "Paid" tax
+    # invoice with zero items — either bill_data.items arrived empty, or
+    # every item's batch/product silently failed to resolve (the `continue`
+    # above). Both used to fall through to a ₹0.00 invoice, burning a real
+    # sequential GST invoice number for nothing. Reject before a Bill row
+    # (and its invoice number) is ever created.
+    if not item_orms:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one medicine to create a bill.")
+
     bill_discount_paise = int((bill_data.discount or 0) * 100)
     total_discount_paise = item_discount_paise + bill_discount_paise
     grand_total_paise = subtotal_paise + gst_paise - bill_discount_paise
@@ -773,6 +784,13 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
         item_discount_paise += disc_paise
         gst_paise += line_gst_paise
         cost_total_paise += line_cost_paise
+
+    # Same gap as create_bill (see comment there): reject before generating
+    # a real invoice number or touching stock, not after.
+    if not item_orms:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one medicine to save this bill.")
 
     bill_discount_paise = int((bill_data.discount or 0) * 100)
     total_discount_paise = item_discount_paise + bill_discount_paise

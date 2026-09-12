@@ -12,9 +12,43 @@ Tests:
 import pytest
 import requests
 import os
+import uuid
+from datetime import date, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+
+
+def _create_real_item(auth_headers, suffix, qty_on_hand=50):
+    """Creates a real product+batch and returns a resolvable bill item.
+
+    These tests only care about the resulting bill_number, not item
+    content — they used to send a fully synthetic item (fake product_id,
+    no product_sku) that POST /bills silently accepted as "zero real
+    items" and still finalized. That bug is now fixed (see
+    test_billing_rejects_empty_items.py) and POST /bills correctly rejects
+    it, so a real, resolvable item is needed here too.
+    """
+    sku = f"BILLSEQ-{suffix}-{uuid.uuid4().hex[:6]}"
+    prod_resp = requests.post(f"{BASE_URL}/api/products", json={
+        "sku": sku, "name": f"Bill Sequence Test {suffix}", "category": "medicine",
+        "gst_percent": 5, "units_per_pack": 1,
+    }, headers=auth_headers)
+    assert prod_resp.status_code == 200, prod_resp.text
+    expiry = (date.today() + timedelta(days=365)).isoformat()
+    batch_resp = requests.post(f"{BASE_URL}/api/stock/batches", json={
+        "product_sku": sku, "batch_no": f"BILLSEQ-B-{uuid.uuid4().hex[:6]}",
+        "expiry_date": expiry, "qty_on_hand": qty_on_hand,
+        "cost_price_per_unit": 5.0, "mrp_per_unit": 10.0,
+    }, headers=auth_headers)
+    assert batch_resp.status_code == 200, batch_resp.text
+    batch = batch_resp.json()
+    return {
+        "product_sku": sku, "batch_id": batch["id"],
+        "product_name": f"Bill Sequence Test {suffix}", "batch_no": batch["batch_no"],
+        "quantity": 1, "unit_price": 10, "mrp": 10, "discount": 0,
+        "gst_percent": 5, "line_total": 10.5,
+    }
 
 # Test credentials
 TEST_EMAIL = "testadmin@pharmacy.com"
@@ -273,19 +307,7 @@ class TestDraftBillsNoSequence:
         draft_bill = {
             "customer_name": "TEST Draft Customer",
             "customer_mobile": "9999999999",
-            "items": [
-                {
-                    "product_id": "test-product-draft",
-                    "product_name": "Test Product for Draft",
-                    "batch_no": "BATCH-DRAFT",
-                    "quantity": 1,
-                    "unit_price": 10,
-                    "mrp": 10,
-                    "discount": 0,
-                    "gst_percent": 5,
-                    "line_total": 10.5
-                }
-            ],
+            "items": [_create_real_item(auth_headers, "draft")],
             "discount": 0,
             "tax_rate": 5,
             "payment_method": "cash",
@@ -319,19 +341,7 @@ class TestSequentialBillGeneration:
         bill_data = {
             "customer_name": "TEST Sequential Customer",
             "customer_mobile": "8888888888",
-            "items": [
-                {
-                    "product_id": "test-product-seq",
-                    "product_name": "Test Product Sequential",
-                    "batch_no": "BATCH-SEQ",
-                    "quantity": 1,
-                    "unit_price": 10,
-                    "mrp": 10,
-                    "discount": 0,
-                    "gst_percent": 5,
-                    "line_total": 10.5
-                }
-            ],
+            "items": [_create_real_item(auth_headers, "seq")],
             "discount": 0,
             "tax_rate": 5,
             "payment_method": "cash",
@@ -364,19 +374,7 @@ class TestSequentialBillGeneration:
             bill_data = {
                 "customer_name": f"TEST Consecutive {i}",
                 "customer_mobile": f"777777777{i}",
-                "items": [
-                    {
-                        "product_id": f"test-product-consec-{i}",
-                        "product_name": f"Test Product Consecutive {i}",
-                        "batch_no": f"BATCH-CONSEC-{i}",
-                        "quantity": 1,
-                        "unit_price": 10,
-                        "mrp": 10,
-                        "discount": 0,
-                        "gst_percent": 5,
-                        "line_total": 10.5
-                    }
-                ],
+                "items": [_create_real_item(auth_headers, f"consec-{i}")],
                 "discount": 0,
                 "tax_rate": 5,
                 "payment_method": "cash",
@@ -431,19 +429,7 @@ class TestConcurrentBillCreation:
             bill_data = {
                 "customer_name": f"TEST Concurrent {index}",
                 "customer_mobile": f"555555555{index}",
-                "items": [
-                    {
-                        "product_id": f"test-product-concurrent-{index}",
-                        "product_name": f"Test Product Concurrent {index}",
-                        "batch_no": f"BATCH-CONC-{index}",
-                        "quantity": 1,
-                        "unit_price": 10,
-                        "mrp": 10,
-                        "discount": 0,
-                        "gst_percent": 5,
-                        "line_total": 10.5
-                    }
-                ],
+                "items": [_create_real_item(auth_headers, f"conc-{index}")],
                 "discount": 0,
                 "tax_rate": 5,
                 "payment_method": "cash",

@@ -681,6 +681,16 @@ async def create_purchase(purchase_data: PurchaseCreate, request: Request, curre
         subtotal_paise += taxable
         tax_paise += gst_amount
 
+    # Same class of bug fixed the same day in billing.py's create_bill: an
+    # empty `items: []` used to sail straight through to a real, numbered
+    # purchase order (draft or "confirmed and paid") with nothing on it —
+    # live-confirmed (PUR-2026-3261, confirmed/paid, ₹0.00, zero items).
+    # Reject before the purchase number is consumed by an actual row.
+    if not item_orms:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one medicine to create a purchase.")
+
     # Same net-amount formula InvoiceBreakdownModal.jsx already computes and
     # shows the pharmacist before they click Confirm & Save — these used to
     # be silently discarded (see migration c5671e4dfe9f).
@@ -837,6 +847,15 @@ async def update_purchase(
         db.add(item_orm)
         subtotal_paise += taxable
         tax_paise += gst_amount
+
+    # Same check as create_purchase — without it, emptying a draft's items
+    # and saving (even as "confirmed") silently produces a real purchase
+    # order with nothing on it. The old items above are only flushed, not
+    # committed, so rejecting here still lets get_db's rollback restore them.
+    if not item_orms:
+        raise HTTPException(
+            status_code=400,
+            detail="Add at least one medicine to save this purchase.")
 
     discount_paise = int(round(purchase_data.total_discount * 100))
     cess_paise = int(round(purchase_data.cess * 100))

@@ -12,9 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.purchases import Purchase, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, has_permission
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
+
+
+async def _require_suppliers_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    """Same pattern as purchases.py's _require_purchases_permission — creating
+    or editing a supplier had no permission check at all until now, meaning
+    any logged-in role (including cashier) could create/edit distributors."""
+    if not await has_permission(current_user, f"suppliers:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action} suppliers")
 
 
 # ── Pydantic request models ──────────────────────────────────────────────────
@@ -115,6 +125,7 @@ async def get_suppliers(
 @router.post("/suppliers")
 async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_suppliers_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     existing = await db.execute(
         select(SupplierORM).where(
@@ -160,6 +171,7 @@ async def update_supplier(
         supplier_data: SupplierUpdate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
+    await _require_suppliers_permission(current_user, "edit", db)
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
     supplier = result.scalar_one_or_none()
     if not supplier:
@@ -182,6 +194,7 @@ async def update_supplier(
 @router.delete("/suppliers/{supplier_id}")
 async def delete_supplier(supplier_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_suppliers_permission(current_user, "deactivate", db)
     sid = uuid.UUID(supplier_id)
     result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
     supplier = result.scalar_one_or_none()

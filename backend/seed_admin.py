@@ -20,6 +20,7 @@ from models.users import Role, User
 from models.pharmacy import Pharmacy, PharmacySettings
 from database import AsyncSessionLocal, engine
 from config import settings
+from constants import DEFAULT_ROLES
 from sqlalchemy import select
 from passlib.context import CryptContext
 
@@ -41,32 +42,12 @@ DEFAULT_PASSWORD = "Admin@123"
 DEFAULT_NAME = "Admin User"
 
 # ── Role permission matrices ──────────────────────────────────────────────────
-ROLE_PERMISSIONS: dict[str, dict] = {
-    "admin": {"*": True},           # full access
-    "manager": {
-        "dashboard": {"view": True},
-        "billing": {"view": True, "create": True, "edit": True},
-        "inventory": {"view": True, "create": True, "edit": True},
-        "purchases": {"view": True, "create": True, "edit": True},
-        "customers": {"view": True, "create": True, "edit": True},
-        "suppliers": {"view": True, "create": True},
-        "reports": {"view": True},
-        "settings": {"view": True},
-        "users": {"view": True},
-    },
-    "cashier": {
-        "dashboard": {"view": True},
-        "billing": {"view": True, "create": True},
-        "inventory": {"view": True},
-        "customers": {"view": True, "create": True},
-    },
-    "inventory_staff": {
-        "dashboard": {"view": True},
-        "inventory": {"view": True, "create": True, "edit": True},
-        "purchases": {"view": True, "create": True},
-        "suppliers": {"view": True},
-    },
-}
+# Sourced from constants.DEFAULT_ROLES — the same list services/provisioning.py
+# uses for every real pharmacy signup. This file used to keep its own separate
+# dict-shaped copy that silently drifted from it (e.g. missing "purchases:edit"
+# for manager here while provisioning.py's version had it, and vice versa for
+# other permissions) — one seed path a pharmacy actually gets could differ from
+# the other depending on which script happened to create it. Single source now.
 
 
 async def seed(email: str, password: str, name: str, force: bool = False) -> None:
@@ -119,7 +100,8 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
 
         # ── 3. Roles ──────────────────────────────────────────────────────────
         role_map: dict[str, Role] = {}
-        for role_name, perms in ROLE_PERMISSIONS.items():
+        for role_def in DEFAULT_ROLES:
+            role_name = role_def["name"]
             r_result = await db.execute(
                 select(Role).where(Role.pharmacy_id == pharmacy.id, Role.name == role_name)
             )
@@ -132,9 +114,9 @@ async def seed(email: str, password: str, name: str, force: bool = False) -> Non
                     id=uuid.uuid4(),
                     pharmacy_id=pharmacy.id,
                     name=role_name,
-                    description=f"System role: {role_name}",
-                    is_system_role=True,
-                    permissions=perms,
+                    description=role_def.get("display_name", role_name),
+                    is_system_role=role_def.get("is_default", True),
+                    permissions=role_def["permissions"],
                     is_active=True,
                 )
                 db.add(new_role)

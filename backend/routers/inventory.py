@@ -19,7 +19,7 @@ from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user, paginate_response
+from routers.auth_helpers import User, get_current_user, has_permission, paginate_response
 
 router = APIRouter(prefix="/api", tags=["inventory"])
 
@@ -98,6 +98,16 @@ class ProductUpdate(BaseModel):
 # its [{loc, msg}] shape is already handled by the shared axios interceptor
 # (frontend/src/lib/axios.js), "Value error, " prefix and all.
 
+async def _require_inventory_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    """Same pattern as purchases.py's _require_purchases_permission — creating
+    or editing a product had no permission check at all until now, meaning
+    any logged-in role (including cashier) could add/edit medicines."""
+    if not await has_permission(current_user, f"inventory:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action} products")
+
+
 def _product_response(p: ProductORM) -> dict:
     return {
         "id": str(p.id), "sku": p.sku, "name": p.name, "barcode": p.barcode,
@@ -141,6 +151,7 @@ def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
 @router.post("/products")
 async def create_product(data: ProductCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_inventory_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
     sku = data.sku or f"SKU-{uuid.uuid4().hex[:8].upper()}"
@@ -351,8 +362,12 @@ async def get_product(product_id: str, current_user: User = Depends(
 @router.put("/products/{product_id}")
 async def update_product(product_id: str, data: ProductUpdate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can update products")
+    # Was a hardcoded `role != "admin"` check — a magic-string role comparison
+    # that bypassed the real permissions catalog entirely and blocked manager/
+    # inventory_staff, who are granted "inventory:edit" per constants.py and
+    # the Team > Roles UI, from ever editing a product. Found Sep 12, 2026
+    # while wiring ACL into Suppliers/Products creation.
+    await _require_inventory_permission(current_user, "edit", db)
     result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
     product = result.scalar_one_or_none()
     if not product:
@@ -373,8 +388,7 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
 @router.delete("/products/{product_id}")
 async def delete_product(product_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can delete products")
+    await _require_inventory_permission(current_user, "delete", db)
     pid = uuid.UUID(product_id)
     batch_count = await db.execute(select(func.count()).select_from(BatchORM).where(
         BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0))

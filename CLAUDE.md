@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.14 | Last updated: September 12, 2026
+# Version: 2.15 | Last updated: September 12, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -175,6 +175,27 @@
     needs its own check before moving on.
   - When in doubt, ask "want me to batch this with anything else you
     have queued, or verify now?" rather than guessing.
+- **Run the FULL backend test suite before pushing any backend change —
+  never a topic-filtered subset as the last check.** Added September 12,
+  2026, direct question ("why was this missed, how do we not repeat it")
+  after a fix to `billing.py` (rejecting bills with zero items) was
+  committed and pushed on the strength of a `-k "billing or bill_"`
+  filtered run alone. That filtered run passed, but it excluded
+  `test_multi_tenancy_isolation.py` — the fix had put a new check in the
+  wrong order relative to an existing one, breaking two tenant-isolation
+  tests outside the filter. The real, full-suite run (kicked off
+  afterward, in the background) caught it, but only after the broken
+  version was already pushed.
+  - A scoped/filtered test run is fine as a fast first check while
+    iterating. It is never sufficient as the last check before a push —
+    kick off the real, full `pytest tests/` (backend) / full `craco test`
+    (frontend) run and wait for it before pushing, every time a backend
+    router or shared frontend hook/util changes, not just when a change
+    "feels" cross-cutting.
+  - This is the same root shape as Manifesto rule 11's cross-cutting
+    map — a change can be locally correct and still break something a
+    narrower check can't see — applied to test selection instead of code
+    review.
 - **Chat replies stay under 100 words.** Added August 23, 2026, direct
   request. Applies to conversational answers, not code/docs/commit
   content — those keep whatever length the task genuinely needs.

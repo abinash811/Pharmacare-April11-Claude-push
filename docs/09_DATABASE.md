@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.7 | Last updated: September 12, 2026
+# Version: 1.8 | Last updated: September 12, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -596,13 +596,20 @@ Line items on a purchase return.
 | `gender` | String(10) | Optional |
 | `address` | Text | Optional |
 | `city` | String(100) | Optional |
+| `notes` | Text | Optional — added Sep 12, 2026, `routers/customers.py`'s `CustomerCreate`/update + `CustomerFormDialog.jsx`'s `<Textarea>` |
 | `customer_type` | String(20) | `retail`, `wholesale`, `institution` — default `retail` |
 | `gstin` | String(15) | For B2B customers |
-| `credit_limit_paise` | Integer | Max outstanding allowed |
+| `credit_limit_paise` | Integer | Max outstanding allowed — enforced at bill-creation time as of Sep 12, 2026 (`_check_credit_limit()`, `routers/billing.py`); `0` means no limit configured |
 | `credit_days` | Integer | Payment terms — default `0` |
-| `outstanding_paise` | Integer | Current amount owed — not yet kept accurate at write time, see `docs/15_ROADMAP.md` Customers v1 |
 | `is_active` | Boolean | — |
 | `deleted_at` | TIMESTAMP | Soft delete |
+
+**No stored `outstanding_paise` column** — removed Sep 12, 2026 (migration
+`bcd3c6cd10e2`). It was never written to, always showing ₹0. The API's
+`outstanding` field is now computed fresh on every read
+(`_outstanding_paise_by_customer()`, `routers/customers.py`) as the sum of
+`Bill.balance_paise` for that customer's real `'due'` bills — same safe
+pattern as `get_customer_stats`, can't drift.
 
 **Indexes:** `pharmacy_id`, `(pharmacy_id, phone)`, `(pharmacy_id, name)`
 

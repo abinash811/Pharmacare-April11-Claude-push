@@ -75,7 +75,14 @@ class DoctorCreate(BaseModel):
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _customer_response(c: CustomerORM) -> dict:
+def _customer_response(c: CustomerORM, outstanding_paise: int = 0) -> dict:
+    """`outstanding_paise` is always passed in, computed fresh from real
+    bills (see `_outstanding_paise_by_customer` below) — never read from a
+    stored column. Found during the Sep 12, 2026 Customers product-review
+    audit: `Customer.outstanding_paise` was a real column nothing ever
+    wrote to, always showing ₹0 no matter how much a customer actually
+    owed. Compute-on-read matches `get_customer_stats`'s already-safe
+    pattern and can't drift the way a manually-synced counter can."""
     return {
         "id": str(c.id),
         "name": c.name,
@@ -85,11 +92,28 @@ def _customer_response(c: CustomerORM) -> dict:
         "customer_type": c.customer_type,
         "gstin": c.gstin,
         "credit_limit": c.credit_limit_paise / 100,
-        "outstanding": c.outstanding_paise / 100,
+        "outstanding": outstanding_paise / 100,
+        "notes": c.notes,
         "is_active": c.is_active,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
+
+
+async def _outstanding_paise_by_customer(
+        customer_ids: list[uuid.UUID], db: AsyncSession) -> dict:
+    """One grouped query for a whole page of customers, not N+1 — sums
+    `balance_paise` (already correctly maintained by billing.py's payment
+    endpoint) across each customer's real 'due' bills."""
+    if not customer_ids:
+        return {}
+    result = await db.execute(
+        select(Bill.customer_id, func.sum(Bill.balance_paise))
+        .where(Bill.customer_id.in_(customer_ids), Bill.status == "due",
+               Bill.deleted_at.is_(None))
+        .group_by(Bill.customer_id)
+    )
+    return {row[0]: row[1] or 0 for row in result.all()}
 
 
 def _doctor_response(d: DoctorORM) -> dict:
@@ -123,10 +147,11 @@ async def create_customer(customer_data: CustomerCreate, current_user: User = De
         customer_type=customer_data.customer_type,
         gstin=customer_data.gstin,
         credit_limit_paise=int(customer_data.credit_limit * 100),
+        notes=customer_data.notes,
     )
     db.add(customer)
     await db.flush()
-    return _customer_response(customer)
+    return _customer_response(customer)  # brand new — no bills yet, outstanding is always 0
 
 
 @router.get("/customers")
@@ -155,7 +180,9 @@ async def get_customers(
 
     offset = (page - 1) * page_size
     result = await db.execute(query.order_by(CustomerORM.name).offset(offset).limit(page_size))
-    customers = [_customer_response(c) for c in result.scalars().all()]
+    rows = result.scalars().all()
+    outstanding_by_id = await _outstanding_paise_by_customer([c.id for c in rows], db)
+    customers = [_customer_response(c, outstanding_by_id.get(c.id, 0)) for c in rows]
 
     if page > 1 or page_size != 50:
         return paginate_response(customers, page, page_size, total)
@@ -173,7 +200,9 @@ async def search_customers(q: str, current_user: User = Depends(
                or_(CustomerORM.name.ilike(pattern), CustomerORM.phone.ilike(pattern)))
         .limit(100)
     )
-    return [_customer_response(c) for c in result.scalars().all()]
+    rows = result.scalars().all()
+    outstanding_by_id = await _outstanding_paise_by_customer([c.id for c in rows], db)
+    return [_customer_response(c, outstanding_by_id.get(c.id, 0)) for c in rows]
 
 
 @router.get("/customers/{customer_id}")
@@ -183,7 +212,8 @@ async def get_customer(customer_id: str, current_user: User = Depends(
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found",
         extra_conditions=[CustomerORM.deleted_at.is_(None)])
-    return _customer_response(customer)
+    outstanding_by_id = await _outstanding_paise_by_customer([customer.id], db)
+    return _customer_response(customer, outstanding_by_id.get(customer.id, 0))
 
 
 @router.put("/customers/{customer_id}")
@@ -194,7 +224,7 @@ async def update_customer(customer_id: str, customer_data: dict, current_user: U
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found")
 
-    allowed = {"name", "phone", "email", "address", "customer_type", "gstin"}
+    allowed = {"name", "phone", "email", "address", "customer_type", "gstin", "notes"}
     for key, value in customer_data.items():
         if key == "credit_limit" and value is not None:
             customer.credit_limit_paise = int(value * 100)

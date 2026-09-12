@@ -29,11 +29,11 @@ class Customer(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(10))
     address: Mapped[Optional[str]] = mapped_column(Text)
     city: Mapped[Optional[str]] = mapped_column(String(100))
+    notes: Mapped[Optional[str]] = mapped_column(Text)
     customer_type: Mapped[str] = mapped_column(String(20), default="retail", nullable=False)
     gstin: Mapped[Optional[str]] = mapped_column(String(15))
     credit_limit_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     credit_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    outstanding_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(

@@ -67,6 +67,12 @@ export default function CustomerDetailDialog({ open, customer, onClose }) {
                 <p className="text-sm">{customer.address}</p>
               </div>
             )}
+            {customer.notes && (
+              <div className="col-span-2">
+                <span className="block text-xs text-gray-500 uppercase">Notes</span>
+                <p className="text-sm whitespace-pre-wrap">{customer.notes}</p>
+              </div>
+            )}
           </div>
 
           {/* Stats */}

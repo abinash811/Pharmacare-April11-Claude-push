@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AppButton } from '@/components/shared';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
@@ -98,6 +99,10 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
             <div>
               <Label>Credit Limit (₹)</Label>
               <Input type="number" {...register('credit_limit')} min="0" />
+            </div>
+            <div className="col-span-2">
+              <Label>Notes</Label>
+              <Textarea {...register('notes')} rows={3} placeholder="Allergies, delivery preference, family context…" />
             </div>
           </div>
           <DialogFooter>

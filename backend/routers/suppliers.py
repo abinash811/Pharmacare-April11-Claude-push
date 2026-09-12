@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.purchases import Purchase, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user, has_permission
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
 
@@ -156,10 +156,9 @@ async def create_supplier(supplier_data: SupplierCreate, current_user: User = De
 @router.get("/suppliers/{supplier_id}")
 async def get_supplier(supplier_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
-    supplier = result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Supplier not found")
 
     outstanding = await _calc_outstanding(supplier.id, db)
     return _supplier_response(supplier, outstanding)
@@ -172,10 +171,9 @@ async def update_supplier(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_suppliers_permission(current_user, "edit", db)
-    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
-    supplier = result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Supplier not found")
 
     update_fields = supplier_data.model_dump(exclude_unset=True)
     if not update_fields:
@@ -195,11 +193,10 @@ async def update_supplier(
 async def delete_supplier(supplier_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_suppliers_permission(current_user, "deactivate", db)
-    sid = uuid.UUID(supplier_id)
-    result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
-    supplier = result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, pharmacy_id, not_found_detail="Supplier not found")
+    sid = supplier.id
 
     count_result = await db.execute(select(func.count()).select_from(Purchase).where(Purchase.supplier_id == sid))
     purchase_count = count_result.scalar()
@@ -217,10 +214,9 @@ async def delete_supplier(supplier_id: str, current_user: User = Depends(
 @router.patch("/suppliers/{supplier_id}/toggle-status")
 async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(supplier_id)))
-    supplier = result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Supplier not found")
 
     supplier.is_active = not supplier.is_active
     await db.flush()
@@ -231,11 +227,10 @@ async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(
 @router.get("/suppliers/{supplier_id}/summary")
 async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    sid = uuid.UUID(supplier_id)
-    result = await db.execute(select(SupplierORM).where(SupplierORM.id == sid))
-    supplier = result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Supplier not found")
+    sid = supplier.id
 
     purchases_result = await db.execute(
         select(Purchase.grand_total_paise, Purchase.purchase_date, Purchase.status)

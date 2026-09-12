@@ -15,7 +15,7 @@ from deps import get_db
 from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import Role as RoleORM, User as UserORM
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -443,10 +443,8 @@ async def get_role(role_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
-    role = result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await get_owned_or_404(
+        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     return _role_response(role)
 
 
@@ -455,10 +453,8 @@ async def update_role(role_id: str, role_update: RoleUpdate, current_user: User 
         get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
-    role = result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await get_owned_or_404(
+        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     if role.is_system_role:
         raise HTTPException(status_code=400, detail="Cannot edit default roles")
 
@@ -477,10 +473,8 @@ async def delete_role(role_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
-    role = result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await get_owned_or_404(
+        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     if role.is_system_role:
         raise HTTPException(status_code=400, detail="Cannot delete default roles")
 

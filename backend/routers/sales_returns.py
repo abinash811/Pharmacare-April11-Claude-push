@@ -15,7 +15,7 @@ from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
 from models.users import Role as RoleORM
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api", tags=["sales_returns"])
 
@@ -138,7 +138,8 @@ async def _find_batch(
         db: AsyncSession) -> BatchORM | None:
     if batch_id:
         try:
-            result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
+            result = await db.execute(select(BatchORM).where(
+                BatchORM.id == uuid.UUID(batch_id), BatchORM.pharmacy_id == pharmacy_id))
             batch = result.scalar_one_or_none()
             if batch:
                 return batch
@@ -147,6 +148,7 @@ async def _find_batch(
     if product_id and batch_no:
         result = await db.execute(
             select(BatchORM).where(
+                BatchORM.pharmacy_id == pharmacy_id,
                 BatchORM.product_id == product_id,
                 BatchORM.batch_number == batch_no)
         )
@@ -236,11 +238,9 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
                 )
         raise HTTPException(status_code=400, detail="Original bill ID is required")
 
-    bill_id = uuid.UUID(return_data.original_bill_id)
-    bill_result = await db.execute(select(Bill).where(Bill.id == bill_id))
-    original_bill = bill_result.scalar_one_or_none()
-    if not original_bill:
-        raise HTTPException(status_code=404, detail="Original bill not found")
+    original_bill = await get_owned_or_404(
+        db, Bill, return_data.original_bill_id, pharmacy_id, not_found_detail="Original bill not found")
+    bill_id = original_bill.id
 
     # Get original bill items for validation
     bill_items_result = await db.execute(select(BillItem).where(BillItem.bill_id == bill_id))
@@ -286,7 +286,8 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
         if not product_id and item_data.medicine_id:
             try:
                 prod_result = await db.execute(select(ProductORM).where(
-                    ProductORM.id == uuid.UUID(item_data.medicine_id)))
+                    ProductORM.id == uuid.UUID(item_data.medicine_id),
+                    ProductORM.pharmacy_id == pharmacy_id))
                 product = prod_result.scalar_one_or_none()
                 if product:
                     product_id = product.id
@@ -297,7 +298,8 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
             bi = bill_items_by_batch.get(item_data.batch_no)
             if bi:
                 product_id = bi.product_id
-                prod_result = await db.execute(select(ProductORM).where(ProductORM.id == product_id))
+                prod_result = await db.execute(select(ProductORM).where(
+                    ProductORM.id == product_id, ProductORM.pharmacy_id == pharmacy_id))
                 product = prod_result.scalar_one_or_none()
 
         if not product_id or not product:
@@ -462,16 +464,19 @@ async def get_sales_returns(
 async def get_sales_return(return_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     # Try by UUID first, then by return_number
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     sales_return: SalesReturnORM | None = None
     try:
         rid = uuid.UUID(return_id)
-        result = await db.execute(select(SalesReturnORM).where(SalesReturnORM.id == rid))
+        result = await db.execute(select(SalesReturnORM).where(
+            SalesReturnORM.id == rid, SalesReturnORM.pharmacy_id == pharmacy_id))
         sales_return = result.scalar_one_or_none()
     except ValueError:
         pass
 
     if not sales_return:
-        result = await db.execute(select(SalesReturnORM).where(SalesReturnORM.return_number == return_id))
+        result = await db.execute(select(SalesReturnORM).where(
+            SalesReturnORM.return_number == return_id, SalesReturnORM.pharmacy_id == pharmacy_id))
         sales_return = result.scalar_one_or_none()
 
     if not sales_return:
@@ -482,6 +487,7 @@ async def get_sales_return(return_id: str, current_user: User = Depends(
     )
     items = items_result.scalars().all()
 
+    # tenant-safe: sales_return already scoped
     bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
     bill = bill_result.scalar_one_or_none()
 
@@ -498,10 +504,8 @@ async def update_sales_return(
     user_id = uuid.UUID(current_user.id)
     rid = uuid.UUID(return_id)
 
-    result = await db.execute(select(SalesReturnORM).where(SalesReturnORM.id == rid))
-    sales_return = result.scalar_one_or_none()
-    if not sales_return:
-        raise HTTPException(status_code=404, detail="Sales return not found")
+    sales_return = await get_owned_or_404(
+        db, SalesReturnORM, rid, pharmacy_id, not_found_detail="Sales return not found")
 
     if financial_edit and update_data.items:
         # Permission check
@@ -523,8 +527,10 @@ async def update_sales_return(
         old_items = old_items_result.scalars().all()
 
         for old_item in old_items:
+            # tenant-safe: old_item is a child row of the already-scoped sales_return
             batch_result = await db.execute(select(BatchORM).where(BatchORM.id == old_item.batch_id))
             batch = batch_result.scalar_one_or_none()
+            # tenant-safe: same as above
             prod_result = await db.execute(select(ProductORM).where(ProductORM.id == old_item.product_id))
             product = prod_result.scalar_one_or_none()
             if batch and product:
@@ -562,7 +568,8 @@ async def update_sales_return(
             if not product and item_data.medicine_id:
                 try:
                     prod_result = await db.execute(select(ProductORM).where(
-                        ProductORM.id == uuid.UUID(item_data.medicine_id)))
+                        ProductORM.id == uuid.UUID(item_data.medicine_id),
+                        ProductORM.pharmacy_id == pharmacy_id))
                     product = prod_result.scalar_one_or_none()
                 except ValueError:
                     pass
@@ -618,6 +625,7 @@ async def update_sales_return(
         await db.flush()
         await db.refresh(sales_return)  # updated_at has onupdate=func.now() — see purchases.py
 
+        # tenant-safe: sales_return already scoped
         bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
         return _return_response(sales_return, new_items, bill_result.scalar_one_or_none())
 
@@ -634,6 +642,7 @@ async def update_sales_return(
     items_result = await db.execute(
         select(SalesReturnItemORM).where(SalesReturnItemORM.sales_return_id == rid)
     )
+    # tenant-safe: sales_return already scoped
     bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
     return _return_response(sales_return, items_result.scalars().all(),
                             bill_result.scalar_one_or_none())
@@ -668,10 +677,8 @@ async def update_role_return_permissions(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update permissions")
 
-    result = await db.execute(select(RoleORM).where(RoleORM.id == uuid.UUID(role_id)))
-    role = result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await get_owned_or_404(
+        db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
 
     perms = list(role.permissions) if isinstance(role.permissions, list) else []
     for perm, enabled in [("allow_manual_returns", allow_manual_returns),

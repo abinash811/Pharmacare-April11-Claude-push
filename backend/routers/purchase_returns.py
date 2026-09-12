@@ -19,7 +19,7 @@ from models.purchases import (
 )
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, has_permission
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["purchase_returns"])
 
@@ -174,7 +174,8 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: s
     """
     if batch_id:
         try:
-            result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
+            result = await db.execute(select(BatchORM).where(
+                BatchORM.id == uuid.UUID(batch_id), BatchORM.pharmacy_id == pharmacy_id))
             batch = result.scalar_one_or_none()
             if batch:
                 return batch
@@ -183,6 +184,7 @@ async def _find_batch(pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: s
     if batch_no:
         result = await db.execute(
             select(BatchORM).where(
+                BatchORM.pharmacy_id == pharmacy_id,
                 BatchORM.product_id == product_id,
                 BatchORM.batch_number == batch_no)
         )
@@ -233,10 +235,8 @@ async def _deduct_stock_and_record(
 async def get_purchase_items_for_return(purchase_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pid = uuid.UUID(purchase_id)
-    result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == pid))
-    purchase = result.scalar_one_or_none()
-    if not purchase:
-        raise HTTPException(status_code=404, detail="Purchase not found")
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, uuid.UUID(current_user.pharmacy_id), not_found_detail="Purchase not found")
 
     # Get purchase items
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
@@ -261,7 +261,8 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
             returned_qtys[key] = returned_qtys.get(key, 0) + ri.quantity
 
     # Get supplier name
-    sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase.supplier_id))
+    sup_result = await db.execute(select(SupplierORM.name).where(
+        SupplierORM.id == purchase.supplier_id))  # tenant-safe: purchase already scoped via get_owned_or_404
     supplier_name = sup_result.scalar_one_or_none() or ""
 
     items_for_return = []
@@ -304,13 +305,14 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
     supplier_id = uuid.UUID(return_data.supplier_id)
     purchase_id = uuid.UUID(return_data.purchase_id)
 
-    sup_result = await db.execute(select(SupplierORM).where(SupplierORM.id == supplier_id))
-    supplier = sup_result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, pharmacy_id, not_found_detail="Supplier not found")
 
-    pur_result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == purchase_id))
-    original_purchase = pur_result.scalar_one_or_none()
+    original_purchase = None
+    try:
+        original_purchase = await get_owned_or_404(db, PurchaseORM, purchase_id, pharmacy_id)
+    except HTTPException:
+        pass  # matches this endpoint's existing "not found -> skip validation" contract
 
     # Validate return quantities against original purchase. Keyed by
     # product_id, not product_name — two different products could share
@@ -508,16 +510,16 @@ async def get_purchase_returns(
 async def get_purchase_return(return_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     rid = uuid.UUID(return_id)
-    result = await db.execute(select(PurchaseReturnORM).where(PurchaseReturnORM.id == rid))
-    purchase_return = result.scalar_one_or_none()
-    if not purchase_return:
-        raise HTTPException(status_code=404, detail="Purchase return not found")
+    purchase_return = await get_owned_or_404(
+        db, PurchaseReturnORM, rid, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Purchase return not found")
 
     items_result = await db.execute(select(PurchaseReturnItemORM).where(
         PurchaseReturnItemORM.purchase_return_id == rid))
     items = items_result.scalars().all()
 
     sup_result = await db.execute(select(SupplierORM.name).where(
+        # tenant-safe: purchase_return already scoped via get_owned_or_404
         SupplierORM.id == purchase_return.supplier_id))
     supplier_name = sup_result.scalar_one_or_none() or ""
 
@@ -534,10 +536,8 @@ async def update_purchase_return(
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     rid = uuid.UUID(return_id)
 
-    result = await db.execute(select(PurchaseReturnORM).where(PurchaseReturnORM.id == rid))
-    purchase_return = result.scalar_one_or_none()
-    if not purchase_return:
-        raise HTTPException(status_code=404, detail="Purchase return not found")
+    purchase_return = await get_owned_or_404(
+        db, PurchaseReturnORM, rid, pharmacy_id, not_found_detail="Purchase return not found")
 
     # Non-financial edit
     if update_data.edit_type == "non_financial":
@@ -553,6 +553,7 @@ async def update_purchase_return(
         items_result = await db.execute(select(PurchaseReturnItemORM).where(
             PurchaseReturnItemORM.purchase_return_id == rid))
         sup_result = await db.execute(select(SupplierORM.name).where(
+            # tenant-safe: purchase_return already scoped via get_owned_or_404
             SupplierORM.id == purchase_return.supplier_id))
         return _return_response(purchase_return, items_result.scalars().all(),
                                 sup_result.scalar_one_or_none() or "")
@@ -664,6 +665,7 @@ async def update_purchase_return(
     await db.flush()
     await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
 
+    # tenant-safe: purchase_return already scoped via get_owned_or_404
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
     return _return_response(purchase_return, new_items, sup_result.scalar_one_or_none() or "")
 

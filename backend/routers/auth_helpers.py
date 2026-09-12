@@ -113,6 +113,52 @@ def paginate_response(items: list, page: int, page_size: int, total: int) -> dic
     }
 
 
+async def get_owned_or_404(
+    db: AsyncSession,
+    model,
+    record_id,
+    pharmacy_id: uuid.UUID,
+    not_found_detail: str = "Not found",
+    extra_conditions: Optional[list] = None,
+):
+    """Fetch a single row by primary key, scoped to the caller's own
+    pharmacy — the ONLY sanctioned way to look up a pharmacy-owned record
+    by ID anywhere in this codebase.
+
+    Found Sep 12, 2026: nearly every "get/update/delete by id" endpoint in
+    the app looked up its row with `select(Model).where(Model.id == id)`
+    alone — no pharmacy_id check. Proved live: a freshly-registered,
+    completely separate pharmacy could read AND modify another pharmacy's
+    supplier via GET/PUT /suppliers/{id}. There is no database-level
+    tenant isolation (no row-level security) backing this up — every
+    query is on its own, which is exactly why one shared, safe-by-default
+    helper exists now instead of leaving each router to remember.
+
+    Returns 404 (never 403) when the row exists but belongs to a
+    different pharmacy — indistinguishable from "doesn't exist" from the
+    caller's side, so this can't be used to enumerate valid IDs in other
+    tenants. A malformed (non-UUID) id is also a 404, not a 500.
+
+    design-guard.sh Rule 13 flags a raw `select(Model).where(Model.id ==`
+    in a router that doesn't also mention `pharmacy_id` on the same
+    statement or come from get_owned_or_404 — use this helper instead of
+    hand-writing the check every time.
+    """
+    if isinstance(record_id, str):
+        try:
+            record_id = uuid.UUID(record_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail=not_found_detail)
+    conditions = [model.id == record_id, model.pharmacy_id == pharmacy_id]
+    if extra_conditions:
+        conditions.extend(extra_conditions)
+    result = await db.execute(select(model).where(*conditions))
+    row = result.scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail=not_found_detail)
+    return row
+
+
 async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
     """Check if a user's role has the given permission (e.g. 'billing:create')."""
     result = await db.execute(

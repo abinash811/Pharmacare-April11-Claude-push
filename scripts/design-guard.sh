@@ -10,6 +10,7 @@ set -euo pipefail
 
 FRONTEND="frontend/src/pages"
 SHARED="frontend/src/components"
+BACKEND_ROUTERS="backend/routers"
 ERRORS=0
 
 red()   { echo -e "\033[0;31m✗ $*\033[0m"; }
@@ -212,6 +213,23 @@ TRUNCATE_NO_TITLE=$(grep -rn "truncate" "$FRONTEND" "$SHARED" --include="*.jsx" 
   | grep -v "title=\|test\|line-clamp" | wc -l | tr -d ' ' || true)
 if [ "$TRUNCATE_NO_TITLE" -gt "0" ]; then
   warn "Rule 12 NOTE: $TRUNCATE_NO_TITLE truncate usage(s) without a title= on the same line — verify each is a fixed label, not real data (see docs/05_DESIGN_SYSTEM.md's Content Truncation rule)"
+fi
+
+# ── Rule 13: Backend by-ID lookups must be pharmacy-scoped ───────────────
+# Found Sep 12, 2026: nearly every "get/update/delete by id" endpoint did
+# `select(Model).where(Model.id == id)` with no pharmacy_id check at all —
+# proved live, a freshly-registered pharmacy could read AND modify another
+# pharmacy's supplier via GET/PUT /suppliers/{id}. This class of bug had
+# already been found and fixed once before (the bill-PDF endpoint) but was
+# never generalized into a shared helper or a check, so it silently
+# reappeared in ~20 sibling endpoints. See docs/15_ROADMAP.md RULE MISSES
+# LOG and routers/auth_helpers.py's get_owned_or_404().
+if python3 scripts/check_tenant_isolation.py > /tmp/tenant_isolation_output 2>&1; then
+  green "Rule 13 PASS: All backend by-ID lookups are pharmacy-scoped"
+else
+  red "Rule 13 FAIL: unscoped by-ID lookup(s) found in $BACKEND_ROUTERS"
+  cat /tmp/tenant_isolation_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.billing import Bill
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
-from routers.auth_helpers import User, get_current_user, paginate_response
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
 
 router = APIRouter(prefix="/api", tags=["customers"])
 
@@ -158,25 +158,19 @@ async def search_customers(q: str, current_user: User = Depends(
 @router.get("/customers/{customer_id}")
 async def get_customer(customer_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(CustomerORM).where(
-            CustomerORM.id == uuid.UUID(customer_id),
-            CustomerORM.deleted_at.is_(None),
-        )
-    )
-    customer = result.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = await get_owned_or_404(
+        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Customer not found",
+        extra_conditions=[CustomerORM.deleted_at.is_(None)])
     return _customer_response(customer)
 
 
 @router.put("/customers/{customer_id}")
 async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
-    customer = result.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = await get_owned_or_404(
+        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Customer not found")
 
     allowed = {"name", "phone", "email", "address", "customer_type", "gstin"}
     for key, value in customer_data.items():
@@ -197,10 +191,9 @@ async def update_customer(customer_id: str, customer_data: dict, current_user: U
 @router.delete("/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
-    customer = result.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = await get_owned_or_404(
+        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Customer not found")
     customer.deleted_at = datetime.now(timezone.utc)
     await db.flush()
     return {"message": "Customer deleted successfully"}
@@ -209,10 +202,9 @@ async def delete_customer(customer_id: str, current_user: User = Depends(
 @router.get("/customers/{customer_id}/stats")
 async def get_customer_stats(customer_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    cust_result = await db.execute(select(CustomerORM).where(CustomerORM.id == uuid.UUID(customer_id)))
-    customer = cust_result.scalar_one_or_none()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = await get_owned_or_404(
+        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Customer not found")
 
     bills_result = await db.execute(
         select(Bill.grand_total_paise, Bill.bill_date)
@@ -289,10 +281,9 @@ async def get_doctors(
 @router.put("/doctors/{doctor_id}")
 async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DoctorORM).where(DoctorORM.id == uuid.UUID(doctor_id)))
-    doctor = result.scalar_one_or_none()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
+    doctor = await get_owned_or_404(
+        db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Doctor not found")
 
     field_map = {"contact": "phone", "clinic_address": "address"}
     allowed = {"name", "specialization", "qualification", "registration_number", "hospital"}
@@ -314,10 +305,9 @@ async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = 
 @router.delete("/doctors/{doctor_id}")
 async def delete_doctor(doctor_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(DoctorORM).where(DoctorORM.id == uuid.UUID(doctor_id)))
-    doctor = result.scalar_one_or_none()
-    if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor not found")
+    doctor = await get_owned_or_404(
+        db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Doctor not found")
     doctor.deleted_at = datetime.now(timezone.utc)
     await db.flush()
     return {"message": "Doctor deleted successfully"}

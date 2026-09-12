@@ -14,11 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register
-from models.customers import Doctor as DoctorORM
+from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -202,7 +202,8 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID,
     # Try batch by ID
     if batch_id:
         try:
-            result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
+            result = await db.execute(select(BatchORM).where(
+                BatchORM.id == uuid.UUID(batch_id), BatchORM.pharmacy_id == pharmacy_id))
             batch = result.scalar_one_or_none()
         except ValueError:
             pass
@@ -218,6 +219,7 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID,
         if product:
             batch_result = await db.execute(
                 select(BatchORM).where(
+                    BatchORM.pharmacy_id == pharmacy_id,
                     BatchORM.product_id == product.id,
                     BatchORM.batch_number == batch_no)
             )
@@ -229,6 +231,7 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID,
             pid = uuid.UUID(product_id)
             batch_result = await db.execute(
                 select(BatchORM).where(
+                    BatchORM.pharmacy_id == pharmacy_id,
                     BatchORM.product_id == pid,
                     BatchORM.quantity_on_hand > 0,
                     BatchORM.is_active)
@@ -240,11 +243,13 @@ async def _resolve_batch(item: dict, pharmacy_id: uuid.UUID,
 
     # Resolve product if not yet found
     if batch and not product:
-        prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
+        prod_result = await db.execute(select(ProductORM).where(
+            ProductORM.id == batch.product_id, ProductORM.pharmacy_id == pharmacy_id))
         product = prod_result.scalar_one_or_none()
     if not product and product_id:
         try:
-            prod_result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
+            prod_result = await db.execute(select(ProductORM).where(
+                ProductORM.id == uuid.UUID(product_id), ProductORM.pharmacy_id == pharmacy_id))
             product = prod_result.scalar_one_or_none()
         except ValueError:
             pass
@@ -515,6 +520,19 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
     margin_paise = grand_total_paise - cost_total_paise
     margin_percent = (margin_paise / grand_total_paise * 100) if grand_total_paise > 0 else 0
 
+    # A customer_id/doctor_id supplied here is caller-controlled — without
+    # this check, a bill could be linked to another pharmacy's customer or
+    # doctor record (polluting their purchase-history stats with a bill
+    # they never made), the same cross-tenant class this file's other
+    # lookups were fixed for. get_owned_or_404 just verifies ownership; the
+    # row itself isn't otherwise used here.
+    if bill_data.customer_id:
+        await get_owned_or_404(
+            db, CustomerORM, bill_data.customer_id, pharmacy_id, not_found_detail="Customer not found")
+    if bill_data.doctor_id:
+        await get_owned_or_404(
+            db, DoctorORM, bill_data.doctor_id, pharmacy_id, not_found_detail="Doctor not found")
+
     bill = BillORM(
         pharmacy_id=pharmacy_id,
         bill_number=bill_number,
@@ -580,12 +598,9 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
-    bid = uuid.UUID(bill_id)
 
-    result = await db.execute(select(BillORM).where(BillORM.id == bid))
-    bill = result.scalar_one_or_none()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
+    bill = await get_owned_or_404(db, BillORM, bill_id, pharmacy_id, not_found_detail="Bill not found")
+    bid = bill.id
     if bill.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft bills can be edited")
 
@@ -829,10 +844,8 @@ async def get_bills(
 @router.get("/bills/{bill_id}")
 async def get_bill(bill_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(BillORM).where(BillORM.id == uuid.UUID(bill_id)))
-    bill = result.scalar_one_or_none()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
+    bill = await get_owned_or_404(
+        db, BillORM, bill_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Bill not found")
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
     return _bill_response(bill, items_result.scalars().all())
 
@@ -845,15 +858,14 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
-    # Scoped by pharmacy_id — without this, any logged-in user from any
-    # pharmacy could download any other pharmacy's bill PDF just by knowing
-    # (or guessing) a bill_id. This was a real cross-tenant data leak.
-    result = await db.execute(
-        select(BillORM).where(BillORM.id == uuid.UUID(bill_id), BillORM.pharmacy_id == pharmacy_id)
-    )
-    bill = result.scalar_one_or_none()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Bill not found")
+    # get_owned_or_404 scopes by pharmacy_id — without it, any logged-in
+    # user from any pharmacy could download any other pharmacy's bill PDF
+    # just by knowing (or guessing) a bill_id. This was a real, found and
+    # fixed cross-tenant data leak here — but the same pattern still had to
+    # be independently re-found and fixed across ~20 sibling endpoints
+    # Sep 12, 2026 (RULE MISSES LOG), because this fix never got
+    # generalized into a shared helper the first time. It has now.
+    bill = await get_owned_or_404(db, BillORM, bill_id, pharmacy_id, not_found_detail="Bill not found")
 
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
     items = items_result.scalars().all()
@@ -1035,12 +1047,10 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    bid = uuid.UUID(payment_data.invoice_id)
 
-    result = await db.execute(select(BillORM).where(BillORM.id == bid))
-    bill = result.scalar_one_or_none()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+    bill = await get_owned_or_404(
+        db, BillORM, payment_data.invoice_id, pharmacy_id, not_found_detail="Invoice not found")
+    bid = bill.id
 
     payment_paise = int(payment_data.amount * 100)
     new_paid = bill.amount_paid_paise + payment_paise
@@ -1089,11 +1099,12 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
         get_current_user), db: AsyncSession = Depends(get_db)):
     if not invoice_id:
         return []
-    bid = uuid.UUID(invoice_id)
-    result = await db.execute(select(BillORM).where(BillORM.id == bid))
-    bill = result.scalar_one_or_none()
-    if not bill:
-        return []
+    try:
+        bill = await get_owned_or_404(
+            db, BillORM, invoice_id, uuid.UUID(current_user.pharmacy_id))
+    except HTTPException:
+        return []  # matches this endpoint's existing "not found -> []" contract
+    bid = bill.id
     # Return payment info from the bill itself
     if bill.amount_paid_paise > 0:
         return [{
@@ -1111,11 +1122,10 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
 @router.post("/refunds")
 async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    bid = uuid.UUID(refund_data.return_invoice_id)
-    result = await db.execute(select(BillORM).where(BillORM.id == bid))
-    bill = result.scalar_one_or_none()
-    if not bill:
-        raise HTTPException(status_code=404, detail="Return invoice not found")
+    bill = await get_owned_or_404(
+        db, BillORM, refund_data.return_invoice_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Return invoice not found")
+    bid = bill.id
     if bill.invoice_type != "SALES_RETURN":
         raise HTTPException(status_code=400, detail="Invoice is not a sales return")
 
@@ -1154,10 +1164,13 @@ async def get_refunds(
     # Refunds are tracked via bill status and audit logs
     if not return_invoice_id:
         return []
-    bid = uuid.UUID(return_invoice_id)
-    result = await db.execute(select(BillORM).where(BillORM.id == bid))
-    bill = result.scalar_one_or_none()
-    if not bill or bill.status != "refunded":
+    try:
+        bill = await get_owned_or_404(
+            db, BillORM, return_invoice_id, uuid.UUID(current_user.pharmacy_id))
+    except HTTPException:
+        return []  # matches this endpoint's existing "not found -> []" contract
+    bid = bill.id
+    if bill.status != "refunded":
         return []
     return [{
         "id": str(uuid.uuid4()),

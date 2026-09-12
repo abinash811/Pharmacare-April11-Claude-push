@@ -528,7 +528,7 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
 
         # Drug license expiry from pharmacy profile
         pharmacy_row = (await db.execute(
-            select(Pharmacy).where(Pharmacy.id == pid)
+            select(Pharmacy).where(Pharmacy.id == pid)  # tenant-safe: pid is current_user's own pharmacy_id
         )).scalars().first()
         drug_license_expiry = getattr(
             pharmacy_row,

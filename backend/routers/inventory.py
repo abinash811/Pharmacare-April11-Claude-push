@@ -19,7 +19,7 @@ from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user, has_permission, paginate_response
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, paginate_response
 
 router = APIRouter(prefix="/api", tags=["inventory"])
 
@@ -350,16 +350,12 @@ async def search_products_with_batches(q: str,
 @router.get("/products/{product_id}")
 async def get_product(product_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    try:
-        pid = uuid.UUID(product_id)
-    except ValueError:
-        # Not a UUID at all (e.g. a SKU) — this route only looks products up
-        # by id, so that's a clean 404, not an unhandled crash.
-        raise HTTPException(status_code=404, detail="Product not found")
-    result = await db.execute(select(ProductORM).where(ProductORM.id == pid))
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    # get_owned_or_404 already turns a malformed (non-UUID) id into a clean
+    # 404 rather than an unhandled crash — same behavior as the old
+    # try/except here, plus the pharmacy_id scoping that was missing.
+    product = await get_owned_or_404(
+        db, ProductORM, product_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Product not found")
     return _product_response(product)
 
 
@@ -372,10 +368,9 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
     # the Team > Roles UI, from ever editing a product. Found Sep 12, 2026
     # while wiring ACL into Suppliers/Products creation.
     await _require_inventory_permission(current_user, "edit", db)
-    result = await db.execute(select(ProductORM).where(ProductORM.id == uuid.UUID(product_id)))
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    product = await get_owned_or_404(
+        db, ProductORM, product_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Product not found")
     field_map = {
         "gst_percent": "gst_rate",
         "schedule": "drug_schedule",
@@ -394,17 +389,16 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
 async def delete_product(product_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_inventory_permission(current_user, "delete", db)
-    pid = uuid.UUID(product_id)
+    product = await get_owned_or_404(
+        db, ProductORM, product_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Product not found")
+    pid = product.id
     batch_count = await db.execute(select(func.count()).select_from(BatchORM).where(
         BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0))
     if batch_count.scalar() > 0:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete product with stock. Write off batches first.")
-    result = await db.execute(select(ProductORM).where(ProductORM.id == pid))
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
     from datetime import datetime, timezone
     product.deleted_at = datetime.now(timezone.utc)
     await db.flush()

@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.4 | Last updated: September 5, 2026
+# Version: 1.5 | Last updated: September 12, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
@@ -31,10 +31,19 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    `create_pharmacy_with_defaults(...)`, and `UserCreate` has no
    client-supplied role field (signing-up user is always that new
    pharmacy's Admin, server-side).
-2. **Multi-tenancy isolation needs a full audit, not just the signup fix.**
-   The old register bug proved the *pattern* — "forgot to scope by
-   `pharmacy_id`" — exists in this codebase. Before trusting 100 pharmacies'
-   data stays separated, audit every query, not just auth.
+2. ~~Multi-tenancy isolation needs a full audit, not just the signup fix.~~
+   **Fixed Sep 12, 2026.** The audit found the pattern was real and
+   widespread: nearly every get/update/delete-by-id endpoint across 10
+   router files looked up its row with no `pharmacy_id` check at all —
+   proved live (two real registered pharmacies, one reading and writing
+   the other's supplier data), not just by code read. Fixed via a shared
+   `get_owned_or_404()` helper (`routers/auth_helpers.py`) applied
+   everywhere the bug was found, a new automated gate
+   (`scripts/check_tenant_isolation.py`, wired as `design-guard.sh` Rule
+   13) that blocks a future unscoped lookup from merging, and a permanent
+   regression suite (`backend/tests/test_multi_tenancy_isolation.py`, 46
+   tests, confirmed to actually catch the regression via `git stash`).
+   Full writeup: `docs/15_ROADMAP.md` RULE MISSES LOG, Sep 12, 2026 entry.
 3. **No automated backups.** Real pharmacy business + compliance data (H1
    register, bills). Losing it isn't acceptable.
 4. **CORS misconfiguration** — `allow_origins=["*"]` with

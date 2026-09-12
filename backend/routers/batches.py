@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
-from routers.auth_helpers import User, get_current_user
+from routers.auth_helpers import User, get_current_user, get_owned_or_404
 
 router = APIRouter(prefix="/api", tags=["batches"])
 
@@ -140,12 +140,9 @@ async def _get_product_by_sku(pharmacy_id: uuid.UUID, sku: str, db: AsyncSession
     return product
 
 
-async def _get_batch(batch_id: str, db: AsyncSession) -> BatchORM:
-    result = await db.execute(select(BatchORM).where(BatchORM.id == uuid.UUID(batch_id)))
-    batch = result.scalar_one_or_none()
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    return batch
+async def _get_batch(batch_id: str, pharmacy_id: uuid.UUID, db: AsyncSession) -> BatchORM:
+    return await get_owned_or_404(
+        db, BatchORM, batch_id, pharmacy_id, not_found_detail="Batch not found")
 
 
 async def _record_movement(
@@ -257,7 +254,8 @@ async def get_stock_batches(
 @router.get("/stock/batches/{batch_id}")
 async def get_stock_batch(batch_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    batch = await _get_batch(batch_id, db)
+    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
+    # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
     if not product:
@@ -274,7 +272,7 @@ async def update_stock_batch(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can update stock batches")
 
-    batch = await _get_batch(batch_id, db)
+    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     updates = batch_data.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -328,7 +326,7 @@ async def delete_stock_batch(batch_id: str, current_user: User = Depends(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete stock batches")
 
-    batch = await _get_batch(batch_id, db)
+    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     if batch.quantity_on_hand > 0:
         raise HTTPException(
             status_code=400,
@@ -344,7 +342,8 @@ async def delete_stock_batch(batch_id: str, current_user: User = Depends(
 @router.post("/batches/{batch_id}/adjust")
 async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    batch = await _get_batch(batch_id, db)
+    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
+    # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
     if not product:
@@ -379,7 +378,8 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
 @router.post("/batches/{batch_id}/writeoff-expiry")
 async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    batch = await _get_batch(batch_id, db)
+    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
+    # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
     product = prod_result.scalar_one_or_none()
     if not product:
@@ -419,7 +419,7 @@ async def create_stock_movement(movement_data: StockMovementCreate, current_user
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
-    batch = await _get_batch(movement_data.batch_id, db)
+    batch = await _get_batch(movement_data.batch_id, pharmacy_id, db)
 
     # StockBatch.quantity_on_hand is in real units everywhere it's written
     # (billing.py, purchase_returns.py, /adjust above) — qty_delta_units is

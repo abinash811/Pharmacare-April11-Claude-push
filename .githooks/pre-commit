@@ -141,6 +141,17 @@ if [ -n "$FRONTEND_ALL_FILES" ] && [ -x frontend/node_modules/.bin/eslint ]; the
   fi
 fi
 
+ROUTER_FILES_TOUCHED=$(echo "$STAGED" | grep -E '^backend/routers/.*\.py$' || true)
+if [ -n "$ROUTER_FILES_TOUCHED" ]; then
+  TENANT_OUTPUT=$(python3 scripts/check_tenant_isolation.py 2>&1) || true
+  if ! echo "$TENANT_OUTPUT" | grep -q "^Tenant isolation check: OK"; then
+    red "BLOCKED: unscoped by-ID lookup(s) found in backend/routers"
+    echo "$TENANT_OUTPUT" | while read -r l; do file "$l"; done
+    reason "Found Sep 12, 2026: a get/update/delete-by-id endpoint without a pharmacy_id check let one pharmacy read/write another's data. Use get_owned_or_404() from routers/auth_helpers.py, or mark a reviewed exception with a trailing '# tenant-safe: <reason>' comment."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
 if [ -n "$BACKEND_FILES" ] && [ -x backend/venv/bin/flake8 ]; then
   echo ""
   echo "Running flake8 on staged backend file(s) (new/changed lines only)..."

@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 
 from deps import get_db
 from models.users import Role as RoleORM, User as UserORM
-from routers.auth_helpers import User, get_current_user, hash_password, verify_password
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, hash_password, verify_password
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -95,6 +95,7 @@ async def create_user(user_data: UserCreate, current_user: User = Depends(
     await db.flush()
 
     result = await db.execute(
+        # tenant-safe: user just created in this same request
         select(UserORM).options(joinedload(UserORM.role)).where(UserORM.id == user.id)
     )
     return _user_response(result.scalar_one())
@@ -106,7 +107,8 @@ async def get_user(user_id: str, current_user: User = Depends(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.id == uuid.UUID(user_id))
+        select(UserORM).options(joinedload(UserORM.role)).where(
+            UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -120,7 +122,8 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     result = await db.execute(
-        select(UserORM).options(joinedload(UserORM.role)).where(UserORM.id == uuid.UUID(user_id))
+        select(UserORM).options(joinedload(UserORM.role)).where(
+            UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -154,6 +157,7 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 
     await db.flush()
     result = await db.execute(
+        # tenant-safe: user already scoped above
         select(UserORM).options(joinedload(UserORM.role)).where(UserORM.id == user.id)
     )
     return _user_response(result.scalar_one())
@@ -166,10 +170,8 @@ async def deactivate_user(user_id: str, current_user: User = Depends(
         raise HTTPException(status_code=403, detail="Admin access required")
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
-    result = await db.execute(select(UserORM).where(UserORM.id == uuid.UUID(user_id)))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await get_owned_or_404(
+        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
 
     user.is_active = False
     await db.flush()
@@ -179,6 +181,7 @@ async def deactivate_user(user_id: str, current_user: User = Depends(
 @router.put("/users/me/change-password")
 async def change_password(password_data: ChangePassword, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # tenant-safe: self-scoped, id is the caller's own JWT subject
     result = await db.execute(select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))
     user = result.scalar_one_or_none()
     if not user:

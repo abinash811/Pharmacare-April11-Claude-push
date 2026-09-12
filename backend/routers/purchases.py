@@ -19,7 +19,7 @@ from models.purchases import (
 )
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, has_permission
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["purchases"])
 
@@ -423,10 +423,8 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(purchase_data.supplier_id)
 
-    sup_result = await db.execute(select(SupplierORM).where(SupplierORM.id == supplier_id))
-    supplier = sup_result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, pharmacy_id, not_found_detail="Supplier not found")
 
     purchase_number = await _generate_purchase_number(pharmacy_id, db)
 
@@ -565,18 +563,16 @@ async def update_purchase(
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
-    result = await db.execute(select(PurchaseORM).where(
-        PurchaseORM.id == pid, PurchaseORM.deleted_at.is_(None)))
-    purchase = result.scalar_one_or_none()
-    if not purchase:
-        raise HTTPException(status_code=404, detail="Purchase not found")
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found",
+        extra_conditions=[PurchaseORM.deleted_at.is_(None)])
     if purchase.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft purchases can be edited")
 
-    sup_result = await db.execute(select(SupplierORM).where(SupplierORM.id == uuid.UUID(purchase_data.supplier_id)))
-    supplier = sup_result.scalar_one_or_none()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+    # Just verifying ownership here — unlike create_purchase, this path
+    # never needs the supplier row itself (no due_date recompute on edit).
+    await get_owned_or_404(
+        db, SupplierORM, purchase_data.supplier_id, pharmacy_id, not_found_detail="Supplier not found")
 
     # Delete old items
     old_items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
@@ -694,11 +690,9 @@ async def delete_purchase(
     await _require_purchases_permission(current_user, "edit", db)
     pid = uuid.UUID(purchase_id)
 
-    result = await db.execute(select(PurchaseORM).where(
-        PurchaseORM.id == pid, PurchaseORM.deleted_at.is_(None)))
-    purchase = result.scalar_one_or_none()
-    if not purchase:
-        raise HTTPException(status_code=404, detail="Purchase not found")
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, uuid.UUID(current_user.pharmacy_id), not_found_detail="Purchase not found",
+        extra_conditions=[PurchaseORM.deleted_at.is_(None)])
     if purchase.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft purchases can be deleted")
 
@@ -754,11 +748,10 @@ async def check_duplicate_invoice(
 @router.get("/purchases/{purchase_id}")
 async def get_purchase(purchase_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(PurchaseORM).where(
-        PurchaseORM.id == uuid.UUID(purchase_id), PurchaseORM.deleted_at.is_(None)))
-    purchase = result.scalar_one_or_none()
-    if not purchase:
-        raise HTTPException(status_code=404, detail="Purchase not found")
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, purchase_id, uuid.UUID(current_user.pharmacy_id),
+        not_found_detail="Purchase not found",
+        extra_conditions=[PurchaseORM.deleted_at.is_(None)])
 
     items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == purchase.id))
     items = items_result.scalars().all()
@@ -766,6 +759,7 @@ async def get_purchase(purchase_id: str, current_user: User = Depends(
     resp = await _purchase_response(purchase, items, db)
 
     # Enrich with supplier name
+    # tenant-safe: purchase already scoped via get_owned_or_404
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase.supplier_id))
     sup_name = sup_result.scalar_one_or_none()
     resp["supplier_name"] = sup_name or ""
@@ -784,10 +778,8 @@ async def mark_purchase_paid(
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     pid = uuid.UUID(purchase_id)
 
-    result = await db.execute(select(PurchaseORM).where(PurchaseORM.id == pid))
-    purchase = result.scalar_one_or_none()
-    if not purchase:
-        raise HTTPException(status_code=404, detail="Purchase not found")
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found")
     if purchase.payment_status == "paid":
         raise HTTPException(status_code=400, detail="Purchase is already fully paid")
 

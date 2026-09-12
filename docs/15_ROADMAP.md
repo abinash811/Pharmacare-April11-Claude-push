@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.52 | Last updated: September 12, 2026
+# Version: 2.53 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -465,47 +465,64 @@ done, earlier this session).
 
 **Use case: a store manager opens the Suppliers list to see which
 distributors they currently owe money to.**
-- **Today: broken.** Live-verified, zero-data: a brand-new supplier with
-  a real confirmed, unpaid ₹5,250 credit purchase against them shows
-  `"outstanding": 0` in `GET /suppliers` (the list endpoint) — confirmed
-  via a direct API call against the real running backend. `_supplier_response()`
-  defaults `outstanding_paise` to 0 and the list endpoint
-  (`routers/suppliers.py`, `get_suppliers`) never calls `_calc_outstanding()`
-  to override it — only the single-supplier `GET /suppliers/{id}` and
-  `GET /suppliers/{id}/summary` endpoints do. The Suppliers page's
-  "Outstanding" column and its "Outstanding" filter pill both read this
-  same broken per-row field, so the filter would show **zero** suppliers
-  even if fifty of them owe real money.
+- **✅ Fixed Sep 12, 2026.** Was broken — live-verified, zero-data: a
+  brand-new supplier with a real confirmed, unpaid ₹5,250 credit purchase
+  against them showed `"outstanding": 0` in `GET /suppliers` (the list
+  endpoint), confirmed via a direct API call against the real running
+  backend. `_supplier_response()` defaulted `outstanding_paise` to 0 and
+  the list endpoint (`routers/suppliers.py`, `get_suppliers`) never
+  called `_calc_outstanding()` to override it — only the single-supplier
+  `GET /suppliers/{id}` and `GET /suppliers/{id}/summary` endpoints did.
+  The Suppliers page's "Outstanding" column and its "Outstanding" filter
+  pill both read this same broken per-row field, so the filter would
+  show **zero** suppliers even if fifty of them owed real money.
 - Exactly the Manifesto rule 11 shape named in CLAUDE.md itself (an MRP/
   stock/H1 check that reached one call site but not its siblings) —
-  `_calc_outstanding()` is correct and even already accounts for
-  purchase returns reducing the balance, it just isn't called everywhere
-  it needs to be.
-- **Phase: v1.**
+  `_calc_outstanding()` was already correct (it even accounts for
+  purchase returns reducing the balance), it just wasn't called
+  everywhere it needed to be.
+- Fix: a batched `_outstanding_paise_by_suppliers()` helper (one grouped
+  query per page, same pattern as Customers' `_outstanding_paise_by_customer`)
+  used by both `get_suppliers` and `get_supplier`. Live-verified: the
+  Suppliers list now shows real per-supplier balances (₹2,65,287.00,
+  ₹3,52,526.00, ₹44,827.00, etc. on real accumulated dev-DB suppliers)
+  instead of a column of zeros.
 
 **Use case: a store manager records a payment made to a distributor, so
 the outstanding balance and purchase history reflect it.**
-- **Today: broken, 100% of the time.** The real "Record Payment" button
-  (`SupplierDetailPanel.jsx`, enabled once outstanding > 0) opens
-  `SupplierPaymentModal`, which calls `POST /suppliers/{id}/payment`
-  (`apiUrl.supplierPayment`) — **this route does not exist anywhere in
-  the backend.** Confirmed by reading every endpoint in
-  `routers/suppliers.py` (none match) and by a live `curl` against the
-  real running backend: `404` every time. A real per-purchase payment
-  endpoint does exist (`POST /purchases/{id}/pay`), but nothing calls it
-  from this UI — the whole feature is unreachable.
+- **✅ Fixed Sep 12, 2026.** Was broken, 100% of the time. The real
+  "Record Payment" button (`SupplierDetailPanel.jsx`, enabled once
+  outstanding > 0) opens `SupplierPaymentModal`, which calls
+  `POST /suppliers/{id}/payment` (`apiUrl.supplierPayment`) — this route
+  did not exist anywhere in the backend, confirmed by reading every
+  endpoint in `routers/suppliers.py` (none matched) and by a live `curl`
+  against the real running backend: `404` every time.
 - Baseline gap, not a competitor-only one — eVitalRx's "digital payments
   to distributors with automatic reconciliation" and Marg's supplier
   ledger payment tracking are the industry-standard version of exactly
-  this, and PharmaCare already built the *button* for it.
-- **Phase: v1.**
+  this, and PharmaCare had already built the *button* for it.
+- Fix: a new `POST /suppliers/{id}/payment` endpoint that allocates the
+  payment FIFO — oldest unpaid/partial purchase first — writing to the
+  same `Purchase.amount_paid_paise`/`payment_status` + `PurchasePayment`
+  rows `purchases.py`'s own per-purchase payment endpoint uses, so both
+  stay consistent. Reuses the `suppliers:edit` permission (same as
+  `update_supplier`), matching how `purchases.py`'s `mark_purchase_paid`
+  reuses `purchases:edit` rather than inventing a payment-specific
+  permission. Also built the `payment_history` ledger the frontend's
+  Outstanding tab already rendered but nothing ever populated — merges
+  real payments and confirmed purchase returns (credit notes) into one
+  chronological list. Live-verified end-to-end through the real UI: paid
+  ₹500 against a supplier with ₹44,827.00 outstanding, watched it drop
+  to ₹44,327.00 in both the list and detail views, with 5 new "Payment"
+  rows in the history table showing the FIFO split across that
+  supplier's smaller open purchases.
 
 **Use case: a store manager checks a supplier's real financial history
 (purchases + payments) in one place.**
-- **Today: works**, once the two bugs above are fixed — `get_supplier`/
+- **✅ Works**, now that the two bugs above are fixed — `get_supplier`/
   `get_supplier_summary`'s outstanding calculation and the purchase
-  history tab are both real and correct; they were only unreachable via
-  the broken list view and the dead payment button around them.
+  history tab were already real and correct; they were only unreachable
+  via the broken list view and the dead payment button around them.
 
 **Use case: a store manager picks a distributor while entering a new
 purchase, and wants to see if they already owe that distributor money
@@ -548,15 +565,22 @@ receipt.**
 - **Phase: v3.**
 
 **Build list:**
-- **v1:** (1) fix `get_suppliers()` to compute real outstanding via
-  `_calc_outstanding()` like its sibling endpoints already do, so the
-  list column and the Outstanding filter both become trustworthy; (2)
-  build the missing `POST /suppliers/{id}/payment` endpoint (allocate
-  against outstanding purchases, oldest first) so the existing
-  `SupplierPaymentModal` UI actually works.
-- **v2:** audit-log entries for supplier mutations/payments; a Suppliers
-  Excel export (with real outstanding); outstanding/credit-days
-  visibility in `SupplierDropdown.jsx` during a new purchase.
+- **v1 — done Sep 12, 2026:** (1) fixed `get_suppliers()` to compute real
+  outstanding via a batched helper, so the list column and the
+  Outstanding filter are both trustworthy; (2) built the missing
+  `POST /suppliers/{id}/payment` endpoint (FIFO allocation against open
+  purchases) plus the `payment_history` ledger the UI already expected.
+  10 new pytest cases in `test_supplier_list_outstanding_and_payment.py`
+  (regression-proofed via `git stash` against the pre-fix code); full
+  related suite (52 tests) green; live-verified through the real browser
+  UI, not just the API. Cross-cutting check: grepped for other consumers
+  of supplier outstanding/payment data outside the Suppliers module
+  (Dashboard, Reports, Excel export, PurchaseReturnEditModal) — none
+  exist yet, so nothing else needed updating this round.
+- **v2:** audit-log entries for supplier create/edit/delete (payment now
+  has one — see above); a Suppliers Excel export (with real outstanding);
+  outstanding/credit-days visibility in `SupplierDropdown.jsx` during a
+  new purchase.
 - **v3:** a formal Purchase Order workflow distinct from direct receipt.
 
 ### Customers
@@ -869,7 +893,7 @@ behavior and real behavior):
 
 | Date | Rule violated | Why it wasn't caught | Fix applied |
 |------|---------------|----------------------|--------------|
-| Sep 12, 2026 | Manifesto rule 9 ("no unverified routes") + rule 11 ("cross-cutting changes ship as one change") — Suppliers' list outstanding + the Record Payment feature | Pre-existing, found during the Suppliers `product-review` audit, not introduced this session. Two separate misses in the same module: (1) `_calc_outstanding()` was correctly built and wired into `GET /suppliers/{id}` and `GET /suppliers/{id}/summary`, but never into `GET /suppliers` (the list endpoint) — the exact rule-11 shape CLAUDE.md's own rule 11 names as its motivating example (a fix that reached some call sites, not all). (2) `SupplierPaymentModal.jsx` calls `POST /suppliers/{id}/payment` — a route that was never confirmed to exist and doesn't: grepped every endpoint in `routers/suppliers.py`, none match, and a live `curl` against the running backend returns 404. Live-verified: a real confirmed ₹5,250 unpaid credit purchase left the supplier's list-view outstanding at ₹0, and the "Outstanding" filter pill would show zero suppliers regardless of real balances. | Not yet fixed — found during Research phase of the Suppliers module review; fixes (wire `_calc_outstanding()` into `get_suppliers()`; build the missing `POST /suppliers/{id}/payment` endpoint) queued in the Suppliers section's v1 build list, pending Abinash's go-ahead. |
+| Sep 12, 2026 | Manifesto rule 9 ("no unverified routes") + rule 11 ("cross-cutting changes ship as one change") — Suppliers' list outstanding + the Record Payment feature | Pre-existing, found during the Suppliers `product-review` audit, not introduced this session. Two separate misses in the same module: (1) `_calc_outstanding()` was correctly built and wired into `GET /suppliers/{id}` and `GET /suppliers/{id}/summary`, but never into `GET /suppliers` (the list endpoint) — the exact rule-11 shape CLAUDE.md's own rule 11 names as its motivating example (a fix that reached some call sites, not all). (2) `SupplierPaymentModal.jsx` calls `POST /suppliers/{id}/payment` — a route that was never confirmed to exist and doesn't: grepped every endpoint in `routers/suppliers.py`, none match, and a live `curl` against the running backend returns 404. Live-verified: a real confirmed ₹5,250 unpaid credit purchase left the supplier's list-view outstanding at ₹0, and the "Outstanding" filter pill would show zero suppliers regardless of real balances. | Fixed same day: a batched `_outstanding_paise_by_suppliers()` helper (same pattern as Customers' `_outstanding_paise_by_customer`) wired into both `get_suppliers()` and `get_supplier()`; a new `POST /suppliers/{id}/payment` endpoint that allocates FIFO across open purchases and writes to the same `Purchase`/`PurchasePayment` rows `purchases.py`'s own payment endpoint uses, plus the `payment_history` ledger the frontend already rendered but nothing populated. 10 new regression tests (`test_supplier_list_outstanding_and_payment.py`), confirmed to fail against the pre-fix code via `git stash`; full related suite (52 tests) green; live-verified through the real browser UI — a ₹500 payment against a ₹44,827 balance dropped it to ₹44,327 in both the list and detail views, with the FIFO split visible in the new Payment History rows. **Gate closed**: this class of miss (a fix reaching some call sites, not all) is exactly what the Sep 12 Customers-driven rewrite of Manifesto rule 11 / `pharmacare-ship-checklist` Step 2 (broad grep beyond the map) is meant to catch on the next module walked this way — no new gate needed, the existing one applies. |
 | Sep 12, 2026 | Manifesto rule 11 ("cross-cutting changes ship as one change") — Customers v1 shipped without checking dependency sections outside the module itself | Execution gap, and specifically the rule-11 pattern repeating in a new shape: `docs/08_ARCHITECTURE.md`'s cross-cutting map doesn't cover Customers at all, so it was checked (per habit) and came back "nothing to verify" — a false clear, not a real one. Only asked afterward "did you check the other sections that depend on Customers," and checking for real (grepping broadly, not just consulting the map) found three live gaps in one pass: `BillingWorkspace`'s patient search showed zero credit-limit/outstanding info (a cashier only found out a bill would be rejected after trying), `customers.py` had zero audit-log entries for any create/update/delete (unlike billing.py/purchases.py/purchase_returns.py), and the Customers Excel export omitted the two fields the v1 fix had just made real (Outstanding, Notes). None of the three are "the feature" itself, which is exactly why each was skipped. | Fixed same day: `PatientCombobox.jsx` now shows "Owes ₹X of ₹Y limit" in the search dropdown and a warning dot on the selected chip; `customers.py` gained its own `_record_audit`/`_client_ip` (same duplicated-per-router pattern as the other three files) wired into all 6 mutating endpoints; `exportCustomersToExcel` now includes Outstanding and Notes. 14 new regression tests (4 audit-log, plus the export/UI changes verified live in the real browser — a real over-limit customer showed the correct red warning). **Gate closed, doc-first (no automated check is realistic for "did you check every dependency")**: `docs/08_ARCHITECTURE.md`'s cross-cutting map extended with a real, walked Customers entry; Manifesto rule 11 and `pharmacare-ship-checklist`'s Step 2 both rewritten to require an active broad grep beyond the map (specifically calling out Audit Log / exports / other pages' UI as the three easiest to forget) instead of treating "not in the map" as "nothing to check." |
 | Sep 12, 2026 | `docs/14_SECURITY.md`-style ACL expectation (same class as the Suppliers/Inventory fix earlier this session) — `customers.py`'s create/update/delete customer AND every doctor endpoint have zero permission check | Tooling gap: the Suppliers/Inventory ACL audit earlier this session found and fixed the identical hole in two other modules, but nothing generalized that fix into a check for "every mutating endpoint has a permission gate" — so the same class survived, undetected, in a third module (Customers/Doctors) until this `product-review` audit found it directly. `customers:delete` is a real, defined permission (`constants.py`) that nothing anywhere enforced. | Fixed Sep 12, 2026 — `_require_customers_permission()` wired into all 6 mutating endpoints (customers + doctors, doctors reusing the `customers:*` namespace since no separate one exists). 8 new regression tests, confirmed 4 fail pre-fix via `git stash`, all pass after. Still no automated gate for the general class ("every mutating endpoint has a permission check") — same reasoning as the Suppliers/Inventory entry: real, but a static check here has a real false-positive risk (some mutations are legitimately open to any authenticated user) without more design work than this fix's scope. |
 | Sep 12, 2026 | Manifesto rule 3 ("no half-finished implementations") — same class as the Aug 26, 2026 Supplier `notes` field miss, recurred in Customers | Execution gap: the Aug 26 fix (adding a real `notes` column + wiring for Suppliers) was never checked against sibling modules with the same pattern. `CustomerFormDialog.jsx`'s Zod schema, defaults, and edit-populate all referenced `notes` — but no input/textarea for it was ever rendered, and `Customer` had no DB column for it at all. Worse than the original miss: there the value was silently dropped on save; here the user could never type it in the first place. | Fixed Sep 12, 2026 — migration `bcd3c6cd10e2` adds `Customer.notes`; `CustomerFormDialog.jsx` now renders a real `<Textarea>`; shown read-only in `CustomerDetailDialog.jsx`. 2 regression tests (create + edit persistence). |

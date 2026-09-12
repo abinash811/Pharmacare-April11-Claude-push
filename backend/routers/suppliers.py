@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.purchases import Purchase, PurchaseReturn
+from models.purchases import Purchase, PurchasePayment, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
@@ -54,9 +55,33 @@ class SupplierUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class SupplierPaymentRequest(BaseModel):
+    amount: float
+    payment_method: str = "cash"
+    payment_date: Optional[str] = None
+    note: Optional[str] = None
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def _supplier_response(s: SupplierORM, outstanding_paise: int = 0) -> dict:
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+def _supplier_response(
+        s: SupplierORM, outstanding_paise: int = 0, payment_history: Optional[list] = None) -> dict:
     return {
         "id": str(s.id),
         "name": s.name,
@@ -74,9 +99,79 @@ def _supplier_response(s: SupplierORM, outstanding_paise: int = 0) -> dict:
         "notes": s.notes,
         "is_active": s.is_active,
         "outstanding": outstanding_paise / 100,
+        "payment_history": payment_history if payment_history is not None else [],
         "created_at": s.created_at.isoformat() if s.created_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
     }
+
+
+async def _outstanding_paise_by_suppliers(
+        supplier_ids: list[uuid.UUID], db: AsyncSession) -> dict[uuid.UUID, int]:
+    """Batched version of _calc_outstanding for list pages — one grouped
+    query instead of N+1 (same pattern as customers.py's
+    _outstanding_paise_by_customer). get_suppliers() never called
+    _calc_outstanding() at all before this, which is why the list page
+    always showed outstanding as ₹0 regardless of real unpaid purchases
+    (docs/15_ROADMAP.md Suppliers audit, Sep 12, 2026)."""
+    if not supplier_ids:
+        return {}
+
+    gross_result = await db.execute(
+        select(Purchase.supplier_id, func.sum(Purchase.grand_total_paise - Purchase.amount_paid_paise))
+        .where(Purchase.supplier_id.in_(supplier_ids), Purchase.payment_status.in_(["unpaid", "partial"]))
+        .group_by(Purchase.supplier_id)
+    )
+    gross_by_id = dict(gross_result.all())
+
+    returns_result = await db.execute(
+        select(PurchaseReturn.supplier_id, func.sum(PurchaseReturn.grand_total_paise))
+        .where(PurchaseReturn.supplier_id.in_(supplier_ids), PurchaseReturn.status == "confirmed")
+        .group_by(PurchaseReturn.supplier_id)
+    )
+    returns_by_id = dict(returns_result.all())
+
+    return {sid: max(0, gross_by_id.get(sid, 0) - returns_by_id.get(sid, 0)) for sid in supplier_ids}
+
+
+async def _payment_history_by_suppliers(
+        supplier_ids: list[uuid.UUID], db: AsyncSession) -> dict[uuid.UUID, list[dict]]:
+    """Merges real supplier payments (via the purchases they were applied
+    to) and confirmed purchase returns (credit notes) into one
+    chronological ledger per supplier — the payment_history shape
+    SupplierDetailPanel's Outstanding tab already renders, which nothing
+    in the backend ever populated until now."""
+    if not supplier_ids:
+        return {}
+
+    history: dict[uuid.UUID, list[dict]] = {sid: [] for sid in supplier_ids}
+
+    payments_result = await db.execute(
+        select(PurchasePayment.id, Purchase.supplier_id, PurchasePayment.payment_date,
+               PurchasePayment.amount_paise, PurchasePayment.notes)
+        .join(Purchase, PurchasePayment.purchase_id == Purchase.id)
+        .where(Purchase.supplier_id.in_(supplier_ids))
+    )
+    for pid, sid, pay_date, amount_paise, notes in payments_result.all():
+        history[sid].append({
+            "id": str(pid), "date": pay_date.isoformat(), "type": "payment",
+            "amount": amount_paise / 100, "note": notes,
+        })
+
+    returns_result = await db.execute(
+        select(PurchaseReturn.id, PurchaseReturn.supplier_id, PurchaseReturn.return_date,
+               PurchaseReturn.grand_total_paise, PurchaseReturn.return_number)
+        .where(PurchaseReturn.supplier_id.in_(supplier_ids), PurchaseReturn.status == "confirmed")
+    )
+    for rid, sid, ret_date, grand_total_paise, return_number in returns_result.all():
+        history[sid].append({
+            "id": str(rid), "date": ret_date.isoformat(), "type": "purchase_return",
+            "amount": grand_total_paise / 100, "note": f"Return {return_number}",
+        })
+
+    for entries in history.values():
+        entries.sort(key=lambda h: h["date"])
+
+    return history
 
 
 # ── /suppliers ────────────────────────────────────────────────────────────────
@@ -110,7 +205,15 @@ async def get_suppliers(
 
     offset = (page - 1) * page_size
     result = await db.execute(query.order_by(SupplierORM.name).offset(offset).limit(page_size))
-    suppliers = [_supplier_response(s) for s in result.scalars().all()]
+    rows = result.scalars().all()
+
+    ids = [s.id for s in rows]
+    outstanding_by_id = await _outstanding_paise_by_suppliers(ids, db)
+    history_by_id = await _payment_history_by_suppliers(ids, db)
+    suppliers = [
+        _supplier_response(s, outstanding_by_id.get(s.id, 0), history_by_id.get(s.id, []))
+        for s in rows
+    ]
 
     return {
         "data": suppliers,
@@ -161,7 +264,8 @@ async def get_supplier(supplier_id: str, current_user: User = Depends(
         not_found_detail="Supplier not found")
 
     outstanding = await _calc_outstanding(supplier.id, db)
-    return _supplier_response(supplier, outstanding)
+    history_by_id = await _payment_history_by_suppliers([supplier.id], db)
+    return _supplier_response(supplier, outstanding, history_by_id.get(supplier.id, []))
 
 
 @router.put("/suppliers/{supplier_id}")
@@ -187,6 +291,88 @@ async def update_supplier(
 
     await db.flush()
     return {"message": "Supplier updated successfully"}
+
+
+@router.post("/suppliers/{supplier_id}/payment")
+async def record_supplier_payment(
+        supplier_id: str,
+        payment: SupplierPaymentRequest,
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """Suppliers never had a way to record a payment — the frontend's
+    'Record Payment' button (SupplierPaymentModal) posted to this exact
+    route and got a 404 every time (docs/15_ROADMAP.md Suppliers audit,
+    Sep 12, 2026). Outstanding is computed from individual Purchase rows
+    (_calc_outstanding), so a supplier-level payment is allocated FIFO —
+    oldest unpaid/partial purchase first — writing to the same
+    Purchase.amount_paid_paise/payment_status + PurchasePayment rows
+    that purchases.py's own per-purchase mark_purchase_paid() writes to,
+    so both stay consistent with each other."""
+    await _require_suppliers_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    sid = uuid.UUID(supplier_id)
+
+    supplier = await get_owned_or_404(
+        db, SupplierORM, sid, pharmacy_id, not_found_detail="Supplier not found")
+
+    payment_paise = int(round(payment.amount * 100))
+    if payment_paise <= 0:
+        raise HTTPException(status_code=400, detail="Payment amount must be greater than zero")
+
+    outstanding_before = await _calc_outstanding(sid, db)
+    if payment_paise > outstanding_before:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Payment amount exceeds {supplier.name}'s outstanding balance "
+                    f"of ₹{outstanding_before / 100:.2f}"),
+        )
+
+    payment_dt = date.fromisoformat(payment.payment_date[:10]) if payment.payment_date else date.today()
+
+    open_purchases_result = await db.execute(
+        select(Purchase)
+        .where(Purchase.supplier_id == sid, Purchase.payment_status.in_(["unpaid", "partial"]))
+        .order_by(Purchase.purchase_date, Purchase.created_at)
+    )
+    open_purchases = open_purchases_result.scalars().all()
+
+    remaining_paise = payment_paise
+    for purchase in open_purchases:
+        if remaining_paise <= 0:
+            break
+        purchase_due = purchase.grand_total_paise - purchase.amount_paid_paise
+        if purchase_due <= 0:
+            continue
+        applied = min(purchase_due, remaining_paise)
+
+        purchase.amount_paid_paise += applied
+        purchase.payment_status = "paid" if purchase.amount_paid_paise >= purchase.grand_total_paise else "partial"
+
+        db.add(PurchasePayment(
+            pharmacy_id=pharmacy_id,
+            purchase_id=purchase.id,
+            amount_paise=applied,
+            payment_method=payment.payment_method,
+            payment_date=payment_dt,
+            notes=payment.note,
+            created_by=uuid.UUID(current_user.id),
+        ))
+        remaining_paise -= applied
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "payment", "supplier", sid,
+        {"amount": payment.amount, "payment_method": payment.payment_method,
+         "payment_date": payment_dt.isoformat(), "note": payment.note},
+        db,
+        old_values={"outstanding": outstanding_before / 100},
+        ip_address=_client_ip(request),
+    )
+    await db.flush()
+
+    outstanding_after = await _calc_outstanding(sid, db)
+    history_by_id = await _payment_history_by_suppliers([sid], db)
+    return _supplier_response(supplier, outstanding_after, history_by_id.get(sid, []))
 
 
 @router.delete("/suppliers/{supplier_id}")

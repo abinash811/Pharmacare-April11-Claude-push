@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.6 | Last updated: September 12, 2026
+# Version: 1.7 | Last updated: September 12, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -417,10 +417,27 @@ See CLAUDE.md Manifesto rule 11's Sep 12 addendum and
 now enforces: grep broadly for the entity outside its own module, don't
 rely on this map alone for a module it doesn't yet cover.
 
-This map covers billing, purchases, returns, reports, inventory, and
-customers (walked Sep 12, 2026). Suppliers, settings, and users haven't
-been walked the same way yet — extend this table instead of assuming
-they're fine.
+**Suppliers** (`Supplier`, `POST /suppliers`, `PUT /suppliers/{id}`,
+`DELETE /suppliers/{id}`, `POST /suppliers/{id}/payment`) — walked Sep
+12, 2026
+| Consumer | Pattern | Where |
+|---|---|---|
+| Supplier outstanding balance (list + detail) | Computed on read | `_outstanding_paise_by_suppliers`/`_calc_outstanding` (routers/suppliers.py) — sums `Purchase.grand_total_paise - amount_paid_paise` over that supplier's `unpaid`/`partial` purchases, minus confirmed `PurchaseReturn` credit; no stored counter to drift. Was only wired into the single-supplier endpoints until Sep 12 (RULE MISSES LOG) — now also on the list endpoint. |
+| Supplier payment recording | Own endpoint, writes to Purchases' own tables | `record_supplier_payment` (routers/suppliers.py) allocates FIFO across that supplier's open purchases, writing `Purchase.amount_paid_paise`/`payment_status` + `PurchasePayment` rows — the same rows `purchases.py`'s own `mark_purchase_paid` writes, so a purchase paid off either way stays consistent |
+| Payment history ledger | Computed on read | `_payment_history_by_suppliers` (routers/suppliers.py) — merges `PurchasePayment` rows (joined via `purchase_id`) and confirmed `PurchaseReturn` rows per supplier; not stored |
+| Audit Log | Called only at the new payment endpoint | `_record_audit` (routers/suppliers.py, added Sep 12 alongside the payment endpoint) — supplier create/edit/delete still have **no** audit-log calls; that gap is tracked as a v2 item in `docs/15_ROADMAP.md`'s Suppliers section, not fixed yet |
+| Suppliers Excel export | **Does not exist** | No `exportSuppliers*` function anywhere in `frontend/src/utils/excelExport.js` — a v2 item, not a consumer to keep in sync yet |
+| Purchase-time supplier visibility | **Does not exist** | `SupplierDropdown.jsx` (PurchaseNew) shows name/GSTIN only, no outstanding/credit visibility — a v2 item, same class as the Billing `PatientCombobox` fix for Customers |
+
+Checked Sep 12, 2026 (Suppliers v1 fix): Dashboard, Reports, and
+`PurchaseReturnEditModal.jsx` were grepped for any dependency on supplier
+outstanding/payment data — none found beyond `supplier_name` display,
+which this change didn't touch. Nothing else needed updating this round.
+
+This map covers billing, purchases, returns, reports, inventory,
+customers, and suppliers (walked Sep 12, 2026). Settings and users
+haven't been walked the same way yet — extend this table instead of
+assuming they're fine.
 
 ### Error Handling Pattern
 

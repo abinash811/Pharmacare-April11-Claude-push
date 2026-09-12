@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.3 | Last updated: September 12, 2026
+# Version: 1.4 | Last updated: September 12, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -175,8 +175,8 @@ Every developer must understand this. Getting this wrong has legal consequences 
 | Purchase Returns | ✅ | Debit notes, stock deduction |
 | Customers | ✅ | Customer + doctor master |
 | Suppliers | ✅ | Supplier master, payment tracking |
-| Reports | ✅ | Sales, purchases, margin analysis |
-| GST Report | ✅ | HSN-wise, GSTR-1 ready |
+| Reports | 🔄 | Sales/Low Stock/Expiry work; no purchases or margin report exists — see `docs/24_REPORTS_ACCEPTANCE_SPEC.md` |
+| GST Report | 🐛 | Broken — hard crashes on generate, plus understates liability for credit sales; not HSN-wise despite the name. See `docs/24_REPORTS_ACCEPTANCE_SPEC.md` |
 | Schedule H1 Register | ✅ | Auto-generated from billing data |
 | Audit Log | ✅ | Every action tracked |
 | Settings | ✅ | Bill sequences, inventory config, GST config |
@@ -287,6 +287,13 @@ Clarity on non-goals is as important as goals. These are explicitly out of scope
 - **Pharmasoft:** one-click near-expiry view with 3-month advance notice, item-wise full purchase→sales history, **one-click import of a distributor's purchase bill** (Excel/CSV/email) straight into a purchase record — not just catalog upload. [Source](https://yadavsoftware.com/)
 
 These three named terms — **short book / demand book** (auto-reorder list), **tiered expiry alerts**, and **return-to-supplier before write-off** — are standard in this market and are gaps in PharmaCare today (see `docs/15_ROADMAP.md`'s Inventory section).
+
+**Reports/GST competitor notes (researched Sep 12, 2026 — refresh before relying on these):**
+- **Marg ERP:** "1,000+ built-in reports" spanning GST/P&L/stock analysis; GSTR-1/GSTR-3B built in with **HSN-wise reporting** and export in **GST-portal-ready format**; ITC tracking; medicines pre-mapped to HSN codes. [Source](https://margcompusoft.com/m/what-are-the-gst-ready-features-in-pharmacy-management-software-for-distributors/), [Source](https://care.margcompusoft.com/margerp/gstr1/17852/1/How-to-see-GSTR-1-GSTR)
+- **eVitalRx:** named reports include GST Reports, **Item-wise Margin Reports**, **Scheduled Drugs Report**, Expiry Reports, **Price Variation Reports**, plus direct **Tally integration** for accounting handoff. [Source](https://www.evitalrx.in/)
+- **Pharmasoft:** auto-generates **GSTR-1/GSTR-2** in a CA/filing-ready export format. [Source](https://yadavsoftware.com/), [Source](https://pharma247.in/blogs/gst-report-generator-download-gstr-1-3b-purchase-gst-reports-instantly)
+
+Real gaps this surfaces: HSN-wise GST grouping (PharmaCare groups by GST rate only — see `docs/24_REPORTS_ACCEPTANCE_SPEC.md`), a GST-portal-ready export format, item-wise margin report, price-variation report, Tally export. Separately, and more urgently: PharmaCare's own GST report is currently non-functional — see `docs/24_REPORTS_ACCEPTANCE_SPEC.md`'s executive summary.
 
 ---
 

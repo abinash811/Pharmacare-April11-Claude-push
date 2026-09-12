@@ -3,10 +3,13 @@
  * Route: /suppliers
  */
 import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, FileSpreadsheet } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader, SearchInput, DateRangePicker, PaginationBar, FilterPills, AppButton, SupplierFormModal } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
+import { exportSuppliersToExcel } from '@/utils/excelExport';
 
 import { useSuppliers }          from './hooks/useSuppliers';
 import SuppliersList             from './components/SuppliersList';
@@ -21,7 +24,11 @@ const FILTERS = [
 ];
 
 export default function Suppliers() {
-  const { suppliers, loading, fetchSuppliers, saveSupplier, recordPayment, fetchPurchaseHistory } = useSuppliers();
+  const navigate = useNavigate();
+  const {
+    suppliers, loading, fetchSuppliers, saveSupplier, recordPayment,
+    fetchPurchaseHistory, fetchNearExpiryBatches,
+  } = useSuppliers();
 
   // ── Search & filter state ─────────────────────────────────────────────────
   const [searchQuery,  setSearchQuery]  = useState('');
@@ -30,10 +37,12 @@ export default function Suppliers() {
   const debouncedSearch = useDebounce(searchQuery, 300);
 
   // ── Detail panel ──────────────────────────────────────────────────────────
-  const [selectedSupplier,  setSelectedSupplier]  = useState(null);
-  const [detailTab,         setDetailTab]         = useState('overview');
-  const [purchaseHistory,   setPurchaseHistory]   = useState([]);
-  const [historyLoading,    setHistoryLoading]    = useState(false);
+  const [selectedSupplier,   setSelectedSupplier]   = useState(null);
+  const [detailTab,          setDetailTab]          = useState('overview');
+  const [purchaseHistory,    setPurchaseHistory]    = useState([]);
+  const [historyLoading,     setHistoryLoading]     = useState(false);
+  const [nearExpiryBatches,  setNearExpiryBatches]  = useState([]);
+  const [nearExpiryLoading,  setNearExpiryLoading]  = useState(false);
 
   // ── Form/payment modals ───────────────────────────────────────────────────
   const [showForm,         setShowForm]         = useState(false);
@@ -52,6 +61,17 @@ export default function Suppliers() {
       fetchPurchaseHistory(selectedSupplier.id).then(data => {
         setPurchaseHistory(data);
         setHistoryLoading(false);
+      });
+    }
+  }, [selectedSupplier, detailTab]); // eslint-disable-line
+
+  // Fetch near-expiry batches when switching to that tab
+  useEffect(() => {
+    if (selectedSupplier && detailTab === 'near_expiry') {
+      setNearExpiryLoading(true);
+      fetchNearExpiryBatches(selectedSupplier.id).then(data => {
+        setNearExpiryBatches(data.items || []);
+        setNearExpiryLoading(false);
       });
     }
   }, [selectedSupplier, detailTab]); // eslint-disable-line
@@ -87,15 +107,35 @@ export default function Suppliers() {
     if (updated) setSelectedSupplier(updated);
   };
 
+  const handleExport = () => {
+    if (suppliers.length === 0) { toast.error('No suppliers to export'); return; }
+    exportSuppliersToExcel(suppliers);
+    toast.success('Exported to Excel');
+  };
+
+  const handleReturnToSupplier = (purchaseId) => {
+    navigate(`/purchases/returns/create?purchase_id=${purchaseId}`);
+  };
+
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="suppliers-page">
       <PageHeader
         title="Suppliers"
         actions={
-          <AppButton onClick={handleAdd} data-testid="add-supplier-btn">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Supplier
-          </AppButton>
+          <div className="flex items-center gap-2">
+            <AppButton
+              variant="outline"
+              icon={<FileSpreadsheet className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={handleExport}
+              data-testid="export-suppliers-btn"
+            >
+              Export Excel
+            </AppButton>
+            <AppButton onClick={handleAdd} data-testid="add-supplier-btn">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Supplier
+            </AppButton>
+          </div>
         }
       />
 
@@ -131,6 +171,9 @@ export default function Suppliers() {
               historyLoading={historyLoading}
               activeTab={detailTab}
               onTabChange={setDetailTab}
+              nearExpiryBatches={nearExpiryBatches}
+              nearExpiryLoading={nearExpiryLoading}
+              onReturnToSupplier={handleReturnToSupplier}
             />
           </div>
         )}

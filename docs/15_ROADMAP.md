@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.54 | Last updated: September 12, 2026
+# Version: 2.55 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -527,23 +527,38 @@ the outstanding balance and purchase history reflect it.**
 **Use case: a store manager picks a distributor while entering a new
 purchase, and wants to see if they already owe that distributor money
 before adding to it.**
-- **Today: missing.** `SupplierDropdown.jsx` (PurchaseNew) shows only
-  name + GSTIN per distributor, no outstanding/credit-days visibility —
-  same class of gap fixed for Billing's `PatientCombobox` this session.
-  Lower urgency than that fix, though: `Supplier.credit_limit_paise`
-  isn't wired to anything (see below), so there's no enforcement a
-  purchase could get silently rejected by — this is a visibility nicety,
-  not a "found out after the fact" surprise.
-- **Phase: v2** — do together with the audit-log/export gaps below.
+- **✅ Fixed Sep 12, 2026.** Was missing — `SupplierDropdown.jsx`
+  (PurchaseNew) showed only name + GSTIN per distributor, no outstanding
+  visibility, same class of gap already fixed for Billing's
+  `PatientCombobox`. Now shows "Owes ₹X" in the option list and on the
+  selected chip's title, plus a red dot when the selected distributor has
+  a balance. No credit-limit comparison shown (unlike Customers) since
+  `Supplier.credit_limit_paise` is still unwired dead schema (see
+  Cleanup note below) — this is balance visibility only, not an
+  enforcement warning. Data was already available for free from the v1
+  fix (`GET /suppliers` now returns real `outstanding`); this only needed
+  rendering. Live-verified: selected a distributor owing ₹44,327.00,
+  chip title read "ACLTEST_Admin_2b3d39da — owes ₹44,327.00".
 
-**Use case: an owner reviews who changed a supplier's payment terms, and
-an accountant exports the supplier list with balances for reconciliation.**
-- **Today: missing, both.** `routers/suppliers.py` has zero
-  `_record_audit` calls (same gap already found and fixed for Customers
-  this session) — a `credit_days` change, a deactivation, a payment, none
-  of it is logged. There is also no Suppliers Excel/CSV export at all
-  (Customers and Purchases both have one).
-- **Phase: v2.**
+**Use case: an owner reviews who changed a supplier's record or recorded
+a payment against one.**
+- **✅ Fixed Sep 12, 2026.** Was missing — `routers/suppliers.py` had zero
+  `_record_audit` calls (payment recording already got one with the v1
+  fix). Now wired into create/update/delete/toggle-status, matching
+  customers.py's pattern. Found incidentally while doing this:
+  `toggle-status` also had **zero permission check at all** — any
+  logged-in role, cashier included, could deactivate a supplier — fixed
+  alongside (reuses `suppliers:deactivate`, same as `delete_supplier`).
+  5 new pytest cases (`test_supplier_audit_log.py`).
+
+**Use case: an accountant exports the supplier list with balances for
+reconciliation.**
+- **✅ Fixed Sep 12, 2026.** Was missing — no Suppliers Excel/CSV export
+  existed at all (Customers and Purchases both have one). Added
+  `exportSuppliersToExcel` + an Export Excel button on the Suppliers
+  page, mirroring the Customers pattern exactly. Live-verified: exported
+  and opened the real `.xlsx` file, confirmed real `Outstanding (₹)`
+  values and all other columns present.
 
 **Cleanup, not a use case:** `Supplier.credit_limit_paise` is a real DB
 column with zero exposure anywhere — not in `SupplierCreate`/
@@ -580,17 +595,30 @@ what's owed to them, instead of remembering to call each one.**
   outstanding/ledger/payment reminders to distributors. Depends on the
   same WhatsApp Business API integration already deferred for Customers'
   equivalent reminder use case (v2 there too) — build once, wire to both.
+- **Deliberately not built Sep 12, 2026**, asked and confirmed rather than
+  assumed: this needs a real WhatsApp Business API account (external
+  service, typically paid, needs Meta approval) that doesn't exist
+  anywhere in this codebase (no WhatsApp/Twilio/SMTP integration of any
+  kind — checked). Abinash chose to skip it for now rather than build a
+  placeholder. Stays v2, revisit once that account exists.
 - **Phase: v2.**
 
 **Use case: a pharmacist wants near-expiry stock flagged for return to
 the supplier before it has to be written off as a loss.**
-- **Today: missing.** Named Pharmasoft feature (return-to-supplier before
-  expiry write-off). PharmaCare's purchase-return flow is real but
-  reactive (damaged/wrong item, manually initiated) — nothing proactively
-  surfaces near-expiry batches as return candidates. Real money-saving
-  gap, not just a nicety, but depends on inventory's existing expiry-
-  tracking surfacing the candidate list first.
-- **Phase: v2.**
+- **✅ Fixed Sep 12, 2026.** Was missing — PharmaCare's purchase-return
+  flow was real but purely reactive (damaged/wrong item, manually
+  initiated); nothing proactively surfaced near-expiry batches as return
+  candidates. Named Pharmasoft feature. New `GET /suppliers/{id}/near-
+  expiry-batches` endpoint joins `StockBatch` → `PurchaseItem` (via
+  `batch_id`) → `Purchase` to trace which supplier a batch came from,
+  reusing the same `near_expiry_threshold_days` pharmacy setting
+  Inventory's own health dashboard uses. New "Near Expiry" tab on the
+  Suppliers detail panel, with a one-click "Return" action that deep-
+  links straight into the existing `/purchases/returns/create?purchase_id=`
+  flow — no new return workflow built, just a path into the one that
+  already works. 5 new pytest cases
+  (`test_supplier_near_expiry_batches.py`); live-verified the tab and
+  empty state through the real UI.
 
 **Use case: a store manager wants to compare price/offers/schemes across
 distributors before choosing who to buy from.**
@@ -600,12 +628,26 @@ distributors before choosing who to buy from.**
 - **Phase: v3.**
 
 **Use case: a pharmacist wants to import a distributor's purchase bill
-directly (email/Excel/CSV) instead of retyping every line item.**
-- **Today: missing.** Named Pharmasoft feature (one-click bill import).
-  Real time-saver for high-volume purchase entry, but needs a parser per
-  distributor bill format — bigger investment than today's core loop
-  needs yet.
-- **Phase: v3.**
+directly (Excel/CSV) instead of retyping every line item.**
+- **✅ Fixed Sep 12, 2026, scoped to Excel/CSV only — no email ingestion**
+  (Abinash's explicit decision; connecting a mailbox is separate new
+  infra, not built). Named Pharmasoft feature. New
+  `POST /purchases/import-bill` parses a fixed-template file (Product
+  SKU/Name, Batch No, Expiry, Quantity, Cost Price, MRP, GST% — several
+  header aliases accepted) and matches rows against real products by
+  SKU/name. It never creates a purchase itself — only returns candidate
+  items in the exact shape `PurchaseNew`'s own item rows use, so the
+  frontend loads them into the existing, already-tested purchase-
+  creation flow for review. New `BillImportModal.tsx` on PurchaseNew
+  ("Import Bill" button) shows matched rows pre-checked and unmatched
+  rows in a separate "needs manual entry" list — unmatched rows are
+  never auto-added, since `PurchaseItemsTable` has no way to re-point an
+  existing row at a different product. 7 backend pytest cases
+  (`test_purchase_bill_import.py`) + 6 frontend jest cases
+  (`BillImportModal.test.tsx`). Live-verified end-to-end: uploaded a real
+  CSV with one matched + one unmatched row, imported the matched row, and
+  watched it land correctly in the purchase items table (Batch, expiry,
+  qty, cost, MRP, GST all correct, line total computed right).
 
 **Use case: a store manager wants purchase orders sent to a distributor
 automatically (email/WhatsApp) once raised, instead of a phone call.**
@@ -644,19 +686,44 @@ item for this module.
   of supplier outstanding/payment data outside the Suppliers module
   (Dashboard, Reports, Excel export, PurchaseReturnEditModal) — none
   exist yet, so nothing else needed updating this round.
-- **v2:** audit-log entries for supplier create/edit/delete (payment now
-  has one — see above); a Suppliers Excel export (with real outstanding);
-  outstanding/credit-days visibility in `SupplierDropdown.jsx` during a
-  new purchase; WhatsApp outstanding/payment reminders to distributors
-  (build once, shared with Customers' equivalent v2 item); proactive
-  near-expiry-stock return-to-supplier surfacing.
-- **v3:** a formal Purchase Order workflow distinct from direct receipt,
-  with automatic email/WhatsApp delivery once raised; distributor price/
-  offers/scheme comparison; one-click distributor bill import (email/
-  Excel/CSV); digital in-app payments to distributors with automatic
+- **v2 — done Sep 12, 2026, except WhatsApp reminders (deliberately
+  skipped, needs external infra — see use case above):** (1) audit-log
+  entries wired into every mutating supplier endpoint, plus a
+  `toggle-status` permission gap fixed incidentally; (2) a Suppliers
+  Excel export with real outstanding; (3) outstanding-balance visibility
+  in `SupplierDropdown.jsx` during a new purchase; (4) proactive
+  near-expiry-stock surfacing with a one-click return-to-supplier link.
+  12 new pytest cases across 2 files
+  (`test_supplier_audit_log.py`, `test_supplier_near_expiry_batches.py`)
+  + 3 new jest cases on `SupplierDropdown.test.tsx`; full related backend
+  suite (65 tests) and full multi-tenancy isolation suite (48 tests)
+  green; `design-guard.sh` clean (caught and fixed one real tenant-
+  scoping gap — see below); live-verified all four through the real
+  browser UI.
+- **v3 — one item done Sep 12, 2026, rest still not built:** one-click
+  Excel/CSV distributor bill import (Abinash chose Excel/CSV only, no
+  email ingestion — connecting a mailbox is separate new infra). New
+  `POST /purchases/import-bill` + `BillImportModal.tsx`. 7 new pytest
+  cases + 6 new jest cases; live-verified end-to-end with a real CSV
+  upload landing correctly in a real purchase. Still not built: a formal
+  Purchase Order workflow distinct from direct receipt, with automatic
+  email/WhatsApp delivery once raised; distributor price/offers/scheme
+  comparison; digital in-app payments to distributors with automatic
   reconciliation. Not phased at all: eVitalRx's distributor marketplace
   (needs real distributor-side integration PharmaCare has none of —
   platform-level, same class as Phase 2/3 items elsewhere in this doc).
+
+**Tenant-scoping catch (Sep 12, 2026):** the new
+`GET /suppliers/{id}/near-expiry-batches` query originally scoped only by
+`Purchase.supplier_id == sid` (relying on `sid` already being pharmacy-
+scoped via `get_owned_or_404`) — `design-guard.sh`'s Rule 13 flagged it
+as an unscoped by-ID lookup pattern. Not a live bug (the same-pharmacy
+invariant holds — a purchase's supplier can't belong to another
+pharmacy), but fixed to add `Purchase.pharmacy_id == pharmacy_id`
+explicitly anyway rather than rely on an implicit invariant, per the
+same defense-in-depth reasoning as the Sep 12 cross-tenant isolation fix
+(`test_multi_tenancy_isolation.py`) — re-ran that full 48-test suite
+after the fix to confirm supplier isolation still holds.
 
 ### Customers
 
@@ -982,6 +1049,7 @@ behavior and real behavior):
 | Sep 11, 2026 | Manifesto rule 10 ("every error notification must say why" — same principle applies to a total that silently doesn't reconcile) + rule 11 (cross-cutting) | - Same live walkthrough, found while checking Billing's Finalise modal after the stock fix above. `create_bill` rounds `grand_total_paise` to the nearest rupee (Indian retail convention) — matching Sales Return's own rounding — but `_bill_response` never exposed that delta, and the frontend's Finalise modal hardcoded `"Round off: ₹0.00"` while showing the raw, *unrounded* total as "Net Payable" — a figure that didn't match what `create_bill` actually charged (₹7.87 shown, ₹8.00 actually charged and stored). <br>- Not caught earlier because Sales Return's own Finalise modal (built correctly) was never used as the reference pattern when Billing's modal was written — the same rounding math existed on both, only one side displayed it honestly. <br>- Checking rule 11's cross-cutting angle surfaced the same gap one layer further: the saved Bill Detail page and printed receipt also had no "Round off" line, so the same silent non-reconciliation was visible post-sale too, not just at creation time. | - `useBillItems.js`: `grandTotal` is now rounded once at the source (`Math.round`), matching Sales Return's `netAmount` pattern — the same rounded figure now flows to the live footer, the Finalise modal, and print. <br>- `FinaliseModal.jsx`: "Round off" now shows the real delta (rounded total minus the raw pre-round total), not a hardcoded 0. <br>- `_bill_response()` (`backend/routers/billing.py`): added a derived `round_off` field (`grand_total_paise - (subtotal_paise + total_gst_paise - bill_discount_paise)`), same derivation `purchases.py`'s `_purchase_response` already uses. <br>- `BillTotals.jsx` (Bill Detail / print view): added a "Round off" row alongside Subtotal/GST/Total. <br>- Added `test_billing_round_off.py` (2 tests: a real fractional-paise sale reconciling exactly, and a whole-rupee sale correctly showing 0) — confirmed both fail against pre-fix code (`KeyError: round_off`) via `git stash`, pass after. Full 292-test backend suite passes (same 1 unrelated pre-existing failure). Live-verified: a real ₹7.87 raw total showed "Round off ₹0.13 / Net Payable ₹8.00" in the modal, saved as ₹8.00, and the Bill Detail page shows Subtotal ₹7.50 + GST ₹0.37 + Round off ₹0.13 = Total ₹8.00, fully reconciled. <br>- No automated gate proposed — a lint rule can't verify a displayed total matches what the backend will actually round to; the fix is the same "verify against the real backend response, don't trust a hardcoded 0" habit rule 14 already covers. |
 | Sep 11, 2026 | Manifesto rule 14 ("no assumptions, verify every time") + rule 11 (cross-cutting changes ship as one) — `StockBatch.quantity_on_hand` (and 4 sibling `quantity_*` columns) stored whole PACKS while every sale/purchase/return/adjustment quantity is expressed in loose UNITS | - Continuing the same live walkthrough that found the MRP bug above: selling 2 tablets from a 10-tablet strip left stock completely unchanged. Root cause: every write site (`billing.py`, `sales_returns.py`, `purchase_returns.py`, `purchases.py`, `batches.py` ×4 spots) independently floor-divided `qty_units // units_per_pack` before storing — for any quantity smaller than one pack, that's 0. <br>- Not one bug, six: the identical pattern was independently reimplemented at 9 separate write sites across 5 files, plus a 6th latent inconsistency (the audit ledger's movement-quantity disagreeing with the batch's own stored field for manually-created batches) and a 7th (`reports.py` never applied the conversion at all, so stock-valuation reports were silently *understated* by a factor of `units_per_pack` the whole time). <br>- No test ever exercised a non-pack-multiple quantity through any of these paths — every existing purchase/adjustment test used either `units_per_pack=1` or an exact pack multiple, so floor-division never visibly lost anything. | - Proposed two options in plain language before building (per rule 13): store stock in real units everywhere (chosen) vs. keep packs + a remainder counter. Migration `a343c922f896` reinterprets all 5 `quantity_*` columns from packs to units (multiply by each batch's product's `units_per_pack`); `Product.reorder_level` deliberately left unchanged, since its own API field name (`low_stock_threshold_units`) was already units-based, so leaving it alone makes that comparison correct for the first time. <br>- Removed the pack↔unit conversion at all 9 write sites; `total_units`/`qty_on_hand` responses are now plain aliases, never multiplied. <br>- Rewrote/added regression tests exercising the exact previously-broken scenario (a non-pack-multiple quantity) across purchase confirm, purchase return, `/stock-movements`, free-qty, and a new `test_stock_units_loose_quantity.py` covering billing sale + `/adjust`; full 291-test backend suite passes (1 unrelated pre-existing failure, confirmed via `git stash` to fail identically without this change). <br>- Live-verified end-to-end: a real 1000-unit batch (units_per_pack=10) sold 3 loose units through the actual Billing UI → stock correctly dropped to 997 (would have stayed at 1000 pre-fix). Frontend (`MedicineDetail`'s header + Batches tab) updated to show real units as the primary figure with a packs-equivalent shown alongside, since packs are no longer the stored unit. <br>- No automated gate proposed for the class itself (a lint rule can't tell a legitimate unit conversion from a lossy one); the real fix is what rule 11 already asks for — checking every consumer of a touched domain, which is what surfaced all 9 sites instead of just the entry point (Billing) that was reported. |
 | Sep 11, 2026 | Manifesto rule 14 ("no assumptions, verify every time") + Rule 12 (test what you build) — every medicine with `units_per_pack > 1` (i.e. almost every real tablet/capsule strip) sold in Billing for **MRP ÷ units_per_pack**, silently, on every sale | A live, from-zero walkthrough (Supplier → Customer → Inventory → Billing, requested directly, not a code read) created a real ₹2.50/tablet, 10-tablet-strip medicine and billed it — the app showed and charged ₹0.25. Root cause: `_batch_for_billing()` (`backend/routers/inventory.py`) divided `mrp_paise` by `units_per_pack` a second time — `mrp_paise` is already a per-unit price (confirmed against `batches.py`'s own batch endpoint, which returns it undivided). `create_bill` only rejects a submitted price that *exceeds* the real MRP, never one that's suspiciously low, so the wrong price wasn't just displayed — it was actually charged and stock was actually deducted, on both the typed-search and barcode-scan billing paths (both share the buggy helper). No test ever exercised a `units_per_pack > 1` product through the real billing-search response shape — every existing purchases/billing test either used `units_per_pack=1` or asserted against the create/edit response (`batches.py`), which was never bugged. | Removed the extra division (`mrp_per_unit` now equals `mrp`, both `b.mrp_paise / 100`, matching how `batches.py` already treats it) — `backend/routers/inventory.py`. Added `backend/tests/test_billing_price_unit_conversion.py` (3 tests: search-with-batches, barcode lookup, and a full create_bill charging the real MRP for real quantity) — confirmed each one fails against the pre-fix code (0.25/0.6 instead of 2.50/9.00) and passes after, via `git stash`. Live-verified in a real bill: MRP now shows/charges ₹2.50, not ₹0.25; GST and NET PAYABLE recompute correctly from it. Also found and fixed in the same walkthrough: the Inventory **list table's** Location column always showed "Default" regardless of what was set — reads `item.location`/`item.product.location`, neither of which `GET /inventory` returns; the real field is `item.product.storage_location` (Medicine Detail already read it correctly, so this was isolated to one table). Fixed in `InventoryTable.jsx`; live-verified the same product now shows "Rack B, Shelf 2" in the list. |
+| Sep 12, 2026 | Same class as the Sep 12 Suppliers/Inventory ACL entry above — `toggle_supplier_status` had zero permission check | - Found incidentally, not by a dedicated audit: while wiring `_record_audit` into every mutating supplier endpoint for the v2 fix, `PATCH /suppliers/{id}/toggle-status` turned out to have no `_require_suppliers_permission` call at all, even though `create_supplier`/`update_supplier`/`delete_supplier` all did. <br>- Execution gap: the earlier Sep 12 ACL fix wired the permission helper into create/update/delete but missed this fourth mutating endpoint on the same router — the exact "reached some call sites, not all" shape Manifesto rule 11 already names, just for permissions instead of a business-logic check. <br>- No automated gate exists for "every mutating endpoint on a router has a permission check" (already noted as a real but risky-to-automate class in the Customers ACL entry above) — this is that same gap, recurring a third time. | - Added `_require_suppliers_permission(current_user, "deactivate", db)` to `toggle_supplier_status`, reusing the same permission `delete_supplier` requires. <br>- 1 new regression test (`test_cashier_cannot_toggle_supplier_status`) in `test_supplier_audit_log.py`, confirmed to fail (200, not 403) against the pre-fix code. <br>- Still no automated gate for the general class — flagging again rather than silently fixing, per the standing habit, since a fourth recurrence is a signal this may eventually need one despite the false-positive risk already noted twice. |
 | Sep 8, 2026 | `docs/17_ACCESSIBILITY.md` (WCAG AA / keyboard access) — 9 real clickable-`<div>`/`<tr>`-without-keyboard-handler bugs shipped, plus 88 `<label>`s never linked to their input (`label-has-associated-control`) and 3 modal inputs using `autoFocus` with no accessibility review | A tooling gap, not an execution gap: `eslint-plugin-jsx-a11y@6.10.2` was an installed devDependency since the project's start but was never actually added to `eslint.config.js` — zero of its rules ever ran. `design-guard.sh` Rule 11 (added this same session, Sep 7, to try to catch the keyboard-access class) is grep/line-proximity based and produced ~30 false positives against the already-fixed codebase, so it had to ship as advisory/warn-only rather than a hard gate — a real AST-based tool was needed but sat unused the whole time. | Wired `jsx-a11y` into `eslint.config.js`'s `plugins`/`rules`, spreading its `recommended` rule set. Of the 108 new findings: the 88 `label-has-associated-control` + 3 `no-autofocus` are real, unaudited backlog — downgraded to `warn`, same precedent as the `react-hooks` rules in the same file (surface, don't block). 2 were false positives from the plugin's static-AST limits, not real bugs — `heading-has-content`/`anchor-has-content` fired on Shadcn/UI wrapper primitives (`alert.jsx`, `pagination.jsx`) that spread `{...props}` onto a native element, so real content (always supplied by the call site) is invisible to the check; disabled both rules for `src/components/ui/**`, where every primitive follows the same spread pattern. 2 more fired only inside a test file's mock markup (`interactive-supports-focus`); disabled for `src/**/*.test.*` since a test double isn't shipped UI. Raised the CI lint ceiling `ci.yml` → `--max-warnings 175` (was 68) to match the real, now-visible count — see `docs/11_TESTING.md` CI STATUS. Gate closed: this class of bug can no longer ship silently — a new violation shows up as a real `npx eslint` warning on every PR, not something that depends on someone remembering to check. |
 | Sep 7, 2026 | Manifesto rule #9 (no magic strings/unverified data — `formatCurrency` exists precisely to be the one place money is formatted) — 62 raw `.toFixed(2)` money renders across 16 files, missing Indian digit grouping | A tooling gap: nothing lints for a raw `.toFixed(2)` next to a `₹` literal versus the shared `formatCurrency` helper, so each new file could silently reintroduce the pattern. Found by grep while auditing formatters as part of a broader design-system pass, not by a user report. While fixing `SupplierDetailPanel.jsx`'s purchase-history amount, found a **second, real bug underneath the formatting one**: it read `p.net_amount \|\| p.total_amount`, neither of which `GET /purchases` actually returns (the real field is `total_value`) — so every purchase in a supplier's history showed ₹0.00 regardless of its real amount, formatting bug or not. | Replaced all 62 call sites with `formatCurrency` (added the import where missing); fixed the `SupplierDetailPanel.jsx` field-name bug in the same change (now reads `total_value` first). Live-verified: MedSupply Distributors' purchase history went from every row showing ₹0.00 to real amounts (₹1,050.00, ₹8,400.00, etc.) with correct Indian grouping. No automated gate proposed — same class as the API-prefix bug above; a lint rule can't distinguish legitimate non-money `.toFixed(2)` (e.g. a percentage calc) from a missed money render without false positives. |
 | Sep 7, 2026 | Manifesto rule #14 ("no assumptions, verify every time") — `PurchaseDetail`/`PurchaseReturnCreate`/`PurchaseReturnDetail`/`SalesReturnCreate`/`SalesReturnDetail`/`ExcelBulkUploadWizard` (2 files), 7 files total, 20 API call sites — every one 404'd whenever `REACT_APP_BACKEND_URL` is unset | An execution gap, not (only) a tooling gap: the Aug 20, 2026 commit (`dba464b`) that introduced this bug touched exactly these 7 files and its own commit message claimed "Verified end-to-end with a real browser session... Inventory add/search both succeed" — but Inventory doesn't use the `const API` pattern these 7 files do, so the verification covered a different page than the one actually changed. Also a tooling gap: no jest test exists for any of these 7 files, and no lint rule catches a local `API` constant duplicating an axios instance's own `baseURL`. This sat live-broken for ~7 weeks (Aug 20 → Sep 7) because REACT_APP_BACKEND_URL was still commonly set in local `.env` files until the "no longer needed locally" doc update, at which point every purchase/return/bulk-upload page silently broke for anyone following the current documented setup. | Removed the dead `const API` prefix and all 20 `${API}` template-literal usages across the 7 files — `api`'s own `baseURL` already supplies `/api`, so paths are now plain relative paths (`/purchases/${id}`, not `${API}/purchases/${id}`). Live-verified `PurchaseDetail` and `PurchaseReturnCreate` both load correctly post-fix, `npx tsc --noEmit` clean. No automated gate proposed — an ESLint rule can't distinguish a legitimate local constant from this specific footgun without false positives; the real fix is the habit this rule already states: when a fix touches N files, verify N files, not a different one that happens to be easier to click through. |

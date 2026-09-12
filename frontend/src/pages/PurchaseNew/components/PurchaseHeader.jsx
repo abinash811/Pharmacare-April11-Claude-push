@@ -1,21 +1,24 @@
 /**
  * PurchaseHeader — top bar for new/edit purchase.
  *
- * Action buttons [Save Draft] [✓ Confirm & Save] live here.
+ * Action buttons [Import Bill] [Save Draft] [✓ Confirm & Save] live here.
  *
  * Props:
- *   isEditMode  {boolean}
- *   loading     {boolean}
- *   hasItems    {boolean}
- *   onBack      {() => void}
- *   onSaveDraft {() => void}
- *   onConfirm   {() => void}
+ *   isEditMode   {boolean}
+ *   loading      {boolean}
+ *   hasItems     {boolean}
+ *   onBack       {() => void}
+ *   onSaveDraft  {() => void}
+ *   onConfirm    {() => void}
+ *   onImportBill {() => void}
  */
 import React from 'react';
-import { ArrowLeft, CheckCircle, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FileText, Upload } from 'lucide-react';
 import { PageBreadcrumb, AppButton } from '@/components/shared';
 
-export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm }) {
+export default function PurchaseHeader({
+  isEditMode, loading, hasItems, onBack, onSaveDraft, onConfirm, onImportBill,
+}) {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
       <div className="flex items-center justify-between">
@@ -42,6 +45,17 @@ export default function PurchaseHeader({ isEditMode, loading, hasItems, onBack, 
 
         {/* ── Right: action buttons ────────────────────────────────── */}
         <div className="flex items-center gap-2">
+
+          {/* Import Bill — one-click Excel/CSV import (Suppliers v3) */}
+          <AppButton
+            variant="outline"
+            icon={<Upload className="w-4 h-4 text-gray-400" />}
+            onClick={onImportBill}
+            disabled={loading}
+            data-testid="import-bill-btn"
+          >
+            Import Bill
+          </AppButton>
 
           {/* Save Draft */}
           <AppButton

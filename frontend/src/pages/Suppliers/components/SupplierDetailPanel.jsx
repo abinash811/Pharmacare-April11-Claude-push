@@ -1,17 +1,20 @@
 /**
- * SupplierDetailPanel — right-side panel: overview / purchase history / outstanding.
+ * SupplierDetailPanel — right-side panel: overview / purchase history / outstanding / near-expiry.
  * Props:
- *   supplier            {object}
- *   onEdit              {() => void}
- *   onClose             {() => void}
- *   onRecordPayment     {() => void}
- *   purchaseHistory     {Array}
- *   historyLoading      {boolean}
- *   activeTab           {string}
- *   onTabChange         {(tab) => void}
+ *   supplier              {object}
+ *   onEdit                {() => void}
+ *   onClose               {() => void}
+ *   onRecordPayment       {() => void}
+ *   purchaseHistory       {Array}
+ *   historyLoading        {boolean}
+ *   activeTab             {string}
+ *   onTabChange           {(tab) => void}
+ *   nearExpiryBatches     {Array}
+ *   nearExpiryLoading     {boolean}
+ *   onReturnToSupplier    {(purchaseId) => void}
  */
 import React from 'react';
-import { Edit2, X, Building2, Phone, Mail, MapPin, CreditCard, FileText, Banknote } from 'lucide-react';
+import { Edit2, X, Building2, Phone, Mail, MapPin, CreditCard, FileText, Banknote, RotateCcw } from 'lucide-react';
 import { InlineLoader, AppButton } from '@/components/shared';
 import { formatDate } from '@/utils/dates';
 import { formatCurrency } from '@/utils/currency';
@@ -32,6 +35,7 @@ export default function SupplierDetailPanel({
   supplier, onEdit, onClose, onRecordPayment,
   purchaseHistory, historyLoading,
   activeTab, onTabChange,
+  nearExpiryBatches = [], nearExpiryLoading, onReturnToSupplier,
 }) {
   const outstanding = supplier.outstanding || 0;
 
@@ -52,7 +56,7 @@ export default function SupplierDetailPanel({
       {/* Tabs */}
       <div className="px-6 border-b border-gray-200">
         <div className="flex gap-6">
-          {[['overview','Overview'],['history','Purchase History'],['outstanding','Outstanding']].map(([id, label]) => (
+          {[['overview','Overview'],['history','Purchase History'],['outstanding','Outstanding'],['near_expiry','Near Expiry']].map(([id, label]) => (
             <AppButton key={id} variant="ghost" onClick={() => onTabChange(id)}
               className={`py-3 text-sm font-medium border-b-2 rounded-none transition-colors ${activeTab === id ? 'border-brand text-brand' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               data-testid={`detail-tab-${id}`}>
@@ -157,6 +161,45 @@ export default function SupplierDetailPanel({
               )}
             </div>
           </div>
+        )}
+
+        {activeTab === 'near_expiry' && (
+          nearExpiryLoading ? (
+            <InlineLoader text="Loading near-expiry stock..." />
+          ) : nearExpiryBatches.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              No near-expiry stock from this supplier
+            </div>
+          ) : (
+            <table className="w-full text-sm" data-testid="near-expiry-table">
+              <thead className="bg-gray-50">
+                <tr>
+                  {['Product','Batch','Expiry','Qty','Value at Risk',''].map(h => (
+                    <th key={h} className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase ${h==='Value at Risk'||h==='Qty'?'text-right':'text-left'}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {nearExpiryBatches.map(b => (
+                  <tr key={b.batch_id} className="hover:bg-brand-tint">
+                    <td className="px-3 py-2 text-gray-900">{b.product_name}</td>
+                    <td className="px-3 py-2 font-mono text-gray-700">{b.batch_number}</td>
+                    <td className={`px-3 py-2 ${b.is_expired ? 'text-red-600 font-semibold' : 'text-amber-600'}`}>
+                      {formatDate(b.expiry_date)}{b.is_expired ? ' (expired)' : ''}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-gray-900">{b.quantity_on_hand}</td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-gray-900">{formatCurrency(b.value_at_risk)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <AppButton variant="ghost" size="sm" icon={<RotateCcw className="w-3.5 h-3.5" />}
+                        onClick={() => onReturnToSupplier(b.purchase_id)} data-testid={`return-to-supplier-${b.batch_id}`}>
+                        Return
+                      </AppButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.7 | Last updated: September 12, 2026
+# Version: 1.8 | Last updated: September 12, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -418,21 +418,25 @@ now enforces: grep broadly for the entity outside its own module, don't
 rely on this map alone for a module it doesn't yet cover.
 
 **Suppliers** (`Supplier`, `POST /suppliers`, `PUT /suppliers/{id}`,
-`DELETE /suppliers/{id}`, `POST /suppliers/{id}/payment`) — walked Sep
-12, 2026
+`DELETE /suppliers/{id}`, `PATCH /suppliers/{id}/toggle-status`,
+`POST /suppliers/{id}/payment`) — walked Sep 12, 2026 (v1 + v2)
 | Consumer | Pattern | Where |
 |---|---|---|
 | Supplier outstanding balance (list + detail) | Computed on read | `_outstanding_paise_by_suppliers`/`_calc_outstanding` (routers/suppliers.py) — sums `Purchase.grand_total_paise - amount_paid_paise` over that supplier's `unpaid`/`partial` purchases, minus confirmed `PurchaseReturn` credit; no stored counter to drift. Was only wired into the single-supplier endpoints until Sep 12 (RULE MISSES LOG) — now also on the list endpoint. |
 | Supplier payment recording | Own endpoint, writes to Purchases' own tables | `record_supplier_payment` (routers/suppliers.py) allocates FIFO across that supplier's open purchases, writing `Purchase.amount_paid_paise`/`payment_status` + `PurchasePayment` rows — the same rows `purchases.py`'s own `mark_purchase_paid` writes, so a purchase paid off either way stays consistent |
 | Payment history ledger | Computed on read | `_payment_history_by_suppliers` (routers/suppliers.py) — merges `PurchasePayment` rows (joined via `purchase_id`) and confirmed `PurchaseReturn` rows per supplier; not stored |
-| Audit Log | Called only at the new payment endpoint | `_record_audit` (routers/suppliers.py, added Sep 12 alongside the payment endpoint) — supplier create/edit/delete still have **no** audit-log calls; that gap is tracked as a v2 item in `docs/15_ROADMAP.md`'s Suppliers section, not fixed yet |
-| Suppliers Excel export | **Does not exist** | No `exportSuppliers*` function anywhere in `frontend/src/utils/excelExport.js` — a v2 item, not a consumer to keep in sync yet |
-| Purchase-time supplier visibility | **Does not exist** | `SupplierDropdown.jsx` (PurchaseNew) shows name/GSTIN only, no outstanding/credit visibility — a v2 item, same class as the Billing `PatientCombobox` fix for Customers |
+| Audit Log | Called at every mutating endpoint | `_record_audit` (routers/suppliers.py, its own local copy, same duplicated-per-router pattern as billing.py/purchases.py/customers.py) — wired into create/update/delete/toggle-status/payment as of Sep 12; `toggle-status` also gained a permission check it never had (any role could deactivate a supplier before this) |
+| Suppliers Excel export | Independent direct query | `exportSuppliersToExcel` (frontend/src/utils/excelExport.js) — re-check if a supplier field is added/renamed |
+| Purchase-time supplier visibility | Independent direct query | `SupplierDropdown.jsx` (PurchaseNew) renders `outstanding` straight from `GET /suppliers`'s response — re-check if that response shape changes |
+| Near-expiry stock by supplier | Independent direct query, joins 3 tables | `get_supplier_near_expiry_batches` (routers/suppliers.py) joins `StockBatch` → `PurchaseItem` (via `batch_id`) → `Purchase` to trace a batch back to its supplier; explicitly filters `Purchase.pharmacy_id` too (not just the already-scoped `supplier_id`) — `design-guard.sh` Rule 13 flagged the first version for relying only on the implicit invariant |
+| One-click bill import | Own endpoint, reads Products only | `import_purchase_bill` (routers/purchases.py) — parses a file and matches against real products by SKU/name; never writes a Purchase itself, so it isn't a write-path consumer of this domain, just a reader |
 
 Checked Sep 12, 2026 (Suppliers v1 fix): Dashboard, Reports, and
 `PurchaseReturnEditModal.jsx` were grepped for any dependency on supplier
 outstanding/payment data — none found beyond `supplier_name` display,
-which this change didn't touch. Nothing else needed updating this round.
+which this change didn't touch. Re-checked Sep 12, 2026 (Suppliers v2/v3
+fix): same grep repeated for the new near-expiry/export/dropdown/audit
+surfaces — no other consumers found yet.
 
 This map covers billing, purchases, returns, reports, inventory,
 customers, and suppliers (walked Sep 12, 2026). Settings and users

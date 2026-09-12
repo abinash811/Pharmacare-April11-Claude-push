@@ -74,3 +74,31 @@ describe('SupplierDropdown — inline "add new distributor"', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('SupplierDropdown — outstanding balance visibility', () => {
+  // Added Sep 12, 2026 (Suppliers v2): a purchase creator picking a
+  // distributor with unpaid balances had no way to know that before this
+  // — same gap as Billing's PatientCombobox, fixed for Customers first.
+  const WITH_BALANCE = [
+    { id: 's1', name: 'MedPharma Distributors', gstin: '29ABCDE1234F1Z5', outstanding: 5250 },
+    { id: 's2', name: 'ZeroBalance Distributors', outstanding: 0 },
+  ];
+
+  it('shows the owed amount in the option list for a distributor with a balance', async () => {
+    render(<SupplierDropdown suppliers={WITH_BALANCE as any} value={null} onChange={jest.fn()} onSupplierCreated={jest.fn()} />);
+    await userEvent.click(screen.getByTestId('supplier-selector'));
+    expect(await screen.findByText(/Owes ₹5,250/)).toBeInTheDocument();
+  });
+
+  it('shows no owed-amount line for a distributor with zero balance', async () => {
+    render(<SupplierDropdown suppliers={WITH_BALANCE as any} value={null} onChange={jest.fn()} onSupplierCreated={jest.fn()} />);
+    await userEvent.click(screen.getByTestId('supplier-selector'));
+    const zeroOption = screen.getByTestId('supplier-option-s2');
+    expect(zeroOption).not.toHaveTextContent(/Owes/);
+  });
+
+  it('reflects the owed amount on the selected chip via its title attribute', () => {
+    render(<SupplierDropdown suppliers={WITH_BALANCE as any} value={WITH_BALANCE[0] as any} onChange={jest.fn()} onSupplierCreated={jest.fn()} />);
+    expect(screen.getByTestId('supplier-selector')).toHaveAttribute('title', expect.stringContaining('owes'));
+  });
+});

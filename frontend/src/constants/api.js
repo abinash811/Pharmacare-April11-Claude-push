@@ -121,12 +121,13 @@ export const API_ENDPOINTS = {
 
   // Suppliers
   SUPPLIERS: {
-    LIST:          'suppliers',
-    CREATE:        'suppliers',
-    DETAIL:        'suppliers/:id',
-    SUMMARY:       'suppliers/:id/summary',
-    PAYMENT:       'suppliers/:id/payment',
-    TOGGLE_STATUS: 'suppliers/:id/toggle-status',
+    LIST:              'suppliers',
+    CREATE:            'suppliers',
+    DETAIL:            'suppliers/:id',
+    SUMMARY:           'suppliers/:id/summary',
+    PAYMENT:           'suppliers/:id/payment',
+    TOGGLE_STATUS:     'suppliers/:id/toggle-status',
+    NEAR_EXPIRY_BATCHES: 'suppliers/:id/near-expiry-batches',
   },
 
   // Reports & Analytics
@@ -246,6 +247,7 @@ export const apiUrl = {
   // Purchases
   purchases:        (params) => `purchases${qs(params)}`,
   purchase:         (id)     => `purchases/${id}`,
+  importPurchaseBill: ()     => `purchases/import-bill`,
   purchasePay:      (id)     => `purchases/${id}/pay`,
   purchaseItemsForReturn: (id) => `purchases/${id}/items-for-return`,
   purchaseCheckDuplicateInvoice: (params) => `purchases/check-duplicate-invoice${qs(params)}`,
@@ -269,6 +271,7 @@ export const apiUrl = {
   supplierSummary:  (id)     => `suppliers/${id}/summary`,
   supplierPayment:  (id)     => `suppliers/${id}/payment`,
   supplierToggle:   (id)     => `suppliers/${id}/toggle-status`,
+  supplierNearExpiryBatches: (id) => `suppliers/${id}/near-expiry-batches`,
 
   // Reports & Analytics
   reportDashboard:  () => API_ENDPOINTS.REPORTS.DASHBOARD,

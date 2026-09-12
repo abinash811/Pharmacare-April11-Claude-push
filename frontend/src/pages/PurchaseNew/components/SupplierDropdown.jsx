@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AppButton, SupplierFormModal } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { formatCurrency } from '@/utils/currency';
 
 export default function SupplierDropdown({ suppliers = [], value, onChange, allowCreate = false, onSupplierCreated }) {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -68,12 +69,17 @@ export default function SupplierDropdown({ suppliers = [], value, onChange, allo
             className="gap-1.5"
             style={{ maxWidth: '220px' }}
             data-testid="supplier-selector"
-            title={value?.name || 'Select Distributor'}
+            title={value ? (value.outstanding > 0
+              ? `${value.name} — owes ${formatCurrency(value.outstanding)}`
+              : value.name) : 'Select Distributor'}
           >
             <Building2 className="w-4 h-4 text-gray-400 shrink-0" strokeWidth={1.5} />
             <span className={`text-sm font-medium truncate ${value ? 'text-gray-900' : 'text-gray-400'}`}>
               {value?.name || 'Distributor'}
             </span>
+            {value?.outstanding > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" aria-hidden="true" />
+            )}
             <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
           </AppButton>
         </PopoverTrigger>
@@ -102,6 +108,11 @@ export default function SupplierDropdown({ suppliers = [], value, onChange, allo
                   <div className="text-xs font-semibold text-gray-700">{supplier.name}</div>
                   {supplier.gstin && (
                     <div className="text-[10px] text-gray-500">GSTIN: {supplier.gstin}</div>
+                  )}
+                  {supplier.outstanding > 0 && (
+                    <div className="text-[10px] text-red-600 font-medium">
+                      Owes {formatCurrency(supplier.outstanding)}
+                    </div>
                   )}
                 </div>
               ))

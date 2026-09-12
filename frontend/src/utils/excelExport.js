@@ -227,6 +227,27 @@ export const exportCustomersToExcel = (customers) => {
 };
 
 /**
+ * Export suppliers to Excel
+ * @param {Array} suppliers - Supplier data
+ */
+export const exportSuppliersToExcel = (suppliers) => {
+  const data = suppliers.map((s) => ({
+    'Name': s.name,
+    'Contact Person': s.contact_person || '-',
+    'Phone': s.phone || '-',
+    'Email': s.email || '-',
+    'GSTIN': s.gstin || '-',
+    'Address': s.address || '-',
+    'Credit Days': s.credit_days || 0,
+    'Outstanding (₹)': s.outstanding || 0,
+    'Status': s.is_active === false ? 'Inactive' : 'Active',
+    'Notes': s.notes || '-',
+  }));
+
+  exportToExcel(data, 'suppliers', { sheetName: 'Suppliers' });
+};
+
+/**
  * Export bills/sales to Excel
  * @param {Array} bills - Bill data
  */
@@ -271,6 +292,7 @@ export default {
   exportMultiSheetExcel,
   formatReportForExcel,
   exportCustomersToExcel,
+  exportSuppliersToExcel,
   exportBillsToExcel,
   exportInventoryToExcel,
 };

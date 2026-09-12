@@ -9,6 +9,7 @@
  *   saveSupplier    (form, editingId) => Promise<boolean>
  *   recordPayment   (supplierId, { amount, note }) => Promise<object|null>
  *   fetchPurchaseHistory (supplierId) => Promise<Array>
+ *   fetchNearExpiryBatches (supplierId) => Promise<{near_expiry_threshold_days, items}>
  */
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -76,5 +77,18 @@ export function useSuppliers() {
     }
   }, []);
 
-  return { suppliers, loading, fetchSuppliers, saveSupplier, recordPayment, fetchPurchaseHistory };
+  const fetchNearExpiryBatches = useCallback(async (supplierId) => {
+    try {
+      const res = await api.get(apiUrl.supplierNearExpiryBatches(supplierId));
+      return res.data;
+    } catch {
+      toast.error('Failed to load near-expiry stock');
+      return { near_expiry_threshold_days: 0, items: [] };
+    }
+  }, []);
+
+  return {
+    suppliers, loading, fetchSuppliers, saveSupplier, recordPayment,
+    fetchPurchaseHistory, fetchNearExpiryBatches,
+  };
 }

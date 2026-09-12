@@ -17,6 +17,7 @@ import PurchaseSubbar             from './components/PurchaseSubbar';
 import PurchaseItemsTable         from './components/PurchaseItemsTable';
 import PurchaseFooter             from './components/PurchaseFooter';
 import InvoiceBreakdownModal      from './components/InvoiceBreakdownModal';
+import BillImportModal            from './components/BillImportModal';
 
 // Order Type and Batch Priority used to be pharmacist-facing settings (a
 // gear-icon modal), but neither ever drove real behavior — order_type is
@@ -53,6 +54,7 @@ export default function PurchaseNew() {
 
   // ── Modals ────────────────────────────────────────────────────────────────
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showBillImport,  setShowBillImport]  = useState(false);
   const [internalNote,    setInternalNote]    = useState('');
   const [invoiceBreakdown, setInvoiceBreakdown] = useState({
     ptrTotal: 0, totalDiscount: 0, gst: 0, cess: 0, billAmount: 0,
@@ -197,6 +199,30 @@ export default function PurchaseNew() {
     setInvoiceBreakdown(prev => withRecomputedNet({ ...prev, [field]: numValue }));
   };
 
+  // Appends imported rows rather than replacing — a pharmacist may have
+  // already added items by hand before deciding to import the rest of a
+  // bill. Only matched rows ever reach here (BillImportModal filters
+  // unmatched ones out), so every product_sku is guaranteed real.
+  const handleBillImport = (importedItems) => {
+    const mapped = importedItems.map((item, idx) => ({
+      id:             `import-${Date.now()}-${idx}`,
+      product_sku:    item.product_sku,
+      product_name:   item.product_name,
+      manufacturer:   '',
+      pack_size:      '',
+      batch_no:       item.batch_no,
+      expiry_mmyy:    item.expiry_mmyy,
+      qty_units:      item.qty_units,
+      free_qty_units: 0,
+      ptr_per_unit:   item.cost_price_per_unit,
+      mrp_per_unit:   item.mrp_per_unit,
+      gst_percent:    item.gst_percent,
+      batch_priority: DEFAULT_BATCH_PRIORITY,
+    }));
+    loadItems([...items, ...mapped]);
+    toast.success(`Imported ${mapped.length} item${mapped.length === 1 ? '' : 's'} — review before saving`);
+  };
+
   const totals = calculateTotals(withGST);
 
   if (initialLoading) {
@@ -216,6 +242,7 @@ export default function PurchaseNew() {
         onBack={() => navigate('/purchases')}
         onSaveDraft={handleSaveDraft}
         onConfirm={handleConfirmAndSave}
+        onImportBill={() => setShowBillImport(true)}
       />
 
       <PurchaseSubbar
@@ -258,6 +285,13 @@ export default function PurchaseNew() {
           loading={loading}
           onClose={() => setShowInvoiceModal(false)}
           onConfirm={async () => { setShowInvoiceModal(false); await savePurchase('confirmed'); }}
+        />
+      )}
+
+      {showBillImport && (
+        <BillImportModal
+          onClose={() => setShowBillImport(false)}
+          onImport={handleBillImport}
         />
       )}
     </div>

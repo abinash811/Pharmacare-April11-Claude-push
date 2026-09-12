@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import base64
+import io
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import List, Optional
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
@@ -75,7 +79,132 @@ class PurchasePaymentRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class BillImportRequest(BaseModel):
+    filename: str
+    file_data: str  # base64, same convention as invoice_attachment_data — may carry a data: URL prefix
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+# One-click distributor bill import (Suppliers v3, Pharmasoft-named gap) —
+# a fixed-template Excel/CSV import, not free-form parsing of an arbitrary
+# distributor invoice layout. Column names are matched case-insensitively
+# against these aliases so a pharmacist's own header wording still works.
+_BILL_IMPORT_COLUMN_ALIASES = {
+    "product_sku":  ["product sku", "sku", "product code"],
+    "product_name": ["product name", "product", "item name", "medicine name", "item"],
+    "batch_no":     ["batch no", "batch number", "batch", "batch no."],
+    "expiry":       ["expiry", "expiry date", "expiry (mm/yyyy)", "exp date", "exp"],
+    "quantity":     ["quantity", "qty", "quantity (units)", "qty (units)", "units"],
+    "cost_price":   ["cost price", "cost price (per unit)", "rate", "purchase rate", "ptr", "cost"],
+    "mrp":          ["mrp", "mrp (per unit)"],
+    "gst_percent":  ["gst %", "gst", "gst percent", "tax %", "gst rate"],
+}
+_BILL_IMPORT_REQUIRED_FIELDS = ["batch_no", "quantity", "cost_price", "mrp"]
+_BILL_IMPORT_MAX_ROWS = 500
+_BILL_IMPORT_MAX_BYTES = 5 * 1024 * 1024
+
+
+def _map_bill_import_columns(columns) -> dict:
+    normalized = {str(c).strip().lower(): c for c in columns}
+    mapped = {}
+    for field, aliases in _BILL_IMPORT_COLUMN_ALIASES.items():
+        for alias in aliases:
+            if alias in normalized:
+                mapped[field] = normalized[alias]
+                break
+    return mapped
+
+
+def _parse_expiry_to_mmyy(raw) -> Optional[str]:
+    """Converts whatever expiry format a distributor's bill uses into the
+    MM/YY string PurchaseItemsTable's own expiry field already expects
+    (see expiryToISO in buildPurchasePayload.js) — full dates, MM/YYYY,
+    and MM/YY are all accepted since real bills vary."""
+    if raw is None:
+        return None
+    if isinstance(raw, (pd.Timestamp, datetime, date)):
+        return f"{raw.month:02d}/{str(raw.year)[2:]}"
+
+    s = str(raw).strip()
+    if not s or s.lower() == "nan":
+        return None
+
+    m = re.match(r"^(\d{1,2})[/\-](\d{4})$", s)
+    if m and 1 <= int(m.group(1)) <= 12:
+        return f"{int(m.group(1)):02d}/{m.group(2)[2:]}"
+
+    m = re.match(r"^(\d{1,2})[/\-](\d{2})$", s)
+    if m and 1 <= int(m.group(1)) <= 12:
+        return f"{int(m.group(1)):02d}/{m.group(2)}"
+
+    for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            d = datetime.strptime(s, fmt)
+            return f"{d.month:02d}/{str(d.year)[2:]}"
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_bill_import_row(row, col_map: dict, by_sku: dict, by_name: dict) -> tuple[dict, list[str]]:
+    def get(field):
+        col = col_map.get(field)
+        if col is None or col not in row.index:
+            return None
+        value = row[col]
+        return None if pd.isna(value) else value
+
+    sku_raw = get("product_sku")
+    name_raw = get("product_name")
+    sku = str(sku_raw).strip() if sku_raw is not None else None
+    name = str(name_raw).strip() if name_raw is not None else None
+    batch_no = get("batch_no")
+    quantity = get("quantity")
+    cost_price = get("cost_price")
+    mrp = get("mrp")
+    gst_percent = get("gst_percent")
+    expiry_raw = get("expiry")
+
+    if not batch_no:
+        raise ValueError("missing batch number")
+    if quantity is None or cost_price is None or mrp is None:
+        raise ValueError("missing quantity, cost price, or MRP")
+
+    matched = None
+    if sku and sku.lower() in by_sku:
+        matched = by_sku[sku.lower()]
+    elif name and name.lower() in by_name:
+        matched = by_name[name.lower()]
+
+    warnings: list[str] = []
+    if not matched:
+        warnings.append("Product not found in inventory — select the correct product manually")
+
+    expiry_mmyy = _parse_expiry_to_mmyy(expiry_raw)
+    if not expiry_mmyy:
+        warnings.append("Could not read the expiry date — enter it manually")
+
+    try:
+        qty_units = int(float(quantity))
+        cost_price_per_unit = float(cost_price)
+        mrp_per_unit = float(mrp)
+    except (TypeError, ValueError):
+        raise ValueError("quantity, cost price, and MRP must be numbers")
+
+    item = {
+        "product_sku": matched.sku if matched else (sku or ""),
+        "product_name": matched.name if matched else (name or sku or "Unknown product"),
+        "matched_product": matched is not None,
+        "batch_no": str(batch_no).strip(),
+        "expiry_mmyy": expiry_mmyy or "",
+        "qty_units": qty_units,
+        "cost_price_per_unit": cost_price_per_unit,
+        "mrp_per_unit": mrp_per_unit,
+        "gst_percent": (float(gst_percent) if gst_percent is not None
+                        else (float(matched.gst_rate) if matched else 5.0)),
+    }
+    return item, warnings
 
 async def _generate_purchase_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
     current_year = datetime.now(timezone.utc).year
@@ -358,6 +487,81 @@ async def _create_stock_for_items(
 
 
 # ── /purchases ─────────────────────────────────────────────────────────────────
+
+@router.post("/purchases/import-bill")
+async def import_purchase_bill(
+        payload: BillImportRequest,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """One-click distributor bill import (Suppliers v3, named Pharmasoft
+    gap) — a pharmacist uploads a distributor's Excel/CSV bill against a
+    fixed column template instead of retyping every line item by hand.
+    Returns candidate items in the exact shape PurchaseNew's own item rows
+    use (product_sku/product_name/batch_no/expiry_mmyy/qty_units/
+    cost_price_per_unit/mrp_per_unit/gst_percent) so the frontend can load
+    them straight into the existing, already-tested purchase-creation
+    flow for review and submission — this endpoint only parses, it never
+    creates a purchase itself."""
+    await _require_purchases_permission(current_user, "create", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+
+    ext = Path(payload.filename).suffix.lower()
+    if ext not in {".xlsx", ".xls", ".csv"}:
+        raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported")
+
+    raw_b64 = payload.file_data.split(",", 1)[-1]
+    try:
+        content = base64.b64decode(raw_b64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode the uploaded file")
+
+    if len(content) > _BILL_IMPORT_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large (max {_BILL_IMPORT_MAX_BYTES // (1024 * 1024)}MB)")
+
+    try:
+        df = pd.read_csv(io.BytesIO(content)) if ext == ".csv" else pd.read_excel(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not read the file — is it a valid {ext} file? ({e})")
+
+    if df.empty:
+        raise HTTPException(status_code=400, detail="The file has no data rows")
+    if len(df) > _BILL_IMPORT_MAX_ROWS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File has too many rows (max {_BILL_IMPORT_MAX_ROWS}) — split into smaller files")
+
+    col_map = _map_bill_import_columns(df.columns)
+    missing = [f for f in _BILL_IMPORT_REQUIRED_FIELDS if f not in col_map]
+    if "product_sku" not in col_map and "product_name" not in col_map:
+        missing.append("Product SKU or Product Name")
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Missing required column(s): {', '.join(missing)}. Expected columns like "
+                    "Product Name/SKU, Batch No, Expiry, Quantity, Cost Price, MRP."))
+
+    products_result = await db.execute(
+        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None)))
+    products = products_result.scalars().all()
+    by_sku = {p.sku.lower(): p for p in products if p.sku}
+    by_name = {p.name.lower(): p for p in products if p.name}
+
+    items, errors = [], []
+    for idx, row in df.iterrows():
+        row_num = idx + 2  # header is row 1
+        try:
+            item, warnings = _parse_bill_import_row(row, col_map, by_sku, by_name)
+        except ValueError as e:
+            errors.append({"row": row_num, "message": str(e)})
+            continue
+        item["row"] = row_num
+        item["warnings"] = warnings
+        items.append(item)
+
+    return {"items": items, "errors": errors}
+
 
 @router.get("/purchases")
 async def get_purchases(

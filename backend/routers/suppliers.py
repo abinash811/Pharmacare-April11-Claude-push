@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -10,7 +10,9 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.purchases import Purchase, PurchasePayment, PurchaseReturn
+from models.pharmacy import PharmacySettings
+from models.products import Product as ProductORM, StockBatch as BatchORM
+from models.purchases import Purchase, PurchaseItem, PurchasePayment, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
@@ -226,8 +228,9 @@ async def get_suppliers(
 
 
 @router.post("/suppliers")
-async def create_supplier(supplier_data: SupplierCreate, current_user: User = Depends(
-        get_current_user), db: AsyncSession = Depends(get_db)):
+async def create_supplier(
+        supplier_data: SupplierCreate, request: Request,
+        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_suppliers_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     existing = await db.execute(
@@ -253,6 +256,14 @@ async def create_supplier(supplier_data: SupplierCreate, current_user: User = De
     )
     db.add(supplier)
     await db.flush()
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "supplier", supplier.id,
+        {"name": supplier.name, "phone": supplier.phone, "gstin": supplier.gstin,
+         "credit_days": supplier.credit_days},
+        db, ip_address=_client_ip(request),
+    )
+    await db.flush()
     return _supplier_response(supplier)
 
 
@@ -272,11 +283,13 @@ async def get_supplier(supplier_id: str, current_user: User = Depends(
 async def update_supplier(
         supplier_id: str,
         supplier_data: SupplierUpdate,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_suppliers_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier = await get_owned_or_404(
-        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        db, SupplierORM, supplier_id, pharmacy_id,
         not_found_detail="Supplier not found")
 
     update_fields = supplier_data.model_dump(exclude_unset=True)
@@ -284,10 +297,22 @@ async def update_supplier(
         raise HTTPException(status_code=400, detail="No fields to update")
 
     field_map = {"payment_terms_days": "credit_days"}
+    old_values: dict = {}
+    new_values: dict = {}
     for key, value in update_fields.items():
         col = field_map.get(key, key)
         if hasattr(supplier, col):
+            old_value = getattr(supplier, col)
+            if old_value != value:
+                old_values[col] = old_value
+                new_values[col] = value
             setattr(supplier, col, value)
+
+    if new_values:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "supplier", supplier.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request),
+        )
 
     await db.flush()
     return {"message": "Supplier updated successfully"}
@@ -376,7 +401,7 @@ async def record_supplier_payment(
 
 
 @router.delete("/suppliers/{supplier_id}")
-async def delete_supplier(supplier_id: str, current_user: User = Depends(
+async def delete_supplier(supplier_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_suppliers_permission(current_user, "deactivate", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -393,18 +418,36 @@ async def delete_supplier(supplier_id: str, current_user: User = Depends(
         )
 
     supplier.deleted_at = datetime.now(timezone.utc)
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "delete", "supplier", sid,
+        {"deleted": True}, db,
+        old_values={"name": supplier.name, "phone": supplier.phone}, ip_address=_client_ip(request),
+    )
     await db.flush()
     return {"message": "Supplier deleted successfully"}
 
 
 @router.patch("/suppliers/{supplier_id}/toggle-status")
-async def toggle_supplier_status(supplier_id: str, current_user: User = Depends(
+async def toggle_supplier_status(supplier_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # toggle-status had zero permission check until now — same class of
+    # gap as the ACL miss already fixed for create/edit/delete on this
+    # router; found while wiring audit logging into every mutating
+    # endpoint here. Reuses "deactivate", the same permission delete_supplier
+    # requires, since both control whether a supplier stays usable.
+    await _require_suppliers_permission(current_user, "deactivate", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier = await get_owned_or_404(
-        db, SupplierORM, supplier_id, uuid.UUID(current_user.pharmacy_id),
+        db, SupplierORM, supplier_id, pharmacy_id,
         not_found_detail="Supplier not found")
 
+    old_status = supplier.is_active
     supplier.is_active = not supplier.is_active
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "update", "supplier", supplier.id,
+        {"is_active": supplier.is_active}, db,
+        old_values={"is_active": old_status}, ip_address=_client_ip(request),
+    )
     await db.flush()
     status_text = "activated" if supplier.is_active else "deactivated"
     return {"message": f"Supplier {status_text} successfully", "is_active": supplier.is_active}
@@ -437,6 +480,61 @@ async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
         "total_purchase_value": round(total_value, 2),
         "last_purchase_date": last_purchase_date.isoformat() if last_purchase_date else None,
     }
+
+
+@router.get("/suppliers/{supplier_id}/near-expiry-batches")
+async def get_supplier_near_expiry_batches(supplier_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    """Named Pharmasoft feature (return-to-supplier before expiry write-
+    off) — PharmaCare's purchase-return flow was real but purely
+    reactive; nothing proactively surfaced near-expiry stock bought from
+    a given supplier as a return candidate before it becomes a loss.
+    Joins StockBatch -> PurchaseItem (via batch_id) -> Purchase to find
+    which supplier a batch was originally bought from, reusing the same
+    near_expiry_threshold_days setting inventory.py's health dashboard
+    already uses, so "near expiry" means the same thing everywhere."""
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    supplier = await get_owned_or_404(
+        db, SupplierORM, supplier_id, pharmacy_id, not_found_detail="Supplier not found")
+    sid = supplier.id
+
+    ps_result = await db.execute(select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    ps = ps_result.scalar_one_or_none()
+    near_expiry_days = ps.near_expiry_threshold_days if ps else 90
+    near_threshold = date.today() + timedelta(days=near_expiry_days)
+
+    rows = await db.execute(
+        select(BatchORM, PurchaseItem.purchase_id, ProductORM.name, ProductORM.sku)
+        .join(PurchaseItem, PurchaseItem.batch_id == BatchORM.id)
+        .join(Purchase, Purchase.id == PurchaseItem.purchase_id)
+        .join(ProductORM, ProductORM.id == BatchORM.product_id)
+        .where(
+            Purchase.supplier_id == sid,
+            Purchase.pharmacy_id == pharmacy_id,  # explicit, though sid is already pharmacy-scoped via get_owned_or_404
+            BatchORM.is_active.is_(True),
+            BatchORM.quantity_on_hand > 0,
+            BatchORM.expiry_date < near_threshold,
+        )
+        .order_by(BatchORM.expiry_date)
+    )
+
+    today = date.today()
+    items = [
+        {
+            "batch_id": str(batch.id),
+            "purchase_id": str(purchase_id),
+            "product_name": product_name,
+            "product_sku": product_sku,
+            "batch_number": batch.batch_number,
+            "expiry_date": batch.expiry_date.isoformat(),
+            "is_expired": batch.expiry_date < today,
+            "quantity_on_hand": batch.quantity_on_hand,
+            "value_at_risk": (batch.quantity_on_hand * batch.cost_price_paise) / 100,
+        }
+        for batch, purchase_id, product_name, product_sku in rows.all()
+    ]
+
+    return {"near_expiry_threshold_days": near_expiry_days, "items": items}
 
 
 async def _calc_outstanding(supplier_id: uuid.UUID, db: AsyncSession) -> int:

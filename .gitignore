@@ -66,6 +66,10 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
 
+# Playwright MCP tool scratch output (browser snapshots/console logs/
+# downloads from live-verification sessions) — not project content.
+.playwright-mcp/
+
 # Data and databases
 agenthub/agents/youtube/db
 

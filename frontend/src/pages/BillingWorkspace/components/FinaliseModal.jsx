@@ -14,9 +14,9 @@
  *   grandTotal        {number}
  *   margin            {{ amount: number, percent: number }}
  *   isSaving          {boolean}
- *   onConfirm         {(notes: { internalNote, deliveryNote }) => void}
+ *   onConfirm         {(notes: { internalNote }) => void}
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
@@ -38,12 +38,16 @@ export default function FinaliseModal({
   onConfirm,
 }) {
   const [internalNote, setInternalNote] = useState('');
-  const [deliveryNote, setDeliveryNote] = useState('');
 
-  // Clear notes each time modal opens
-  useEffect(() => {
-    if (open) { setInternalNote(''); setDeliveryNote(''); }
-  }, [open]);
+  // Clear the note each time the modal opens. Adjusted during render (not an
+  // effect) per React's own guidance on resetting state from a prop change —
+  // this component stays mounted while `open` toggles, so an effect here
+  // would fire a second render every time (react-hooks/set-state-in-effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setInternalNote('');
+  }
 
   const billDiscAmt = billDiscountType === '%'
     ? mrpTotal * (billDiscount / 100)
@@ -55,7 +59,7 @@ export default function FinaliseModal({
   const rawTotal = mrpTotal - totalDiscount + totalGst + totalCess;
   const roundOff = grandTotal - rawTotal;
 
-  const handleConfirm = () => onConfirm({ internalNote, deliveryNote });
+  const handleConfirm = () => onConfirm({ internalNote });
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -117,18 +121,6 @@ export default function FinaliseModal({
                   rows="4"
                   placeholder="Internal notes (not visible to customer)"
                   data-testid="internal-note"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Delivery Note</label>
-                <textarea
-                  value={deliveryNote}
-                  onChange={(e) => setDeliveryNote(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
-                  rows="4"
-                  placeholder="Delivery instructions (if applicable)"
-                  data-testid="delivery-note"
                 />
               </div>
 

@@ -1,10 +1,10 @@
 /**
  * useBillActions
  *
- * All async bill operations: save, save-and-print, park, save-and-deliver,
+ * All async bill operations: save, save-and-print, park,
  * confirm (finalise), and print-current.
  *
- * Returns { saveBill, saveBillAndPrint, parkBill, saveBillAndDeliver,
+ * Returns { saveBill, saveBillAndPrint, parkBill,
  *           confirmAndSaveBill, handlePrintCurrentBill, isSaving }
  *
  * The hook does NOT own bill state — it only reads the snapshot values
@@ -131,23 +131,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     }
   }, [billSnapshot]);
 
-  // ── saveBillAndDeliver ────────────────────────────────────────────────────
-  const saveBillAndDeliver = useCallback(async () => {
-    if (!guardItems()) return;
-    const { paymentType } = billSnapshot;
-    const status = paymentType === 'credit' ? 'due' : 'paid';
-    try {
-      const payload = { ...buildBillBase(status), delivery_requested: true };
-      const res = await api.post(apiUrl.bills(), payload);
-      toast.success(`Bill #${res.data.bill_number} created! Delivery booking initiated.`);
-      afterSuccess();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to save bill');
-    }
-  }, [billSnapshot]);
-
   // ── confirmAndSaveBill (finalise) ─────────────────────────────────────────
-  const confirmAndSaveBill = useCallback(async ({ internalNote, deliveryNote }) => {
+  const confirmAndSaveBill = useCallback(async ({ internalNote }) => {
     if (!guardItems()) return;
     setIsSaving(true);
     const {
@@ -179,7 +164,6 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       grand_total:    grandTotal,
       round_off:      0,
       internal_note:  internalNote,
-      delivery_note:  deliveryNote,
       billed_by:      billedBy,
       cashier_name:   billedBy,
     };
@@ -216,5 +200,5 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see saveBillAndPrint above
   }, [billSnapshot, printPharmacyInfo]);
 
-  return { saveBill, saveBillAndPrint, parkBill, saveBillAndDeliver, confirmAndSaveBill, handlePrintCurrentBill, isSaving };
+  return { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, handlePrintCurrentBill, isSaving };
 }

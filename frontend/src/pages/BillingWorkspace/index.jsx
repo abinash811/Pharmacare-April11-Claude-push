@@ -183,7 +183,7 @@ export default function BillingWorkspace() {
   // never passed to print, so real receipts only showed a hardcoded fallback.
   const printPharmacyInfo = buildPrintPharmacyInfo(pharmacyGeneral, printSettings);
 
-  const { saveBill, saveBillAndPrint, parkBill, saveBillAndDeliver, confirmAndSaveBill, handlePrintCurrentBill, isSaving } =
+  const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
     useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo);
 
   const handlePatientSelect = (patient) => {

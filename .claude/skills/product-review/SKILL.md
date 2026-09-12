@@ -28,7 +28,42 @@ Read `/CLAUDE.md` first if you haven't this session — the Manifesto (rules
 second" rule) are what this skill operationalizes. This skill is the
 checklist version of that rule, not a separate process.
 
-## The 5 checks, in this order
+## Persona — added Sep 12, 2026, direct request
+
+For the research checks below (1–2), think and write as a **senior
+product manager with 8+ years specifically in healthcare/pharmacy
+inventory-management software** — not as a code auditor reading a diff.
+That person doesn't start from "what did we build" — they start from "what
+does this category of product have to do, at minimum, for a real pharmacy
+to run on it," then checks PharmaCare against that.
+
+When a finding turns into UI, the equivalent persona for that step is a
+**senior product designer with 10+ years' experience, designing for
+someone with zero computer literacy** (not a technical user, not even a
+comfortable one) — this is already CLAUDE.md's standing rule for who
+Abinash and every real pharmacist persona are; restated here because it's
+easy to forget mid-audit. If a fix needs a screen, that screen must be
+readable and operable by someone who has never used software before.
+
+## Scope discipline — added Sep 12, 2026, direct request
+
+This is not a 10-year-mature product and should not chase features that
+only make sense for one. The target is a product solid enough to run a
+real pharmacy business for the next 5 years, with room to keep adding
+real capability inside that window — not maximum feature coverage today.
+Concretely:
+
+- Don't flag a "polish"/retention/loyalty-style feature as a gap on par
+  with something that blocks a real task, just because a named competitor
+  has it. eVitalRx's loyalty program is exactly this class — worth one
+  line noting it exists elsewhere, never a P0/P1, never phased into v1.
+- Every gap that *is* real gets a build phase, not just a severity:
+  **v1** (basic version — needed now, table-stakes for running the
+  business), **v2** (needed soon, real but not blocking), **v3** (real,
+  but genuinely later). If you can't tell which phase something belongs
+  in, it probably isn't a v1.
+
+## The checks, in this order
 
 Do them in order — each one is cheap to skip and expensive to skip
 silently. Don't jump to check 3 (or code) before 1 and 2 are actually done.
@@ -45,11 +80,21 @@ if you don't already have it in context. If you can't state the business
 reasoning in plain terms, you don't understand the section well enough to
 review it yet — go read more before continuing.
 
-### 2. Competitor benchmark
+### 2. Baseline features, then competitor benchmark
 
-Check `docs/01_PRODUCT.md` §10 (COMPETITIVE LANDSCAPE) for what's already
-researched about **eVitalRx, Marg ERP, Pharmasoft** for this section. That
-doc says outright: "refresh before relying on these, they age fast."
+Two passes, in this order — don't skip straight to the named competitors:
+
+**2a. Industry baseline first.** As the senior-PM persona above, write the
+short list of what *any* pharmacy/retail inventory-management product
+must do for this section — table-stakes, not differentiators. Draw this
+from domain knowledge of the category, not from PharmaCare's own code and
+not from a single competitor's feature list. This is the yardstick
+everything else gets measured against.
+
+**2b. Named competitor specifics.** Check `docs/01_PRODUCT.md` §10
+(COMPETITIVE LANDSCAPE) for what's already researched about **eVitalRx,
+Marg ERP, Pharmasoft** for this section. That doc says outright: "refresh
+before relying on these, they age fast."
 
 - If research for this section exists and is recent, use it.
 - If it's missing or stale for this specific section, do a fresh web
@@ -58,7 +103,9 @@ doc says outright: "refresh before relying on these, they age fast."
   next review doesn't redo this work.
 
 Per Manifesto rule 15: a named, researched competitor feature PharmaCare
-lacks is a real gap, not a nice-to-have. List it as one.
+lacks is a real gap, not a nice-to-have — but weigh it against the scope
+discipline above before assigning it a phase. A baseline (2a) miss is
+almost always more urgent than a competitor-only (2b) one.
 
 ### 3. Zero-data walkthrough — the check that was skipped last time
 
@@ -102,19 +149,29 @@ helper, not computed-on-read), it has its own field list and filters that
 nothing forces to stay in sync — verify each one individually, don't
 assume a fix in the entry point reached it.
 
-## Output format
+## Output format — use-case driven, not a feature list
 
-Report a gap list. For each gap, state:
-- **What's missing or wrong** (one line)
-- **Real user impact**: does this block completing a real task, or is it a
-  nice-to-have? Lead with this — a section can have zero P2 gaps and still
-  be unusable if it has one P0.
-- **Where you confirmed it** (file/line, or "walked live, zero-data" —
-  cite the actual evidence, not "seems like")
+Added Sep 12, 2026, direct request: a feature-by-feature gap list reads
+like an engineering checklist, not a product review, and buries whether a
+real person can actually get their job done. Structure the report around
+**use cases**, each one a real task a named role needs to complete —
+never a bare feature name:
+
+> Use case: *[a named role, e.g. "a cashier extending credit to a regular
+> customer"] needs to be able to [complete task]."*
+> **Today:** works end-to-end / broken / missing entirely.
+> **If not fully working:** what's wrong, concretely, and the **evidence**
+> (file/line, or "walked live, zero-data" — cite it, don't say "seems
+> like").
+> **Phase:** v1 / v2 / v3, per the scope-discipline rule above.
 
 Don't rate by code-correctness alone — code that's "correct" for a flow
 nobody can actually reach (like a search that only matches pre-existing
-records) is still a P0 for the user.
+records) is still a v1-blocking use case, not a nice-to-have.
+
+Close with a short phased build list (v1 items first, in the order you'd
+build them) — this is the actual deliverable a non-technical owner acts
+on, not the individual use-case writeups above it.
 
 ## Logging what you find
 

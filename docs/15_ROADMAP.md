@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.47 | Last updated: September 12, 2026
+# Version: 2.48 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -445,28 +445,77 @@ worth a full writeup here). All findings fixed:
 
 ### Customers
 
-> Full product-review audit run Sep 12, 2026 (business reasoning +
-> eVitalRx/Marg ERP/Pharmasoft benchmark + live zero-data walkthrough +
-> real field verification + cross-cutting check). Findings below —
-> previous rows below this note were wrong: "Credit limit: not yet
-> designed" undersold it (a real column + real UI exist) and "Loyalty:
-> Phase 2" was equally wrong (same — column + API field already ship).
-> The real state is worse than either: both **look** built and are
-> silently non-functional.
+> Full product-review audit run Sep 12, 2026, re-framed same day per a
+> direct process change (see `.claude/skills/product-review/SKILL.md`'s
+> Sep 12 Persona/Scope-discipline/Output-format additions): senior-PM
+> persona, industry baseline checked before named competitors, every real
+> gap phased v1/v2/v3 instead of just severity-tagged, and
+> retention/polish features (loyalty points) explicitly deprioritized
+> rather than listed as gaps on par with a broken use case.
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Customer CRUD | ✅ | |
-| Customer purchase history | ✅ | `GET /customers/{id}/stats` computed fresh from `Bill` on read — safe pattern, can't drift |
-| Doctor CRUD | ✅ | |
-| Credit limit per customer | ❌ **Not enforced** | Real column + real "Credit Limit" table column + real form field — but `create_bill` never reads it. Live-verified: a customer with a ₹500 limit was billed ₹5,250 on credit, unblocked (200 OK). Marg ERP names this "live credit limit management" (operator + manager tiers, optionally hard-blocking) — a real, expected feature this UI already promises but doesn't deliver. |
-| Customer outstanding balance | ❌ **Always ₹0** | `Customer.outstanding_paise` is never incremented on a due/credit bill or decremented on payment — confirmed live, same test bill left it at 0. Not currently rendered anywhere in the UI (so not actively lying on screen today), but any future screen or report trusting this stored column will be wrong; the safe pattern is compute-on-read like `get_customer_stats` already does. |
-| Loyalty points | ❌ **Dead, always 0** | Real column, real API field, exposed in every customer response — nothing anywhere increments it. eVitalRx names a real, customizable loyalty program as a retention feature; PharmaCare's version is decorative. |
-| Customer "Notes" field | ❌ **Unreachable** | `CustomerCreate`/update accept `notes`, the edit form's Zod schema + defaults + edit-populate all reference it — but no `<Input>`/`<Textarea>` for it is ever rendered, and `Customer` has no DB column for it at all. Not just silently dropped on save (worse: the user can never type it in the first place). Same bug class as the Aug 26, 2026 Supplier `notes` miss (RULE MISSES LOG) — recurred here undetected. |
-| `age`/`gender`/`alternate_phone`/`city` columns | 🗄️ Dead schema | Real DB columns, zero API or frontend reference anywhere — same class as the `is_composition_scheme` miss fixed this session. Lower severity than the above: nothing promises these to a user, so nothing is lying on screen. |
-| Permission gates on Customers/Doctors | ❌ **Missing entirely** | `customers:delete` is a real permission in the catalog (`constants.py`) but `create_customer`/`update_customer`/`delete_customer`/every doctor endpoint have zero permission check — any authenticated role, cashier included, can delete any customer or doctor record. Same class as the Suppliers/Inventory ACL gap fixed earlier this session (Sep 12 RULE MISSES LOG) — Customers wasn't included in that pass and has the identical hole. |
-| Family-wise / group billing | 🚫 Not built | Named Marg ERP + Pharmasoft feature (consolidated family ledger, family group-wise billing) — real gap, not in scope this pass. |
-| WhatsApp reminders (refill/payment/outstanding) | 🚫 Not built | Named eVitalRx + Marg ERP feature — real gap, not in scope this pass. |
+**Industry baseline for pharmacy customer/doctor management** (table
+stakes, independent of any named competitor): fast add/search/edit during
+a live billing queue; purchase history for repeat and chronic-refill
+customers; doctor linkage for prescription-required (Schedule H/H1)
+sales; credit/dues tracking that can actually be trusted and, ideally,
+capped; soft delete only; role-gated mutations. Everything below is
+measured against this list first, competitor-only extras second.
+
+**Use case: a cashier extends credit to a regular customer, trusting the
+credit limit and the outstanding balance the system shows.**
+- **Today: broken.** Live-verified, zero-data: a brand-new customer
+  created with a ₹500 credit limit was billed ₹5,250 on credit and the
+  API returned 200 OK — the limit is pure UI decoration, `create_bill`
+  never reads `credit_limit_paise`. The same test bill left
+  `outstanding_paise` at ₹0 — it's never incremented on a due bill or
+  decremented on payment, so the one number this use case depends on is
+  always wrong the moment it's shown anywhere.
+- Baseline gap, not a competitor-only one — Marg ERP's "live credit limit
+  management" (operator + manager tiers) is the industry-standard version
+  of exactly this.
+- **Phase: v1.** This is core trust-in-the-numbers, not a nicety.
+
+**Use case: a pharmacist records a note on a customer (allergy, delivery
+preference, family context) for later reference.**
+- **Today: impossible** — not broken, unreachable. The Add/Edit Customer
+  form's schema, defaults, and edit-populate all reference a `notes`
+  field, but no input for it is ever rendered, and `Customer` has no `notes`
+  column at all. Same bug class as the Aug 26, 2026 Supplier `notes` miss
+  (RULE MISSES LOG), recurred here undetected.
+- **Phase: v1** — cheap, already half-built, and closes a real repeat bug
+  class rather than opening new scope.
+
+**Use case: an owner controls who can delete a customer/doctor record.**
+- **Today: broken.** Zero permission check on any customer/doctor
+  create/update/delete endpoint — any logged-in role, cashier included,
+  can delete any customer or doctor. `customers:delete` is a real,
+  defined permission (`constants.py`) nothing enforces. Same class as the
+  Suppliers/Inventory ACL gap fixed earlier this session; this module
+  wasn't included in that pass.
+- **Phase: v1** — data-integrity/compliance baseline, not new scope.
+
+**Use case: retention features (loyalty points, WhatsApp refill/payment
+reminders, family-ledger billing).**
+- Real column + API field exist for loyalty points but nothing
+  increments it; WhatsApp reminders and family billing aren't built at
+  all. eVitalRx/Marg ERP/Pharmasoft all ship some version of these.
+- **Deliberately not phased.** Per the Sep 12 scope-discipline rule,
+  these are 10-year-mature-product polish, not table stakes for the next
+  5 years — noted for awareness, not queued. Revisit only if a real
+  pharmacist need surfaces.
+
+**Cleanup, not a use case:** `age`/`gender`/`alternate_phone`/`city` are
+real DB columns with zero API or frontend reference anywhere — same class
+as the `is_composition_scheme` dead-schema miss fixed earlier this
+session. Not a broken promise to a user (nothing shows them), so not
+phased as a feature — just flagged so it doesn't get built on top of by
+accident.
+
+**v1 build list, in order:** (1) permission gates on customer/doctor
+mutations, (2) real customer `notes` column + form field, (3) credit
+limit enforcement at bill-creation time, (4) `outstanding_paise` kept
+accurate (or switched to compute-on-read, matching `get_customer_stats`'s
+already-safe pattern) — not yet built, this section is the research/find.
 
 ### Reports
 

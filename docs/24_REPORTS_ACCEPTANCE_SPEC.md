@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.3 | Last updated: September 12, 2026
+# Version: 2.4 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -504,20 +504,20 @@ true for sales returns, which that spec didn't cover.
 
 | UC | Use case | Status | Evidence |
 |---|---|---|---|
-| RET01 | Sales return report (credit notes issued, by date range) | ❌ Missing | No aggregation endpoint exists |
-| RET02 | Purchase return report (debit notes issued, by date range) | ❌ Missing | Same — matches `docs/23` Section 10 |
-| RET03 | Return reason breakdown | ❌ Missing | The underlying data barely exists either — `docs/23` PR03 already found the frontend never sends a real reason (`"return"` hardcoded); `sales_returns.py`'s `SalesReturnCreate.note` is closer to a real reason field but still unstructured free text |
-| RET04 | Return rate (% of sales value returned) | ❌ Missing | `net_purchases` (purchases minus returns) is the one derivable number that exists today (`analytics/purchases`), and even that endpoint is dead/unwired (UC-R15) |
-| RET05 | Product-wise return frequency (defect/quality tracking) | ❌ Missing | No breakdown by product exists |
-| RET06 | Refund-method breakdown | ❌ Missing | `SalesReturn.refund_method` is a real, captured field but never aggregated anywhere |
-| RET07 | Net sales after returns (as its own report, not just netted into GST) | 🔄 Partial | The GST report correctly nets returns into tax liability (GST05/GST06) but there's no plain "net sales" report a non-accountant would read |
-| RET08 | Export/print | ❌ Missing | N/A — no report exists to export |
+| RET01 | Sales return report (credit notes issued, by date range) | ✅ Fixed Sep 12, 2026 | `GET /reports/sales-returns` + new "Sales Returns" Reports tab, live-verified with real credit notes |
+| RET02 | Purchase return report (debit notes issued, by date range) | ✅ Fixed Sep 12, 2026 | `GET /reports/purchase-returns` + new "Purchase Returns" Reports tab, live-verified with real debit notes |
+| RET03 | Return reason breakdown | ❌ Missing | Still needs real reason capture first (`docs/23` PR03) — row-level `reason` is shown on both new reports, but a structured breakdown isn't built since the underlying data is still mostly free text/hardcoded |
+| RET04 | Return rate (% of sales value returned) | ✅ Fixed Sep 12, 2026 | Both new report endpoints' `summary.return_rate_percent`, live-verified (e.g. 2.98% sales, 3.22% purchases against real test data) |
+| RET05 | Product-wise return frequency (defect/quality tracking) | ❌ Missing | No breakdown by product exists — same RET03 prerequisite |
+| RET06 | Refund-method breakdown | ✅ Fixed Sep 12, 2026 | `GET /reports/sales-returns`'s `summary.by_refund_method`, live-verified |
+| RET07 | Net sales after returns (as its own report, not just netted into GST) | ✅ Fixed Sep 12, 2026 | Both new endpoints' `summary.net_sales`/`net_purchases`, live-verified with correct math (gross − returns) |
+| RET08 | Export/print | ✅ Fixed Sep 12, 2026 | CSV/Excel export both live-verified working on both new tabs, same mechanism as every other Reports tab |
 
-**Recommendation:** genuinely new work across the board — no existing
-endpoint to wire, unlike Purchases (PU03). Lowest-effort starting point
-would be RET07 (net sales), since the subtraction logic already exists
-correctly inside `get_gst_report` and could be extracted into its own
-lightweight summary.
+**Note:** RET03/RET05 remain out of scope — both explicitly depend on real
+return-reason capture existing first (currently `"return"` hardcoded on
+the purchase-return frontend, free text on sales returns), a prerequisite,
+not just a reporting gap. Everything else in this section was genuinely
+new work — no existing endpoint to wire, unlike Purchases (PU03).
 
 ### G. SCHEDULE H1 REGISTER (UC-H101 – UC-H108)
 
@@ -639,9 +639,9 @@ not new scope. This section adds what the fuller use-case pass surfaced:
 15. ~~Wire `/analytics/purchases` into Dashboard as a visual card (PU03)~~ — Dashboard gained a "Purchases (Month)/Purchase Returns (Month)/Net Purchases (Month)" row, each card clickable through to `/purchases`/`/purchases/returns`. Live-verified with real non-zero data and working navigation. A real, filterable, downloadable "Purchase Register" (the Reports-page equivalent of PU01/PU02) remains separate, new work.
 16. Drive-by fix: 3 dead `/inventory-v2` links found while editing Dashboard (`index.jsx` Stock Value card, `AlertsPanel.jsx` x2 "View All" buttons) — corrected to the real `/inventory` route (Manifesto rule 9, "no unverified routes"). Same class of bug the Reports page's own dead Stock tab had (Batch 1).
 
-**Batch 7 — return reports (genuinely new, no existing endpoint to lean on)**
-17. Net-sales-after-returns as a starting point (RET07) — the subtraction logic already exists inside `get_gst_report`, extractable into its own summary.
-18. Sales/purchase return reports proper (RET01/RET02), then reason/product breakdowns (RET03/RET05) once real reason capture exists (a prerequisite already named in `docs/23` PR03).
+**Batch 7 — return reports (genuinely new, no existing endpoint to lean on)** — ✅ Done Sep 12, 2026
+17. ~~Net-sales-after-returns as a starting point (RET07)~~ — bundled directly into both new report endpoints' summaries (`net_sales`/`net_purchases`) rather than a separate call, since "how much did I net after returns this period" belongs right where returns are being reported.
+18. ~~Sales/purchase return reports proper (RET01/RET02)~~ — `GET /reports/sales-returns` and `GET /reports/purchase-returns` built, two new Reports tabs (row-level + summary with return-rate/refund-method breakdown), `reports:view`-gated, CSV/Excel export. 8 new pytest regression tests (both endpoints' math + zero-data path) + live browser verification with real data. RET03/RET05 (reason/product breakdowns) still deferred — real reason capture is a prerequisite, not built here (`docs/23` PR03).
 
 **Batch 8 — bigger scope, needs its own conversation before any code**
 19. GST composition-scheme decision (GST11) — is this a real supported pharmacy type or should the toggle be removed?

@@ -85,6 +85,10 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatExpiryReport(reportData);
     case 'margin':
       return formatMarginReport(reportData);
+    case 'sales-returns':
+      return formatSalesReturnsReport(reportData);
+    case 'purchase-returns':
+      return formatPurchaseReturnsReport(reportData);
     default:
       return reportData.data || reportData;
   }
@@ -147,6 +151,33 @@ const formatMarginReport = (data) => {
     'Cost (₹)': item.cost,
     'Margin (₹)': item.margin,
     'Margin %': item.margin_percent,
+  }));
+};
+
+const formatSalesReturnsReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/sales-returns's real response exactly.
+  return data.data.map((item) => ({
+    'Credit Note #': item.return_number,
+    'Date': item.return_date,
+    'Bill #': item.original_bill_number,
+    'Customer': item.customer_name,
+    'Reason': item.reason,
+    'Refund Method': item.refund_method,
+    'Amount (₹)': item.total_value,
+  }));
+};
+
+const formatPurchaseReturnsReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/purchase-returns's real response exactly.
+  return data.data.map((item) => ({
+    'Debit Note #': item.debit_note_number,
+    'Date': item.return_date,
+    'Purchase #': item.original_purchase_number,
+    'Supplier': item.supplier_name,
+    'Reason': item.reason,
+    'Amount (₹)': item.total_value,
   }));
 };
 

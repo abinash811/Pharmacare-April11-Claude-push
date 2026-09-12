@@ -8,7 +8,7 @@ export default function ReportFilters({
 }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {(activeReport === 'sales' || activeReport === 'margin') && (
+      {['sales', 'margin', 'sales-returns', 'purchase-returns'].includes(activeReport) && (
         <>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-600">From:</label>

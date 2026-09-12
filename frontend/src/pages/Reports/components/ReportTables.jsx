@@ -6,7 +6,7 @@
  *   expiryDays    {number}
  */
 import React from 'react';
-import { FileText, Package, Clock, TrendingUp } from 'lucide-react';
+import { FileText, Package, Clock, TrendingUp, Undo2 } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
@@ -162,6 +162,73 @@ function MarginTable({ data }) {
   );
 }
 
+// ── Sales Returns ─────────────────────────────────────────────────────────────
+function SalesReturnsTable({ data }) {
+  return (
+    <table className="w-full" data-testid="sales-returns-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['Credit Note #','Date','Bill #','Customer','Reason','Refund Method','Amount'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i === 6 ? 'text-right' : i === 5 ? 'text-center' : 'text-left'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-500">
+            <Undo2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No sales returns for selected period</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3 font-medium text-brand">{row.return_number}</td>
+            <td className="px-4 py-3 text-sm">{row.return_date}</td>
+            <td className="px-4 py-3">{row.original_bill_number}</td>
+            <td className="px-4 py-3">{row.customer_name}</td>
+            <td className="px-4 py-3 text-sm text-gray-600">{row.reason}</td>
+            <td className="px-4 py-3 text-center">
+              <span className="px-2 py-1 bg-gray-100 rounded text-xs">{row.refund_method}</span>
+            </td>
+            <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.total_value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ── Purchase Returns ──────────────────────────────────────────────────────────
+function PurchaseReturnsTable({ data }) {
+  return (
+    <table className="w-full" data-testid="purchase-returns-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['Debit Note #','Date','Purchase #','Supplier','Reason','Amount'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i === 5 ? 'text-right' : 'text-left'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan="6" className="px-4 py-12 text-center text-gray-500">
+            <Undo2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No purchase returns for selected period</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3 font-medium text-brand">{row.debit_note_number}</td>
+            <td className="px-4 py-3 text-sm">{row.return_date}</td>
+            <td className="px-4 py-3">{row.original_purchase_number}</td>
+            <td className="px-4 py-3">{row.supplier_name}</td>
+            <td className="px-4 py-3 text-sm text-gray-600">{row.reason}</td>
+            <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.total_value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 export default function ReportTables({ activeReport, reportData, expiryDays }) {
   return (
@@ -170,6 +237,8 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       {activeReport === 'low-stock' && <LowStockTable data={reportData?.data} />}
       {activeReport === 'expiry'    && <ExpiryTable   data={reportData?.data} expiryDays={expiryDays} />}
       {activeReport === 'margin'    && <MarginTable   data={reportData?.data} />}
+      {activeReport === 'sales-returns'    && <SalesReturnsTable    data={reportData?.data} />}
+      {activeReport === 'purchase-returns' && <PurchaseReturnsTable data={reportData?.data} />}
     </div>
   );
 }

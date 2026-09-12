@@ -386,6 +386,160 @@ async def get_margin_report(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── sales returns report ──────────────────────────────────────────────────────
+# UC-RET01 (return report) / RET04 (return rate) / RET06 (refund-method
+# breakdown) / RET07 (net sales after returns). Every SalesReturn is created
+# with a single status value ("completed" — see routers/sales_returns.py),
+# so — matching get_gst_report's own established handling of this exact
+# table — no status filter is needed here either.
+
+
+@router.get("/reports/sales-returns")
+async def get_sales_returns_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [SalesReturnORM.pharmacy_id == pid]
+        if from_date:
+            conds.append(SalesReturnORM.return_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(SalesReturnORM.return_date <= date.fromisoformat(to_date))
+
+        rows = (await db.execute(
+            select(SalesReturnORM, BillORM.bill_number, BillORM.customer_name)
+            .outerjoin(BillORM, SalesReturnORM.original_bill_id == BillORM.id)
+            .where(*conds).order_by(SalesReturnORM.return_date.desc())
+        )).all()
+
+        data = []
+        total_return_paise = 0
+        by_refund_method: dict = {}
+        for sr, bill_number, customer_name in rows:
+            amt = _p2r(sr.grand_total_paise)
+            total_return_paise += sr.grand_total_paise
+            method = sr.refund_method or "unspecified"
+            by_refund_method[method] = round(by_refund_method.get(method, 0) + amt, 2)
+            data.append({
+                "return_number": sr.return_number,
+                "return_date": sr.return_date.strftime("%d/%m/%Y") if sr.return_date else "N/A",
+                "original_bill_number": bill_number or "",
+                "customer_name": customer_name or "Walk-in",
+                "reason": sr.return_reason or "",
+                "refund_method": method,
+                "total_value": amt,
+            })
+
+        # Same period, same status list every sibling sales report uses.
+        sales_conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(
+            ["paid", "due"]), BillORM.deleted_at.is_(None)]
+        if from_date:
+            sales_conds.append(BillORM.bill_date >= date.fromisoformat(from_date))
+        if to_date:
+            sales_conds.append(BillORM.bill_date <= date.fromisoformat(to_date))
+        gross_sales_paise = (await db.execute(
+            select(func.coalesce(func.sum(BillORM.grand_total_paise), 0)).where(*sales_conds)
+        )).scalar()
+
+        gross_sales = _p2r(gross_sales_paise)
+        total_return_value = _p2r(total_return_paise)
+        net_sales = round(gross_sales - total_return_value, 2)
+        return_rate = round((total_return_value / gross_sales * 100) if gross_sales > 0 else 0, 2)
+
+        return {
+            "summary": {
+                "total_returns": len(data),
+                "total_return_value": total_return_value,
+                "gross_sales": gross_sales,
+                "net_sales": net_sales,
+                "return_rate_percent": return_rate,
+                "by_refund_method": by_refund_method,
+            },
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Sales returns report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── purchase returns report ───────────────────────────────────────────────────
+# UC-RET02 (return report) / RET04 (return rate). Every PurchaseReturn is
+# created with a single status value ("confirmed" — see
+# routers/purchase_returns.py), matching get_gst_report's own handling of
+# this table — no status filter needed.
+
+
+@router.get("/reports/purchase-returns")
+async def get_purchase_returns_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [PurchaseReturnORM.pharmacy_id == pid]
+        if from_date:
+            conds.append(PurchaseReturnORM.return_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(PurchaseReturnORM.return_date <= date.fromisoformat(to_date))
+
+        rows = (await db.execute(
+            select(PurchaseReturnORM, SupplierORM.name, PurchaseORM.purchase_number)
+            .outerjoin(SupplierORM, PurchaseReturnORM.supplier_id == SupplierORM.id)
+            .outerjoin(PurchaseORM, PurchaseReturnORM.purchase_id == PurchaseORM.id)
+            .where(*conds).order_by(PurchaseReturnORM.return_date.desc())
+        )).all()
+
+        data = []
+        total_return_paise = 0
+        for pr, supplier_name, purchase_number in rows:
+            amt = _p2r(pr.grand_total_paise)
+            total_return_paise += pr.grand_total_paise
+            data.append({
+                "return_number": pr.return_number,
+                "return_date": pr.return_date.strftime("%d/%m/%Y") if pr.return_date else "N/A",
+                "debit_note_number": pr.debit_note_number or "",
+                "supplier_name": supplier_name or "",
+                "original_purchase_number": purchase_number or "",
+                "reason": pr.return_reason or "",
+                "total_value": amt,
+            })
+
+        # Same period, same status filter get_gst_report uses for purchases.
+        purchase_conds = [PurchaseORM.pharmacy_id == pid,
+                          PurchaseORM.status == "confirmed", PurchaseORM.deleted_at.is_(None)]
+        if from_date:
+            purchase_conds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
+        if to_date:
+            purchase_conds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+        gross_purchases_paise = (await db.execute(
+            select(func.coalesce(func.sum(PurchaseORM.grand_total_paise), 0)).where(*purchase_conds)
+        )).scalar()
+
+        gross_purchases = _p2r(gross_purchases_paise)
+        total_return_value = _p2r(total_return_paise)
+        net_purchases = round(gross_purchases - total_return_value, 2)
+        return_rate = round((total_return_value / gross_purchases * 100) if gross_purchases > 0 else 0, 2)
+
+        return {
+            "summary": {
+                "total_returns": len(data),
+                "total_return_value": total_return_value,
+                "gross_purchases": gross_purchases,
+                "net_purchases": net_purchases,
+                "return_rate_percent": return_rate,
+            },
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Purchase returns report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── GST report ────────────────────────────────────────────────────────────────
 
 

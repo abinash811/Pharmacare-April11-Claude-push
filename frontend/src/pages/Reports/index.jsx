@@ -4,7 +4,7 @@
  */
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, AlertCircle, Clock, PieChart } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, PieChart, Undo2, Truck } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 
@@ -24,24 +24,30 @@ const REPORTS_TABS = [
 // Real, correct inventory reporting already lives at /inventory — see
 // docs/24_REPORTS_ACCEPTANCE_SPEC.md UC-STK04.
 const REPORT_TYPES = [
-  { key: 'sales',     label: 'Sales'     },
-  { key: 'low-stock', label: 'Low Stock' },
-  { key: 'expiry',    label: 'Expiry'    },
-  { key: 'margin',    label: 'Margin'    },
+  { key: 'sales',            label: 'Sales'            },
+  { key: 'low-stock',        label: 'Low Stock'        },
+  { key: 'expiry',           label: 'Expiry'           },
+  { key: 'margin',           label: 'Margin'           },
+  { key: 'sales-returns',    label: 'Sales Returns'    },
+  { key: 'purchase-returns', label: 'Purchase Returns' },
 ];
 
 const REPORT_TITLES = {
-  sales:       'Sales Report',
-  'low-stock': 'Low Stock Report',
-  expiry:      'Expiry Report',
-  margin:      'Margin Report',
+  sales:            'Sales Report',
+  'low-stock':      'Low Stock Report',
+  expiry:           'Expiry Report',
+  margin:           'Margin Report',
+  'sales-returns':    'Sales Returns Report',
+  'purchase-returns': 'Purchase Returns Report',
 };
 
 const REPORT_ICONS = {
-  sales:       <TrendingUp  className="w-5 h-5 text-blue-600"   />,
-  'low-stock': <AlertCircle className="w-5 h-5 text-orange-600" />,
-  expiry:      <Clock       className="w-5 h-5 text-red-600"    />,
-  margin:      <PieChart    className="w-5 h-5 text-green-600"  />,
+  sales:              <TrendingUp  className="w-5 h-5 text-blue-600"   />,
+  'low-stock':        <AlertCircle className="w-5 h-5 text-orange-600" />,
+  expiry:             <Clock       className="w-5 h-5 text-red-600"    />,
+  margin:             <PieChart    className="w-5 h-5 text-green-600"  />,
+  'sales-returns':    <Undo2       className="w-5 h-5 text-red-600"    />,
+  'purchase-returns': <Truck       className="w-5 h-5 text-indigo-600" />,
 };
 
 export default function Reports() {
@@ -96,6 +102,10 @@ export default function Reports() {
               {reportData.summary.total_sales !== undefined && <span>Total Sales: <strong>{formatCurrency(reportData.summary.total_sales)}</strong></span>}
               {reportData.summary.total_bills !== undefined && <span>Total Bills: <strong>{reportData.summary.total_bills}</strong></span>}
               {reportData.summary.total_margin !== undefined && <span>Total Margin: <strong>{formatCurrency(reportData.summary.total_margin)}</strong> ({reportData.summary.margin_percent}%)</span>}
+              {reportData.summary.total_returns !== undefined && <span>Total Returns: <strong>{reportData.summary.total_returns}</strong></span>}
+              {reportData.summary.total_return_value !== undefined && <span>Return Value: <strong>{formatCurrency(reportData.summary.total_return_value)}</strong> ({reportData.summary.return_rate_percent}%)</span>}
+              {reportData.summary.net_sales !== undefined && <span>Net Sales: <strong>{formatCurrency(reportData.summary.net_sales)}</strong></span>}
+              {reportData.summary.net_purchases !== undefined && <span>Net Purchases: <strong>{formatCurrency(reportData.summary.net_purchases)}</strong></span>}
             </div>
           )}
         </div>

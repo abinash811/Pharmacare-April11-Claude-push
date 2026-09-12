@@ -5,7 +5,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -244,11 +244,23 @@ def _validate_invoice_attachment(data_url: str) -> None:
 async def _record_audit(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
     entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
 ) -> None:
+    # old_values/ip_address were defined on the AuditLog schema since the
+    # app's start but this helper never accepted either — every row's
+    # old_value/ip_address was permanently NULL (docs/23_PURCHASES_
+    # ACCEPTANCE_SPEC.md finding #16). Fixed Sep 12, 2026 alongside the
+    # same gap in billing.py/purchase_returns.py's own local copies of
+    # this helper.
     db.add(AuditLog(
         pharmacy_id=pharmacy_id, user_id=user_id, action=action,
         entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
     ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 async def _require_purchases_permission(current_user: User, action: str, db: AsyncSession) -> None:
@@ -415,7 +427,7 @@ async def get_purchases(
 
 
 @router.post("/purchases")
-async def create_purchase(purchase_data: PurchaseCreate, current_user: User = Depends(
+async def create_purchase(purchase_data: PurchaseCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "create", db)
     if purchase_data.invoice_attachment_data:
@@ -544,7 +556,7 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
          "status": status,
          "total_value": grand_total_paise / 100,
          "payment_status": payment_status},
-        db,
+        db, ip_address=_client_ip(request),
     )
     await db.flush()
 
@@ -555,6 +567,7 @@ async def create_purchase(purchase_data: PurchaseCreate, current_user: User = De
 async def update_purchase(
         purchase_id: str,
         purchase_data: PurchaseCreate,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "edit", db)
@@ -566,6 +579,8 @@ async def update_purchase(
     purchase = await get_owned_or_404(
         db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found",
         extra_conditions=[PurchaseORM.deleted_at.is_(None)])
+    old_status = purchase.status
+    old_total_value = purchase.grand_total_paise / 100
     if purchase.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft purchases can be edited")
 
@@ -666,6 +681,8 @@ async def update_purchase(
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "update", "purchase", purchase.id,
         {"status": status, "total_value": grand_total_paise / 100}, db,
+        old_values={"status": old_status, "total_value": old_total_value},
+        ip_address=_client_ip(request),
     )
     await db.flush()
     # purchase.updated_at has onupdate=func.now() — the flush above expires it
@@ -680,6 +697,7 @@ async def update_purchase(
 @router.delete("/purchases/{purchase_id}")
 async def delete_purchase(
         purchase_id: str,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     """Soft-delete only, and only ever a draft — a draft has never touched
@@ -700,6 +718,7 @@ async def delete_purchase(
     await _record_audit(
         uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "delete", "purchase", purchase.id,
         {"purchase_number": purchase.purchase_number}, db,
+        old_values={"deleted_at": None}, ip_address=_client_ip(request),
     )
     await db.flush()
     return {"message": "Draft purchase deleted"}
@@ -772,6 +791,7 @@ async def get_purchase(purchase_id: str, current_user: User = Depends(
 async def mark_purchase_paid(
         purchase_id: str,
         payment: PurchasePaymentRequest,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "edit", db)
@@ -783,6 +803,8 @@ async def mark_purchase_paid(
     if purchase.payment_status == "paid":
         raise HTTPException(status_code=400, detail="Purchase is already fully paid")
 
+    old_payment_status = purchase.payment_status
+    old_amount_paid = purchase.amount_paid_paise / 100
     payment_paise = int(payment.amount * 100)
     outstanding_paise = purchase.grand_total_paise - purchase.amount_paid_paise
 
@@ -825,6 +847,8 @@ async def mark_purchase_paid(
          "payment_date": payment_dt.isoformat(),
          "payment_status": payment_status},
         db,
+        old_values={"payment_status": old_payment_status, "amount_paid": old_amount_paid},
+        ip_address=_client_ip(request),
     )
     await db.flush()
     await db.refresh(purchase)  # see comment on the same pattern in update_purchase()

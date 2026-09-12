@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
@@ -103,12 +103,22 @@ async def _record_audit(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
     entity_type: str, entity_id: uuid.UUID,
     old_values: dict | None, new_values: dict | None, db: AsyncSession,
+    ip_address: str | None = None,
 ) -> None:
     db.add(AuditLog(
         pharmacy_id=pharmacy_id, user_id=user_id, action=action,
         entity_type=entity_type, entity_id=entity_id,
-        old_values=old_values, new_values=new_values,
+        old_values=old_values, new_values=new_values, ip_address=ip_address,
     ))
+
+
+def _client_ip(request: Request) -> str | None:
+    # AuditLog.ip_address was defined on the schema since the app's start
+    # but no caller ever passed one — always NULL. Trusts the direct
+    # connecting peer only (request.client.host); this app has no reverse
+    # proxy / X-Forwarded-For handling anywhere yet, so honoring that
+    # header here would let a client spoof its own logged IP.
+    return request.client.host if request.client else None
 
 
 def _bill_response(b: BillORM, items: list[BillItemORM]) -> dict:
@@ -342,7 +352,7 @@ async def _create_h1_entry(
 # ── /bills ─────────────────────────────────────────────────────────────────────
 
 @router.post("/bills")
-async def create_bill(bill_data: BillCreate, current_user: User = Depends(
+async def create_bill(bill_data: BillCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
@@ -586,7 +596,7 @@ async def create_bill(bill_data: BillCreate, current_user: User = Depends(
         {"bill_number": bill_number, "invoice_type": bill.invoice_type, "status": status,
          "customer_name": bill.customer_name, "total_amount": grand_total_paise / 100,
          "paid_amount": paid_paise / 100, "due_amount": balance_paise / 100},
-        db,
+        db, ip_address=_client_ip(request),
     )
     await db.flush()
 
@@ -1044,7 +1054,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 # ── /payments ──────────────────────────────────────────────────────────────────
 
 @router.post("/payments")
-async def create_payment(payment_data: PaymentCreate, current_user: User = Depends(
+async def create_payment(payment_data: PaymentCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -1058,17 +1068,21 @@ async def create_payment(payment_data: PaymentCreate, current_user: User = Depen
     new_status = "paid" if new_balance <= 0 else "due"
 
     old_status = bill.status
+    old_paid_amount = bill.amount_paid_paise / 100
+    old_balance = bill.balance_paise / 100
     bill.amount_paid_paise = new_paid
     bill.balance_paise = new_balance
     bill.status = new_status
     bill.payment_method = payment_data.payment_method
 
+    ip = _client_ip(request)
     await _record_audit(
-        pharmacy_id, uuid.UUID(current_user.id), "payment", "invoice", bid, None,
+        pharmacy_id, uuid.UUID(current_user.id), "payment", "invoice", bid,
+        {"paid_amount": old_paid_amount, "due_amount": old_balance, "status": old_status},
         {"amount": payment_data.amount,
          "payment_method": payment_data.payment_method,
          "new_status": new_status},
-        db,
+        db, ip_address=ip,
     )
 
     if old_status != new_status:
@@ -1077,7 +1091,7 @@ async def create_payment(payment_data: PaymentCreate, current_user: User = Depen
             {"status": old_status, "due_amount": (
                 bill.grand_total_paise - bill.amount_paid_paise + payment_paise) / 100},
             {"status": new_status, "due_amount": new_balance / 100},
-            db,
+            db, ip_address=ip,
         )
 
     await db.flush()
@@ -1120,7 +1134,7 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
 # ── /refunds ───────────────────────────────────────────────────────────────────
 
 @router.post("/refunds")
-async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
+async def create_refund(refund_data: RefundCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     bill = await get_owned_or_404(
         db, BillORM, refund_data.return_invoice_id, uuid.UUID(current_user.pharmacy_id),
@@ -1129,15 +1143,16 @@ async def create_refund(refund_data: RefundCreate, current_user: User = Depends(
     if bill.invoice_type != "SALES_RETURN":
         raise HTTPException(status_code=400, detail="Invoice is not a sales return")
 
+    old_status = bill.status
     bill.status = "refunded"
 
     await _record_audit(
         uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id),
-        "create", "refund", bid, None,
+        "create", "refund", bid, {"status": old_status},
         {"amount": refund_data.amount,
          "refund_method": refund_data.refund_method,
          "reason": refund_data.reason},
-        db,
+        db, ip_address=_client_ip(request),
     )
     await db.flush()
 
@@ -1224,6 +1239,7 @@ async def get_audit_logs(
             "action": log.action,
             "old_value": log.old_values,
             "new_value": log.new_values,
+            "ip_address": log.ip_address,
             "performed_by": str(log.user_id) if log.user_id else None,
             "created_at": log.created_at.isoformat() if log.created_at else None,
         } for log in logs],
@@ -1266,6 +1282,7 @@ async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user:
         "action": log.action,
         "old_value": log.old_values,
         "new_value": log.new_values,
+        "ip_address": log.ip_address,
         "performed_by": str(log.user_id) if log.user_id else None,
         "created_at": log.created_at.isoformat() if log.created_at else None,
     } for log in logs]

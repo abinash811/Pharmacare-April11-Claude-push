@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,17 +66,24 @@ class PurchaseReturnUpdate(BaseModel):
 async def _record_audit(
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
     entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
 ) -> None:
     # Mirrors purchases.py's identical helper — this router never logged
     # anything at all before, despite create/financial-edit both mutating
     # real stock and generating a debit note. No cross-router import
     # exists anywhere else in this codebase (each router defines its own
     # small local helpers), so this stays local rather than becoming the
-    # first one.
+    # first one. old_values/ip_address were added Sep 12, 2026 — same gap
+    # as purchases.py/billing.py's own copies of this helper.
     db.add(AuditLog(
         pharmacy_id=pharmacy_id, user_id=user_id, action=action,
         entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
     ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 async def _require_purchases_permission(current_user: User, action: str, db: AsyncSession) -> None:
@@ -298,7 +305,7 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
 # ── /purchase-returns ──────────────────────────────────────────────────────────
 
 @router.post("/purchase-returns")
-async def create_purchase_return(return_data: PurchaseReturnCreate, current_user: User = Depends(
+async def create_purchase_return(return_data: PurchaseReturnCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -460,6 +467,7 @@ async def create_purchase_return(return_data: PurchaseReturnCreate, current_user
         {"return_number": return_number, "debit_number": debit_number, "purchase_id": str(purchase_id),
          "total_value": grand_total_paise / 100, "reason": reason},
         db,
+        ip_address=_client_ip(request),
     )
     await db.flush()
 
@@ -530,6 +538,7 @@ async def get_purchase_return(return_id: str, current_user: User = Depends(
 async def update_purchase_return(
         return_id: str,
         update_data: PurchaseReturnUpdate,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await _require_purchases_permission(current_user, "edit", db)
@@ -541,11 +550,13 @@ async def update_purchase_return(
 
     # Non-financial edit
     if update_data.edit_type == "non_financial":
+        old_note = purchase_return.notes
         if update_data.note is not None:
             purchase_return.notes = update_data.note
         await _record_audit(
             pharmacy_id, uuid.UUID(current_user.id), "update_non_financial", "purchase_return", rid,
             {"note": update_data.note}, db,
+            old_values={"note": old_note}, ip_address=_client_ip(request),
         )
         await db.flush()
         await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
@@ -652,6 +663,8 @@ async def update_purchase_return(
 
     grand_total_paise = round((subtotal_paise + gst_paise) / 100) * 100
 
+    old_total_value = purchase_return.grand_total_paise / 100
+
     purchase_return.subtotal_paise = subtotal_paise
     purchase_return.total_gst_paise = gst_paise
     purchase_return.grand_total_paise = grand_total_paise
@@ -661,6 +674,8 @@ async def update_purchase_return(
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "update_financial", "purchase_return", rid,
         {"total_value": grand_total_paise / 100, "item_count": len(new_items)}, db,
+        old_values={"total_value": old_total_value, "item_count": len(old_items)},
+        ip_address=_client_ip(request),
     )
     await db.flush()
     await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py

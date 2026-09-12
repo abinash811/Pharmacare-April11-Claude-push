@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.1 | Last updated: September 12, 2026
+# Version: 2.2 | Last updated: September 12, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -550,8 +550,8 @@ worse than no log.
 | AL01 | List all actions, paginated | ✅ Built | `GET /audit-logs` (`billing.py:1186-1227`), correctly `pharmacy_id`-scoped |
 | AL02 | Filter by entity type/id/action | ✅ Built | Same endpoint, real filters |
 | AL03 | View one entity's full audit trail | 🐛 Was a live cross-tenant leak, fixed Sep 12, 2026 | `get_entity_audit_trail` had zero `pharmacy_id` filter — proved live, pharmacy B read pharmacy A's real bill audit trail (customer name, totals). Fixed same day; see `docs/15_ROADMAP.md` RULE MISSES LOG. Regression tests added (`TestAuditLogIsolation`, `test_multi_tenancy_isolation.py`). |
-| AL04 | `old_values` populated (before/after diff) | ❌ Missing | Column exists, defined on the schema, **never written anywhere** — every row's `old_value` is permanently `NULL` (already flagged for Purchases specifically in `docs/23` finding #16; confirmed here it's true app-wide, not just for purchases) |
-| AL05 | `ip_address` populated | ❌ Missing | Same — column exists, never written, always `NULL` |
+| AL04 | ~~`old_values` populated (before/after diff)~~ | ✅ Fixed Sep 12, 2026 | `billing.py`/`purchases.py`/`purchase_returns.py`'s 3 independent `_record_audit` helpers now receive real prior-state values at every meaningful mutation site (payment, refund, purchase update, mark-paid, purchase-return edits) — create actions correctly keep `old_value: null`. Regression tests: `test_audit_log_old_values_and_ip_address.py`, `git stash`-proven to fail pre-fix |
+| AL05 | ~~`ip_address` populated~~ | ✅ Fixed Sep 12, 2026 | Same 3 helpers gained a local `_client_ip(request)` helper; both `GET /audit-logs` and `GET /audit-logs/entity/{type}/{id}` responses now also carry an `ip_address` key — previously the column existed but no endpoint returned it, so even a correctly-populated value was unobservable to any real API consumer |
 | AL06 | Export/print | ❌ Missing | No export button exists on the Audit Log page for this data at all |
 | AL07 | Permission gate (who can view the audit log) | ❌ Missing | No role check anywhere on `GET /audit-logs` — confirmed via code read, not yet live-tested with a cashier account; matches the same "no gate" pattern found on 10 of `reports.py`'s 12 endpoints |
 
@@ -632,7 +632,7 @@ not new scope. This section adds what the fuller use-case pass surfaced:
 **Batch 5 — Audit Log correctness (small, same class as Batch 1)**
 11. ~~Fix `get_entity_audit_trail`'s missing `pharmacy_id` filter~~ — ✅ done, Sep 12, 2026 (this pass).
 12. ~~Add a real permission gate to `GET /audit-logs`/`GET /audit-logs/entity/...`~~ — ✅ done, Sep 12, 2026, same `reports:view` permission and same regression-test file as Batch 1.
-13. Populate `old_values`/`ip_address` app-wide (AL04/AL05) — one fix, many call sites, do it once rather than per-module. Not yet done.
+13. ~~Populate `old_values`/`ip_address` app-wide (AL04/AL05)~~ — ✅ Done Sep 12, 2026.
 
 **Batch 6 — cheapest real feature wins (data already exists)**
 14. Margin report (MAR01/MAR02) — `Bill.margin_paise` already computed and stored; this is a query, not new logic. Reclassified during a follow-up discussion: per the product's own Reports-vs-Analytics split (Reports = filterable + downloadable, Analytics = visual metrics), the *downloadable margin report* stays a Reports tab; a *visual margin trend* would separately belong on Dashboard, not built here.

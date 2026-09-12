@@ -47,8 +47,10 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
 ### 🟡 Should fix before real users — not data-loss risk, real gaps
 6. **No rate limiting** — login/register and the rest of the API have no
    protection against brute-force or abuse.
-7. **TypeScript errors in test files** — `npm install --save-dev @types/jest
-   @testing-library/react @testing-library/jest-dom`.
+7. ~~TypeScript errors in test files.~~ **Fixed** — verified Sep 12, 2026:
+   `@types/jest`/`@testing-library/react`/`@testing-library/jest-dom` are
+   installed (`package.json`) and `npx tsc --noEmit` passes with zero
+   errors (also a standing `design-guard.sh` Rule 10 gate since Sep 5).
 8. **No real master medicine database** — `frontend/src/constants/
    medicineSeedList.js` has 75 demo entries, only used for name-autocomplete
    hints when a pharmacist manually creates a product. Real competitors

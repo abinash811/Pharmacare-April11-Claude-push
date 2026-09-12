@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.5 | Last updated: September 5, 2026
+# Version: 1.6 | Last updated: September 12, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -399,10 +399,28 @@ because they fail differently:
 | GST report | Independent direct query | `get_gst_report` — fixed Aug 22 to actually query these; re-check if the return schema changes |
 | Product transaction history | Independent direct query | `get_product_transactions` — same fix, same re-check note |
 
-This map covers only the domains actually audited so far (billing,
-purchases, returns, reports, inventory). Customers, suppliers, settings,
-and users haven't been walked the same way yet — extend this table
-instead of assuming they're fine.
+**Customers** (`Customer`/`Doctor`, `POST /customers`, `PUT /customers/{id}`, `DELETE /customers/{id}`) — walked Sep 12, 2026
+| Consumer | Pattern | Where |
+|---|---|---|
+| Customer outstanding balance | Computed on read | `_outstanding_paise_by_customer` (routers/customers.py) — sums `Bill.balance_paise` for that customer's real `'due'` bills; no stored counter to drift |
+| Customer purchase stats (Total Bills/Spent/Last Purchase) | Computed on read | `get_customer_stats` (routers/customers.py) — scans `Bill` directly |
+| Credit limit enforcement | Shared helper | `_check_credit_limit` (billing.py) — called from both `create_bill` and `update_bill`; found only by checking `update_bill` explicitly, not assuming `create_bill` alone was the whole surface |
+| Billing patient search (credit/outstanding visibility) | Independent direct query | `PatientCombobox.jsx` renders `credit_limit`/`outstanding` straight from `GET /customers/search`'s response — re-check if that response shape changes |
+| Audit Log | Called at both create/update/delete sites | `_record_audit` (routers/customers.py, its own local copy — same duplicated-per-router pattern as billing.py/purchases.py/purchase_returns.py, not a shared module) |
+| Customers Excel export | Independent direct query | `exportCustomersToExcel` (frontend/src/utils/excelExport.js) — re-check if a customer field is added/renamed |
+
+Found Sep 12, 2026: the last three rows (billing search visibility, audit
+log, Excel export) were missed when Customers v1 first shipped — none of
+them are "the feature" itself, so none got checked until asked afterward.
+See CLAUDE.md Manifesto rule 11's Sep 12 addendum and
+`.claude/skills/pharmacare-ship-checklist`'s Step 2 for the habit this
+now enforces: grep broadly for the entity outside its own module, don't
+rely on this map alone for a module it doesn't yet cover.
+
+This map covers billing, purchases, returns, reports, inventory, and
+customers (walked Sep 12, 2026). Suppliers, settings, and users haven't
+been walked the same way yet — extend this table instead of assuming
+they're fine.
 
 ### Error Handling Pattern
 

@@ -24,7 +24,7 @@ this one governs what happens right before you say it's finished.
 
 ```
 - [ ] Step 1: Every code path touched has a passing test (pharmacare-testing skill)
-- [ ] Step 2: Cross-cutting consumers checked and verified, not just the entry point (docs/08_ARCHITECTURE.md)
+- [ ] Step 2: Cross-cutting consumers checked and verified — docs/08_ARCHITECTURE.md's map first, then an active search beyond it (see below); not just the entry point
 - [ ] Step 3: bash scripts/design-guard.sh exits 0 (if frontend touched)
 - [ ] Step 4: Pushed, CI confirmed green — not just "should pass"
 - [ ] Step 5: docs/15_ROADMAP.md updated if this changes feature status or closes a known issue
@@ -32,6 +32,37 @@ this one governs what happens right before you say it's finished.
 - [ ] Step 7: If a written rule should have prevented a bug that shipped anyway, name the rule and log it in docs/15_ROADMAP.md's RULE MISSES LOG
 - [ ] Step 8: Consider whether the product-review skill applies before calling a whole section "done" or "solid"
 ```
+
+**Step 2 — the map is not the whole check.** Added Sep 12, 2026, direct
+instruction, after Customers v1 shipped (permission gates, notes,
+credit-limit enforcement, real outstanding) and only got asked afterward
+"did you check the other sections that depend on this?" The honest
+answer was no — `docs/08_ARCHITECTURE.md`'s cross-cutting map doesn't
+cover Customers at all (it says so explicitly), so consulting the map
+alone gave a false "clear." Checking for real turned up three live gaps
+in one pass: `BillingWorkspace`'s patient search showed no credit-limit/
+outstanding info at all (a cashier only found out via a rejected bill),
+`customers.py` had zero audit-log entries for any create/update/delete
+(unlike billing.py/purchases.py), and the Customers Excel export omitted
+the two fields the fix had just made real. None of these would have
+been caught by only reading the pre-built map. So, every time, in
+addition to the map:
+1. **Grep broadly for the touched entity/field outside its own module's
+   folder** — the frontend as a whole (`grep -rn "<entityName>\."
+   frontend/src`, not just `frontend/src/pages/<Module>`), and the
+   backend as a whole for the same field/column name. A hit anywhere
+   else is a consumer to verify, whether or not it's in the map.
+2. **Check the three consumers that are easy to forget because they're
+   not "the feature" itself**: does the Audit Log capture this entity's
+   mutations (grep the router for `_record_audit`)? Does any export
+   (Excel/CSV/PDF) include the field you just added or changed? Does any
+   *other* page's UI display or depend on this data (not just the
+   module's own page)?
+3. **If the module isn't in `docs/08_ARCHITECTURE.md`'s cross-cutting
+   map yet, add it** once you've walked it for real — the map's own text
+   says "extend this table instead of assuming they're fine." Leaving a
+   newly-walked module undocumented just means the next session repeats
+   the same incomplete check.
 
 **Step 5/6 are Living Status docs** — re-read them fresh before editing,
 don't trust memory of their contents from earlier in the session; they

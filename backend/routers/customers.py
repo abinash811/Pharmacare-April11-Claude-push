@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,9 +12,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.billing import Bill
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, paginate_response
 
 router = APIRouter(prefix="/api", tags=["customers"])
+
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    """Found Sep 12, 2026, checking Customers' dependency sections after
+    the v1 fixes shipped: customers.py had zero audit trail at all —
+    unlike billing.py/purchases.py/purchase_returns.py, a credit-limit
+    change, a notes edit, or a customer/doctor deletion left no record.
+    Same local-helper pattern as those three files (this app duplicates
+    it per-router rather than sharing one module — matching that
+    existing convention here, not introducing a new one)."""
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id,
+        old_values=old_values, new_values=new_values, ip_address=ip_address,
+    ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 async def _require_customers_permission(current_user: User, action: str, db: AsyncSession) -> None:
@@ -135,11 +159,12 @@ def _doctor_response(d: DoctorORM) -> dict:
 # ── /customers ────────────────────────────────────────────────────────────────
 
 @router.post("/customers")
-async def create_customer(customer_data: CustomerCreate, current_user: User = Depends(
+async def create_customer(customer_data: CustomerCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "create", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = CustomerORM(
-        pharmacy_id=uuid.UUID(current_user.pharmacy_id),
+        pharmacy_id=pharmacy_id,
         name=customer_data.name,
         phone=customer_data.phone,
         email=customer_data.email,
@@ -151,6 +176,9 @@ async def create_customer(customer_data: CustomerCreate, current_user: User = De
     )
     db.add(customer)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "customer", customer.id,
+        customer_data.model_dump(), db, ip_address=_client_ip(request))
     return _customer_response(customer)  # brand new — no bills yet, outstanding is always 0
 
 
@@ -217,38 +245,54 @@ async def get_customer(customer_id: str, current_user: User = Depends(
 
 
 @router.put("/customers/{customer_id}")
-async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(
+async def update_customer(customer_id: str, customer_data: dict, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = await get_owned_or_404(
-        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        db, CustomerORM, customer_id, pharmacy_id,
         not_found_detail="Customer not found")
 
     allowed = {"name", "phone", "email", "address", "customer_type", "gstin", "notes"}
+    old_values: dict = {}
+    new_values: dict = {}
     for key, value in customer_data.items():
         if key == "credit_limit" and value is not None:
+            old_values["credit_limit"] = customer.credit_limit_paise / 100
             customer.credit_limit_paise = int(value * 100)
+            new_values["credit_limit"] = value
         elif key in allowed and value is not None:
             if key == "phone":
                 try:
                     _validate_phone_length(value)
                 except ValueError as e:
                     raise HTTPException(status_code=422, detail=str(e))
+            old_values[key] = getattr(customer, key)
             setattr(customer, key, value)
+            new_values[key] = value
 
     await db.flush()
+    if new_values:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "customer", customer.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request))
     return {"message": "Customer updated successfully"}
 
 
 @router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: str, current_user: User = Depends(
+async def delete_customer(customer_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "delete", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     customer = await get_owned_or_404(
-        db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
+        db, CustomerORM, customer_id, pharmacy_id,
         not_found_detail="Customer not found")
     customer.deleted_at = datetime.now(timezone.utc)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "delete", "customer", customer.id,
+        {"deleted": True}, db, old_values={"name": customer.name, "phone": customer.phone},
+        ip_address=_client_ip(request))
     return {"message": "Customer deleted successfully"}
 
 
@@ -279,11 +323,12 @@ async def get_customer_stats(customer_id: str, current_user: User = Depends(
 # ── /doctors ──────────────────────────────────────────────────────────────────
 
 @router.post("/doctors")
-async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
+async def create_doctor(doctor_data: DoctorCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "create", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = DoctorORM(
-        pharmacy_id=uuid.UUID(current_user.pharmacy_id),
+        pharmacy_id=pharmacy_id,
         name=doctor_data.name,
         phone=doctor_data.contact,
         specialization=doctor_data.specialization,
@@ -291,6 +336,9 @@ async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
     )
     db.add(doctor)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "doctor", doctor.id,
+        doctor_data.model_dump(), db, ip_address=_client_ip(request))
     return _doctor_response(doctor)
 
 
@@ -333,15 +381,18 @@ async def get_doctors(
 
 
 @router.put("/doctors/{doctor_id}")
-async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(
+async def update_doctor(doctor_id: str, doctor_data: dict, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = await get_owned_or_404(
-        db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
+        db, DoctorORM, doctor_id, pharmacy_id,
         not_found_detail="Doctor not found")
 
     field_map = {"contact": "phone", "clinic_address": "address"}
     allowed = {"name", "specialization", "qualification", "registration_number", "hospital"}
+    old_values: dict = {}
+    new_values: dict = {}
     for key, value in doctor_data.items():
         col = field_map.get(key, key)
         if col in allowed or col in ("phone", "address"):
@@ -351,19 +402,29 @@ async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = 
                         _validate_phone_length(value)
                     except ValueError as e:
                         raise HTTPException(status_code=422, detail=str(e))
+                old_values[col] = getattr(doctor, col)
                 setattr(doctor, col, value)
+                new_values[col] = value
 
     await db.flush()
+    if new_values:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "doctor", doctor.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request))
     return {"message": "Doctor updated successfully"}
 
 
 @router.delete("/doctors/{doctor_id}")
-async def delete_doctor(doctor_id: str, current_user: User = Depends(
+async def delete_doctor(doctor_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await _require_customers_permission(current_user, "delete", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     doctor = await get_owned_or_404(
-        db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
+        db, DoctorORM, doctor_id, pharmacy_id,
         not_found_detail="Doctor not found")
     doctor.deleted_at = datetime.now(timezone.utc)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "delete", "doctor", doctor.id,
+        {"deleted": True}, db, old_values={"name": doctor.name}, ip_address=_client_ip(request))
     return {"message": "Doctor deleted successfully"}

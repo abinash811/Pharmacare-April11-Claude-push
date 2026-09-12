@@ -470,7 +470,8 @@ Never write a frontend filter, API call, or status check before completing steps
 - [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else **(manual)**
 - [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared **(manual)**
 - [ ] Zero `import` statements after `const` declarations **(manual — ESLint may catch some cases)**
-- [ ] `npx tsc --noEmit` passes with zero errors **(auto — Rule 10)**
+- [ ] `npx tsc --noEmit` passes with zero errors **(auto — script Rule 10)**
+- [ ] Every caught-error `toast.error(...)` shows the real reason, not a hardcoded generic (Manifesto rule 10) **(auto — script Rule 14, added Sep 12, 2026)**
 - [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
 
 ### What's next

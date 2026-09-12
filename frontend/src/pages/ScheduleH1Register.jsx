@@ -48,7 +48,7 @@ export default function ScheduleH1Register() {
       if (err.response?.status === 403) {
         setAccessDenied(true);
       } else {
-        toast.error('Failed to load Schedule H1 register');
+        toast.error(err.response?.data?.detail || err.message || 'Failed to load Schedule H1 register');
       }
     } finally {
       setLoading(false);

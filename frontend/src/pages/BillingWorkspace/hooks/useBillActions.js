@@ -112,7 +112,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       localStorage.removeItem('billing_draft');
       setTimeout(() => { window.print(); afterSuccess(); }, 200);
     } catch (err) {
-      toast.error('Failed to save bill');
+      toast.error(err.response?.data?.detail || 'Failed to save bill');
     }
     // Every callback in this hook intentionally tracks only billSnapshot (and
     // now printPharmacyInfo) — helpers/onPrintReady are stable closures, not state.
@@ -127,7 +127,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       toast.success('Bill parked! Can be resumed later.');
       afterSuccess();
     } catch (err) {
-      toast.error('Failed to park bill');
+      toast.error(err.response?.data?.detail || 'Failed to park bill');
     }
   }, [billSnapshot]);
 
@@ -142,7 +142,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       toast.success(`Bill #${res.data.bill_number} created! Delivery booking initiated.`);
       afterSuccess();
     } catch (err) {
-      toast.error('Failed to save bill');
+      toast.error(err.response?.data?.detail || 'Failed to save bill');
     }
   }, [billSnapshot]);
 

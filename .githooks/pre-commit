@@ -152,6 +152,16 @@ if [ -n "$ROUTER_FILES_TOUCHED" ]; then
   fi
 fi
 
+if [ -n "$FRONTEND_ALL_FILES" ]; then
+  ERROR_MSG_OUTPUT=$(python3 scripts/check_error_messages.py 2>&1) || true
+  if ! echo "$ERROR_MSG_OUTPUT" | grep -q "^Error message check: OK"; then
+    red "BLOCKED: hardcoded-only error toast(s) found"
+    echo "$ERROR_MSG_OUTPUT" | while read -r l; do file "$l"; done
+    reason "CLAUDE.md rule 10: every toast.error(...) inside a catch block must show the real reason (error.message, or err.response?.data?.detail), never a hardcoded generic alone. Mark a deliberate exception with '// error-reason-fixed: <why>' on the same line."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
 if [ -n "$BACKEND_FILES" ] && [ -x backend/venv/bin/flake8 ]; then
   echo ""
   echo "Running flake8 on staged backend file(s) (new/changed lines only)..."

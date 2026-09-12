@@ -98,7 +98,7 @@ export default function AuditLog() {
       setLogs(res.data.data || []);
       pg.setFromResponse(res.data.pagination);
     } catch (err) {
-      toast.error('Failed to load audit logs');
+      toast.error(err.response?.data?.detail || err.message || 'Failed to load audit logs');
     } finally {
       setLoading(false);
     }

@@ -232,6 +232,23 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 14: Caught errors must show the real reason, not a fixed string ──
+# Found Sep 12, 2026 (CLAUDE.md rule 10): useReports.js/useDashboard.js
+# both had toast.error('Failed to load...') inside a catch block, hiding
+# error.message entirely. A repo-wide sweep with this same checker then
+# found the identical pattern already live in App.js's OAuth callback,
+# AuditLog.jsx, ScheduleH1Register.jsx, and 3 of 4 near-identical billing
+# actions in useBillActions.js (the 4th, saveBill, already did it right —
+# copy-paste drift lost it in the other three). See docs/15_ROADMAP.md
+# RULE MISSES LOG.
+if python3 scripts/check_error_messages.py > /tmp/error_messages_output 2>&1; then
+  green "Rule 14 PASS: Every caught-error toast shows the real reason"
+else
+  red "Rule 14 FAIL: hardcoded-only error toast(s) found in $FRONTEND"
+  cat /tmp/error_messages_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

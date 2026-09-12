@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.5 | Last updated: September 12, 2026
+# Version: 1.6 | Last updated: September 12, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -301,6 +301,13 @@ Real gaps this surfaces: HSN-wise GST grouping (PharmaCare groups by GST rate on
 - **Pharmasoft:** patient-wise outstanding tracking, family group-wise billing, and pensioner/BPL flags on the customer record; doctor/patient-wise sales reports. [Source](https://yadavsoftware.com/)
 
 Real gaps this surfaces: family-wise/group billing, WhatsApp outstanding/payment reminders. More urgently — PharmaCare already *has* UI + schema for credit limit, outstanding balance, and loyalty points (matching what all three competitors ship as real features), but none of the three actually function — see `docs/15_ROADMAP.md`'s Customers section for the full audit.
+
+**Suppliers competitor notes (researched Sep 12, 2026):**
+- **eVitalRx:** a real **supplier ledger with outstanding-balance tracking**; digital payments to distributors with automatic reconciliation; a distributor purchase marketplace ordering directly from the Digital Shortbook. [Source](https://www.capterra.com/p/237227/eVitalRx/), [Source](https://www.evitalsupply.in/learn/faqs/)
+- **Marg ERP:** supplier-wise outstanding **reports and reminders**; a real **Purchase Order** workflow (Transactions → Purchase Order → New) distinct from a direct GRN; WhatsApp delivery of outstanding/ledger/payment reminders; check offers/schemes/stock rates per distributor. [Source](https://care.margcompusoft.com/Question.aspx/1958/1/null)
+- **Pharmasoft:** one-click purchase-bill import from a distributor (email/Excel/CSV); automatic purchase orders via email/WhatsApp; return-to-supplier before expiry write-off. [Source](https://yadavsoftware.com/)
+
+Real gaps this surfaces: a formal Purchase Order step before GRN, WhatsApp outstanding/payment reminders, one-click bill import. More urgently — same pattern as Customers: PharmaCare already has real UI for supplier outstanding and a "Record Payment" action, but neither actually works — see `docs/15_ROADMAP.md`'s Suppliers section for the full audit.
 
 ---
 

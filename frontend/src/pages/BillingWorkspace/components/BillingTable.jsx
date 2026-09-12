@@ -124,7 +124,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                             <span className="font-semibold text-sm text-gray-900">{product.name}</span>
                             <span className="text-[10px] text-gray-500 font-mono">SKU: {product.sku}</span>
                           </div>
-                          {product.batches?.map((batch) => (
+                          {product.has_stock ? product.batches.map((batch) => (
                             <div
                               key={batch.batch_no}
                               className="px-3 py-2 hover:bg-brand-tint cursor-pointer flex items-center justify-between"
@@ -139,7 +139,27 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                               </div>
                               <span className="font-semibold text-sm text-gray-900">{formatCurrency(batch.mrp_per_unit)}</span>
                             </div>
-                          ))}
+                          )) : (
+                            // Out of stock — shown, not hidden, so it's clear the medicine
+                            // exists rather than silently missing from the list. Still
+                            // gives feedback on click instead of doing nothing, since a
+                            // dead click is the same silent-failure class of bug as before.
+                            <div
+                              role="button" tabIndex={0}
+                              className="px-3 py-2 flex items-center justify-between bg-gray-50/60 cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+                              onClick={() => toast.error(`${product.name} is out of stock — nothing to bill`)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  toast.error(`${product.name} is out of stock — nothing to bill`);
+                                }
+                              }}
+                              data-testid={`out-of-stock-${product.sku}`}
+                            >
+                              <span className="text-xs text-gray-400">No stock available</span>
+                              <span className="px-1.5 py-0.5 bg-red-50 text-red-600 text-[10px] font-bold rounded">Out of stock</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

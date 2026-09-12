@@ -93,7 +93,13 @@ export default function BillDetail() {
           {!isParked && (
             <AppButton variant="outline" icon={<Printer className="w-4 h-4" strokeWidth={1.5} />} onClick={() => window.print()}>Print</AppButton>
           )}
-          <AppButton icon={<Edit className="w-4 h-4" strokeWidth={1.5} />} onClick={() => navigate(`/billing/edit/${bill.id}`)}>Edit Bill</AppButton>
+          {/* Editing is only real for a parked/draft bill (BillingWorkspace
+              opens a finalized one read-only — a GST invoice can't be
+              silently altered). Showing "Edit Bill" on a paid/due bill was a
+              dead end: it opened the workspace with every field locked. */}
+          {isParked && (
+            <AppButton icon={<Edit className="w-4 h-4" strokeWidth={1.5} />} onClick={() => navigate(`/billing/edit/${bill.id}`)}>Edit Bill</AppButton>
+          )}
         </div>
       </div>
 

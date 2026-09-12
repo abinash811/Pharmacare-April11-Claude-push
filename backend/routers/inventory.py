@@ -328,9 +328,14 @@ async def search_products_with_batches(q: str,
     prod_result = await db.execute(stmt)
     results = []
     for product in prod_result.scalars().all():
+        # Out-of-stock products used to be silently dropped here (`if not
+        # batches: continue`) — a medicine that sold out simply vanished from
+        # billing search with no explanation, which is exactly the "why did
+        # it disappear" bug report this endpoint used to cause. It now
+        # returns every match with has_stock (same field name the barcode
+        # lookup above already uses) so the frontend can show it, clearly
+        # marked unavailable, instead of hiding it.
         batches = await _get_active_batches(product, db)
-        if not batches:
-            continue
         total_qty = sum(b["qty_on_hand"] for b in batches)
         results.append({
             "product_id": str(product.id), "sku": product.sku, "name": product.name,
@@ -340,8 +345,12 @@ async def search_products_with_batches(q: str,
             "gst_percent": float(product.gst_rate), "schedule": product.drug_schedule,
             "scheduleH": product.drug_schedule in ["H", "H1"],
             "total_qty": total_qty, "total_units": total_qty,
-            "batches": batches, "suggested_batch": batches[0],
+            "has_stock": bool(batches),
+            "batches": batches, "suggested_batch": batches[0] if batches else None,
         })
+    # In-stock matches first — otherwise a name with many sold-out fixture/
+    # historical products could bury the ones a cashier can actually sell.
+    results.sort(key=lambda r: not r["has_stock"])
     return results
 
 

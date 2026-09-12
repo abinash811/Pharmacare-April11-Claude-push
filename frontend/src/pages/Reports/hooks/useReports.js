@@ -13,7 +13,14 @@ const TODAY = new Date().toISOString().split('T')[0];
 export function useReports() {
   const [loading,    setLoading]    = useState(false);
   const [reportData, setReportData] = useState(null);
-  const [dateRange,  setDateRange]  = useState({ from: TODAY, to: TODAY });
+  // Date objects, not ISO strings — matches DateRangePicker's own contract
+  // (shared/DateRangePicker.tsx), the same component GSTReport.js and
+  // ScheduleH1Register.jsx already use. Converted to ISO strings only at
+  // the API-call boundary (see fetchReport's `from`/`to` params below).
+  const [dateRange,  setDateRange]  = useState(() => {
+    const today = new Date();
+    return { start: today, end: today };
+  });
   const [expiryDays, setExpiryDays] = useState(30);
 
   const fetchReport = useCallback(async (reportType, forceRefresh = false, opts = {}) => {

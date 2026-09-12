@@ -1,6 +1,6 @@
 import React from 'react';
 import { RefreshCw, Download, FileSpreadsheet } from 'lucide-react';
-import { AppButton } from '@/components/shared';
+import { AppButton, DateRangePicker } from '@/components/shared';
 
 export default function ReportFilters({
   activeReport, dateRange, expiryDays, hasData,
@@ -9,28 +9,7 @@ export default function ReportFilters({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {['sales', 'margin', 'sales-returns', 'purchase-returns'].includes(activeReport) && (
-        <>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">From:</label>
-            <input
-              type="date"
-              value={dateRange.from}
-              onChange={(e) => onDateChange({ ...dateRange, from: e.target.value })}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              data-testid="date-from"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">To:</label>
-            <input
-              type="date"
-              value={dateRange.to}
-              onChange={(e) => onDateChange({ ...dateRange, to: e.target.value })}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-              data-testid="date-to"
-            />
-          </div>
-        </>
+        <DateRangePicker dateRange={dateRange} onDateRangeChange={onDateChange} />
       )}
 
       {activeReport === 'expiry' && (

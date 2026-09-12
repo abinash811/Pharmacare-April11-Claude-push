@@ -50,6 +50,10 @@ const REPORT_ICONS = {
   'purchase-returns': <Truck       className="w-5 h-5 text-indigo-600" />,
 };
 
+// dateRange holds Date objects (DateRangePicker's own contract) — convert
+// at the API boundary, same local pattern GSTReport.js already uses.
+const toApiDate = (d) => d.toISOString().split('T')[0];
+
 export default function Reports() {
   const navigate = useNavigate();
   const [activeReport, setActiveReport] = React.useState('sales');
@@ -63,11 +67,19 @@ export default function Reports() {
   } = useReports();
 
   useEffect(() => {
-    fetchReport(activeReport, false, { from: dateRange.from, to: dateRange.to, days: expiryDays });
+    fetchReport(activeReport, false, {
+      from: dateRange.start ? toApiDate(dateRange.start) : undefined,
+      to: dateRange.end ? toApiDate(dateRange.end) : undefined,
+      days: expiryDays,
+    });
   }, [activeReport]); // eslint-disable-line
 
   const handleRefreshCurrent = () =>
-    handleRefresh(activeReport, { from: dateRange.from, to: dateRange.to, days: expiryDays });
+    handleRefresh(activeReport, {
+      from: dateRange.start ? toApiDate(dateRange.start) : undefined,
+      to: dateRange.end ? toApiDate(dateRange.end) : undefined,
+      days: expiryDays,
+    });
 
   return (
     <div className="px-8 py-6 min-h-screen bg-page">

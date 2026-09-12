@@ -88,7 +88,14 @@ export function useBillItems(billDiscount = 0, billDiscountType = '%') {
         composition:      product.composition || product.generic_name || '',
         batch_no:         batch.batch_no,
         batch_id:         batch.id,
-        expiry_date:      batch.expiry_date,
+        // batch.expiry_date from search-with-batches is a pre-formatted
+        // "DD-MM-YYYY" display string (see _batch_for_billing,
+        // backend/routers/inventory.py) — date-fns' parseISO can't read
+        // that, so every isExpired/isExpiringSoon/formatExpiry call on it
+        // silently failed and showed "–". expiry_iso is the real ISO date
+        // meant for exactly this. Other batch sources (stock/batches) only
+        // ever send an already-ISO expiry_date, so the fallback is safe.
+        expiry_date:      batch.expiry_iso || batch.expiry_date,
         qty:              1,
         unit_price:       batch.mrp_per_unit || product.default_mrp || 0,
         cost_price:       batch.cost_price_per_unit || batch.ptr_per_unit || (batch.mrp_per_unit || 0) * 0.7,

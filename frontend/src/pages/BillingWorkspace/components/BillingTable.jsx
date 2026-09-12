@@ -59,7 +59,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
   const handleSelectBatch = useCallback((index, batch) => {
     onUpdateItem(index, 'batch_id',         batch.id);
     onUpdateItem(index, 'batch_no',         batch.batch_no);
-    onUpdateItem(index, 'expiry_date',      batch.expiry_date);
+    onUpdateItem(index, 'expiry_date',      batch.expiry_iso || batch.expiry_date);
     onUpdateItem(index, 'unit_price',       batch.mrp_per_unit  || batch.mrp  || billItems[index].unit_price);
     onUpdateItem(index, 'cost_price',       batch.cost_price_per_unit || batch.ptr_per_unit || billItems[index].cost_price);
     onUpdateItem(index, 'available_qty',    batch.qty_on_hand);
@@ -132,8 +132,8 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                             >
                               <div className="flex items-center gap-4">
                                 <span className="text-xs font-mono text-gray-600 w-20 truncate" title={batch.batch_no}>{batch.batch_no}</span>
-                                <span className={`text-xs ${isExpired(batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
-                                  Exp {formatExpiry(batch.expiry_date)}
+                                <span className={`text-xs ${isExpired(batch.expiry_iso || batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_iso || batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
+                                  Exp {formatExpiry(batch.expiry_iso || batch.expiry_date)}
                                 </span>
                                 <span className="text-xs text-gray-400">Stock: <span className={`font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-red-500'}`}>{batch.qty_on_hand}</span></span>
                               </div>
@@ -201,7 +201,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectBatch(index, batch); } }}
                               className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
-                              <span className={isExpiringSoon(batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_date)}</span>
+                              <span className={isExpiringSoon(batch.expiry_iso || batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_iso || batch.expiry_date)}</span>
                               <span className="text-right font-semibold">{formatCurrency(batch.mrp_per_unit||0)}</span>
                               <span className="text-right text-gray-400">{formatCurrency(batch.prev_mrp||batch.mrp_per_unit||0)}</span>
                               <span className="text-right">{(batch.discount_percent||0).toFixed(1)}%</span>

@@ -34,7 +34,6 @@ class Customer(Base):
     credit_limit_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     credit_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     outstanding_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    loyalty_points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(

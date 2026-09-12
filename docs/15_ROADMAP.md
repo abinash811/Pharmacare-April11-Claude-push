@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.48 | Last updated: September 12, 2026
+# Version: 2.49 | Last updated: September 12, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -494,15 +494,42 @@ preference, family context) for later reference.**
   wasn't included in that pass.
 - **Phase: v1** — data-integrity/compliance baseline, not new scope.
 
-**Use case: retention features (loyalty points, WhatsApp refill/payment
-reminders, family-ledger billing).**
-- Real column + API field exist for loyalty points but nothing
-  increments it; WhatsApp reminders and family billing aren't built at
-  all. eVitalRx/Marg ERP/Pharmasoft all ship some version of these.
-- **Deliberately not phased.** Per the Sep 12 scope-discipline rule,
-  these are 10-year-mature-product polish, not table stakes for the next
-  5 years — noted for awareness, not queued. Revisit only if a real
-  pharmacist need surfaces.
+**Use case: a pharmacy with regular families wants to bill and track them
+as one household, and remind customers about dues/refills without a
+phone call.**
+- Not built: family-wise consolidated billing (Marg ERP + Pharmasoft) and
+  WhatsApp outstanding/refill/payment reminders (eVitalRx + Marg ERP).
+- Real, named, competitor-validated — but depends on v1's outstanding
+  balance actually being accurate first (a reminder built on a number
+  that's always ₹0 is worse than no reminder).
+- **Phase: v2.**
+
+**Use case: a doctor-linked view of what was prescribed/sold to a
+customer, beyond the compliance-only Schedule H1 register.**
+- Schedule H1 register exists as its own compliance page, but there's no
+  consolidated "this doctor, this customer, this history" view inside
+  Customers itself. Named in Marg's "doctor/patient wise reports" and
+  Pharmasoft's "doctor/patient-wise sales reports."
+- **Phase: v2** — real, not urgent; verify exact scope against Schedule
+  H1's existing data before designing, to avoid duplicating it.
+
+**Use case: segment and target customers for care/retention
+(pensioner/BPL flags, chronic-condition tags, medicine-specific refill
+reminders).**
+- Named Pharmasoft (pensioner/BPL) and eVitalRx (targeted reminders)
+  features. Real, but needs a medication-adherence/segmentation layer
+  that doesn't exist yet — genuinely bigger, later work.
+- **Phase: v3.**
+
+**Loyalty points — removed, not deferred.** ✅ Done Sep 12, 2026, direct
+instruction: this wasn't a "not now" (v2/v3) item like the ones above —
+Abinash does not want the functionality to exist at all, not even as
+unused schema. `Customer.loyalty_points` dropped via migration
+`b26fb010316e` (reviewed by hand before applying — a single, safe column
+drop, no data implications since it was always 0), removed from
+`_customer_response()`. Verified live: `POST /customers` response no
+longer includes the field; frontend never referenced it, so no UI change
+needed.
 
 **Cleanup, not a use case:** `age`/`gender`/`alternate_phone`/`city` are
 real DB columns with zero API or frontend reference anywhere — same class
@@ -511,11 +538,27 @@ session. Not a broken promise to a user (nothing shows them), so not
 phased as a feature — just flagged so it doesn't get built on top of by
 accident.
 
-**v1 build list, in order:** (1) permission gates on customer/doctor
-mutations, (2) real customer `notes` column + form field, (3) credit
-limit enforcement at bill-creation time, (4) `outstanding_paise` kept
-accurate (or switched to compute-on-read, matching `get_customer_stats`'s
-already-safe pattern) — not yet built, this section is the research/find.
+**Build list:**
+- **v1** (building now, one item at a time per Abinash's request):
+  1. ~~Permission gates on customer/doctor mutations~~ — ✅ Done Sep 12,
+     2026. `_require_customers_permission()` (routers/customers.py, same
+     shape as suppliers.py's), wired into all 6 mutating endpoints
+     (create/update/delete customer, create/update/delete doctor —
+     doctors reuse the `customers:*` namespace, no separate one exists).
+     8 new regression tests (`test_customers_doctors_permissions.py`);
+     confirmed 4 of 8 fail against the pre-fix router via `git stash`,
+     all 8 pass after. Full backend suite: 390 passed (2 unrelated
+     pre-existing shared-DB flakes, confirmed via isolated re-run).
+  2. Real customer `notes` column + form field — not yet built
+  3. Credit limit enforcement at bill-creation time — not yet built
+  4. `outstanding_paise` kept accurate (or switched to compute-on-read,
+     matching `get_customer_stats`'s already-safe pattern) — not yet built
+- **v2:** family-wise consolidated billing; WhatsApp outstanding/refill/
+  payment reminders (after v1.4 makes the underlying number trustworthy);
+  doctor-linked customer history view (scope against Schedule H1 first)
+- **v3:** pensioner/BPL and other segmentation tags; medicine-specific
+  refill reminders (needs a real adherence-tracking layer first)
+- **Removed:** loyalty points — see above, done, not just phased out
 
 ### Reports
 
@@ -694,7 +737,7 @@ behavior and real behavior):
 
 | Date | Rule violated | Why it wasn't caught | Fix applied |
 |------|---------------|----------------------|--------------|
-| Sep 12, 2026 | `docs/14_SECURITY.md`-style ACL expectation (same class as the Suppliers/Inventory fix earlier this session) — `customers.py`'s create/update/delete customer AND every doctor endpoint have zero permission check | Tooling gap: the Suppliers/Inventory ACL audit earlier this session found and fixed the identical hole in two other modules, but nothing generalized that fix into a check for "every mutating endpoint has a permission gate" — so the same class survived, undetected, in a third module (Customers/Doctors) until this `product-review` audit found it directly. `customers:delete` is a real, defined permission (`constants.py`) that nothing anywhere enforces. | Not yet fixed — found during Research phase of the Customers module review; fix (add `_require_customers_permission`/`_require_doctors_permission` helpers, same pattern as `suppliers.py`) queued, pending Abinash's go-ahead per the batch-before-verify workflow rule. |
+| Sep 12, 2026 | `docs/14_SECURITY.md`-style ACL expectation (same class as the Suppliers/Inventory fix earlier this session) — `customers.py`'s create/update/delete customer AND every doctor endpoint have zero permission check | Tooling gap: the Suppliers/Inventory ACL audit earlier this session found and fixed the identical hole in two other modules, but nothing generalized that fix into a check for "every mutating endpoint has a permission gate" — so the same class survived, undetected, in a third module (Customers/Doctors) until this `product-review` audit found it directly. `customers:delete` is a real, defined permission (`constants.py`) that nothing anywhere enforced. | Fixed Sep 12, 2026 — `_require_customers_permission()` wired into all 6 mutating endpoints (customers + doctors, doctors reusing the `customers:*` namespace since no separate one exists). 8 new regression tests, confirmed 4 fail pre-fix via `git stash`, all pass after. Still no automated gate for the general class ("every mutating endpoint has a permission check") — same reasoning as the Suppliers/Inventory entry: real, but a static check here has a real false-positive risk (some mutations are legitimately open to any authenticated user) without more design work than this fix's scope. |
 | Sep 12, 2026 | Manifesto rule 3 ("no half-finished implementations") — same class as the Aug 26, 2026 Supplier `notes` field miss, recurred in Customers | Execution gap: the Aug 26 fix (adding a real `notes` column + wiring for Suppliers) was never checked against sibling modules with the same pattern. `CustomerFormDialog.jsx`'s Zod schema, defaults, and edit-populate all reference `notes` — but no input/textarea for it is ever rendered, and `Customer` has no DB column for it at all. Worse than the original miss: there the value was silently dropped on save; here the user can never type it in the first place. | Not yet fixed — found during Research phase; fix (add the DB column + textarea, exactly the Aug 26 Supplier pattern) queued, pending go-ahead. |
 | Sep 12, 2026 | Manifesto rule 14 ("no assumptions, verify every time") — new `GET /reports/price-variation` (Batch 8, MAR05) ordered its price history by `purchase_date` alone | Execution gap, caught only because CLAUDE.md's own "verify via a live walkthrough, not just tests" habit was followed: all 5 new pytest tests passed, because every test used purchase dates 30 days apart — none exercised two confirmed purchases sharing the *same* `purchase_date`. Live-testing in the real browser did exactly that (a same-day top-up purchase) and the report showed an MRP **decrease** for what was actually a real increase — Postgres has no guaranteed row order for a tied `ORDER BY` column, so "first" and "latest" were silently swappable. | Added `PurchaseORM.created_at` as a secondary sort key (`routers/reports.py`) so same-day purchases resolve by real confirm order, not date alone. Added `test_same_day_purchases_ordered_by_confirm_time_not_just_date` regression test; confirmed it fails against the pre-fix ordering and passes after. Re-verified live: the same two same-day purchases now correctly show First MRP ₹20 → Latest MRP ₹28 (+40%). No automated gate proposed for the general class (a lint rule can't detect "this ORDER BY needs a tiebreaker") — the fix is the same live-walkthrough habit that caught it, applied consistently before calling a new report done. |
 | Sep 12, 2026 | Manifesto rule 10 ("every error notification must say why") — `useReports.js`/`useDashboard.js` (Reports/Dashboard rebuild, Batches 6-7) | Execution gap: `design-guard.sh`/`tsc`/the test suites all stayed green because none of them check this rule — I relied on "tools are green" as a proxy for "rules are followed" instead of manually walking the Manifesto checklist before calling each batch done. Caught only because the user asked to double-check, not by any process of mine. A user-prompted repo-wide sweep with the new checker (below) then found the identical pattern already live in 5 more pre-existing files unrelated to this session's own work — `App.js`'s OAuth callback, `AuditLog.jsx`, `ScheduleH1Register.jsx`, and 3 of 4 near-identical billing actions in `useBillActions.js` (the 4th, `saveBill`, already extracted the real reason correctly — copy-paste drift lost it in the other three) — confirming this was a systemic, pre-existing gap, not unique to the new code. | Fixed all 7 sites to show `error.message`/`err.response?.data?.detail` instead of a hardcoded string. **Gate closed, automated**: new `scripts/check_error_messages.py` finds every `catch (name)` block whose `toast.error(...)` argument is a plain string literal with no reference to `name.message` or `response?.data?.detail`, wired in as `design-guard.sh` Rule 14 (its own CI workflow) and a matching pre-commit check gated on staged frontend files. A `// error-reason-fixed: <why>` comment marks a deliberate, reviewed exception, mirroring the `# tenant-safe:` precedent from Rule 13. Verified precise (zero false positives) against the real codebase before wiring in as a hard block, not a warn-only note. |

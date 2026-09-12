@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.6 | Last updated: September 12, 2026
+# Version: 1.7 | Last updated: September 12, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -600,8 +600,7 @@ Line items on a purchase return.
 | `gstin` | String(15) | For B2B customers |
 | `credit_limit_paise` | Integer | Max outstanding allowed |
 | `credit_days` | Integer | Payment terms — default `0` |
-| `outstanding_paise` | Integer | Current amount owed |
-| `loyalty_points` | Integer | — |
+| `outstanding_paise` | Integer | Current amount owed — not yet kept accurate at write time, see `docs/15_ROADMAP.md` Customers v1 |
 | `is_active` | Boolean | — |
 | `deleted_at` | TIMESTAMP | Soft delete |
 

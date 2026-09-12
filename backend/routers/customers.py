@@ -12,9 +12,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.billing import Bill
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, paginate_response
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, paginate_response
 
 router = APIRouter(prefix="/api", tags=["customers"])
+
+
+async def _require_customers_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    """Found Sep 12, 2026, during the Customers product-review audit: every
+    mutating endpoint here (customers AND doctors) had zero permission
+    check at all — any logged-in role, cashier included, could delete any
+    customer or doctor record, despite `customers:delete` being a real,
+    defined permission (constants.py) nothing enforced. Same class as the
+    Suppliers/Inventory ACL gap fixed earlier this session
+    (suppliers.py's `_require_suppliers_permission`), missed for this
+    module in that pass.
+
+    Doctors reuse this same `customers:*` namespace rather than a
+    separate `doctors:*` one — no such permission exists in the catalog,
+    and Doctors lives under the same "Customers & Doctors" page/tab as
+    its own domain, not a distinct one, so adding a new unused permission
+    nobody's role would be granted by default is unnecessary scope."""
+    if not await has_permission(current_user, f"customers:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action} customers")
 
 
 # customers.phone/alternate_phone and doctors.phone are all VARCHAR(10) (see
@@ -65,7 +86,6 @@ def _customer_response(c: CustomerORM) -> dict:
         "gstin": c.gstin,
         "credit_limit": c.credit_limit_paise / 100,
         "outstanding": c.outstanding_paise / 100,
-        "loyalty_points": c.loyalty_points,
         "is_active": c.is_active,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
@@ -93,6 +113,7 @@ def _doctor_response(d: DoctorORM) -> dict:
 @router.post("/customers")
 async def create_customer(customer_data: CustomerCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "create", db)
     customer = CustomerORM(
         pharmacy_id=uuid.UUID(current_user.pharmacy_id),
         name=customer_data.name,
@@ -168,6 +189,7 @@ async def get_customer(customer_id: str, current_user: User = Depends(
 @router.put("/customers/{customer_id}")
 async def update_customer(customer_id: str, customer_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "edit", db)
     customer = await get_owned_or_404(
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found")
@@ -191,6 +213,7 @@ async def update_customer(customer_id: str, customer_data: dict, current_user: U
 @router.delete("/customers/{customer_id}")
 async def delete_customer(customer_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "delete", db)
     customer = await get_owned_or_404(
         db, CustomerORM, customer_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Customer not found")
@@ -228,6 +251,7 @@ async def get_customer_stats(customer_id: str, current_user: User = Depends(
 @router.post("/doctors")
 async def create_doctor(doctor_data: DoctorCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "create", db)
     doctor = DoctorORM(
         pharmacy_id=uuid.UUID(current_user.pharmacy_id),
         name=doctor_data.name,
@@ -281,6 +305,7 @@ async def get_doctors(
 @router.put("/doctors/{doctor_id}")
 async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "edit", db)
     doctor = await get_owned_or_404(
         db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Doctor not found")
@@ -305,6 +330,7 @@ async def update_doctor(doctor_id: str, doctor_data: dict, current_user: User = 
 @router.delete("/doctors/{doctor_id}")
 async def delete_doctor(doctor_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_customers_permission(current_user, "delete", db)
     doctor = await get_owned_or_404(
         db, DoctorORM, doctor_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Doctor not found")

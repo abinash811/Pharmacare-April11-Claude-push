@@ -41,6 +41,7 @@ export const ENTITY_LABELS = {
   customer:         'Customer',
   settings:         'Settings',
   auth:             'Login',
+  data_export:      'Data Export',
 };
 
 export const ENTITY_TYPES = [
@@ -54,4 +55,5 @@ export const ENTITY_TYPES = [
   { key: 'user',            label: 'User'            },
   { key: 'settings',        label: 'Settings'        },
   { key: 'auth',            label: 'Login'           },
+  { key: 'data_export',     label: 'Data Export'     },
 ];

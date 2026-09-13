@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,10 +27,15 @@ from models.purchases import (
 )
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["reports"])
 logger = logging.getLogger(__name__)
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 def _p2r(paise: int) -> float:
@@ -1284,7 +1290,7 @@ async def get_purchase_analytics(
 
 
 @router.get("/backup/export")
-async def export_data(db: AsyncSession = Depends(get_db),
+async def export_data(request: Request, db: AsyncSession = Depends(get_db),
                       current_user: User = Depends(get_current_user)):
     await require_admin_or_super(current_user, db, detail="Only admins can export data")
     pid = current_user.pharmacy_id
@@ -1302,8 +1308,7 @@ async def export_data(db: AsyncSession = Depends(get_db),
             result.append(d)
         return result
 
-    return {
-        "export_date": datetime.now(timezone.utc).isoformat(),
+    counts = {
         "medicines": await _dump(ProductORM),
         "bills": await _dump(BillORM),
         "purchases": await _dump(PurchaseORM),
@@ -1311,3 +1316,19 @@ async def export_data(db: AsyncSession = Depends(get_db),
         "doctors": await _dump(DoctorORM),
         "suppliers": await _dump(SupplierORM),
     }
+
+    # A full pharmacy-data export is a sensitive action worth its own trail
+    # — the same "who did what, when" reasoning as the Settings/Login
+    # history audit trail (Sep 13, 2026), just for a read-only download
+    # instead of a write. Row counts, not the dumped rows themselves —
+    # the export response already carries the real data, no need to store
+    # it twice.
+    db.add(AuditLog(
+        pharmacy_id=uuid.UUID(pid), user_id=uuid.UUID(current_user.id), action="export",
+        entity_type="data_export", entity_id=uuid.UUID(pid),
+        new_values={k: len(v) for k, v in counts.items()},
+        ip_address=_client_ip(request),
+    ))
+    await db.flush()
+
+    return {"export_date": datetime.now(timezone.utc).isoformat(), **counts}

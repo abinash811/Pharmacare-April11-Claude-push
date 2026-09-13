@@ -1,9 +1,17 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.9 | Last updated: September 7, 2026
+# Version: 1.10 | Last updated: September 13, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
 # live zero-data browser walkthrough. Every row below cites evidence.
+
+> **Re-verified Sep 13, 2026** (`product-review` skill, first full pass since
+> Sep 7) — re-checked every open item against current code, not memory of
+> this doc. Several items closed in the interim by other work; corrections
+> marked inline as "**Re-verified Sep 13**". A fresh zero-data walkthrough
+> (new distributor + new medicine, from scratch) confirms UC-P01/P02/P04/
+> P10/P12/P22 still hold end-to-end. Nothing in this pass found a NEW
+> regression — every open item below was already open on Sep 7.
 
 ---
 
@@ -34,11 +42,17 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    same explicit `batch_no`. Leave it blank and a real double-click/retry
    can create two full purchases and double the stock. Frontend disables
    the button during `loading`, but that's same-tab only.
-   (`backend/routers/purchases.py:288-305`)
-3. **The GST report page is broken.** `GSTReport.js` reads response fields
-   (`sales_gst.breakup`, `total_taxable`, etc.) that don't exist on what
-   `GET /reports/gst` actually returns (`sales`, `purchases`,
-   `net_liability`). It throws on render. Zero test coverage caught this.
+   (`backend/routers/purchases.py:288-305`) **Re-verified Sep 13, 2026 —
+   still true, unchanged.** `_create_stock_for_items` still keys the guard
+   on `batch_number`, falling back to `f"PUR-{purchase.purchase_number[:8]}"`
+   when blank — two concurrent submits get two different sequential
+   purchase numbers, so the fallback batch numbers differ and the guard
+   never fires. No idempotency-key logic exists anywhere in the router.
+3. ~~The GST report page is broken.~~ — ✅ **Fixed** (between Sep 7–13,
+   2026, part of the Batch 1 GST-crash fix). `GET /reports/gst` now
+   returns `sales`/`purchases`/`sales_summary`/`purchases_summary`/
+   `net_liability`, and `GSTReport.js` reads exactly those keys — field
+   names now match, confirmed by direct code comparison Sep 13.
 4. ~~The Purchases list's Cash/Credit/Due filter pills do nothing.~~ —
    ✅ **Fixed Aug 26, 2026.** `GET /purchases` now declares and applies
    `purchase_on`/`payment_status`; also found and fixed a second bug in
@@ -51,6 +65,9 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    /batches/{id}/adjust` only requires being logged in — a cashier can
    adjust any stock quantity. Every other purchase-related write endpoint
    got gated in the Aug 24 permission pass; this one was missed.
+   **Re-verified Sep 13, 2026 — still true, unchanged.** `adjust_stock`
+   (`batches.py:340-373`) has zero permission calls; confirmed the whole
+   file has no gating logic at all.
 
 ### ❌ The one remaining structural gap (down from two)
 
@@ -71,19 +88,42 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 
 8. Confirmed purchases can never be corrected — no reversal, no adjustment
    path, only "blocked from editing." A genuine mistake is permanent.
+   **Re-verified Sep 13, 2026 — still true.**
 9. Payments can never be edited or reversed once recorded — same problem.
-10. 4 of 5 spec'd entry points to start a return are broken or missing —
-    including a header button that shows a toast instead of navigating.
+   **Re-verified Sep 13, 2026 — still true.**
+10. ~~4 of 5 spec'd entry points to start a return are broken or
+    missing~~ — **improved to 3 of 5 broken/missing (Sep 13, 2026).** New
+    since Sep 7: Supplier Detail's near-expiry batches list now has a real
+    "Return" button that navigates with a valid `purchase_id`
+    (`SupplierDetailPanel.jsx`). Purchase List tab (still just switches
+    tabs), the Returns-section header button (still a toast, not a
+    navigation), and the empty-state button (still navigates with no
+    `purchase_id`, which the create page still immediately rejects) remain
+    broken. Inventory/batch/medicine detail still has no create action.
 11. Return reason is never actually sent to the backend — every return
     silently gets `reason="return"` regardless of what (if anything) the
     user typed.
 12. No way to distinguish free vs. paid quantity in a return.
-13. Zero purchase-return reports or analytics exist — not partial, zero.
+13. ~~Zero purchase-return reports or analytics exist~~ — ✅ **Fixed**
+    (Batch 7, between Sep 7–13, 2026). `GET /reports/purchase-returns` is a
+    real, permission-gated endpoint (per-return rows + summary including
+    `return_rate_percent`); `ReportTablesReturns.tsx`/`useReports.js`/
+    Excel export all consume it. Still no by-supplier/by-reason/ageing
+    breakdown (Section 11 below) — the top-level report exists, deeper
+    analytics don't.
 14. Backdating a purchase has no authorization gate — anyone can.
-15. Pulling the GST report has no permission gate — a cashier can export it.
-16. Audit log's `old_values` and `ip_address` columns are defined but
-    never populated — every audit row has them permanently `NULL`.
+    **Re-verified Sep 13, 2026 — still true**, both create and update.
+15. ~~Pulling the GST report has no permission gate~~ — ✅ **Fixed**
+    (between Sep 7–13, 2026). A new `_require_reports_permission` now
+    gates all 10 report/analytics endpoints, GST report and
+    `/analytics/purchases` included.
+16. ~~Audit log's `old_values` and `ip_address` columns are defined but
+    never populated~~ — ✅ **Fixed** (Batch 5, between Sep 7–13, 2026),
+    confirmed for purchases specifically: `purchases.py`'s `_record_audit`
+    now stores both on update/delete/payment (create has no prior state by
+    definition), each write passing a real client IP.
 17. MRP-below-purchase-cost is never warned, frontend or backend.
+    **Re-verified Sep 13, 2026 — still true.**
 18. The backend has real pack/strip/tablet unit-conversion logic
     (`units_per_pack`), tested and working — but the Purchase entry screen
     never exposes a field for it. A real feature nobody can reach.
@@ -102,11 +142,12 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 Fixed. `SupplierDropdown` now shows "+ Add '<name>' as new distributor" whenever `allowCreate` is on and the search box has text (whether or not there are other matches) — opt-in via a prop so `PurchasesList`'s read-only filter usage of the same component doesn't get a create option. Clicking it opens the existing Supplier form (moved to `components/shared/SupplierFormModal.tsx` so both Suppliers and Purchases share one implementation — was previously owned solely by the Suppliers page), prefilled with the typed name, validated with the same GSTIN/phone rules as the standalone Suppliers page. On save: posts to `POST /suppliers` (existing endpoint — already blocks duplicate names with a 400), auto-selects the new supplier, and adds it to the in-memory `suppliers` list so it's immediately searchable again without a refetch. Verified live end-to-end (zero-data: a genuinely new name, never in the system) and via 5 new component tests (`PurchaseNew/components/__tests__/SupplierDropdown.test.jsx`) plus 2 new tests on the moved form (`components/shared/__tests__/SupplierFormModal.test.jsx`).
 Real bug caught during this build (not shipped): the initial implementation read the typed name from the same state the search-popover clears on close, so the create form opened blank — fixed by capturing the name into dedicated state at click time, before the popover's close handler could clear it. Caught by live verification, not by the type-checker or lint.
 
-### UC-P03: Upload supplier bill — 🔄 Partial, scope confirmed with Abinash (Aug 25, 2026)
-Scope decision: "upload and create a purchase" means attach-a-file-for-reference, **not** AI/OCR auto-extraction of line items from the bill — that would be new architecture and real ongoing cost, and was explicitly declined for now (offered as the bigger option, not chosen).
+### UC-P03: Upload supplier bill — ✅ Mostly built (upgraded Sep 13, 2026)
+Scope decision (Aug 25, 2026): "upload and create a purchase" means attach-a-file-for-reference, **not** AI/OCR auto-extraction of line items from an image/PDF bill — that would be new architecture and real ongoing cost, and was explicitly declined for now.
 
-Within that scope: image (jpeg/png/webp) or PDF only — no Excel/CSV import, no distinct camera-capture flow, single attachment only (not multiple, would need a backend schema change — bigger than this batch). 5MB cap + mime validation enforced both client and server (`InvoiceAttachmentUpload.tsx`, backend `_validate_invoice_attachment`). Stored as base64 in a Postgres TEXT column, no dedicated secure file store or access control beyond normal purchase-record permissions.
-**New, Aug 25**: the attached file can now be previewed before confirming the purchase — click the chip to open it in a new tab, same pattern the already-working "view later" link on a confirmed purchase uses (`PurchaseDetail/index.jsx:128-140`, confirmed already built). Closes the "preview the file" / "view or download it later" gaps.
+Within that scope: image (jpeg/png/webp) or PDF attachment, single file, 5MB cap + mime validation both client and server (`InvoiceAttachmentUpload.tsx`, backend `_validate_invoice_attachment`); previewable before confirming and viewable later on a confirmed purchase (`PurchaseDetail/index.jsx:128-140`).
+
+**Found Sep 13, 2026: a separate, real Excel/CSV import path now exists** (`PurchaseNew/components/BillImportModal.tsx`, `POST /api/purchases/import-bill`) — built as the named Pharmasoft gap ("one-click bill import"), not attach-a-file. Upload a CSV/XLSX with Product SKU-or-Name/Batch/Expiry/Qty/Cost/MRP/GST% columns; the backend parses and matches each row against existing products; matched rows are shown pre-checked and get appended straight into the purchase's line items on confirm, unmatched rows are listed with a pointer to the normal "+ Add Item" inline-create flow rather than being silently dropped. This closes the "no Excel/CSV import" gap this row used to note — not AI/OCR extraction from a scanned bill image (that scope decision still stands), but a real structured-data import path the Aug 25 note didn't have yet.
 
 ### UC-P04: Create purchase manually — ✅ Built
 Full flow verified end-to-end: draft → supplier → invoice# → date → due date → items/batches → totals review → save/confirm. Live-tested this session.
@@ -243,7 +284,7 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 | P37 Purchase payment report | ❌ Missing | Payments are recorded and individually queryable, but nothing aggregates/lists them across purchases. |
 | P38 Purchase variance report | ❌ Missing | Zero mentions anywhere in the backend. `adjustment_amount_paise` is captured but never surfaced (matches P22). |
 | P39 Export and print | 🔄 Partial | Print works for a single purchase. Export exists for Sales/Low-stock/Expiry/Inventory reports only — nothing for the purchase register, supplier statement, batch, or payment reports, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
-| P40 Purchase dashboard | ❌ Missing | Neither dashboard endpoint has any purchase-specific metric (value today/month, payable, overdue, near-expiry/expired purchase value). A real, complete `/analytics/purchases` endpoint exists server-side with several of these — **but nothing in the frontend calls it.** |
+| P40 Purchase dashboard | ✅ **Fixed** (Batch 6, between Sep 7–13) | `useDashboard.js` now calls `apiUrl.analyticsPurchases(...)`, feeding three new QuickStatCards (Purchases/Purchase Returns/Net Purchases, month-scoped, clickable) into the real Dashboard. Payable/overdue/near-expiry-purchase-value still aren't surfaced as their own cards — the endpoint is wired in, not every metric it could show is used yet. |
 | P41 Supplier analytics | ❌ Missing | No ranking, payment-performance, return-rate, or price-comparison logic anywhere. |
 | P42 Product purchase analytics | ❌ Missing | Zero endpoints for rate trends, coverage, free-goods contribution, etc. |
 | P43 Purchase profitability impact | ❌ Missing | No margin computation exists. Secondary finding: most report endpoints correctly restrict to confirmed-only, **but the supplier summary (P35) leaks drafts into its totals** — the same bug noted there. |
@@ -265,7 +306,7 @@ code only ever produces one.
 
 | UC | Status | Evidence |
 |---|---|---|
-| PR01 Start a return (5 entry points) | 🔄 Partial — only 1 of 5 works | Purchase Detail → works. Purchase List → only switches tabs, doesn't start a return. Dedicated Returns section header button → **shows a toast telling you to go elsewhere instead of navigating.** Its empty-state button navigates with no `purchase_id`, which the create page immediately rejects with an error + redirect. Supplier Detail and Inventory/batch detail → no create action at all, history display only. |
+| PR01 Start a return (5 entry points) | 🔄 Partial — 2 of 5 work (was 1 of 5 as of Sep 7) | Purchase Detail → works. **New since Sep 7:** Supplier Detail's near-expiry batches list now has a real "Return" button → navigates with a valid `purchase_id` (`SupplierDetailPanel.jsx`), built as part of the Suppliers v2 "proactive near-expiry return-to-supplier" work. Still broken: Purchase List (only switches tabs), the Returns-section header button (still a toast, not a navigation), the empty-state button (still navigates with no `purchase_id`, still immediately rejected). Inventory/batch/medicine detail → still history display only, no create action. |
 | PR02 Select returnable items | ✅ Built (mostly) | Server computes original/already-returned/max-returnable qty correctly, keyed by product_id not name (tested). Missing: no free-qty or sold-qty fields exposed at all. |
 | PR03 Return by reason | ❌ Missing (as spec'd) | Backend accepts free text defaulting to `"return"` if omitted. **The frontend has no reason field and never sends one** — every return silently gets `reason="return"` regardless of what actually happened. None of the spec's 11 named reasons exist anywhere in the UI. |
 | PR04 Partial return | ✅ Built | Server-validated against remaining returnable qty, UI blocks over-entry, only the returned amount is deducted. |
@@ -279,8 +320,8 @@ code only ever produces one.
 | PR14 Cancel return | ❌ Missing | No cancel endpoint exists — nothing to cancel from, given the single-status model. |
 | PR15 Return against unavailable stock | ✅ Built | Explicitly guarded server-side with a clear 400 before any stock mutation; tested against both create and the financial-edit path. |
 
-### Section 10 — Return reports: ❌ Missing entirely
-No purchase-return-specific report endpoint exists at all. Returns only surface as (1) a subtraction inside the GST report, and (2) one aggregate pair (`total_purchase_returns_value`, `total_returns_count`) inside purchase analytics. No supplier/product/batch/reason breakdown, no ageing, no accepted-vs-rejected (nothing to break down, since there's no accept/reject state).
+### Section 10 — Return reports: ✅ Fixed (Batch 7, between Sep 7–13, 2026)
+`GET /reports/purchase-returns` is a real, permission-gated endpoint: per-return rows (return#, debit note#, supplier, reason, value) plus a summary (total returns/value, gross/net purchases, `return_rate_percent`). Consumed by `ReportTablesReturns.tsx`/`useReports.js`, exportable via `excelExport.js`. Still missing: supplier/product/batch/reason breakdown, ageing, accepted-vs-rejected (nothing to break down, since there's still no accept/reject state — see PR07-10).
 
 ### Section 11 — Return analytics: ❌ Missing, except one derivable number
 `net_purchases` (purchases minus returns) is available. Everything else — by-supplier, by-reason, expired/damaged value, credit-pending, settlement time, rejected value, repeat-return products — doesn't exist, largely because the underlying data (reason, credit status, accept/reject state) was never captured in the first place.
@@ -367,36 +408,56 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 
 **Batch 1 — stop active bleeding (bugs, not features)**
 1. ~~Overpayment ledger bug (#1)~~ — ✅ done, Sep 7
-2. Double-confirm duplicate-stock bug (#2)
-3. GST report broken render (#3)
+2. **Double-confirm duplicate-stock bug (#2) — still open, re-verified Sep 13.**
+3. ~~GST report broken render (#3)~~ — ✅ done between Sep 7–13
 4. ~~Dead Cash/Credit/Due filter pills (#4)~~ — ✅ done, Aug 26
-5. Stock-adjust missing permission check (#5)
+5. **Stock-adjust missing permission check (#5) — still open, re-verified Sep 13.**
 
 **Batch 2 — the flow that blocks day-one usage**
 6. ~~Inline add-distributor during purchase entry~~ — ✅ done, Aug 25 (UC-P02)
 6b. ~~Inline add-medicine during purchase entry~~ — ✅ done, Aug 26 (UC-P12)
+6c. ~~Excel/CSV bill import~~ — ✅ done between Sep 7–13 (`BillImportModal`, found Sep 13)
 
 **Batch 3 — Purchase Returns' core workflow gap**
-7. Decide, with Abinash, whether Returns genuinely needs the full
-   accept/reject/credit-pending lifecycle the spec describes, or whether
-   the current single-step model is an intentional simplification worth
-   keeping — this is a real product decision, not just missing code, and
-   changes a lot downstream (credit notes, reports, analytics all assume
-   an answer here).
-8. Fix the 4 broken/missing return entry points (PR01) regardless of #7's answer.
-9. Add the reason field and actually send it to the backend (PR03).
+7. **Still an open decision, unchanged since Sep 7** — decide, with
+   Abinash, whether Returns genuinely needs the full accept/reject/
+   credit-pending lifecycle the spec describes, or whether the current
+   single-step model is an intentional simplification worth keeping.
+8. **Still open** — PR01 improved from 1-of-5 to 2-of-5 working entry
+   points (Supplier Detail's near-expiry return button, built as part of
+   unrelated Suppliers work) but the other 3 (Purchase List, Returns
+   header, empty-state) are unchanged.
+9. **Still open** — reason field (PR03).
 
 **Batch 4 — correction mechanisms**
-10. Some controlled way to correct a confirmed purchase (P09).
-11. Payment edit/reversal (P31).
+10. **Still open, re-verified Sep 13** — some controlled way to correct a
+    confirmed purchase (P09).
+11. **Still open, re-verified Sep 13** — payment edit/reversal (P31).
 
 **Batch 5 — reporting**
-12. Wire the frontend to the already-built-but-unused `/analytics/purchases`
-    endpoint before building anything new (cheap win).
-13. Fix supplier-summary draft leak (P35).
-14. Everything else in Reports/Analytics (P34, P37, P38, P40-43) — genuinely
-    new work, prioritize with Abinash by which report a real pharmacist
-    would ask for first.
+12. ~~Wire the frontend to `/analytics/purchases`~~ — ✅ done (Batch 6,
+    between Sep 7–13) — 3 new Dashboard cards.
+13. **Still open, re-verified Sep 13** — supplier-summary draft leak (P35,
+    `suppliers.py:466-471` still queries `status.in_(["confirmed", "draft"])`).
+14. ~~Purchase-return reports~~ — ✅ done (Batch 7, between Sep 7–13):
+    `GET /reports/purchase-returns`. Deeper analytics (by-supplier,
+    by-reason, ageing — P34, P37, P38, P41-43) still genuinely missing —
+    prioritize with Abinash by which report a real pharmacist would ask
+    for first.
+
+**What's left, in priority order (Sep 13, 2026 re-verification):**
+Given how much of the original list is now closed, the real remaining
+worklist is short and worth tackling as its own pass:
+- Two Batch-1-severity bugs still live: double-confirm duplicate stock
+  (#2) and the ungated stock-adjust endpoint (#5) — both are money/stock
+  integrity issues, not UI polish.
+- Backdating still has no authorization gate (#14).
+- No correction path for a confirmed purchase (P09) or a recorded
+  payment (P31) — a real mistake is still permanent either way.
+- `supplier_invoice_date` still isn't captured by the frontend (UC-P05).
+- The supplier-summary draft-purchase leak (P35).
+- The Returns workflow product decision (#7) — still unresolved,
+  everything downstream in Returns depends on the answer.
 
 Everything else in this document (unit-of-measure UI, per-line discount,
 free-goods-in-returns, ageing buckets, etc.) is real but lower-impact —

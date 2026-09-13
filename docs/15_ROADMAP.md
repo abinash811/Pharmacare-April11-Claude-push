@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.68 | Last updated: September 13, 2026
+# Version: 2.69 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -257,16 +257,23 @@ Fixed by making every endpoint (`/inventory`, `/reports/low-stock`, `/analytics/
 
 ### Purchases
 
-**Full acceptance spec (Aug 25, 2026)**: `docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
-— all 73 use cases from Abinash's spec mapped against real code, every row
-evidenced. Supersedes the summary table below for anything more than a
-quick status check. Headline: 5 live bugs found (not just gaps) —
-overpayment isn't rejected and corrupts the payment ledger; a blank-batch
-double-submit can create duplicate stock; the GST report page is broken
-(field-name mismatch, throws on render); the Purchases list's Cash/Credit/
-Due filter pills send params the backend ignores; stock-adjust has zero
-permission check. See that doc's Executive Summary for the full ranked list
-and the recommended build-batch order.
+**Full acceptance spec (Aug 25, 2026, re-verified Sep 13, 2026)**:
+`docs/23_PURCHASES_ACCEPTANCE_SPEC.md` — all 73 use cases from Abinash's
+spec mapped against real code, every row evidenced. Supersedes the summary
+table below for anything more than a quick status check. Of the original 5 live bugs, overpayment was fixed Sep 7 and 2 more (GST
+report render, dead filter pills) are now fixed too. **Still open as of
+Sep 13**: a blank-batch double-submit can create duplicate stock, and
+stock-adjust has zero permission check. Also fixed
+since Aug 25 and confirmed real this pass: the GST/purchase-report
+permission gate, purchase audit log's `old_values`/`ip_address`, the
+Dashboard's purchase analytics cards, purchase-return reports, and a real
+Excel/CSV bill-import path (found Sep 13, built after Aug 25). Still open
+and worth prioritizing: no correction path for a confirmed purchase or a
+recorded payment, backdating has no authorization gate, the supplier
+summary leaks draft purchases into its totals, and the Purchase Returns
+workflow's single-status-vs-full-lifecycle product decision is still
+unresolved. See that doc's Executive Summary and "What's left" list for
+the full ranked detail.
 
 **Build progress against that spec:**
 - ✅ Fixed a live, wide-reaching bug found resuming this session's live

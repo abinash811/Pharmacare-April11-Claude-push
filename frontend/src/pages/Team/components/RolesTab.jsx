@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InlineLoader, DeleteConfirmDialog, AppButton } from '@/components/shared';
@@ -48,6 +48,15 @@ export default function RolesTab() {
       setFormData({ name: '', display_name: '', selectedPermissions: [] });
       fetchRoles();
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to create role'); }
+  };
+
+  const handleClone = (role) => {
+    setFormData({
+      name: `${role.name}_copy`,
+      display_name: `${role.display_name} (Copy)`,
+      selectedPermissions: [...role.permissions],
+    });
+    setShowCreateDialog(true);
   };
 
   const handleEdit = async (e) => {
@@ -108,6 +117,8 @@ export default function RolesTab() {
                     <td className="px-4 py-2.5 text-sm text-gray-500">{role.permissions.includes('*') || role.is_super_admin ? <span className="text-purple-700 font-medium">All permissions</span> : `${role.permissions.length} permissions`}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <AppButton variant="ghost" iconOnly icon={<Copy className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Clone ${role.display_name}`}
+                          onClick={() => handleClone(role)} />
                         {!role.is_default ? (
                           <>
                             <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Edit ${role.display_name}`}

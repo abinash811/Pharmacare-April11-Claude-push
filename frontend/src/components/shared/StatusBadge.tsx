@@ -11,6 +11,7 @@ const STATUS_STYLES: Record<string, string> = {
   overdue: 'bg-red-50 text-red-700',
   cancelled: 'bg-red-50 text-red-700',
   inactive: 'bg-red-50 text-red-700',
+  rejected: 'bg-red-50 text-red-700',
   partial: 'bg-amber-50 text-amber-700',
   parked: 'bg-amber-50 text-amber-700',
   pending: 'bg-amber-50 text-amber-700',
@@ -30,6 +31,10 @@ const STATUS_STYLES: Record<string, string> = {
   near_expiry: 'bg-amber-50 text-amber-700',
   out_of_stock: 'bg-red-50 text-red-700',
   expired: 'bg-red-50 text-red-700',
+  // Purchase return credit-status (see docs/23_PURCHASES_ACCEPTANCE_SPEC.md) —
+  // pending/rejected already covered above.
+  partially_credited: 'bg-amber-50 text-amber-700',
+  fully_credited: 'bg-green-50 text-green-700',
   default: 'bg-gray-100 text-gray-700',
 };
 
@@ -49,6 +54,8 @@ const LABEL_MAPPINGS: Record<string, string> = {
   low_stock: 'Low Stock',
   near_expiry: 'Near Expiry',
   out_of_stock: 'Out of Stock',
+  partially_credited: 'Partially Credited',
+  fully_credited: 'Fully Credited',
 };
 
 export interface StatusBadgeProps {

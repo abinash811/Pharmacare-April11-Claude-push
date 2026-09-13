@@ -61,6 +61,16 @@ class PurchaseReturnUpdate(BaseModel):
     edit_type: str = "non_financial"
 
 
+class PurchaseReturnCreditUpdate(BaseModel):
+    # The pharmacist enters the one real number they actually know — how
+    # much the distributor has credited so far — rather than picking a
+    # status from a dropdown that could drift out of sync with it.
+    # `rejected` is the one thing that number alone can't express: the
+    # distributor said no to what's left, not "hasn't gotten to it yet."
+    credit_received: float = 0
+    rejected: bool = False
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 async def _record_audit(
@@ -144,6 +154,9 @@ def _return_response(r: PurchaseReturnORM,
         "ptr_total": r.subtotal_paise / 100,
         "gst_amount": r.total_gst_paise / 100,
         "total_value": r.grand_total_paise / 100,
+        "credit_status": r.credit_status,
+        "credit_received": r.credit_received_paise / 100,
+        "credit_owed": (r.grand_total_paise - r.credit_received_paise) / 100,
         "note": r.notes,
         "debit_note_number": r.debit_note_number,
         "items": [_return_item_response(i) for i in items],
@@ -272,6 +285,18 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
         SupplierORM.id == purchase.supplier_id))  # tenant-safe: purchase already scoped via get_owned_or_404
     supplier_name = sup_result.scalar_one_or_none() or ""
 
+    # PurchaseItem only stores product_id (its real FK) — product_sku is a
+    # request/response-only convenience. This endpoint hardcoded it to ""
+    # forever (found Sep 13, 2026, Purchases product-review, live-testing
+    # the one real Purchase Return entry point): create_purchase_return
+    # looks a product up by this exact sku, so every real return via this
+    # screen 404'd or 422'd — the same class of bug already fixed in
+    # purchases.py's own _get_product_skus() on Aug 22, 2026, just never
+    # ported to this sibling endpoint.
+    product_ids = {item.product_id for item in purchase_items}
+    sku_result = await db.execute(select(ProductORM.id, ProductORM.sku).where(ProductORM.id.in_(product_ids)))
+    product_skus = {pid: sku for pid, sku in sku_result.all()}
+
     items_for_return = []
     for item in purchase_items:
         already_returned = returned_qtys.get(item.product_id, 0)
@@ -279,7 +304,7 @@ async def get_purchase_items_for_return(purchase_id: str, current_user: User = D
         items_for_return.append({
             "product_id": str(item.product_id),
             "product_name": item.product_name,
-            "product_sku": "",
+            "product_sku": product_skus.get(item.product_id, ""),
             "batch_id": str(item.batch_id) if item.batch_id else None,
             "batch_no": item.batch_number,
             "expiry_date": item.expiry_date.isoformat() if item.expiry_date else None,
@@ -683,6 +708,73 @@ async def update_purchase_return(
     # tenant-safe: purchase_return already scoped via get_owned_or_404
     sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
     return _return_response(purchase_return, new_items, sup_result.scalar_one_or_none() or "")
+
+
+@router.put("/purchase-returns/{return_id}/credit-status")
+async def update_purchase_return_credit_status(
+        return_id: str,
+        body: PurchaseReturnCreditUpdate,
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """Record how much of a return the distributor has actually credited
+    so far — separate from `status` (the return record itself, which is
+    "confirmed" the instant stock is deducted). A pharmacy returning
+    expired/damaged stock doesn't get paid back immediately, and a
+    distributor can credit less than what was sent back; without this,
+    there was no way to know how much was still genuinely owed. Found
+    Sep 13, 2026, Purchases product-review — the original spec assumed a
+    live accept/reject workflow with the distributor as a participant in
+    the system, which isn't realistic since distributors don't use
+    PharmaCare; this tracks the same real business need (what's actually
+    been paid back) from the pharmacy's own side instead.
+    """
+    await _require_purchases_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    rid = uuid.UUID(return_id)
+
+    purchase_return = await get_owned_or_404(
+        db, PurchaseReturnORM, rid, pharmacy_id, not_found_detail="Purchase return not found")
+
+    credit_received_paise = int(round(body.credit_received * 100))
+    if credit_received_paise < 0:
+        raise HTTPException(status_code=400, detail="Credit received cannot be negative")
+    if credit_received_paise > purchase_return.grand_total_paise:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Credit received (₹{body.credit_received:.2f}) cannot exceed this return's "
+                f"total value (₹{purchase_return.grand_total_paise / 100:.2f})"),
+        )
+
+    old_status = purchase_return.credit_status
+    old_received = purchase_return.credit_received_paise
+
+    purchase_return.credit_received_paise = credit_received_paise
+    if body.rejected:
+        purchase_return.credit_status = "rejected"
+    elif credit_received_paise <= 0:
+        purchase_return.credit_status = "pending"
+    elif credit_received_paise < purchase_return.grand_total_paise:
+        purchase_return.credit_status = "partially_credited"
+    else:
+        purchase_return.credit_status = "fully_credited"
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "update_credit_status", "purchase_return", rid,
+        {"credit_status": purchase_return.credit_status, "credit_received": body.credit_received},
+        db,
+        old_values={"credit_status": old_status, "credit_received": old_received / 100},
+        ip_address=_client_ip(request),
+    )
+    await db.flush()
+    await db.refresh(purchase_return)  # updated_at has onupdate=func.now() — see purchases.py
+
+    items_result = await db.execute(select(PurchaseReturnItemORM).where(
+        PurchaseReturnItemORM.purchase_return_id == rid))
+    # tenant-safe: purchase_return already scoped via get_owned_or_404
+    sup_result = await db.execute(select(SupplierORM.name).where(SupplierORM.id == purchase_return.supplier_id))
+    return _return_response(purchase_return, items_result.scalars().all(), sup_result.scalar_one_or_none() or "")
 
 
 # Note: there is no POST /purchase-returns/{id}/confirm endpoint. It

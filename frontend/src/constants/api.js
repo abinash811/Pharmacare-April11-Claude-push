@@ -253,8 +253,9 @@ export const apiUrl = {
   purchaseCheckDuplicateInvoice: (params) => `purchases/check-duplicate-invoice${qs(params)}`,
 
   // Purchase Returns
-  purchaseReturns:  (params) => `purchase-returns${qs(params)}`,
-  purchaseReturn:   (id)     => `purchase-returns/${id}`,
+  purchaseReturns:            (params) => `purchase-returns${qs(params)}`,
+  purchaseReturn:             (id)     => `purchase-returns/${id}`,
+  purchaseReturnCreditStatus: (id)     => `purchase-returns/${id}/credit-status`,
 
   // Customers & Doctors
   customers:        (params) => `customers${qs(params)}`,

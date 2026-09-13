@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.10 | Last updated: September 13, 2026
+# Version: 1.11 | Last updated: September 13, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -10,8 +10,18 @@
 > this doc. Several items closed in the interim by other work; corrections
 > marked inline as "**Re-verified Sep 13**". A fresh zero-data walkthrough
 > (new distributor + new medicine, from scratch) confirms UC-P01/P02/P04/
-> P10/P12/P22 still hold end-to-end. Nothing in this pass found a NEW
-> regression — every open item below was already open on Sep 7.
+> P10/P12/P22 still hold end-to-end.
+>
+> **Correction, later the same day:** the claim below that "nothing in this
+> pass found a NEW regression" was wrong. Building the credit-status
+> feature (Batch 3 item #7, see below) required actually submitting a real
+> Purchase Return through the browser UI for the first time this
+> re-verification pass — and that submission 422'd. Purchase Return
+> creation was completely broken end-to-end. This wasn't a regression (it
+> was always broken), but it was newly-discovered and previously
+> undocumented — the Sep 7 spec's own testing had apparently only verified
+> navigation to the create page, not a real submission. See "Batch 3 item
+> #7 — RESOLVED" and the new bug entry below.
 
 ---
 
@@ -304,9 +314,30 @@ frontend screen or test."* This single fact is why PR07–PR10 and PR12/PR14
 are Missing — the spec assumes a 9-status supplier-approval workflow; the
 code only ever produces one.
 
+> **✅ CRITICAL BUG FOUND AND FIXED, Sep 13, 2026 — Purchase Return creation
+> was completely broken through the real UI.** Discovered live-verifying
+> the new credit-status feature (below), which required actually
+> submitting a real return through the browser for the first time this
+> pass. `PurchaseReturnCreate/index.jsx` read `item.medicine_id`/
+> `item.medicine_name` from the `GET /purchases/{id}/items-for-return`
+> response, but that endpoint actually returns `product_id`/
+> `product_name` — so the Medicine column was always blank and the
+> outgoing payload's required `product_name` field was always `undefined`,
+> making every real submission 422. A second, compounding bug in the same
+> endpoint: it hardcoded `"product_sku": ""` instead of resolving the real
+> SKU (the exact class of bug `purchases.py`'s `_get_product_skus()`
+> helper was built to fix on Aug 22, 2026 — never ported to this sibling
+> endpoint in `purchase_returns.py`), which would have broken product
+> matching in `create_purchase_return` even after the frontend fix. Both
+> fixed; live-verified end-to-end (real return created, appeared correctly
+> in list + detail, credit status updated and persisted across reload).
+> **This means the "Purchase Detail → works" claim in PR01 below was never
+> actually true through the UI** — only the navigation worked, not a real
+> submission. Logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
+
 | UC | Status | Evidence |
 |---|---|---|
-| PR01 Start a return (5 entry points) | 🔄 Partial — 2 of 5 work (was 1 of 5 as of Sep 7) | Purchase Detail → works. **New since Sep 7:** Supplier Detail's near-expiry batches list now has a real "Return" button → navigates with a valid `purchase_id` (`SupplierDetailPanel.jsx`), built as part of the Suppliers v2 "proactive near-expiry return-to-supplier" work. Still broken: Purchase List (only switches tabs), the Returns-section header button (still a toast, not a navigation), the empty-state button (still navigates with no `purchase_id`, still immediately rejected). Inventory/batch/medicine detail → still history display only, no create action. |
+| PR01 Start a return (5 entry points) | 🔄 Partial — 2 of 5 work (was 1 of 5 as of Sep 7) | Purchase Detail → works **as of the Sep 13 fix above** (was actually 422-ing on every real submission before that — see the critical bug note above the table). **New since Sep 7:** Supplier Detail's near-expiry batches list now has a real "Return" button → navigates with a valid `purchase_id` (`SupplierDetailPanel.jsx`), built as part of the Suppliers v2 "proactive near-expiry return-to-supplier" work. Still broken: Purchase List (only switches tabs), the Returns-section header button (still a toast, not a navigation), the empty-state button (still navigates with no `purchase_id`, still immediately rejected). Inventory/batch/medicine detail → still history display only, no create action. |
 | PR02 Select returnable items | ✅ Built (mostly) | Server computes original/already-returned/max-returnable qty correctly, keyed by product_id not name (tested). Missing: no free-qty or sold-qty fields exposed at all. |
 | PR03 Return by reason | ❌ Missing (as spec'd) | Backend accepts free text defaulting to `"return"` if omitted. **The frontend has no reason field and never sends one** — every return silently gets `reason="return"` regardless of what actually happened. None of the spec's 11 named reasons exist anywhere in the UI. |
 | PR04 Partial return | ✅ Built | Server-validated against remaining returnable qty, UI blocks over-entry, only the returned amount is deducted. |
@@ -314,7 +345,7 @@ code only ever produces one.
 | PR06 Return damaged/expired stock | 🔄 Partial | Stock removed, reason typeable in free-text notes, supplier/batch traceability preserved. No quarantine/hold state — "prevents sale while pending" is moot since stock is already fully deducted at creation, not held. |
 | PR07 Return statuses | 🔄 Partial (effectively one status) | Only `"confirmed"` is ever set. The model's `"pending"` default is never actually reached by any code path. None of Draft/Submitted/Accepted/Rejected/Credit-pending/etc. exist. |
 | PR08/09/10 Supplier accepts/rejects (full or partial) | ❌ Missing | No accept/reject endpoint exists — confirmed by a whole-router grep. Nothing to reject stock back into, because rejection isn't modeled at all. |
-| PR11 Supplier credit note | 🔄 Partial | Debit-note number generation was recently fixed (was previously always null) and is verified by a regression test. Missing: no CGST/SGST/IGST split on the return record (unlike Purchase/PurchaseItem, which have it), no credit-status field, no attachment field. |
+| PR11 Supplier credit note | 🔄 Partial, improved Sep 13 | Debit-note number generation was recently fixed (was previously always null) and is verified by a regression test. **New Sep 13, 2026:** `credit_status` (pending/partially_credited/fully_credited/rejected) + `credit_received_paise` now exist and are pharmacist-updatable — see Batch 3 item #7 above. Still missing: no CGST/SGST/IGST split on the return record (unlike Purchase/PurchaseItem, which have it), no attachment field. |
 | PR12 Refund/settlement type | ❌ Missing | The Create screen has a `payment_type` selector — but the backend accepts the field and **never stores or uses it.** Silently dropped. |
 | PR13 Edit return | 🔄 Partial — backend works, frontend can't reach it | The backend genuinely supports a financial edit that recalculates stock deltas correctly (tested, including a re-validation against available stock). **The edit modal never sends items** — only note/billed-by — so this code path is effectively dead from the UI today. |
 | PR14 Cancel return | ❌ Missing | No cancel endpoint exists — nothing to cancel from, given the single-status model. |
@@ -419,10 +450,25 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 6c. ~~Excel/CSV bill import~~ — ✅ done between Sep 7–13 (`BillImportModal`, found Sep 13)
 
 **Batch 3 — Purchase Returns' core workflow gap**
-7. **Still an open decision, unchanged since Sep 7** — decide, with
-   Abinash, whether Returns genuinely needs the full accept/reject/
-   credit-pending lifecycle the spec describes, or whether the current
-   single-step model is an intentional simplification worth keeping.
+7. **✅ RESOLVED, Sep 13, 2026** — decided against the spec's original
+   full accept/reject/credit-pending lifecycle (the distributor doesn't
+   use PharmaCare, so a live multi-party workflow isn't realistic).
+   Researched how real distributor credit actually works (Marg ERP's own
+   debit/credit-note practice, India's GST credit-note rules) and built
+   the simple version that matches it: the pharmacist records the amount
+   the distributor has actually credited so far (`credit_received_paise`)
+   plus a `rejected` flag for "no more coming" — `credit_status`
+   (pending/partially_credited/fully_credited/rejected) is derived
+   server-side from that one number, never picked from a dropdown, so it
+   can't drift out of sync. New `PUT /purchase-returns/{id}/credit-status`
+   endpoint, `CreditStatusModal` on Purchase Return Detail, "Credit
+   Status" column (replacing the old meaningless "Status" column) on the
+   Purchase Returns list. 8 new pytest tests, live-verified end-to-end in
+   the browser (see the bug entry immediately below — building this
+   feature is what surfaced it).
+   - **What this did NOT change:** the reason field (#9) and the 3
+     still-broken PR01 entry points (#8) are unaffected — those remain
+     open, tracked separately below.
 8. **Still open** — PR01 improved from 1-of-5 to 2-of-5 working entry
    points (Supplier Detail's near-expiry return button, built as part of
    unrelated Suppliers work) but the other 3 (Purchase List, Returns
@@ -456,8 +502,10 @@ worklist is short and worth tackling as its own pass:
   payment (P31) — a real mistake is still permanent either way.
 - `supplier_invoice_date` still isn't captured by the frontend (UC-P05).
 - The supplier-summary draft-purchase leak (P35).
-- The Returns workflow product decision (#7) — still unresolved,
-  everything downstream in Returns depends on the answer.
+- ~~The Returns workflow product decision (#7)~~ — ✅ resolved Sep 13,
+  2026, simple credit-status tracker built and live-verified (see Batch 3
+  item #7 above). PR03 (reason field) and PR01's remaining 3 broken entry
+  points are still open, tracked separately.
 
 Everything else in this document (unit-of-measure UI, per-line discount,
 free-goods-in-returns, ageing buckets, etc.) is real but lower-impact —

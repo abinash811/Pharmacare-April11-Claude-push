@@ -140,7 +140,7 @@ export default function PurchaseReturnsList() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Status</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -201,10 +201,13 @@ export default function PurchaseReturnsList() {
                       <span className="font-semibold tabular-nums text-red-600">
                         -{formatCurrency(ret.total_value || 0)}
                       </span>
+                      {ret.credit_status !== 'rejected' && (ret.credit_owed || 0) > 0 && (
+                        <div className="text-xs text-amber-700">{formatCurrency(ret.credit_owed)} owed</div>
+                      )}
                     </td>
 
                     <td className="px-4 py-2.5 text-center">
-                      <StatusBadge status={ret.status || 'pending'} />
+                      <StatusBadge status={ret.credit_status || 'pending'} />
                     </td>
 
                     <td className="px-4 py-2.5 text-right">

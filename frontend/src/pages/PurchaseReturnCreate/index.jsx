@@ -48,7 +48,15 @@ export default function PurchaseReturnCreate() {
       setPurchaseNumber(data.purchase_number || '');
       setItems(data.items.filter((i) => i.max_returnable_qty > 0).map((item) => ({
         id: crypto.randomUUID(),
-        medicine_id: item.medicine_id, medicine_name: item.medicine_name,
+        // GET /purchases/{id}/items-for-return returns product_id/product_name
+        // (not medicine_id/medicine_name) — found Sep 13, 2026, Purchases
+        // product-review, live-testing the create-return flow: reading the
+        // wrong field names here silently left every item's name blank and
+        // the create payload's required product_name missing, so a real
+        // Save always 422'd. Kept as medicine_id/medicine_name locally since
+        // the rest of this component (and the create payload) already
+        // reads those names.
+        medicine_id: item.product_id, medicine_name: item.product_name,
         product_sku: item.product_sku, batch_id: item.batch_id, batch_no: item.batch_no,
         expiry_date: item.expiry_date, mrp: item.mrp || 0, ptr: item.ptr || 0,
         gst_percent: item.gst_percent || 5, original_qty: item.original_qty,

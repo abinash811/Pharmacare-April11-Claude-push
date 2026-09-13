@@ -163,6 +163,18 @@ class PurchaseReturn(Base):
     grand_total_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     debit_note_number: Mapped[Optional[str]] = mapped_column(String(100))
+    # Credit-status tracking — added Sep 13, 2026 (Purchases product-review).
+    # A return deducts stock immediately (status is always "confirmed" the
+    # moment it's created — see purchase_returns.py), but the distributor's
+    # actual credit note often arrives later, and often for less than the
+    # full amount (they can refuse to credit some items). This tracks that
+    # separately from `status`, which is about the return record itself,
+    # not whether the pharmacy has actually been paid back.
+    # credit_status is derived server-side from credit_received_paise (or
+    # explicitly "rejected") on every update — never set directly by a
+    # client, so it can't drift out of sync with the real number.
+    credit_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    credit_received_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"))

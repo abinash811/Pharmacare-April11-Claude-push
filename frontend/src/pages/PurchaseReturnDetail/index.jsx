@@ -8,6 +8,7 @@ import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu, StatusBadge, EmptySt
 import { formatCurrency } from '@/utils/currency';
 import { formatDate } from '@/utils/dates';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
+import CreditStatusModal from './components/CreditStatusModal';
 
 export default function PurchaseReturnDetail() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function PurchaseReturnDetail() {
   const [editBilledBy, setEditBilledBy]     = useState('');
   const [isSaving, setIsSaving]             = useState(false);
   const [users, setUsers]                   = useState([]);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [isSavingCredit, setIsSavingCredit]   = useState(false);
 
   useEffect(() => { fetchPurchaseReturn(); fetchUsers(); }, [id]); // eslint-disable-line
 
@@ -48,6 +51,17 @@ export default function PurchaseReturnDetail() {
       fetchPurchaseReturn();
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to update return'); }
     finally { setIsSaving(false); }
+  };
+
+  const handleCreditStatusSave = async (creditReceived, rejected) => {
+    setIsSavingCredit(true);
+    try {
+      await api.put(`/purchase-returns/${id}/credit-status`, { credit_received: creditReceived, rejected });
+      toast.success('Credit status updated');
+      setShowCreditModal(false);
+      fetchPurchaseReturn();
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to update credit status'); }
+    finally { setIsSavingCredit(false); }
   };
 
   const formatExpiry = (exp) => {
@@ -175,6 +189,30 @@ export default function PurchaseReturnDetail() {
           </div>
         </section>
 
+        {/* Credit Status — tracks what the distributor has actually credited
+            back, separate from the return record's own "confirmed" status. */}
+        <section className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-1">Credit Status</div>
+              <StatusBadge status={purchaseReturn.credit_status || 'pending'} />
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase font-semibold">Credited So Far</div>
+              <div className="font-semibold text-gray-800">{formatCurrency(purchaseReturn.credit_received || 0)}</div>
+            </div>
+            {purchaseReturn.credit_status !== 'rejected' && (purchaseReturn.credit_owed || 0) > 0 && (
+              <div>
+                <div className="text-[10px] text-gray-500 uppercase font-semibold">Still Owed</div>
+                <div className="font-semibold text-amber-700">{formatCurrency(purchaseReturn.credit_owed)}</div>
+              </div>
+            )}
+          </div>
+          <AppButton variant="outline" onClick={() => setShowCreditModal(true)} data-testid="update-credit-status-btn">
+            Update Credit Status
+          </AppButton>
+        </section>
+
         {purchaseReturn.note && (
           <section className="bg-white rounded-xl border border-gray-200 px-4 py-3 shadow-sm">
             <div className="text-xs text-gray-400 uppercase font-semibold mb-1">Note</div>
@@ -195,6 +233,15 @@ export default function PurchaseReturnDetail() {
         isSaving={isSaving}
         onSave={handleEditSave}
       />
+
+      {showCreditModal && (
+        <CreditStatusModal
+          purchaseReturn={purchaseReturn}
+          onClose={() => setShowCreditModal(false)}
+          onConfirm={handleCreditStatusSave}
+          isSaving={isSavingCredit}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.7 | Last updated: September 13, 2026
+# Version: 1.8 | Last updated: September 13, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -315,6 +315,13 @@ Real gaps this surfaces: family-wise/group billing, WhatsApp outstanding/payment
 - **Pharmasoft:** one-click purchase-bill import from a distributor (email/Excel/CSV); automatic purchase orders via email/WhatsApp; return-to-supplier before expiry write-off. [Source](https://yadavsoftware.com/)
 
 Real gaps this surfaces: a formal Purchase Order step before GRN, WhatsApp outstanding/payment reminders, one-click bill import. More urgently — same pattern as Customers: PharmaCare already has real UI for supplier outstanding and a "Record Payment" action, but neither actually works — see `docs/15_ROADMAP.md`'s Suppliers section for the full audit.
+
+**Billing competitor notes (researched Sep 13, 2026):**
+- **Marg ERP:** Touch-Screen/barcode POS billing across multiple simultaneous counters; multi-mode payment collection (cash/credit/other) on one bill; day-wise and daily-closing reports plus an operator-wise log book (cash collection + sales by staff member). [Source](https://margcompusoft.com/key_features.html), [Source](https://margcompusoft.com/pos-software-for-pharmacy-shop.html)
+- **eVitalRx:** POS + barcode scanning for fast checkout; automatic refill reminders and loyalty rewards tied to a completed sale. [Source](https://www.evitalrx.in/)
+- **Pharmasoft:** dynamic QR-code payment acceptance at the counter (UPI/card/net banking); family group-wise billing (already noted under Customers). [Source](https://yadavsoftware.com/)
+
+Real gaps this surfaces: split/multi-mode payment on a single bill (PharmaCare's `payment_method` is one label per bill, not a real split), a day-end closing/Z-report (no cash-drawer reconciliation or operator-wise sales summary exists), and QR/UPI payment acceptance reconciled at the counter (already tracked as the payment-gateway gap below). All three are named, standard POS features in this category, not differentiators — none of PharmaCare's competitors treat them as advanced.
 
 ---
 

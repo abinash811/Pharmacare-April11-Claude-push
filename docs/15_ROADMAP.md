@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.65 | Last updated: September 13, 2026
+# Version: 2.66 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -71,8 +71,8 @@
 | Doctor search — add-new inline | 🔄 | DoctorDropdown has typeahead + DB suggestions; needs the same "type a name with no match → Add [name]" inline flow PatientCombobox already has |
 | Batch selection UX in medicine row | 📋 | Not discoverable today — needs a visual cue (chip with chevron) |
 | WhatsApp — add custom number | 🔄 | Button exists; "Add custom number" flow incomplete |
-| Split payment (cash + UPI on one bill) | 📋 | |
-| Day-end closing / Z-report | 📋 | |
+| Split payment (cash + UPI on one bill) | ⚠️ **Worse than not built — found Sep 13, 2026 (Billing product-review)** | `BillingSubbar.jsx`'s Payment row has a real, clickable, selectable **"Multi"** button (`key: 'multiple'`) sitting next to Cash/UPI/Credit/Card — but selecting it renders no split-entry UI at all (no second amount field, nothing). Live-verified: created a real ₹16 bill with "Multi" selected → saved successfully with `payment_method: "multiple"` and **zero record of how the amount was actually split** — worse than a missing feature, because it looks like a working one and produces a bill an accountant can't reconcile at day's end. Same bug class as the Sep 13 Inventory Notifications-toggle finding (a real, selectable UI control wired to nothing). Not fixed yet — flagged for a decision (remove the button vs. build the real split-entry UI it implies) rather than silently patched. |
+| Day-end closing / Z-report | 📋 | Marg-validated gap (day-wise/daily-closing reports + operator-wise log book, researched Sep 13, 2026) — no cash-drawer reconciliation or per-operator sales summary exists anywhere in PharmaCare. |
 
 **Billing — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP and eVitalRx (see `docs/01_PRODUCT.md` §10). Verified against real code (`BillingOperations.js`, `backend/routers/billing.py`), not guessed.
 
@@ -83,6 +83,13 @@
 | As a pharmacist, I want to WhatsApp a bill to my customer. | 🔄 **Exists, but minimal** | `BillingOperations.js::handleWhatsApp` opens a `wa.me` link with the bill total as plain text — works, but only for a customer who already has `customer_mobile` on file; no custom-number entry (already tracked above), no PDF/receipt image attached (text summary only), no payment-reminder or "bill is due" follow-up message — Marg ERP's WhatsApp billing sends the actual invoice and can auto-remind on dues. |
 | As a pharmacist, I want to accept a payment gateway (UPI QR / card) at the counter, reconciled automatically against the bill. | ❌ **Not built** | Grepped for `razorpay`/`cashfree`/`paytm`/`payment_gateway` — zero hits. Payment method today is a manual label (`cash`/`upi`/`due`), not a real integration; nothing confirms a UPI payment actually landed. |
 | As a pharmacist, I want my billing data to sync to Tally for my accountant. | ❌ **Not built** | No `tally` reference anywhere in the backend. Standard Marg/eVitalRx integration; PharmaCare has no export in a Tally-importable format at all (not even a generic ledger CSV). |
+
+**Billing — live-verified, Sep 13, 2026 (product-review):** a genuine zero-data walkthrough — brand-new pharmacy (zero prior bills), a first-ever medicine, and a first-ever H1-schedule medicine with no pre-existing doctor record — confirmed clean end-to-end: real bill created via the actual UI (not curl), stock correctly deducted (100→99 units), margin/LP shown correctly on the item row, GST calculated correctly (₹15 + 5% = ₹15.75, rounds to ₹16 net payable). Schedule H1 guard tested for real: attempting to save with no doctor was blocked with a clear, specific error (`"Prescription details required for Schedule H1 drug: <name>"`) — satisfies Manifesto rule 10; typing a brand-new doctor name (no existing doctor record, no dropdown match) into the free-text Doctor field and saving succeeded correctly. This is the check no prior Billing pass had done explicitly against a truly fresh account. Found the "Multi" payment bug above during this same walkthrough, not by reading code.
+
+**Billing — phased build list**, per `product-review`'s required output format:
+- **v1:** the "Multi" payment button — needs a decision (remove it vs. build a real split-entry UI), same shape as the Sep 13 Inventory Notifications-toggle decision; a day-end closing/Z-report (Marg-validated, no cash reconciliation exists today).
+- **v2:** the same "type a name with no match → Add [name]" inline flow `PatientCombobox` already has, applied to Doctor (today's free-text field works but isn't discoverable the same way); WhatsApp — attach the actual bill (PDF/image), not just a text summary, plus a due-payment reminder message (Marg-validated); a real payment-gateway (UPI QR/card) integration reconciled automatically against the bill.
+- **v3:** e-invoice (IRN) generation — real compliance exposure once a pharmacy crosses the mandatory turnover threshold, but not every pharmacy on PharmaCare is there yet; e-way bill generation; Tally export — all three are real, named competitor features, genuinely bigger scope (external API integrations, not UI fixes).
 
 ### Inventory
 

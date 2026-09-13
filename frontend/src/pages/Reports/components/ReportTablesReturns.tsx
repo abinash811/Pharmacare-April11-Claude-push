@@ -7,6 +7,13 @@ import React from 'react';
 import { Undo2, LineChart, Stethoscope } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 
+// Bill.doctor_name is free text (Billing's DoctorDropdown lets a cashier
+// type anything, "Dr." prefix included or not) — never assume it's bare,
+// or a name already typed with "Dr." doubles up ("Dr. Dr. Sharma").
+function doctorLabel(name: string): string {
+  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+}
+
 // ── Sales Returns ─────────────────────────────────────────────────────────────
 export function SalesReturnsTable({ data }: { data?: any[] }) {
   return (
@@ -144,7 +151,7 @@ export function DoctorWiseSalesTable({ data }: { data?: any[] }) {
         ) : data.map((row, idx) => (
           <tr key={idx} className="hover:bg-brand-tint transition-colors">
             <td className="px-4 py-3">
-              <div className="font-medium">Dr. {row.doctor_name}</div>
+              <div className="font-medium">{doctorLabel(row.doctor_name)}</div>
               {row.qualification && <div className="text-xs text-gray-500">{row.qualification}</div>}
             </td>
             <td className="px-4 py-3">{row.specialization || '-'}</td>

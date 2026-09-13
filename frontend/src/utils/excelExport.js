@@ -161,8 +161,10 @@ const formatMarginReport = (data) => {
 const formatDoctorWiseSalesReport = (data) => {
   if (!data?.data) return [];
   // Field names match GET /reports/doctor-wise-sales's real response exactly.
+  // doctor_name is free text (Billing's DoctorDropdown) — some entries
+  // already include "Dr.", so don't double-prefix it here.
   return data.data.map((item) => ({
-    'Doctor': `Dr. ${item.doctor_name}`,
+    'Doctor': /^dr\.?\s/i.test(item.doctor_name) ? item.doctor_name : `Dr. ${item.doctor_name}`,
     'Specialization': item.specialization || '-',
     'Qualification': item.qualification || '-',
     'Hospital': item.hospital || '-',

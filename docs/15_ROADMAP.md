@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.66 | Last updated: September 13, 2026
+# Version: 2.67 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -62,7 +62,7 @@
 | Schedule H1 register auto-create | ✅ | On every H1 settlement |
 | Sales return (RTN- prefix) | ✅ | Stock restored, GST reversed |
 | Credit / due bills | ✅ | balance_paise tracking |
-| Record payment on due bill | ✅ | `POST /api/payments` |
+| Record payment on due bill | ⚠️ **Backend-only, no way to reach it — found Sep 13, 2026 (Billing thorough-testing pass)** | `POST /api/payments` exists and works, but nothing in the frontend ever calls it. `BillDetail` (a `due` bill's own page) shows only Print/Edit buttons — never a payment button. `BillingHeader`'s "Collect Payment" button is wired to a placeholder stub (`toast.info('Collect payment coming soon')`) and only reachable via `/billing/edit/:id`, which a `due` bill's detail page never routes to. Net effect: a bill marked "Due" today has **no UI path, anywhere, to ever mark it paid.** Discussed with Abinash Sep 13 — parked for now (see chat), needs a decision on whether partial/due bills should be allowed at all before building a collection screen. |
 | Bill PDF download | 🔄 | Endpoint exists, PDF template WIP |
 | Bill print (browser) | ✅ | Thermal (80mm/58mm) + A4/A5, default set in Settings → Receipt & Print — was listed 📋 here, already built; moved here from the stale CLAUDE.md status list |
 | Discount at bill level | ✅ | Bill-level discount_paise |
@@ -71,8 +71,10 @@
 | Doctor search — add-new inline | 🔄 | DoctorDropdown has typeahead + DB suggestions; needs the same "type a name with no match → Add [name]" inline flow PatientCombobox already has |
 | Batch selection UX in medicine row | 📋 | Not discoverable today — needs a visual cue (chip with chevron) |
 | WhatsApp — add custom number | 🔄 | Button exists; "Add custom number" flow incomplete |
-| Split payment (cash + UPI on one bill) | ⚠️ **Worse than not built — found Sep 13, 2026 (Billing product-review)** | `BillingSubbar.jsx`'s Payment row has a real, clickable, selectable **"Multi"** button (`key: 'multiple'`) sitting next to Cash/UPI/Credit/Card — but selecting it renders no split-entry UI at all (no second amount field, nothing). Live-verified: created a real ₹16 bill with "Multi" selected → saved successfully with `payment_method: "multiple"` and **zero record of how the amount was actually split** — worse than a missing feature, because it looks like a working one and produces a bill an accountant can't reconcile at day's end. Same bug class as the Sep 13 Inventory Notifications-toggle finding (a real, selectable UI control wired to nothing). Not fixed yet — flagged for a decision (remove the button vs. build the real split-entry UI it implies) rather than silently patched. |
+| Split payment (cash + UPI on one bill) | ✅ **Fixed Sep 13, 2026 — button removed** | `BillingSubbar.jsx`'s Payment row had a real, clickable, selectable **"Multi"** button (`key: 'multiple'`) sitting next to Cash/UPI/Credit/Card, but selecting it rendered no split-entry UI at all — a bill saved with it recorded `payment_method: "multiple"` with zero trace of the real split. Decision: remove rather than build a real split-entry UI (not needed for v1). Re-add only alongside a real split-entry screen. |
 | Day-end closing / Z-report | 📋 | Marg-validated gap (day-wise/daily-closing reports + operator-wise log book, researched Sep 13, 2026) — no cash-drawer reconciliation or per-operator sales summary exists anywhere in PharmaCare. |
+| "Billed By" dropdown (pick which staff member a bill is attributed to) | ⚠️ **Decorative — found Sep 13, 2026 (Billing thorough-testing pass)** | `BillingSubbar.jsx`'s Billed By `<select>` sends `billed_by`/`cashier_name` in the create-bill payload (`useBillActions.js`), but `BillCreate` (backend Pydantic model, `billing.py`) declares neither field, so FastAPI silently drops them — `create_bill` always sets `billed_by=user_id` from the JWT session, ignoring the dropdown entirely. Whoever is logged in is always recorded as the biller, no matter what's picked. Reported to Abinash Sep 13 — parked, revisit later. |
+| "Billing For" dropdown (Self / Other) | ⚠️ **Fully decorative — found Sep 13, 2026 (Billing thorough-testing pass)** | `billingFor` state in `BillingSubbar.jsx` is local-only — never read by `useBillActions.js`, never sent to the backend, no field anywhere consumes it. Picking "Other" has zero effect, visible or otherwise. Reported to Abinash Sep 13 — parked, revisit later. |
 
 **Billing — competitor-validated gaps** — per Manifesto rule 15, checked against Marg ERP and eVitalRx (see `docs/01_PRODUCT.md` §10). Verified against real code (`BillingOperations.js`, `backend/routers/billing.py`), not guessed.
 

@@ -1,11 +1,9 @@
 /**
  * InsightsList — Row 3: Top Selling Products + Top Customers.
- * Props:
- *   topProducts  {Array}
- *   topCustomers {Array}
  */
 import React from 'react';
 import { Package, Users } from 'lucide-react';
+import { formatDateShort } from '@/utils/dates';
 
 function RankedRow({ rank, name, sub, value, rankColor, valueColor }) {
   return (
@@ -24,7 +22,17 @@ function RankedRow({ rank, name, sub, value, rankColor, valueColor }) {
   );
 }
 
-export default function InsightsList({ topProducts, topCustomers }) {
+/**
+ * @param {object} props
+ * @param {Array} props.topProducts
+ * @param {Array} props.topCustomers
+ * @param {{start: string, end: string, is_custom: boolean} | null} [props.analyticsRange]
+ */
+export default function InsightsList({ topProducts, topCustomers, analyticsRange = null }) {
+  const topProductsSubtitle = analyticsRange?.is_custom
+    ? `${formatDateShort(analyticsRange.start)} — ${formatDateShort(analyticsRange.end)}`
+    : 'By revenue, last 30 days';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
       {/* Top Products */}
@@ -33,7 +41,7 @@ export default function InsightsList({ topProducts, topCustomers }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-semibold text-gray-900">Top Selling Products</p>
-              <p className="text-sm text-gray-500">By revenue this month</p>
+              <p className="text-sm text-gray-500">{topProductsSubtitle}</p>
             </div>
             <Package className="w-5 h-5 text-blue-500" />
           </div>

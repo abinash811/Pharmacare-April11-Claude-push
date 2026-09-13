@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.72 | Last updated: September 13, 2026
+# Version: 2.73 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -976,6 +976,7 @@ accident.
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Dashboard analytics | ✅ | Revenue, bills, top products, dynamic thresholds from settings, purchases card (Batch 6) |
+| Dashboard date-range picker | ✅ **Built Sep 13, 2026** | Second item of the Settings/Dashboard/Roles maturity pass. Before this the Sales Trend chart + Top Products/Categories were stuck on fixed windows (last 14 / last 30 days) with no way to look at a different period — the Today/Week/Month/Total metric cards are untouched on purpose, they're a standard fixed-comparison pattern, not something a custom range should redefine. `GET /analytics/dashboard` now takes optional `from_date`/`to_date` (both required together, bounded to 366 days, 400 on a bad/backwards range) and windows `daily_trend`/`top_products`/`category_sales` to it; omitting both keeps the exact prior behavior byte-for-byte. Response adds `analytics_range: {start, end, is_custom}` so the frontend shows the real window instead of a hardcoded label. Reused the existing shared `DateRangePicker` component (same one GST Report already uses) in the Dashboard header — no new date-picker UI built. Caught and fixed one real bug while building this: the endpoint's broad `except Exception` would have swallowed the new 400 validation errors into 500s; added an `except HTTPException: raise` before it. 11 new pytest tests (validation + windowing, using "does today's real bill land inside vs. outside the picked range" since bills can't be backdated through the API) + 3 new jest tests for the subtitle wiring; full backend + frontend suites green. |
 | Drug license expiry banner | ✅ | Amber strip above metrics, dismissible, links to Settings |
 | GST report (GSTR-1 summary) | ✅ | Grouped by HSN, date range. HSN-wise/B2B detail — deferred to Phase 2 (Sep 12, 2026) |
 | Sales report | ✅ | By date range |

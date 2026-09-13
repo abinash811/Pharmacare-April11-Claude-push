@@ -1,8 +1,5 @@
 /**
  * SalesCharts — Row 2: Sales Trend (AreaChart) + Sales by Category (PieChart).
- * Props:
- *   dailyTrend    {Array}
- *   categorySales {Array}
  */
 import React from 'react';
 import {
@@ -15,14 +12,24 @@ import { CHART_PALETTE, BRAND_BLUE, CHART_GRID_COLOR, CHART_AXIS_COLOR } from '@
 
 const COLORS = CHART_PALETTE;
 
-export default function SalesCharts({ dailyTrend, categorySales }) {
+/**
+ * @param {object} props
+ * @param {Array} props.dailyTrend
+ * @param {Array} props.categorySales
+ * @param {{start: string, end: string, is_custom: boolean} | null} [props.analyticsRange]
+ */
+export default function SalesCharts({ dailyTrend, categorySales, analyticsRange = null }) {
+  const trendSubtitle = analyticsRange?.is_custom
+    ? `${formatDateShort(analyticsRange.start)} — ${formatDateShort(analyticsRange.end)}`
+    : 'Last 14 days performance';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       {/* Sales Trend */}
       <div className="bg-white rounded-xl border border-gray-200 lg:col-span-2" data-testid="sales-trend-chart">
         <div className="px-6 pt-6 pb-2">
           <p className="text-base font-semibold text-gray-900">Sales Trend</p>
-          <p className="text-sm text-gray-500">Last 14 days performance</p>
+          <p className="text-sm text-gray-500" data-testid="sales-trend-subtitle">{trendSubtitle}</p>
         </div>
         <div className="p-4">
           <div className="h-64">

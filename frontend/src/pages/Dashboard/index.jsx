@@ -2,14 +2,14 @@
  * Dashboard — orchestrator
  * Route: /dashboard
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, BarChart3, ShoppingCart,
   CreditCard, Clock, RefreshCw, Package, Truck, Undo2, Wallet,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
-import { PageHeader, AppButton } from '@/components/shared';
+import { PageHeader, AppButton, DateRangePicker } from '@/components/shared';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useDashboard }      from './hooks/useDashboard';
@@ -24,8 +24,16 @@ import LicenseExpiryBanner   from './components/LicenseExpiryBanner';
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data, purchaseSummary, loading, refreshing, fetchDashboardData } = useDashboard();
+  // Only drives the Sales Trend chart + Top Products/Categories below — the
+  // fixed Today/Week/Month/Total cards above never change with this.
+  const [trendRange, setTrendRange] = useState({ start: null, end: null });
 
   useEffect(() => { fetchDashboardData(); }, []); // eslint-disable-line
+
+  const handleTrendRangeChange = (range) => {
+    setTrendRange(range);
+    fetchDashboardData(false, range);
+  };
 
   if (loading) {
     return (
@@ -44,7 +52,7 @@ export default function Dashboard() {
     );
   }
 
-  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats, license_alert, alerts_config } = data || {};
+  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats, license_alert, alerts_config, analytics_range } = data || {};
   const isNewPharmacy = !metrics?.today_sales && !metrics?.total_sales;
 
   return (
@@ -52,15 +60,18 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         actions={
-          <AppButton
-            variant="outline"
-            icon={<RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={1.5} />}
-            onClick={() => fetchDashboardData(true)}
-            disabled={refreshing}
-            data-testid="refresh-btn"
-          >
-            Refresh
-          </AppButton>
+          <div className="flex items-center gap-2">
+            <DateRangePicker dateRange={trendRange} onDateRangeChange={handleTrendRangeChange} />
+            <AppButton
+              variant="outline"
+              icon={<RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={1.5} />}
+              onClick={() => fetchDashboardData(true, trendRange)}
+              disabled={refreshing}
+              data-testid="refresh-btn"
+            >
+              Refresh
+            </AppButton>
+          </div>
         }
       />
 
@@ -80,10 +91,10 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Row 2: Charts */}
-          <SalesCharts dailyTrend={daily_trend} categorySales={category_sales} />
+          <SalesCharts dailyTrend={daily_trend} categorySales={category_sales} analyticsRange={analytics_range} />
 
           {/* Row 3: Insights */}
-          <InsightsList topProducts={top_products} topCustomers={top_customers} />
+          <InsightsList topProducts={top_products} topCustomers={top_customers} analyticsRange={analytics_range} />
 
           {/* Row 4: Alerts */}
           <AlertsPanel

@@ -958,8 +958,10 @@ async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(
 
 
 @router.get("/analytics/dashboard")
-async def get_dashboard_analytics(db: AsyncSession = Depends(
-        get_db), current_user: User = Depends(get_current_user)):
+async def get_dashboard_analytics(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
         today = date.today()
@@ -969,6 +971,26 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
         last_week_start = week_start - timedelta(days=7)
         last_month_start = (month_start - timedelta(days=1)).replace(day=1)
         thirty_ago = today - timedelta(days=30)
+
+        # Optional custom range for the Sales Trend chart + Top Products/
+        # Categories — the fixed Today/Week/Month/Total metric cards never
+        # change meaning regardless of this, they're a standard fixed
+        # comparison pattern (Manifesto rule 3: don't redesign a pattern
+        # that already works). Bounded to 1 year to keep this a real
+        # window, not an unbounded full-table scan.
+        range_start = range_end = None
+        if from_date or to_date:
+            if not (from_date and to_date):
+                raise HTTPException(status_code=400, detail="Both from_date and to_date are required together")
+            try:
+                range_start = date.fromisoformat(from_date)
+                range_end = date.fromisoformat(to_date)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Dates must be in YYYY-MM-DD format")
+            if range_start > range_end:
+                raise HTTPException(status_code=400, detail="from_date must not be after to_date")
+            if (range_end - range_start).days > 365:
+                raise HTTPException(status_code=400, detail="Date range cannot exceed 366 days")
 
         # Load pharmacy settings for dynamic thresholds
         ps = (await db.execute(
@@ -1001,10 +1023,17 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
         today_sales = yesterday_sales = week_sales = last_week_sales = month_sales = last_month_sales = 0
         total_sales = pending_payments = draft_bills = month_returns = 0
         customer_sales: dict = {}
-        daily_sales: dict = {
-            (today - timedelta(days=i)).isoformat(): {"sales": 0, "returns": 0, "bills": 0}
-            for i in range(30)
-        }
+        if range_start and range_end:
+            trend_len = (range_end - range_start).days + 1
+            daily_sales: dict = {
+                (range_start + timedelta(days=i)).isoformat(): {"sales": 0, "returns": 0, "bills": 0}
+                for i in range(trend_len)
+            }
+        else:
+            daily_sales: dict = {
+                (today - timedelta(days=i)).isoformat(): {"sales": 0, "returns": 0, "bills": 0}
+                for i in range(30)
+            }
         recent_bills: list = []
 
         for b in bills:
@@ -1050,26 +1079,32 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
                 if dk in daily_sales:
                     daily_sales[dk]["returns"] += amt
 
-        # Top products from bill items in last 30 days
+        # Top products — last 30 days by default, or the requested custom
+        # range (same range the Sales Trend chart above is windowed to).
+        window_conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
+                        BillORM.deleted_at.is_(None), BillORM.bill_date >= (range_start or thirty_ago)]
+        if range_end:
+            window_conds.append(BillORM.bill_date <= range_end)
+
         product_sales_rows = (await db.execute(
+            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id == pid) above
             select(
                 BillItemORM.product_name, func.sum(
                     BillItemORM.line_total_paise).label("rev"), func.sum(
                     BillItemORM.quantity).label("qty"))
             .join(BillORM, BillORM.id == BillItemORM.bill_id)
-            .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
-                   BillORM.deleted_at.is_(None), BillORM.bill_date >= thirty_ago)
+            .where(*window_conds)
             .group_by(BillItemORM.product_name)
             .order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(5)
         )).all()
 
-        # Category sales
+        # Category sales — same window as top products above.
         cat_rows = (await db.execute(
+            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id == pid) above
             select(ProductORM.category, func.sum(BillItemORM.line_total_paise).label("rev"))
             .join(BillItemORM, BillItemORM.product_id == ProductORM.id)
             .join(BillORM, BillORM.id == BillItemORM.bill_id)
-            .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
-                   BillORM.deleted_at.is_(None), BillORM.bill_date >= thirty_ago)
+            .where(*window_conds)
             .group_by(ProductORM.category)
             .order_by(func.sum(BillItemORM.line_total_paise).desc()).limit(6)
         )).all()
@@ -1151,13 +1186,25 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
             :5]
         recent_bills.sort(key=lambda x: x["created_at"] or "", reverse=True)
 
+        # A custom range shows in full (the user picked it, no reason to
+        # truncate); the default view keeps its existing last-14-of-30-days
+        # slice unchanged, so no existing screen/test sees different data.
+        trend_items = sorted(daily_sales.items())
+        if not (range_start and range_end):
+            trend_items = trend_items[-14:]
+
         return {
             "metrics": {"today_sales": _p2r(today_sales), "today_change": calc_change(today_sales, yesterday_sales),
                         "week_sales": _p2r(week_sales), "week_change": calc_change(week_sales, last_week_sales),
                         "month_sales": _p2r(month_sales), "month_change": calc_change(month_sales, last_month_sales),
                         "total_sales": _p2r(total_sales)},
             "daily_trend": [{"date": d, "sales": _p2r(v["sales"]), "returns": _p2r(v["returns"]), "bills": v["bills"]}
-                            for d, v in sorted(daily_sales.items())][-14:],
+                            for d, v in trend_items],
+            "analytics_range": {
+                "start": trend_items[0][0] if trend_items else None,
+                "end": trend_items[-1][0] if trend_items else None,
+                "is_custom": bool(range_start and range_end),
+            },
             "category_sales": [{"category": c or "Uncategorized", "revenue": _p2r(r)} for c, r in cat_rows],
             "top_products": [{"name": n, "revenue": _p2r(r), "qty": q} for n, r, q in product_sales_rows],
             "top_customers": [{"name": n, "revenue": _p2r(d["revenue"]), "bills": d["bills"]}
@@ -1186,6 +1233,8 @@ async def get_dashboard_analytics(db: AsyncSession = Depends(
                 "alert_days": drug_license_alert_days,
             },
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Dashboard analytics error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

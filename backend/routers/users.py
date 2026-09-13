@@ -11,7 +11,9 @@ from sqlalchemy.orm import joinedload
 
 from deps import get_db
 from models.users import Role as RoleORM, User as UserORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, hash_password, verify_password
+from routers.auth_helpers import (
+    User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
+)
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -53,8 +55,7 @@ def _user_response(user: UserORM) -> dict:
 @router.get("/users")
 async def get_all_users(current_user: User = Depends(get_current_user),
                         db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM)
         .options(joinedload(UserORM.role))
@@ -66,8 +67,7 @@ async def get_all_users(current_user: User = Depends(get_current_user),
 @router.post("/users")
 async def create_user(user_data: UserCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -104,8 +104,7 @@ async def create_user(user_data: UserCreate, current_user: User = Depends(
 @router.get("/users/{user_id}")
 async def get_user(user_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM).options(joinedload(UserORM.role)).where(
             UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
@@ -119,8 +118,7 @@ async def get_user(user_id: str, current_user: User = Depends(
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, user_update: UserUpdate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(UserORM).options(joinedload(UserORM.role)).where(
             UserORM.id == uuid.UUID(user_id), UserORM.pharmacy_id == uuid.UUID(current_user.pharmacy_id))
@@ -166,8 +164,7 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 @router.delete("/users/{user_id}")
 async def deactivate_user(user_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
     user = await get_owned_or_404(

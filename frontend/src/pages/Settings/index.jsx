@@ -11,7 +11,6 @@ import { useSettings }        from './hooks/useSettings';
 import InventoryTab           from './components/InventoryTab';
 import BillingTab             from './components/BillingTab';
 import ReturnsTab             from './components/ReturnsTab';
-import GeneralTab             from './components/GeneralTab';
 import BillSequenceTab        from './components/BillSequenceTab';
 import PharmacyProfileTab     from './components/PharmacyProfileTab';
 import ReceiptTab             from './components/ReceiptTab';
@@ -85,7 +84,6 @@ export default function Settings() {
               {activeTab === 'inventory'     && <InventoryTab     inventory={settings.inventory}  onUpdate={makeUpdater('inventory')} />}
               {activeTab === 'billing'       && <BillingTab       billing={settings.billing}      onUpdate={makeUpdater('billing')} />}
               {activeTab === 'returns'       && <ReturnsTab       returns={settings.returns}      onUpdate={makeUpdater('returns')} />}
-              {activeTab === 'general'       && <GeneralTab       general={settings.general}      onUpdate={makeUpdater('general')} />}
               {activeTab === 'bill_sequence' && (
                 <BillSequenceTab
                   billSequences={billSequences}

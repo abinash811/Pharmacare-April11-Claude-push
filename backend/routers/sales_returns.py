@@ -15,7 +15,7 @@ from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
 from models.users import Role as RoleORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["sales_returns"])
 
@@ -221,26 +221,56 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
 
+    ps_result = await db.execute(
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    ps = ps_result.scalar_one_or_none()
+    return_window_days = ps.return_window_days if ps else 7
+    require_original_bill = ps.require_original_bill if ps else False
+    allow_partial_return = ps.allow_partial_return if ps else True
+
     # Require original bill unless admin
     if not return_data.original_bill_id:
-        if current_user.role != "admin":
-            role_result = await db.execute(
-                select(RoleORM).where(
-                    RoleORM.pharmacy_id == pharmacy_id,
-                    RoleORM.name == current_user.role)
+        # Settings → Returns "Require original bill for all returns" — found
+        # Sep 13, 2026 (Settings product-review): this toggle saved but was
+        # never read anywhere. When on, it overrides the allow_manual_returns
+        # permission entirely — a hard compliance rule the owner set, not
+        # something an individual role can be granted around.
+        if require_original_bill:
+            raise HTTPException(
+                status_code=400,
+                detail="Original bill is required for all returns (Settings → Returns).",
             )
-            role = role_result.scalar_one_or_none()
-            perms = role.permissions if role and isinstance(role.permissions, list) else []
-            if "allow_manual_returns" not in perms:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Manual returns require permission. Returns can only be created from an existing bill.",
-                )
+        # Used has_permission() here instead of the old inline role/list
+        # lookup — found the same day: the inline check only matched the
+        # literal string "allow_manual_returns" in a role's permission
+        # list, so a custom role granted every permission via the "*"
+        # wildcard (shown in the UI as "Super Admin") still failed this
+        # specific check. has_permission() already honors "*".
+        if not await has_permission(current_user, "allow_manual_returns", db):
+            raise HTTPException(
+                status_code=403,
+                detail="Manual returns require permission. Returns can only be created from an existing bill.",
+            )
         raise HTTPException(status_code=400, detail="Original bill ID is required")
 
     original_bill = await get_owned_or_404(
         db, Bill, return_data.original_bill_id, pharmacy_id, not_found_detail="Original bill not found")
     bill_id = original_bill.id
+
+    # Settings → Returns "Return window (days)" — found Sep 13, 2026
+    # (Settings product-review): saved but never checked against the
+    # original bill's age, so a return could be filed for a sale from
+    # years ago regardless of what the pharmacy configured.
+    if original_bill.created_at:
+        bill_age_days = (date.today() - original_bill.created_at.date()).days
+        if bill_age_days > return_window_days:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"This bill is {bill_age_days} days old — returns are only allowed within "
+                    f"{return_window_days} days (Settings → Returns)."
+                ),
+            )
 
     # Get original bill items for validation
     bill_items_result = await db.execute(select(BillItem).where(BillItem.bill_id == bill_id))
@@ -255,6 +285,23 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
                 detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
                         f"original billed quantity ({orig_item.quantity})"),
             )
+
+    # Settings → Returns "Allow partial returns" — found Sep 13, 2026
+    # (Settings product-review): saved but never enforced, so a return for
+    # only some of a bill's items always succeeded regardless of the
+    # toggle. When off, every item on the original bill must be returned
+    # in full.
+    if not allow_partial_return:
+        returned_batches = {item.batch_no: item.qty for item in return_data.items}
+        for bi in bill_items:
+            if returned_batches.get(bi.batch_number, 0) != bi.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Partial returns are disabled (Settings → Returns) — "
+                        "the full quantity of every item on the original bill must be returned."
+                    ),
+                )
 
     return_no = await _generate_credit_note_number(pharmacy_id, db)
 
@@ -508,17 +555,11 @@ async def update_sales_return(
         db, SalesReturnORM, rid, pharmacy_id, not_found_detail="Sales return not found")
 
     if financial_edit and update_data.items:
-        # Permission check
-        if current_user.role != "admin":
-            role_result = await db.execute(
-                select(RoleORM).where(
-                    RoleORM.pharmacy_id == pharmacy_id,
-                    RoleORM.name == current_user.role)
-            )
-            role = role_result.scalar_one_or_none()
-            perms = role.permissions if role and isinstance(role.permissions, list) else []
-            if "allow_financial_edit_return" not in perms:
-                raise HTTPException(status_code=403, detail="Financial edit requires permission")
+        # has_permission() honors a "*"-wildcard ("Super Admin") custom role
+        # the same way admin's own permissions list does — see the identical
+        # fix on create_sales_return's allow_manual_returns check above.
+        if not await has_permission(current_user, "allow_financial_edit_return", db):
+            raise HTTPException(status_code=403, detail="Financial edit requires permission")
 
         # Reverse old stock changes
         old_items_result = await db.execute(
@@ -674,8 +715,7 @@ async def update_role_return_permissions(
     allow_financial_edit_return: bool = False,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can update permissions")
+    await require_admin_or_super(current_user, db, detail="Only admins can update permissions")
 
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")

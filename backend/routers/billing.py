@@ -401,23 +401,34 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
     is_draft = bill_data.status == "draft"
     is_sale = bill_data.invoice_type == "SALE"
 
-    # Settings-driven expiry enforcement — only fetched for a real finalizing
-    # sale (matches the H1/MRP checks' own gate) to avoid an extra query on
-    # every draft autosave. Read-only here: never db.add()s a missing row,
+    # Settings-driven checks. Read-only here: never db.add()s a missing row,
     # so this can't race _generate_bill_number's own fetch-or-create below
     # when both run in the same request (SQLAlchemy's identity map dedupes
     # the read once a row exists; when none exists yet, only the writer
     # creates one).
-    block_expired_stock, allow_near_expiry_sale, near_expiry_days = True, True, 90
-    if not is_draft and is_sale:
-        bs_result = await db.execute(
-            select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
-        bs = bs_result.scalar_one_or_none()
-        if bs:
-            block_expired_stock = bs.block_expired_stock
-            allow_near_expiry_sale = bs.allow_near_expiry_sale
-            near_expiry_days = bs.near_expiry_threshold_days
+    # Was previously gated behind "not is_draft and is_sale" (expiry checks
+    # only matter for a real finalizing sale) — now fetched unconditionally
+    # since enable_draft_bills/default_gst_rate/round_off_amount matter for
+    # a draft too, and GST/rounding apply to every bill regardless of status.
+    bs_result = await db.execute(
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    bs = bs_result.scalar_one_or_none()
+    block_expired_stock = bs.block_expired_stock if bs else True
+    allow_near_expiry_sale = bs.allow_near_expiry_sale if bs else True
+    near_expiry_days = bs.near_expiry_threshold_days if bs else 90
+    default_gst_rate = float(bs.default_gst_rate) if bs else 5.0
+    round_off_amount = bs.round_off_amount if bs else True
     today_for_expiry = date.today()
+
+    # Settings → Billing "Enable draft bills" — found Sep 13, 2026 (Settings
+    # product-review): this toggle saved but was never read anywhere, so
+    # turning it off had zero effect. Only gates *creating* a new draft
+    # (Park Bill) — an existing draft can still be edited/finalized via
+    # update_bill regardless, so disabling this can't strand prior work.
+    if is_draft and bs and not bs.enable_draft_bills:
+        raise HTTPException(
+            status_code=400,
+            detail="Draft bills are disabled in Settings → Billing preferences.")
 
     # Drafts use a per-bill unique placeholder so concurrent/repeated drafts don't
     # collide on the UNIQUE(pharmacy_id, bill_number) constraint. Finalized bills
@@ -507,7 +518,7 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
         disc_paise = int(mrp_paise * quantity * disc_percent / 100)
         taxable_paise = mrp_paise * quantity - disc_paise
-        gst_rate = item.get("gst_percent", bill_data.tax_rate or 5)
+        gst_rate = item.get("gst_percent", bill_data.tax_rate or default_gst_rate)
         line_gst_paise = int(taxable_paise * gst_rate / 100)
         line_total_paise = taxable_paise + line_gst_paise
         line_cost_paise = batch.cost_price_paise * quantity
@@ -547,7 +558,11 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
     bill_discount_paise = int((bill_data.discount or 0) * 100)
     total_discount_paise = item_discount_paise + bill_discount_paise
     grand_total_paise = subtotal_paise + gst_paise - bill_discount_paise
-    grand_total_paise = round(grand_total_paise / 100) * 100  # round to nearest rupee
+    # Settings → Tax & GST "Round off amount" — found Sep 13, 2026
+    # (Settings product-review): rounding used to happen unconditionally,
+    # so this toggle saved but had no effect either way.
+    if round_off_amount:
+        grand_total_paise = round(grand_total_paise / 100) * 100  # round to nearest rupee
 
     # Determine payment
     paid_paise = 0
@@ -694,16 +709,17 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
 
     # See the identical block in create_bill for why this is safe to
     # read-only-fetch here without racing _generate_bill_number's own
-    # fetch-or-create later in this function.
-    block_expired_stock, allow_near_expiry_sale, near_expiry_days = True, True, 90
-    if is_finalizing_preview and is_sale_preview:
-        bs_result = await db.execute(
-            select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
-        bs = bs_result.scalar_one_or_none()
-        if bs:
-            block_expired_stock = bs.block_expired_stock
-            allow_near_expiry_sale = bs.allow_near_expiry_sale
-            near_expiry_days = bs.near_expiry_threshold_days
+    # fetch-or-create later in this function. Fetched unconditionally (not
+    # just when finalizing) since default_gst_rate/round_off_amount apply
+    # to every save, same as create_bill.
+    bs_result = await db.execute(
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    bs = bs_result.scalar_one_or_none()
+    block_expired_stock = bs.block_expired_stock if bs else True
+    allow_near_expiry_sale = bs.allow_near_expiry_sale if bs else True
+    near_expiry_days = bs.near_expiry_threshold_days if bs else 90
+    default_gst_rate = float(bs.default_gst_rate) if bs else 5.0
+    round_off_amount = bs.round_off_amount if bs else True
     today_for_expiry = date.today()
 
     for item in bill_data.items:
@@ -748,7 +764,7 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
         disc_percent = item.get("disc_percent", item.get("discount_percent", 0))
         disc_paise = int(mrp_paise * quantity * disc_percent / 100)
         taxable_paise = mrp_paise * quantity - disc_paise
-        gst_rate = item.get("gst_percent", bill_data.tax_rate or 5)
+        gst_rate = item.get("gst_percent", bill_data.tax_rate or default_gst_rate)
         line_gst_paise = int(taxable_paise * gst_rate / 100)
         line_total_paise = taxable_paise + line_gst_paise
         line_cost_paise = batch.cost_price_paise * quantity
@@ -796,7 +812,11 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
 
     bill_discount_paise = int((bill_data.discount or 0) * 100)
     total_discount_paise = item_discount_paise + bill_discount_paise
-    grand_total_paise = round((subtotal_paise + gst_paise - bill_discount_paise) / 100) * 100
+    grand_total_paise = subtotal_paise + gst_paise - bill_discount_paise
+    # Settings → Tax & GST "Round off amount" — see the identical fix in
+    # create_bill.
+    if round_off_amount:
+        grand_total_paise = round(grand_total_paise / 100) * 100
 
     new_status = bill_data.status or "draft"
     is_finalizing = new_status == "paid" and bill.status == "draft"
@@ -1036,6 +1056,12 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         pdf.drawString(50, detail_y, "     ".join(line_bits))
         detail_y -= 13
 
+    # Settings → Tax & GST "Print GST summary on bill" — found Sep 13, 2026
+    # (Settings product-review): the HSN/GST% breakdown used to always
+    # print regardless of this toggle. Column position is kept even when
+    # off (blank value) so the fixed layout above/below doesn't shift.
+    show_gst_summary = not ps or ps.print_gst_summary
+
     # ── Item table ── two lines per item: name on top, then manufacturer /
     # HSN / schedule / pack / batch / expiry / MRP / qty / disc / price / GST.
     col_sr, col_name, col_batch, col_mrp, col_qty, col_disc, col_dprice, col_gst, col_amount = (
@@ -1068,7 +1094,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         pdf.setFont("Helvetica", 6.5)
         sub_bits = [b for b in [
             info.get("manufacturer"),
-            f"HSN {item.hsn_code}" if item.hsn_code else None,
+            f"HSN {item.hsn_code}" if item.hsn_code and show_gst_summary else None,
             f"Sch {item.drug_schedule}" if item.drug_schedule else None,
             info.get("pack_size"),
         ] if b]
@@ -1083,7 +1109,8 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         pdf.drawString(col_qty, y, str(item.quantity))
         pdf.drawString(col_disc, y, f"{float(item.discount_percent):.0f}%")
         pdf.drawString(col_dprice, y, f"₹{item.sale_price_paise / 100:.2f}")
-        pdf.drawString(col_gst, y, f"{float(item.gst_rate):.0f}%")
+        if show_gst_summary:
+            pdf.drawString(col_gst, y, f"{float(item.gst_rate):.0f}%")
         pdf.setFont("Helvetica-Bold", 8)
         pdf.drawRightString(col_amount, y, f"₹{item.line_total_paise / 100:.2f}")
 
@@ -1096,7 +1123,10 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
     mrp_total = bill.mrp_total_paise / 100
     discount = bill.total_discount_paise / 100
     gst = bill.total_gst_paise / 100
-    for label, val in [("MRP Total", mrp_total), ("Discount", -discount), ("GST", gst)]:
+    summary_lines = [("MRP Total", mrp_total), ("Discount", -discount)]
+    if show_gst_summary:
+        summary_lines.append(("GST", gst))
+    for label, val in summary_lines:
         pdf.drawRightString(470, y, label)
         pdf.drawRightString(col_amount, y, f"₹{val:.2f}")
         y -= 14

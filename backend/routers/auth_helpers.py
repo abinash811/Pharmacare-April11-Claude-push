@@ -176,3 +176,21 @@ async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
         module, _, action = permission.partition(":")
         return bool(perms.get(module, {}).get(action, False))
     return False
+
+
+async def require_admin_or_super(user: User, db: AsyncSession, detail: str = "Admin access required") -> None:
+    """Same gate as `if current_user.role != "admin": raise 403`, but also
+    honors a custom role granted the "*" wildcard permission — shown in the
+    UI as "Super Admin" (RolesTab.jsx's `is_super_admin` badge). Found Sep
+    13, 2026 (Settings product-review): every admin-only endpoint checked
+    the literal role name "admin", so a custom role given every permission
+    still couldn't manage users/roles/settings/batches — the UI implied
+    parity with Admin that the backend never granted. Raises the same 403
+    the literal check used to, so callers don't need to change their error
+    handling.
+    """
+    if user.role == "admin":
+        return
+    if await has_permission(user, "*", db):
+        return
+    raise HTTPException(status_code=403, detail=detail)

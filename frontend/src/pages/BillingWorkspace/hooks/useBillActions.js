@@ -27,8 +27,12 @@ import { apiUrl } from '@/constants/api';
  * @param {object}   printPharmacyInfo — pharmacy_name/address/phone/gstin/
  *   drug_license/fssai/pan/bill_header/bill_footer/print_signature/
  *   print_patient_name, already filtered by the Show-on-Bill toggles
+ * @param {boolean}  autoPrintInvoice — Settings → Billing "Auto-print
+ *   invoice after checkout": when true, confirmAndSaveBill (the normal
+ *   Finalize action) prints automatically, same as the explicit
+ *   saveBillAndPrint action always does.
  */
-export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printPharmacyInfo = {}) {
+export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printPharmacyInfo = {}, autoPrintInvoice = false) {
   const navigate  = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -138,6 +142,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     const {
       paymentType, billedBy, mrpTotal, totalDiscount, totalGst, totalCess,
       grandTotal, margin, billDiscount, billDiscountType,
+      billItems, customerName, customerPhone, doctorName, subtotal,
     } = billSnapshot;
 
     let billDiscAmt = 0;
@@ -171,13 +176,35 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     try {
       const res = await api.post(apiUrl.bills(), payload);
       toast.success(`Bill #${res.data.bill_number} created successfully!`);
-      afterSuccess();
+      if (autoPrintInvoice) {
+        // Settings → Billing "Auto-print invoice after checkout" — found
+        // Sep 13, 2026 (Settings product-review): this toggle saved but
+        // was never read anywhere in the frontend, so it had no effect
+        // regardless of what a pharmacy configured.
+        onPrintReady?.({
+          ...printPharmacyInfo,
+          bill_number:    res.data.bill_number,
+          items:          billItems,
+          customer_name:  customerName || 'Walk-in Customer',
+          customer_phone: customerPhone,
+          doctor_name:    doctorName,
+          payment_method: paymentType,
+          subtotal,
+          total_discount: totalDiscount,
+          total_gst:      totalGst,
+          grand_total:    grandTotal,
+        });
+        setTimeout(() => { window.print(); afterSuccess(); }, 200);
+      } else {
+        afterSuccess();
+      }
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save bill. Transaction rolled back.');
     } finally {
       setIsSaving(false);
     }
-  }, [billSnapshot]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see saveBillAndPrint above
+  }, [billSnapshot, printPharmacyInfo, autoPrintInvoice]);
 
   // ── handlePrintCurrentBill ────────────────────────────────────────────────
   const handlePrintCurrentBill = useCallback(() => {

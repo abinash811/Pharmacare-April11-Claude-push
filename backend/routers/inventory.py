@@ -168,7 +168,20 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
     # pharmacy only needs the four codes in CATEGORY_HSN_MAP, and letting it
     # be typed per product is how the same kind of item ends up miscoded
     # differently depending on who added it.
-    hsn_code = CATEGORY_HSN_MAP.get(data.category, "3004")
+    # "medicine"/"surgical" use the pharmacy's own configured HSN codes
+    # (Settings → Tax & GST) when set — found Sep 13, 2026 (Settings
+    # product-review): those two fields saved but were never read anywhere,
+    # always falling back to the fixed constant regardless of what a
+    # pharmacy configured. The other two categories (first_aid, device)
+    # have no equivalent Settings field, so they keep the fixed constant.
+    ps_result = await db.execute(
+        select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
+    ps = ps_result.scalar_one_or_none()
+    category_hsn_overrides = {
+        "medicine": ps.default_hsn_medicines if ps else None,
+        "surgical": ps.default_hsn_surgical if ps else None,
+    }
+    hsn_code = category_hsn_overrides.get(data.category) or CATEGORY_HSN_MAP.get(data.category, "3004")
 
     product = ProductORM(
         pharmacy_id=pharmacy_id, sku=sku, name=data.name,
@@ -389,7 +402,19 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
     for key, value in updates.items():
         setattr(product, field_map.get(key, key), value)
     if "category" in updates:
-        product.hsn_code = CATEGORY_HSN_MAP.get(updates["category"], "3004")
+        # Same pharmacy-configured HSN override as create_product — see
+        # that function's comment.
+        ps_result = await db.execute(
+            select(PharmacySettings).where(PharmacySettings.pharmacy_id == product.pharmacy_id))
+        ps = ps_result.scalar_one_or_none()
+        category_hsn_overrides = {
+            "medicine": ps.default_hsn_medicines if ps else None,
+            "surgical": ps.default_hsn_surgical if ps else None,
+        }
+        product.hsn_code = (
+            category_hsn_overrides.get(updates["category"])
+            or CATEGORY_HSN_MAP.get(updates["category"], "3004")
+        )
     await db.flush()
     return {"message": "Product updated successfully"}
 

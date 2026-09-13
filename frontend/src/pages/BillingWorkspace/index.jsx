@@ -62,6 +62,7 @@ export default function BillingWorkspace() {
   const [printFormat,    setPrintFormat]    = useState('80mm'); // default until settings load
   const [pharmacyGeneral, setPharmacyGeneral] = useState(null);
   const [printSettings,  setPrintSettings]  = useState(null); // full settings.print — toggles, header/footer text
+  const [autoPrintInvoice, setAutoPrintInvoice] = useState(false); // Settings → Billing "Auto-print invoice after checkout"
 
   // ── Items + totals hook ──────────────────────────────────────────────────
   const {
@@ -135,6 +136,7 @@ export default function BillingWorkspace() {
         setPrintFormat(sr.data?.print?.paper_size || '80mm');
         setPharmacyGeneral(sr.data?.general || null);
         setPrintSettings(sr.data?.print || null);
+        setAutoPrintInvoice(!!sr.data?.billing?.auto_print_invoice);
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
@@ -184,7 +186,7 @@ export default function BillingWorkspace() {
   const printPharmacyInfo = buildPrintPharmacyInfo(pharmacyGeneral, printSettings);
 
   const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
-    useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo);
+    useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo, autoPrintInvoice);
 
   const handlePatientSelect = (patient) => {
     if (patient === 'counter') { setCustomerName('Counter Sale'); setCustomerPhone(''); }

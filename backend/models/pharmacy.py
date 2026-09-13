@@ -89,6 +89,16 @@ class PharmacySettings(Base):
     gst_type: Mapped[str] = mapped_column(String(20), default="intrastate", nullable=False)
     round_off_amount: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     print_gst_summary: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Billing preferences — found Sep 13, 2026 (Settings product-review):
+    # GET /settings previously returned these two as hardcoded constants and
+    # PUT silently ignored the "billing" section entirely — a save appeared
+    # to succeed but nothing was ever stored. See docs/15_ROADMAP.md.
+    enable_draft_bills: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    auto_print_invoice: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Returns preferences — same bug as billing above, found the same day.
+    return_window_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    require_original_bill: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    allow_partial_return: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Print
     paper_size: Mapped[str] = mapped_column(String(10), default="80mm", nullable=False)
     print_logo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

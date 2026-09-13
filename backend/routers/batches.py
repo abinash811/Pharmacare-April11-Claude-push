@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["batches"])
 
@@ -269,8 +269,7 @@ async def update_stock_batch(
         batch_data: StockBatchUpdate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can update stock batches")
+    await require_admin_or_super(current_user, db, detail="Only admins can update stock batches")
 
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     updates = batch_data.model_dump(exclude_unset=True)
@@ -323,8 +322,7 @@ async def update_stock_batch(
 @router.delete("/stock/batches/{batch_id}")
 async def delete_stock_batch(batch_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can delete stock batches")
+    await require_admin_or_super(current_user, db, detail="Only admins can delete stock batches")
 
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     if batch.quantity_on_hand > 0:

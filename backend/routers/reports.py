@@ -26,7 +26,7 @@ from models.purchases import (
 )
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
-from routers.auth_helpers import User, get_current_user, has_permission
+from routers.auth_helpers import User, get_current_user, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["reports"])
 logger = logging.getLogger(__name__)
@@ -1237,8 +1237,7 @@ async def get_purchase_analytics(
 @router.get("/backup/export")
 async def export_data(db: AsyncSession = Depends(get_db),
                       current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can export data")
+    await require_admin_or_super(current_user, db, detail="Only admins can export data")
     pid = current_user.pharmacy_id
 
     async def _dump(model):

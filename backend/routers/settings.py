@@ -15,7 +15,7 @@ from deps import get_db
 from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.users import Role as RoleORM, User as UserORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404
+from routers.auth_helpers import User, get_current_user, get_owned_or_404, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -220,16 +220,16 @@ async def get_settings(current_user: User = Depends(get_current_user),
             "drug_license_alert_days": ps.drug_license_alert_days if ps else 90,
         },
         "billing": {
-            "enable_draft_bills": True,
-            "auto_print_invoice": False,
+            "enable_draft_bills": ps.enable_draft_bills if ps else True,
+            "auto_print_invoice": ps.auto_print_invoice if ps else False,
             "bill_prefix": ps.bill_prefix if ps else "INV",
             "bill_sequence_number": ps.bill_sequence_number if ps else 1,
             "bill_number_length": ps.bill_number_length if ps else 6,
         },
         "returns": {
-            "return_window_days": 7,
-            "require_original_bill": False,
-            "allow_partial_return": True,
+            "return_window_days": ps.return_window_days if ps else 7,
+            "require_original_bill": ps.require_original_bill if ps else False,
+            "allow_partial_return": ps.allow_partial_return if ps else True,
         },
         "general": {
             "name": pharmacy.name if pharmacy else "",
@@ -284,8 +284,7 @@ async def get_settings(current_user: User = Depends(get_current_user),
 @router.put("/settings")
 async def update_settings(settings_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -367,6 +366,24 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
         if field in gst:
             setattr(ps, field, gst[field])
 
+    # Billing / Returns preferences — found Sep 13, 2026 (Settings
+    # product-review): GET previously returned hardcoded constants for both
+    # and PUT never processed either section at all, so a save here silently
+    # did nothing. See docs/15_ROADMAP.md.
+    billing_prefs = settings_data.get("billing", {})
+    if "enable_draft_bills" in billing_prefs:
+        ps.enable_draft_bills = billing_prefs["enable_draft_bills"]
+    if "auto_print_invoice" in billing_prefs:
+        ps.auto_print_invoice = billing_prefs["auto_print_invoice"]
+
+    returns_prefs = settings_data.get("returns", {})
+    if "return_window_days" in returns_prefs:
+        ps.return_window_days = returns_prefs["return_window_days"]
+    if "require_original_bill" in returns_prefs:
+        ps.require_original_bill = returns_prefs["require_original_bill"]
+    if "allow_partial_return" in returns_prefs:
+        ps.allow_partial_return = returns_prefs["allow_partial_return"]
+
     # ── Pharmacy profile ──────────────────────────────────────────────────────
     general = settings_data.get("general", {})
     if general:
@@ -392,9 +409,9 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
 # ── /permissions ──────────────────────────────────────────────────────────────
 
 @router.get("/permissions")
-async def get_all_permissions(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+async def get_all_permissions(current_user: User = Depends(get_current_user),
+                              db: AsyncSession = Depends(get_db)):
+    await require_admin_or_super(current_user, db)
     return ALL_PERMISSIONS
 
 
@@ -403,8 +420,7 @@ async def get_all_permissions(current_user: User = Depends(get_current_user)):
 @router.get("/roles")
 async def get_all_roles(current_user: User = Depends(get_current_user),
                         db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     result = await db.execute(
         select(RoleORM).where(
             RoleORM.pharmacy_id == uuid.UUID(
@@ -417,8 +433,7 @@ async def get_all_roles(current_user: User = Depends(get_current_user),
 @router.post("/roles")
 async def create_role(role_data: RoleCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     existing = await db.execute(select(RoleORM).where(
         RoleORM.pharmacy_id == pharmacy_id, RoleORM.name == role_data.name))
@@ -440,8 +455,7 @@ async def create_role(role_data: RoleCreate, current_user: User = Depends(
 @router.get("/roles/{role_id}")
 async def get_role(role_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     return _role_response(role)
@@ -450,8 +464,7 @@ async def get_role(role_id: str, current_user: User = Depends(
 @router.put("/roles/{role_id}")
 async def update_role(role_id: str, role_update: RoleUpdate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     if role.is_system_role:
@@ -470,8 +483,7 @@ async def update_role(role_id: str, role_update: RoleUpdate, current_user: User 
 @router.delete("/roles/{role_id}")
 async def delete_role(role_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     if role.is_system_role:
@@ -530,8 +542,7 @@ async def update_bill_sequence_settings(
         seq_settings: BillSequenceSettings,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+    await require_admin_or_super(current_user, db)
     if seq_settings.document_type not in _SEQUENCE_TYPES:
         raise HTTPException(
             status_code=400, detail=f"Unknown document_type '{seq_settings.document_type}'"

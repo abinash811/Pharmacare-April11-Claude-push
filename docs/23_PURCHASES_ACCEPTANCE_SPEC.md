@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.11 | Last updated: September 13, 2026
+# Version: 1.12 | Last updated: September 13, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -47,17 +47,37 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    rejected outright with a 400 (frontend and backend) instead of silently
    capping `amount_paid_paise` while the `PurchasePayment` row kept the raw
    uncapped amount. See UC-P29 below for full detail and regression tests.
-2. **A genuine double-submit with no batch number creates duplicate stock.**
-   The duplicate-batch guard only fires if two submissions share the exact
-   same explicit `batch_no`. Leave it blank and a real double-click/retry
-   can create two full purchases and double the stock. Frontend disables
-   the button during `loading`, but that's same-tab only.
-   (`backend/routers/purchases.py:288-305`) **Re-verified Sep 13, 2026 —
-   still true, unchanged.** `_create_stock_for_items` still keys the guard
-   on `batch_number`, falling back to `f"PUR-{purchase.purchase_number[:8]}"`
-   when blank — two concurrent submits get two different sequential
-   purchase numbers, so the fallback batch numbers differ and the guard
-   never fires. No idempotency-key logic exists anywhere in the router.
+2. ~~A genuine double-submit with no batch number creates duplicate
+   stock.~~ — 🔄 **Partially fixed, Sep 13, 2026, root cause corrected.**
+   Two distinct bugs were actually hiding under this one line:
+   - **The explicit-batch-number race** (two near-simultaneous confirms
+     sharing the exact same typed-in batch number) — ✅ fixed: the
+     SELECT-then-INSERT check was never atomic, so a real race could
+     slip both through. `uq_batches_product_batchnumber_active`
+     (migration `29481ee67a4b`, a partial unique index scoped to active
+     batches) now makes the database itself the final word.
+   - **The actual root cause of the "no batch number" case investigated
+     while fixing the above — it was never a race at all.** The fallback
+     (`f"PUR-{purchase.purchase_number[:8]}"`) always truncated to just
+     `"PUR-YYYY"` — identical for every purchase confirmed in the same
+     year — so it collided for *any* two no-batch-number confirmations of
+     the same product, even two unrelated purchases for different
+     suppliers, or two line items of the same product within one
+     purchase. ✅ Fixed to use the full purchase number plus the item's
+     position, which is what actually makes concurrent submits land on
+     genuinely different fallback numbers.
+   - **What's still genuinely open:** true double-submit protection (the
+     same real order accidentally confirmed twice, each getting its own
+     valid, non-colliding batch, silently doubling stock) needs a real
+     client-generated idempotency key, not a heuristic. A same-supplier/
+     same-amount/10-second-window guard was built and tested, then
+     **reverted the same day** — it false-positived on a legitimate
+     existing scenario (two real, distinct same-amount purchases from
+     the same supplier seconds apart, exercised by
+     `test_supplier_list_outstanding_and_payment.py`'s own FIFO-payment
+     test). Left open rather than shipped on a guess — matches the same
+     "needs to be thought through properly first" standard applied to
+     backdating (#14) below.
 3. ~~The GST report page is broken.~~ — ✅ **Fixed** (between Sep 7–13,
    2026, part of the Batch 1 GST-crash fix). `GET /reports/gst` now
    returns `sales`/`purchases`/`sales_summary`/`purchases_summary`/
@@ -71,13 +91,16 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    independently broken too. Rebuilt the filter as a single dropdown
    (was 4 pills), matching the Distributor filter's style, per direct
    UI feedback.
-5. **Stock adjustment has no permission check at all.** `POST
-   /batches/{id}/adjust` only requires being logged in — a cashier can
-   adjust any stock quantity. Every other purchase-related write endpoint
-   got gated in the Aug 24 permission pass; this one was missed.
-   **Re-verified Sep 13, 2026 — still true, unchanged.** `adjust_stock`
-   (`batches.py:340-373`) has zero permission calls; confirmed the whole
-   file has no gating logic at all.
+5. ~~Stock adjustment has no permission check at all.~~ — ✅ **Fixed Sep
+   13, 2026.** `POST /batches/{id}/adjust` only required being logged
+   in — a cashier could adjust any stock quantity. Grepping the whole
+   file while fixing it found the identical gap in three sibling
+   endpoints, not just this one: `POST /stock/batches` (create),
+   `POST /batches/{id}/writeoff-expiry`, and `POST /stock-movements` —
+   all fixed together with one new `_require_inventory_permission()`
+   helper (`inventory:batches_create`/`inventory:stock_adjust`, both
+   real, already-seeded permissions nothing had ever called). Had been
+   true and unchanged since Aug 24, 2026.
 
 ### ❌ The one remaining structural gap (down from two)
 
@@ -96,11 +119,29 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 
 ### Everything else worth knowing before you plan work
 
-8. Confirmed purchases can never be corrected — no reversal, no adjustment
-   path, only "blocked from editing." A genuine mistake is permanent.
-   **Re-verified Sep 13, 2026 — still true.**
-9. Payments can never be edited or reversed once recorded — same problem.
-   **Re-verified Sep 13, 2026 — still true.**
+8. ~~Confirmed purchases can never be corrected — no reversal, no
+   adjustment path, only "blocked from editing."~~ — ✅ **Fixed Sep 13,
+   2026.** New admin-only `PUT /purchases/{id}/correct`, mandatory
+   reason, fully audit-logged old-vs-new. Deliberately does NOT allow
+   correcting quantity (a quantity mistake still goes through a purchase
+   return — the batch's stock may already be sold/returned against, so
+   retroactively changing ordered/received counts risks inventing or
+   destroying real stock). What it does correct — invoice number/date,
+   notes, and per-item MRP/cost price/batch number/expiry — also writes
+   through to the linked `StockBatch`, not just the purchase item, so
+   the correction reaches the live, billable record.
+9. ~~Payments can never be edited or reversed once recorded — same
+   problem.~~ — ✅ **Fixed Sep 13, 2026.** New `GET /purchases/{id}/
+   payments` (individual payment rows were recorded from day one but
+   never exposed — nothing to reverse without first being able to see
+   one) and admin-only `POST /purchases/{id}/payments/{payment_id}/
+   reverse`, mandatory reason. Soft-reverses (Manifesto rule 6 — sets
+   `reversed_at`/`reversed_by`/`reversal_reason`, never deletes the
+   row) and re-derives `amount_paid_paise`/`payment_status` from the
+   sum of remaining non-reversed payments. Suppliers'
+   `_payment_history_by_suppliers` updated to exclude reversed payments
+   too (a real cross-cutting consumer of the same `PurchasePayment`
+   rows, per Manifesto rule 11).
 10. ~~4 of 5 spec'd entry points to start a return are broken or
     missing~~ — **improved to 3 of 5 broken/missing (Sep 13, 2026).** New
     since Sep 7: Supplier Detail's near-expiry batches list now has a real
@@ -123,6 +164,13 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
     analytics don't.
 14. Backdating a purchase has no authorization gate — anyone can.
     **Re-verified Sep 13, 2026 — still true**, both create and update.
+    **Explicitly deferred, Sep 13, 2026, direct instruction**: asked
+    whether to add a window-based gate (allow freely up to 30 days,
+    require admin beyond that) versus a log-only approach; the answer
+    was neither — no backdating restriction of any kind should be built
+    until it's been thought through properly as a real policy decision,
+    not bolted on as a quick permission check. Left open on purpose, not
+    missed.
 15. ~~Pulling the GST report has no permission gate~~ — ✅ **Fixed**
     (between Sep 7–13, 2026). A new `_require_reports_permission` now
     gates all 10 report/analytics endpoints, GST report and
@@ -439,10 +487,15 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 
 **Batch 1 — stop active bleeding (bugs, not features)**
 1. ~~Overpayment ledger bug (#1)~~ — ✅ done, Sep 7
-2. **Double-confirm duplicate-stock bug (#2) — still open, re-verified Sep 13.**
+2. ~~Double-confirm duplicate-stock bug (#2)~~ — 🔄 **partially fixed Sep
+   13**: the explicit-batch-number race and the actual root cause (a
+   fallback-batch-number collision bug, not a race) are both fixed. True
+   double-submit idempotency protection remains open — needs a real
+   design, not a heuristic (see #2's full note above).
 3. ~~GST report broken render (#3)~~ — ✅ done between Sep 7–13
 4. ~~Dead Cash/Credit/Due filter pills (#4)~~ — ✅ done, Aug 26
-5. **Stock-adjust missing permission check (#5) — still open, re-verified Sep 13.**
+5. ~~Stock-adjust missing permission check (#5)~~ — ✅ done Sep 13, along
+   with 3 sibling endpoints found unprotected in the same file.
 
 **Batch 2 — the flow that blocks day-one usage**
 6. ~~Inline add-distributor during purchase entry~~ — ✅ done, Aug 25 (UC-P02)
@@ -476,32 +529,35 @@ partial items, in small batches. Suggested batch order, worst-impact first:
 9. **Still open** — reason field (PR03).
 
 **Batch 4 — correction mechanisms**
-10. **Still open, re-verified Sep 13** — some controlled way to correct a
-    confirmed purchase (P09).
-11. **Still open, re-verified Sep 13** — payment edit/reversal (P31).
+10. ~~Some controlled way to correct a confirmed purchase (P09)~~ — ✅
+    done Sep 13, 2026.
+11. ~~Payment edit/reversal (P31)~~ — ✅ done Sep 13, 2026.
 
 **Batch 5 — reporting**
 12. ~~Wire the frontend to `/analytics/purchases`~~ — ✅ done (Batch 6,
     between Sep 7–13) — 3 new Dashboard cards.
-13. **Still open, re-verified Sep 13** — supplier-summary draft leak (P35,
-    `suppliers.py:466-471` still queries `status.in_(["confirmed", "draft"])`).
+13. ~~Supplier-summary draft leak (P35)~~ — ✅ **Fixed Sep 13, 2026.**
+    `get_supplier_summary` counted draft purchases (never actually
+    placed, no stock moved, no money owed) in `total_purchases`/
+    `total_purchase_value` — now `status == "confirmed"` only.
 14. ~~Purchase-return reports~~ — ✅ done (Batch 7, between Sep 7–13):
     `GET /reports/purchase-returns`. Deeper analytics (by-supplier,
     by-reason, ageing — P34, P37, P38, P41-43) still genuinely missing —
     prioritize with Abinash by which report a real pharmacist would ask
     for first.
 
-**What's left, in priority order (Sep 13, 2026 re-verification):**
+**What's left, in priority order (Sep 13, 2026, after the "finish the
+open bugs" batch):**
 Given how much of the original list is now closed, the real remaining
-worklist is short and worth tackling as its own pass:
-- Two Batch-1-severity bugs still live: double-confirm duplicate stock
-  (#2) and the ungated stock-adjust endpoint (#5) — both are money/stock
-  integrity issues, not UI polish.
-- Backdating still has no authorization gate (#14).
-- No correction path for a confirmed purchase (P09) or a recorded
-  payment (P31) — a real mistake is still permanent either way.
+worklist is short:
+- True double-submit idempotency protection (part of #2) — needs a real
+  design decision (client-generated idempotency key), not a heuristic;
+  a heuristic attempt was built, tested, and reverted the same day after
+  it false-positived on a legitimate scenario.
+- Backdating still has no authorization gate (#14) — explicitly deferred
+  by direct instruction, not missed; needs a real policy decision before
+  any gate is built.
 - `supplier_invoice_date` still isn't captured by the frontend (UC-P05).
-- The supplier-summary draft-purchase leak (P35).
 - ~~The Returns workflow product decision (#7)~~ — ✅ resolved Sep 13,
   2026, simple credit-status tracker built and live-verified (see Batch 3
   item #7 above). PR03 (reason field) and PR01's remaining 3 broken entry

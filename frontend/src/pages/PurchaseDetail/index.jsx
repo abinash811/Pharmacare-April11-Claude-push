@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip } from 'lucide-react';
+import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip, PenLine } from 'lucide-react';
+import { AuthContext } from '@/App';
 import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu, StatusBadge } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { formatDate as formatDateShort } from '@/utils/dates';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
+import PaymentHistorySection from './components/PaymentHistorySection';
+import CorrectPurchaseModal from './components/CorrectPurchaseModal';
 
 export default function PurchaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+  const isAdmin = user?.role === 'admin';
   const [purchase, setPurchase]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [showPayModal, setShowPayModal] = useState(false);
@@ -19,6 +24,8 @@ export default function PurchaseDetail() {
     amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showCorrectModal, setShowCorrectModal] = useState(false);
+  const [correctingLoading, setCorrectingLoading] = useState(false);
 
   useEffect(() => { fetchPurchase(); }, [id]); // eslint-disable-line
 
@@ -50,6 +57,17 @@ export default function PurchaseDetail() {
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
     setPaymentData({ amount: outstanding, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '' });
     setShowPayModal(true);
+  };
+
+  const handleCorrect = async (correction) => {
+    setCorrectingLoading(true);
+    try {
+      await api.put(`/purchases/${id}/correct`, correction);
+      toast.success('Purchase corrected');
+      setShowCorrectModal(false);
+      fetchPurchase();
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to correct purchase'); }
+    finally { setCorrectingLoading(false); }
   };
 
   const calculateTotals = () => {
@@ -105,6 +123,7 @@ export default function PurchaseDetail() {
               { icon: <Printer className="w-4 h-4" />, label: 'Print', action: () => window.print() },
               { icon: <RotateCcw className="w-4 h-4" />, label: 'Purchase Return', action: () => navigate(`/purchases/returns/create?purchase_id=${id}`) },
               { icon: <FileText className="w-4 h-4" />, label: 'Logs', action: () => toast.info('Logs coming soon') },
+              ...(isAdmin ? [{ icon: <PenLine className="w-4 h-4" />, label: 'Correct Purchase', action: () => setShowCorrectModal(true) }] : []),
             ]}
           />
         </div>
@@ -149,6 +168,12 @@ export default function PurchaseDetail() {
       </section>
 
       <PurchaseItemsTable items={purchase.items} withGst={purchase.with_gst} />
+
+      {purchase.status === 'confirmed' && (
+        <section className="bg-white border-t border-gray-200 px-6 py-4 shrink-0 max-h-52 overflow-y-auto">
+          <PaymentHistorySection purchaseId={id} isAdmin={isAdmin} onReversed={fetchPurchase} />
+        </section>
+      )}
 
       {/* Sticky Footer */}
       <div className="bg-white border-t border-gray-200 shrink-0">
@@ -196,6 +221,15 @@ export default function PurchaseDetail() {
         onConfirm={handlePayment}
         loading={paymentLoading}
       />
+
+      {showCorrectModal && (
+        <CorrectPurchaseModal
+          purchase={purchase}
+          onClose={() => setShowCorrectModal(false)}
+          onConfirm={handleCorrect}
+          isSaving={correctingLoading}
+        />
+      )}
     </div>
   );
 }

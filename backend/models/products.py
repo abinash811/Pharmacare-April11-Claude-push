@@ -72,6 +72,20 @@ class StockBatch(Base):
             "product_id",
             "quantity_on_hand",
             postgresql_where=text("is_active = TRUE")),
+        # Was app-level only (a SELECT-then-INSERT check in
+        # purchases.py's _create_stock_for_items) — not race-safe: two
+        # near-simultaneous confirms of the same purchase (double-click,
+        # two tabs) could both pass the SELECT before either INSERT
+        # landed, creating two active batches for the same product+batch
+        # number and silently doubling stock. A real DB constraint closes
+        # the race; scoped to active batches only so a batch number can
+        # be reused once the original is written off/deactivated.
+        Index(
+            "uq_batches_product_batchnumber_active",
+            "product_id",
+            "batch_number",
+            unique=True,
+            postgresql_where=text("is_active = TRUE")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

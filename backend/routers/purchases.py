@@ -12,6 +12,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
@@ -23,7 +24,9 @@ from models.purchases import (
 )
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
+from routers.auth_helpers import (
+    User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
+)
 
 router = APIRouter(prefix="/api", tags=["purchases"])
 
@@ -77,6 +80,36 @@ class PurchasePaymentRequest(BaseModel):
     payment_date: Optional[str] = None
     reference_no: Optional[str] = None
     notes: Optional[str] = None
+
+
+class PurchaseItemCorrection(BaseModel):
+    item_id: str
+    mrp_per_unit: Optional[float] = None
+    cost_price_per_unit: Optional[float] = None
+    batch_no: Optional[str] = None
+    expiry_date: Optional[str] = None
+
+
+class PurchaseCorrectionRequest(BaseModel):
+    """UC-P09 (docs/23_PURCHASES_ACCEPTANCE_SPEC.md) — deliberately
+    narrower than a full re-edit. Quantity is NOT correctable here: a
+    confirmed purchase's stock may already have been sold or returned
+    against, so retroactively changing quantity_ordered/free_qty risks
+    silently inventing or destroying stock that no longer matches what
+    was physically received. A genuine quantity mistake goes through the
+    existing purchase-return flow instead. What IS correctable is exactly
+    the class of typo real pharmacists actually hit: wrong MRP, wrong
+    cost price/PTR, wrong batch number, wrong expiry date, wrong invoice
+    number/date/notes."""
+    reason: str
+    supplier_invoice_number: Optional[str] = None
+    supplier_invoice_date: Optional[str] = None
+    notes: Optional[str] = None
+    items: Optional[List[PurchaseItemCorrection]] = None
+
+
+class PaymentReversalRequest(BaseModel):
+    reason: str
 
 
 class BillImportRequest(BaseModel):
@@ -322,7 +355,8 @@ def _purchase_list_response(p: PurchaseORM, supplier_name: str = "") -> dict:
 async def _get_last_payment_date(purchase_id: uuid.UUID, db: AsyncSession) -> Optional[str]:
     result = await db.execute(
         select(PurchasePaymentORM.payment_date)
-        .where(PurchasePaymentORM.purchase_id == purchase_id)
+        .where(PurchasePaymentORM.purchase_id == purchase_id,
+               PurchasePaymentORM.reversed_at.is_(None))
         .order_by(PurchasePaymentORM.payment_date.desc(), PurchasePaymentORM.created_at.desc())
         .limit(1)
     )
@@ -428,7 +462,7 @@ async def _create_stock_for_items(
     line_total_paise (see create_purchase/update_purchase), so no tax
     or cost-price change is needed here to account for them correctly.
     """
-    for item in items:
+    for idx, item in enumerate(items):
         # MRP=0 (or negative) is accepted by PurchaseItemCreate's plain
         # `float` type and was never checked before the batch this MRP
         # gets stamped onto is actually created — a purchase confirmed
@@ -442,24 +476,41 @@ async def _create_stock_for_items(
                 detail=f"MRP for {item.product_name} must be greater than ₹0 to confirm this purchase")
 
         total_units = (item.quantity_ordered or 0) + (item.free_qty_units or 0)
-        batch_number = item.batch_number or f"PUR-{purchase.purchase_number[:8]}"
+        # Was `f"PUR-{purchase.purchase_number[:8]}"` — purchase_number's
+        # format is "PUR-YYYY-NNNN", so the first 8 characters are always
+        # just "PUR-YYYY", identical for every purchase confirmed in the
+        # same year. That made every no-batch-number confirmation of the
+        # same product collide on the exact same fallback string —
+        # rejected as "already exists" for two genuinely different
+        # purchases, and even for two different line items of the same
+        # product within one purchase. Using the full (real, unique)
+        # purchase_number plus this item's position fixes both: this is
+        # also the actual root cause of the documented "genuine double-
+        # submit with no batch number" bug — two concurrent submits get
+        # two different real purchase_numbers, so their fallback batch
+        # numbers now genuinely differ too, the way the guard below
+        # always assumed they would.
+        batch_number = item.batch_number or f"{purchase.purchase_number}-{idx}"
 
         # Same duplicate check POST /stock/batches already enforces — this
         # confirm path had none, so two purchases entering the same
         # real-world batch number for the same product silently created
-        # two independent StockBatch rows instead of one.
+        # two independent StockBatch rows instead of one. Scoped to active
+        # batches so a number can be reused once the original is written
+        # off/deactivated — matches the DB constraint added below.
         existing = await db.execute(
             select(BatchORM).where(
                 BatchORM.product_id == item.product_id,
                 BatchORM.batch_number == batch_number,
+                BatchORM.is_active.is_(True),
             )
         )
+        duplicate_batch_detail = (
+            f"A batch numbered '{batch_number}' already exists for this product — "
+            f"receive additional stock against the existing batch instead of "
+            f"confirming a purchase with the same batch number again.")
         if existing.scalar_one_or_none():
-            raise HTTPException(
-                status_code=400,
-                detail=(f"A batch numbered '{batch_number}' already exists for this product — "
-                        f"receive additional stock against the existing batch instead of "
-                        f"confirming a purchase with the same batch number again."))
+            raise HTTPException(status_code=400, detail=duplicate_batch_detail)
 
         batch = BatchORM(
             pharmacy_id=pharmacy_id,
@@ -472,10 +523,25 @@ async def _create_stock_for_items(
             quantity_on_hand=total_units,
         )
         db.add(batch)
-        await db.flush()
+        try:
+            await db.flush()
+        except IntegrityError:
+            # The SELECT above is not atomic with this INSERT — two
+            # near-simultaneous confirms of the same purchase (double-
+            # click, two browser tabs) could both pass it before either
+            # insert landed, each creating a full stock batch and
+            # silently doubling stock. `uq_batches_product_batchnumber_
+            # active` (migration 29481ee67a4b) makes the DB itself the
+            # final word; this is what actually catches the race the
+            # in-app check above cannot.
+            raise HTTPException(status_code=400, detail=duplicate_batch_detail)
 
-        # Link batch to purchase item
+        # Link batch to purchase item — also backfill batch_number when a
+        # fallback was generated, so the purchase item (and its API
+        # response) reflects the real batch identifier actually used
+        # instead of staying blank.
         item.batch_id = batch.id
+        item.batch_number = batch_number
 
         db.add(MovementORM(
             pharmacy_id=pharmacy_id, product_id=item.product_id, batch_id=batch.id,
@@ -917,6 +983,183 @@ async def update_purchase(
     return await _purchase_response(purchase, item_orms, db)
 
 
+@router.put("/purchases/{purchase_id}/correct")
+async def correct_confirmed_purchase(
+        purchase_id: str,
+        correction: PurchaseCorrectionRequest,
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """The only way to fix a real mistake on an already-confirmed
+    purchase — update_purchase() above refuses any edit once
+    status != "draft" by design. That refusal was only ever half of
+    "don't allow silent editing" (docs/23_PURCHASES_ACCEPTANCE_SPEC.md
+    UC-P09: a confirmed purchase was permanent, forever, even when
+    wrong). Admin-only, a reason is mandatory, every change is
+    audit-logged old-vs-new. See PurchaseCorrectionRequest for why
+    quantity is deliberately excluded.
+    """
+    if not correction.reason or not correction.reason.strip():
+        raise HTTPException(
+            status_code=400, detail="A reason is required to correct a confirmed purchase")
+    await require_admin_or_super(
+        current_user, db, detail="Only admins can correct a confirmed purchase")
+
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    pid = uuid.UUID(purchase_id)
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found",
+        extra_conditions=[PurchaseORM.deleted_at.is_(None)])
+    if purchase.status != "confirmed":
+        raise HTTPException(
+            status_code=400,
+            detail="Only a confirmed purchase is corrected here — a draft is already directly editable")
+
+    old_values: dict = {}
+    new_values: dict = {"reason": correction.reason.strip()}
+
+    if (correction.supplier_invoice_number is not None
+            and correction.supplier_invoice_number != purchase.supplier_invoice_number):
+        old_values["supplier_invoice_number"] = purchase.supplier_invoice_number
+        new_values["supplier_invoice_number"] = correction.supplier_invoice_number
+        purchase.supplier_invoice_number = correction.supplier_invoice_number
+
+    if correction.supplier_invoice_date is not None:
+        new_inv_date = date.fromisoformat(correction.supplier_invoice_date[:10])
+        if new_inv_date != purchase.supplier_invoice_date:
+            old_values["supplier_invoice_date"] = (
+                purchase.supplier_invoice_date.isoformat() if purchase.supplier_invoice_date else None)
+            new_values["supplier_invoice_date"] = new_inv_date.isoformat()
+            purchase.supplier_invoice_date = new_inv_date
+
+    if correction.notes is not None and correction.notes != purchase.notes:
+        old_values["notes"] = purchase.notes
+        new_values["notes"] = correction.notes
+        purchase.notes = correction.notes
+
+    item_changes: list[dict] = []
+    if correction.items:
+        items_result = await db.execute(
+            select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
+        items_by_id = {str(i.id): i for i in items_result.scalars().all()}
+
+        for ic in correction.items:
+            item = items_by_id.get(ic.item_id)
+            if not item:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Purchase item {ic.item_id} not found on this purchase")
+
+            batch = None
+            if item.batch_id:
+                batch = await get_owned_or_404(
+                    db, BatchORM, item.batch_id, pharmacy_id,
+                    not_found_detail="Linked stock batch not found")
+
+            item_change = {"item_id": ic.item_id, "product_name": item.product_name}
+
+            if ic.mrp_per_unit is not None:
+                new_mrp_paise = int(round(ic.mrp_per_unit * 100))
+                if new_mrp_paise <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"MRP for {item.product_name} must be greater than ₹0")
+                if new_mrp_paise != item.mrp_paise:
+                    item_change["mrp"] = {"old": item.mrp_paise / 100, "new": new_mrp_paise / 100}
+                    item.mrp_paise = new_mrp_paise
+                    if batch:
+                        batch.mrp_paise = new_mrp_paise
+
+            if ic.cost_price_per_unit is not None:
+                new_cost_paise = int(round(ic.cost_price_per_unit * 100))
+                if new_cost_paise <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cost price for {item.product_name} must be greater than ₹0")
+                if new_cost_paise != item.cost_price_paise:
+                    item_change["cost_price"] = {
+                        "old": item.cost_price_paise / 100, "new": new_cost_paise / 100}
+                    item.cost_price_paise = new_cost_paise
+                    # Cost price drives taxable_amount_paise for this item
+                    # (same formula create_purchase/update_purchase use) —
+                    # recomputed for the whole purchase below so a
+                    # corrected PTR doesn't leave the grand total wrong.
+                    item.taxable_amount_paise = int(item.quantity_ordered * new_cost_paise)
+                    item.gst_amount_paise = (
+                        int(item.taxable_amount_paise * float(item.gst_rate) / 100)
+                        if purchase.with_gst else 0)
+                    item.line_total_paise = item.taxable_amount_paise + item.gst_amount_paise
+                    if batch:
+                        batch.cost_price_paise = new_cost_paise
+
+            if ic.batch_no is not None and ic.batch_no.strip() and ic.batch_no.strip() != item.batch_number:
+                new_batch_no = ic.batch_no.strip()
+                dup = await db.execute(select(BatchORM).where(
+                    BatchORM.product_id == item.product_id,
+                    BatchORM.batch_number == new_batch_no,
+                    BatchORM.is_active.is_(True),
+                    BatchORM.id != (batch.id if batch else uuid.uuid4()),
+                ))
+                if dup.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"A batch numbered '{new_batch_no}' already exists for {item.product_name}")
+                item_change["batch_number"] = {"old": item.batch_number, "new": new_batch_no}
+                item.batch_number = new_batch_no
+                if batch:
+                    batch.batch_number = new_batch_no
+
+            if ic.expiry_date is not None:
+                new_expiry = date.fromisoformat(ic.expiry_date[:10])
+                if new_expiry != item.expiry_date:
+                    item_change["expiry_date"] = {
+                        "old": item.expiry_date.isoformat() if item.expiry_date else None,
+                        "new": new_expiry.isoformat()}
+                    item.expiry_date = new_expiry
+                    if batch:
+                        batch.expiry_date = new_expiry
+
+            if len(item_change) > 2:
+                item_changes.append(item_change)
+
+        if item_changes:
+            all_items_result = await db.execute(
+                select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
+            all_items = all_items_result.scalars().all()
+            old_grand_total = purchase.grand_total_paise / 100
+            subtotal_paise = sum(it.taxable_amount_paise for it in all_items)
+            tax_paise = sum(it.gst_amount_paise for it in all_items)
+            net_before_round_paise = (
+                subtotal_paise + tax_paise - purchase.total_discount_paise + purchase.cess_paise
+                - purchase.adjusted_cn_paise + purchase.tcs_paise + purchase.extra_charges_paise
+                + purchase.adjustment_amount_paise
+            )
+            purchase.subtotal_paise = subtotal_paise
+            purchase.total_gst_paise = tax_paise
+            purchase.total_cgst_paise = tax_paise // 2
+            purchase.total_sgst_paise = tax_paise - tax_paise // 2
+            purchase.grand_total_paise = round(net_before_round_paise / 100) * 100
+            if purchase.grand_total_paise != int(old_grand_total * 100):
+                old_values["grand_total"] = old_grand_total
+                new_values["grand_total"] = purchase.grand_total_paise / 100
+
+    if item_changes:
+        new_values["items"] = item_changes
+
+    if len(new_values) == 1:  # only "reason" — nothing actually changed
+        raise HTTPException(status_code=400, detail="No changes were provided to correct")
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "correct", "purchase", purchase.id,
+        new_values, db, old_values=old_values, ip_address=_client_ip(request),
+    )
+    await db.flush()
+    await db.refresh(purchase)
+
+    items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
+    return await _purchase_response(purchase, items_result.scalars().all(), db)
+
+
 @router.delete("/purchases/{purchase_id}")
 async def delete_purchase(
         purchase_id: str,
@@ -1081,5 +1324,116 @@ async def mark_purchase_paid(
     # Not simply payment_dt — a backdated payment_date on this payment
     # could still be older than an existing payment's date, so the true
     # most-recent-by-date must be looked up rather than assumed.
+    resp["last_payment_date"] = await _get_last_payment_date(pid, db)
+    return resp
+
+
+@router.get("/purchases/{purchase_id}/payments")
+async def list_purchase_payments(
+        purchase_id: str,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """Individual PurchasePayment rows were recorded by /pay above since
+    day one, but nothing ever exposed them — the purchase response only
+    ever carried the aggregate amount_paid/last_payment_date, so there
+    was no way to see (or reverse) one specific payment. Needed to make
+    UC-P31's reversal endpoint below actually reachable from the UI."""
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    pid = uuid.UUID(purchase_id)
+    await get_owned_or_404(
+        db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found")
+
+    result = await db.execute(
+        select(PurchasePaymentORM)
+        .where(PurchasePaymentORM.purchase_id == pid)
+        .order_by(PurchasePaymentORM.payment_date.desc(), PurchasePaymentORM.created_at.desc())
+    )
+    return [
+        {
+            "id": str(p.id),
+            "amount": p.amount_paise / 100,
+            "payment_method": p.payment_method,
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+            "reference_number": p.reference_number,
+            "notes": p.notes,
+            "reversed": p.reversed_at is not None,
+            "reversed_at": p.reversed_at.isoformat() if p.reversed_at else None,
+            "reversal_reason": p.reversal_reason,
+        }
+        for p in result.scalars().all()
+    ]
+
+
+@router.post("/purchases/{purchase_id}/payments/{payment_id}/reverse")
+async def reverse_purchase_payment(
+        purchase_id: str,
+        payment_id: str,
+        reversal: PaymentReversalRequest,
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)):
+    """UC-P31 (docs/23_PURCHASES_ACCEPTANCE_SPEC.md) — a payment recorded
+    with the wrong amount/method/date was permanent forever; there was no
+    way to reverse it. Admin-only, mandatory reason. Soft-reverses (sets
+    reversed_at/reversed_by/reversal_reason on the payment row, never
+    deletes it — Manifesto rule 6) and re-derives the purchase's
+    amount_paid_paise/payment_status from the sum of its remaining
+    non-reversed payments, rather than just subtracting this one amount,
+    so it can't drift if reversals ever happen out of order.
+    """
+    if not reversal.reason or not reversal.reason.strip():
+        raise HTTPException(
+            status_code=400, detail="A reason is required to reverse a payment")
+    await require_admin_or_super(
+        current_user, db, detail="Only admins can reverse a payment")
+
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    pid = uuid.UUID(purchase_id)
+    purchase = await get_owned_or_404(
+        db, PurchaseORM, pid, pharmacy_id, not_found_detail="Purchase not found")
+
+    payment = await get_owned_or_404(
+        db, PurchasePaymentORM, uuid.UUID(payment_id), pharmacy_id,
+        not_found_detail="Payment not found",
+        extra_conditions=[PurchasePaymentORM.purchase_id == pid])
+    if payment.reversed_at is not None:
+        raise HTTPException(status_code=400, detail="This payment was already reversed")
+
+    old_amount_paid = purchase.amount_paid_paise / 100
+    old_payment_status = purchase.payment_status
+
+    payment.reversed_at = datetime.now(timezone.utc)
+    payment.reversed_by = uuid.UUID(current_user.id)
+    payment.reversal_reason = reversal.reason.strip()
+    await db.flush()
+
+    remaining_result = await db.execute(
+        select(func.sum(PurchasePaymentORM.amount_paise))
+        .where(PurchasePaymentORM.purchase_id == pid, PurchasePaymentORM.reversed_at.is_(None))
+    )
+    remaining_paise = remaining_result.scalar_one_or_none() or 0
+    purchase.amount_paid_paise = remaining_paise
+    if remaining_paise <= 0:
+        purchase.payment_status = "unpaid"
+    elif remaining_paise >= purchase.grand_total_paise:
+        purchase.payment_status = "paid"
+    else:
+        purchase.payment_status = "partial"
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "reverse_payment", "purchase", pid,
+        {"reversed_payment_amount": payment.amount_paise / 100,
+         "reason": reversal.reason.strip(),
+         "amount_paid": purchase.amount_paid_paise / 100,
+         "payment_status": purchase.payment_status},
+        db,
+        old_values={"amount_paid": old_amount_paid, "payment_status": old_payment_status},
+        ip_address=_client_ip(request),
+    )
+    await db.flush()
+    await db.refresh(purchase)
+
+    items_result = await db.execute(select(PurchaseItemORM).where(PurchaseItemORM.purchase_id == pid))
+    resp = await _purchase_response(purchase, items_result.scalars().all(), db)
     resp["last_payment_date"] = await _get_last_payment_date(pid, db)
     return resp

@@ -7,11 +7,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, require_admin_or_super
+from routers.auth_helpers import (
+    User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
+)
 
 router = APIRouter(prefix="/api", tags=["batches"])
 
@@ -145,6 +148,20 @@ async def _get_batch(batch_id: str, pharmacy_id: uuid.UUID, db: AsyncSession) ->
         db, BatchORM, batch_id, pharmacy_id, not_found_detail="Batch not found")
 
 
+async def _require_inventory_permission(current_user: User, action: str, db: AsyncSession) -> None:
+    """`inventory:batches_create`/`inventory:stock_adjust` are real,
+    seeded permissions (constants.py, ROLE_PERMISSIONS) that nothing in
+    this router ever called — found Sep 13, 2026 (Purchases follow-up):
+    any authenticated user, including a plain cashier, could freely add a
+    stock batch, adjust a batch's quantity, write off expired stock, or
+    log a stock movement with no gate at all. Same pattern as
+    `_require_purchases_permission` in purchases.py."""
+    if not await has_permission(current_user, f"inventory:{action}", db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role does not have permission to {action.replace('_', ' ')}")
+
+
 async def _record_movement(
     pharmacy_id: uuid.UUID, product_id: uuid.UUID, batch_id: uuid.UUID,
     movement_type: str, quantity: int, qty_before: int, qty_after: int,
@@ -167,20 +184,23 @@ async def _record_movement(
 @router.post("/stock/batches")
 async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_inventory_permission(current_user, "batches_create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, batch_data.product_sku, db)
 
-    # Check duplicate batch
+    # Check duplicate batch — scoped to active batches so a number can be
+    # reused once the original is written off/deactivated; see the
+    # IntegrityError catch below for why this alone isn't race-safe.
     existing = await db.execute(
         select(BatchORM).where(
             BatchORM.product_id == product.id,
             BatchORM.batch_number == batch_data.batch_no,
+            BatchORM.is_active.is_(True),
         )
     )
+    duplicate_batch_detail = "Batch with this number already exists for this product at this location"
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400,
-            detail="Batch with this number already exists for this product at this location")
+        raise HTTPException(status_code=400, detail=duplicate_batch_detail)
 
     expiry = date.fromisoformat(batch_data.expiry_date[:10])
     if expiry < date.today():
@@ -200,7 +220,14 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
         quantity_on_hand=batch_data.qty_on_hand,
     )
     db.add(batch)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Same double-click/two-tabs race as purchases.py's
+        # _create_stock_for_items — the SELECT above isn't atomic with
+        # this INSERT. uq_batches_product_batchnumber_active (migration
+        # 29481ee67a4b) is the real, race-safe gate.
+        raise HTTPException(status_code=400, detail=duplicate_batch_detail)
 
     # quantity_received/quantity_on_hand above are stored directly, in real
     # units (migration a343c922f896) — the movement record must match, not
@@ -340,6 +367,7 @@ async def delete_stock_batch(batch_id: str, current_user: User = Depends(
 @router.post("/batches/{batch_id}/adjust")
 async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_inventory_permission(current_user, "stock_adjust", db)
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
@@ -376,6 +404,7 @@ async def adjust_stock(batch_id: str, adjustment: StockAdjustment, current_user:
 @router.post("/batches/{batch_id}/writeoff-expiry")
 async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_inventory_permission(current_user, "stock_adjust", db)
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
     # tenant-safe: batch already scoped via _get_batch
     prod_result = await db.execute(select(ProductORM).where(ProductORM.id == batch.product_id))
@@ -415,6 +444,7 @@ async def writeoff_expired_batch(batch_id: str, writeoff_data: dict, current_use
 @router.post("/stock-movements")
 async def create_stock_movement(movement_data: StockMovementCreate, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    await _require_inventory_permission(current_user, "stock_adjust", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await _get_product_by_sku(pharmacy_id, movement_data.product_sku, db)
     batch = await _get_batch(movement_data.batch_id, pharmacy_id, db)

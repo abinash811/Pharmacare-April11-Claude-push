@@ -134,6 +134,17 @@ class PurchasePayment(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"))
+    # Soft-delete-style reversal (Manifesto rule 6, no hard deletes) — a
+    # wrong payment used to be permanent forever (UC-P31,
+    # docs/23_PURCHASES_ACCEPTANCE_SPEC.md). Reversing sets these three
+    # instead of removing the row, so the original payment stays in the
+    # audit trail; every read site that lists/sums payments must filter
+    # reversed_at.is_(None) — see purchases.py's _get_last_payment_date
+    # and suppliers.py's _payment_history_by_suppliers.
+    reversed_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
+    reversed_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"))
+    reversal_reason: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(
             timezone=True),

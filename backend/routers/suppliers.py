@@ -151,7 +151,7 @@ async def _payment_history_by_suppliers(
         select(PurchasePayment.id, Purchase.supplier_id, PurchasePayment.payment_date,
                PurchasePayment.amount_paise, PurchasePayment.notes)
         .join(Purchase, PurchasePayment.purchase_id == Purchase.id)
-        .where(Purchase.supplier_id.in_(supplier_ids))
+        .where(Purchase.supplier_id.in_(supplier_ids), PurchasePayment.reversed_at.is_(None))
     )
     for pid, sid, pay_date, amount_paise, notes in payments_result.all():
         history[sid].append({
@@ -461,16 +461,20 @@ async def get_supplier_summary(supplier_id: str, current_user: User = Depends(
         not_found_detail="Supplier not found")
     sid = supplier.id
 
+    # Confirmed only — a draft is not a real purchase yet (no stock moved,
+    # no money owed). Was `status.in_(["confirmed", "draft"])`, so a
+    # supplier's total-purchases count/value on this one screen included
+    # purchases that were never actually placed — found Sep 13, 2026,
+    # Purchases follow-up.
     purchases_result = await db.execute(
-        select(Purchase.grand_total_paise, Purchase.purchase_date, Purchase.status)
-        .where(Purchase.supplier_id == sid, Purchase.status.in_(["confirmed", "draft"]))
+        select(Purchase.grand_total_paise, Purchase.purchase_date)
+        .where(Purchase.supplier_id == sid, Purchase.status == "confirmed")
     )
     purchases = purchases_result.all()
 
     total_purchases = len(purchases)
     total_value = sum(p.grand_total_paise for p in purchases) / 100
-    confirmed = [p for p in purchases if p.status == "confirmed"]
-    last_purchase_date = max((p.purchase_date for p in confirmed), default=None)
+    last_purchase_date = max((p.purchase_date for p in purchases), default=None)
 
     outstanding = await _calc_outstanding(sid, db)
 

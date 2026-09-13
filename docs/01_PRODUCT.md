@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.6 | Last updated: September 12, 2026
+# Version: 1.7 | Last updated: September 13, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -299,6 +299,13 @@ Real gaps this surfaces: HSN-wise GST grouping (PharmaCare groups by GST rate on
 - **Marg ERP:** **live credit limit management** — an operator sets a primary limit in the customer ledger, a manager sets a final limit (by amount, bill count, or days), and the ledger can be configured to only *indicate* the limit or *strictly enforce* it. Family-wise consolidated ledgers (bill an entire family under one ledger group). WhatsApp delivery of invoices, outstanding balances, ledger statements, and payment reminders. [Source](https://care.margcompusoft.com/margerp/rate-and-discount-master/38672/1/Credit-Limit-Management-Overview-and), [Source](https://care.margcompusoft.com/margerp/all-ledgers/38630/utils/common)
 - **eVitalRx:** a real, customizable **loyalty points program** for customer retention, plus a CRM module and automated WhatsApp refill/pill/payment reminders. [Source](https://www.evitalrx.in/solutions/loyalty-program), [Source](https://www.evitalrx.in/solutions/customer-relationships/)
 - **Pharmasoft:** patient-wise outstanding tracking, family group-wise billing, and pensioner/BPL flags on the customer record; doctor/patient-wise sales reports. [Source](https://yadavsoftware.com/)
+
+**Doctors specifically (researched Sep 13, 2026 — the Sep 12 pass above covered Customers depth-first, Doctors only got the permission-gate fix; refresh before relying on these, they age fast):**
+- **Marg ERP:** a real, coded **Doctor/Prescriber master** (a "Prescriber Code" identifies each doctor across the system, not just a free-text name) feeding a dedicated **Doctor & Patient Sale report suite** — Daily Reports → Sale Report → Doctor & Patient Sale → Doctor Sale Statement (single-doctor, selected by Prescriber Code), plus a Business Analysis view that cross-tabs Patient × Doctor for sale volume. [Source](https://care.margcompusoft.com/margerp/sale-report/153437/1/How-to-view-single-doctor), [Source](https://care.margcompusoft.com/margerp/transaction-analysis/114682/1/How-to-view-doctor-item)
+- **eVitalRx:** doctor/prescriber interaction is EMR-integration-shaped (e-prescribing, appointment sync with Practo/DocsApp/eka.care/etc.) rather than a standalone doctor-master module — a different, bigger-scope feature than a coded doctor record, not a like-for-like gap. [Source](https://www.evitalrx.in/pharmacy-types/clinical-pharmacy/)
+- **Pharmasoft:** doctor/patient-wise sales reports (already noted above); no further Doctors-specific detail surfaced.
+
+Real gap this surfaces: a **doctor-wise sales report** (Marg's named feature) — PharmaCare stores `doctor_id`/`doctor_name` on every bill already, but nothing reads it back as a report anywhere. See `docs/15_ROADMAP.md`'s Customers section for the full Doctors audit (registration-number/qualification/hospital fields exist in the DB but were never wired to any create/edit form — a live compliance gap in the Schedule H1 register, not just a reporting one).
 
 Real gaps this surfaces: family-wise/group billing, WhatsApp outstanding/payment reminders. More urgently — PharmaCare already *has* UI + schema for credit limit, outstanding balance, and loyalty points (matching what all three competitors ship as real features), but none of the three actually function — see `docs/15_ROADMAP.md`'s Customers section for the full audit.
 

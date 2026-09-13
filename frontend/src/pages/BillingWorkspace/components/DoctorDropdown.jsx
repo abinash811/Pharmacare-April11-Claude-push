@@ -19,6 +19,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { AppButton } from '@/components/shared';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 export default function DoctorDropdown({ value = '', onChange, readOnly = false }) {
   const [open,    setOpen]    = useState(false);
@@ -27,6 +28,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
   const [loading, setLoading] = useState(false);
 
   const wrapperRef = useRef(null);
+  const contentRef = useRef(null);
   const inputRef   = useRef(null);
   const debouncedQ = useDebounce(query, 250);
 
@@ -42,10 +44,17 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
     return () => { cancelled = true; };
   }, [debouncedQ, open]);
 
-  // Close on outside click — save whatever is typed
+  // Close on outside click — save whatever is typed.
+  // The suggestions list renders via a Radix Portal (see below), so it's
+  // no longer a DOM descendant of wrapperRef — must also exempt clicks
+  // inside contentRef, or picking a suggestion always misfired this as an
+  // "outside" click first and saved the raw typed text instead of the
+  // selected doctor (caught live while verifying the portal fix itself).
   useEffect(() => {
     const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+      const inWrapper = wrapperRef.current && wrapperRef.current.contains(e.target);
+      const inContent = contentRef.current && contentRef.current.contains(e.target);
+      if (!inWrapper && !inContent) {
         if (open) onChange(query); // save freetext on blur
         setOpen(false);
         setResults([]);
@@ -82,66 +91,79 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
   }
 
   // ── Editable ─────────────────────────────────────────────────────────────
+  // Suggestions render via Radix Popover (portals to document.body) instead
+  // of a plain `absolute` div — found Sep 13, 2026 (Billing product-review):
+  // BillingSubbar's toolbar row has `overflow-x-auto`, which per the CSS
+  // overflow spec forces `overflow-y` to also clip ("auto"), silently
+  // hiding any plain-absolute dropdown nested inside it, no matter its
+  // z-index. The Date field's Calendar already avoided this the same way —
+  // matching that existing, proven pattern instead of inventing a new one.
   return (
-    <div ref={wrapperRef} className="relative">
-
-      {/* Trigger / inline input — same pattern as PatientCombobox */}
-      {!open ? (
-        <AppButton
-          variant="chip"
-          onClick={openField}
-          className="gap-1 text-sm"
-          data-testid="doctor-chip"
-        >
-          <span className={!value ? 'text-gray-400' : ''}>{value || 'Doctor'}</span>
-          <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </AppButton>
-      ) : (
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => { setQuery(e.target.value); onChange(e.target.value); }}
-          onKeyDown={handleKey}
-          placeholder={value || 'Doctor name...'}
-          className="w-36 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
-          data-testid="doctor-search-input"
-        />
-      )}
-
-      {/* Suggestions dropdown — only when there are DB matches */}
-      {open && results.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
-          {loading && (
-            <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
-              <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
-              Searching...
-            </div>
-          )}
-          {results.map(doctor => (
-            <div
-              key={doctor.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleSelect(doctor)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(doctor); } }}
-              className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
-              data-testid={`doctor-option-${doctor.id}`}
+    <Popover open={open && results.length > 0}>
+      <PopoverAnchor asChild>
+        <div ref={wrapperRef} className="relative">
+          {!open ? (
+            <AppButton
+              variant="chip"
+              onClick={openField}
+              className="gap-1 text-sm"
+              data-testid="doctor-chip"
             >
-              <Stethoscope className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
-                {(doctor.specialization || doctor.registration_number) && (
-                  <div className="text-xs text-gray-400">
-                    {doctor.specialization || doctor.registration_number}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+              <span className={!value ? 'text-gray-400' : ''}>{value || 'Doctor'}</span>
+              <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </AppButton>
+          ) : (
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => { setQuery(e.target.value); onChange(e.target.value); }}
+              onKeyDown={handleKey}
+              placeholder={value || 'Doctor name...'}
+              className="w-36 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
+              data-testid="doctor-search-input"
+            />
+          )}
         </div>
-      )}
-    </div>
+      </PopoverAnchor>
+      <PopoverContent
+        ref={contentRef}
+        className="w-56 p-0 overflow-hidden"
+        align="start"
+        sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        {loading && (
+          <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
+            <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
+            Searching...
+          </div>
+        )}
+        {results.map(doctor => (
+          <div
+            key={doctor.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelect(doctor)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(doctor); } }}
+            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
+            data-testid={`doctor-option-${doctor.id}`}
+          >
+            <Stethoscope className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+            <div>
+              <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
+              {(doctor.specialization || doctor.registration_number) && (
+                <div className="text-xs text-gray-400">
+                  {doctor.specialization || doctor.registration_number}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }

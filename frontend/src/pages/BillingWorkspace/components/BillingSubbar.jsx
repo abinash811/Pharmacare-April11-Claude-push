@@ -36,12 +36,16 @@ import DoctorDropdown from './DoctorDropdown';
 import PatientCombobox from './PatientCombobox';
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
+// "Multi" (a split cash+card/etc. payment) used to be listed here — removed
+// Sep 13, 2026, found in the Billing product-review: selecting it rendered
+// no split-entry UI at all, so a bill saved with it recorded
+// payment_method: "multiple" with zero trace of the real split, worse than
+// not offering it. Re-add only alongside a real split-entry UI, not before.
 const PAYMENT_TYPES = [
   { key: 'cash',     label: 'Cash'   },
   { key: 'upi',      label: 'UPI'    },
   { key: 'credit',   label: 'Credit' },
   { key: 'card',     label: 'Card'   },
-  { key: 'multiple', label: 'Multi'  },
 ];
 
 function ColDivider() {

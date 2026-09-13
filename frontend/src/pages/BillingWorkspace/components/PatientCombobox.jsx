@@ -18,6 +18,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 
 export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const [open,    setOpen]    = useState(false);
@@ -34,9 +35,17 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   // parent's bill state — this is display-only, not part of the bill.
   const [creditInfo, setCreditInfo] = useState(null);
 
-  const wrapperRef = useRef(null);
-  const inputRef   = useRef(null);
-  const debouncedQ = useDebounce(query, 250);
+  const wrapperRef  = useRef(null);
+  const contentRef  = useRef(null);
+  const inputRef    = useRef(null);
+  const addNameRef  = useRef(null);
+  const debouncedQ  = useDebounce(query, 250);
+
+  // Focus the mini add-form's name field when it opens — a plain JSX
+  // `autoFocus` prop trips the jsx-a11y/no-autofocus lint rule.
+  useEffect(() => {
+    if (showAdd) addNameRef.current?.focus();
+  }, [showAdd]);
 
   // Search patients when query changes
   useEffect(() => {
@@ -52,10 +61,16 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
     return () => { cancelled = true; };
   }, [debouncedQ, open]);
 
-  // Close on outside click
+  // Close on outside click. Content renders via a Radix Portal (see below),
+  // so it's no longer a DOM descendant of wrapperRef — must also exempt
+  // clicks inside contentRef, or picking a result/the "Add new" button/the
+  // mini-form's own buttons always misfired this as an "outside" click
+  // first (same bug class fixed the same day in DoctorDropdown.jsx).
   useEffect(() => {
     const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+      const inWrapper = wrapperRef.current && wrapperRef.current.contains(e.target);
+      const inContent = contentRef.current && contentRef.current.contains(e.target);
+      if (!inWrapper && !inContent) {
         setOpen(false);
         setShowAdd(false);
         setQuery('');
@@ -114,151 +129,166 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const displayValue = value || 'Walk-in patient';
   const noResults    = !loading && query.trim().length > 0 && results.length === 0;
 
+  // Content renders via Radix Popover (portals to document.body) instead
+  // of a plain `absolute` div — found Sep 13, 2026 (Billing product-review):
+  // BillingSubbar's toolbar row has `overflow-x-auto`, which per the CSS
+  // overflow spec forces `overflow-y` to also clip ("auto"), silently
+  // hiding any plain-absolute dropdown nested inside it, no matter its
+  // z-index. Same fix as DoctorDropdown.jsx, same day.
   return (
-    <div ref={wrapperRef} className="relative">
-      {/* Trigger */}
-      {!open ? (
-        <AppButton
-          variant="chip"
-          onClick={openDropdown}
-          className="gap-1 text-sm truncate max-w-full"
-          title={creditInfo
-            ? `${displayValue} — owes ${formatCurrency(creditInfo.outstanding)} of ${formatCurrency(creditInfo.creditLimit)} credit limit`
-            : displayValue}
-          data-testid="patient-chip"
-        >
-          <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{displayValue}</span>
-          {creditInfo && (
-            <span
-              className={`shrink-0 w-1.5 h-1.5 rounded-full ${
-                creditInfo.outstanding >= creditInfo.creditLimit ? 'bg-red-500' : 'bg-orange-400'
-              }`}
-              aria-hidden="true"
+    <Popover open={open}>
+      <PopoverAnchor asChild>
+        <div ref={wrapperRef} className="relative">
+          {!open ? (
+            <AppButton
+              variant="chip"
+              onClick={openDropdown}
+              className="gap-1 text-sm truncate max-w-full"
+              title={creditInfo
+                ? `${displayValue} — owes ${formatCurrency(creditInfo.outstanding)} of ${formatCurrency(creditInfo.creditLimit)} credit limit`
+                : displayValue}
+              data-testid="patient-chip"
+            >
+              <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{displayValue}</span>
+              {creditInfo && (
+                <span
+                  className={`shrink-0 w-1.5 h-1.5 rounded-full ${
+                    creditInfo.outstanding >= creditInfo.creditLimit ? 'bg-red-500' : 'bg-orange-400'
+                  }`}
+                  aria-hidden="true"
+                />
+              )}
+              <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </AppButton>
+          ) : (
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder={value || 'Search patient...'}
+              className="w-44 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
+              data-testid="patient-search-input"
             />
           )}
-          <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </AppButton>
-      ) : (
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder={value || 'Search patient...'}
-          className="w-44 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
-          data-testid="patient-search-input"
-        />
-      )}
+        </div>
+      </PopoverAnchor>
 
-      {/* Dropdown */}
-      {open && !showAdd && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
-
-          {/* Walk-in always first */}
-          <AppButton
-            variant="ghost"
-            onClick={() => select('walkin')}
-            className="w-full justify-start px-3 py-2 text-sm text-gray-600 border-b border-gray-100 rounded-none"
-            icon={<User className="w-3.5 h-3.5 text-gray-400" />}
-          >
-            Counter / Walk-in
-          </AppButton>
-
-          {/* Loading */}
-          {loading && (
-            <div className="px-3 py-3 text-xs text-gray-400 flex items-center gap-2">
-              <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
-              Searching...
-            </div>
-          )}
-
-          {/* Results */}
-          {results.map(p => (
-            <div
-              key={p.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => select(p)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(p); } }}
-              className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-brand/5 transition-colors cursor-pointer"
-              data-testid={`patient-result-${p.id}`}
-            >
-              <User className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <div className="text-sm font-medium text-gray-900">{p.name}</div>
-                {p.phone && <div className="text-xs text-gray-500">{p.phone}</div>}
-                {p.credit_limit > 0 && (
-                  <div className={`text-xs ${p.outstanding >= p.credit_limit ? 'text-red-600' : 'text-orange-600'}`}>
-                    Owes {formatCurrency(p.outstanding || 0)} of {formatCurrency(p.credit_limit)} limit
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Add new */}
-          {(noResults || (query.trim() && results.length < 8)) && query.trim() && (
+      <PopoverContent
+        ref={contentRef}
+        className="w-64 p-0 overflow-hidden"
+        align="start"
+        sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        {!showAdd ? (
+          <>
+            {/* Walk-in always first */}
             <AppButton
               variant="ghost"
-              onClick={() => { setShowAdd(true); setAddForm({ name: query.trim(), phone: '' }); }}
-              className="w-full justify-start px-3 py-2.5 text-sm text-brand hover:bg-brand/5 hover:text-brand border-t border-gray-100 rounded-none"
-              icon={<UserPlus className="w-3.5 h-3.5" />}
-              data-testid="patient-add-new"
+              onClick={() => select('walkin')}
+              className="w-full justify-start px-3 py-2 text-sm text-gray-600 border-b border-gray-100 rounded-none"
+              icon={<User className="w-3.5 h-3.5 text-gray-400" />}
             >
-              Add "{query.trim()}" as new customer
+              Counter / Walk-in
             </AppButton>
-          )}
 
-          {/* Empty state */}
-          {!loading && !query.trim() && (
-            <div className="px-3 py-3 text-xs text-gray-400 flex items-center gap-1.5">
-              <Search className="w-3 h-3" />
-              Type to search patients
+            {/* Loading */}
+            {loading && (
+              <div className="px-3 py-3 text-xs text-gray-400 flex items-center gap-2">
+                <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
+                Searching...
+              </div>
+            )}
+
+            {/* Results */}
+            {results.map(p => (
+              <div
+                key={p.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => select(p)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(p); } }}
+                className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-brand/5 transition-colors cursor-pointer"
+                data-testid={`patient-result-${p.id}`}
+              >
+                <User className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{p.name}</div>
+                  {p.phone && <div className="text-xs text-gray-500">{p.phone}</div>}
+                  {p.credit_limit > 0 && (
+                    <div className={`text-xs ${p.outstanding >= p.credit_limit ? 'text-red-600' : 'text-orange-600'}`}>
+                      Owes {formatCurrency(p.outstanding || 0)} of {formatCurrency(p.credit_limit)} limit
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Add new */}
+            {(noResults || (query.trim() && results.length < 8)) && query.trim() && (
+              <AppButton
+                variant="ghost"
+                onClick={() => { setShowAdd(true); setAddForm({ name: query.trim(), phone: '' }); }}
+                className="w-full justify-start px-3 py-2.5 text-sm text-brand hover:bg-brand/5 hover:text-brand border-t border-gray-100 rounded-none"
+                icon={<UserPlus className="w-3.5 h-3.5" />}
+                data-testid="patient-add-new"
+              >
+                Add "{query.trim()}" as new customer
+              </AppButton>
+            )}
+
+            {/* Empty state */}
+            {!loading && !query.trim() && (
+              <div className="px-3 py-3 text-xs text-gray-400 flex items-center gap-1.5">
+                <Search className="w-3 h-3" />
+                Type to search patients
+              </div>
+            )}
+          </>
+        ) : (
+          /* Mini add form */
+          <div className="p-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">New Customer</p>
+            <input
+              ref={addNameRef}
+              value={addForm.name}
+              onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Full name *"
+              className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+            <input
+              value={addForm.phone}
+              onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="Phone (optional)"
+              maxLength={10}
+              className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-3 focus:outline-none focus:ring-1 focus:ring-brand"
+            />
+            <div className="flex gap-2">
+              <AppButton
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdd(false)}
+                className="flex-1 h-auto py-1.5 text-xs rounded-md"
+              >
+                Back
+              </AppButton>
+              <AppButton
+                size="sm"
+                onClick={handleAddSave}
+                loading={saving}
+                className="flex-1 h-auto py-1.5 text-xs rounded-md"
+              >
+                Add &amp; Select
+              </AppButton>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Mini add form */}
-      {open && showAdd && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 p-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">New Customer</p>
-          <input
-            autoFocus
-            value={addForm.name}
-            onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="Full name *"
-            className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-brand"
-          />
-          <input
-            value={addForm.phone}
-            onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
-            placeholder="Phone (optional)"
-            maxLength={10}
-            className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-3 focus:outline-none focus:ring-1 focus:ring-brand"
-          />
-          <div className="flex gap-2">
-            <AppButton
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAdd(false)}
-              className="flex-1 h-auto py-1.5 text-xs rounded-md"
-            >
-              Back
-            </AppButton>
-            <AppButton
-              size="sm"
-              onClick={handleAddSave}
-              loading={saving}
-              className="flex-1 h-auto py-1.5 text-xs rounded-md"
-            >
-              Add &amp; Select
-            </AppButton>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

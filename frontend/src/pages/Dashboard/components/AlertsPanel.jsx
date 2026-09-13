@@ -1,20 +1,35 @@
 /**
  * AlertsPanel — Row 4: Low Stock + Expiring Soon + Recent Bills.
  * Props:
- *   lowStock      {Array}
- *   expiringSoon  {Array}
- *   recentBills   {Array}
- *   quickStats    {object}   — for badge counts
- *   onNavigate    {(path: string) => void}
+ *   lowStock          {Array}
+ *   expiringSoon      {Array}
+ *   recentBills       {Array}
+ *   quickStats        {object}   — for badge counts
+ *   onNavigate        {(path: string) => void}
+ *   lowStockEnabled   {boolean}  — from GET /analytics/dashboard's alerts_config.low_stock_enabled
+ *   nearExpiryEnabled {boolean}  — from GET /analytics/dashboard's alerts_config.near_expiry_enabled
  */
 import React from 'react';
 import { AlertCircle, AlertTriangle, FileText } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 
-export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quickStats, onNavigate }) {
+export default function AlertsPanel({
+  lowStock, expiringSoon, recentBills, quickStats, onNavigate,
+  lowStockEnabled = true, nearExpiryEnabled = true,
+}) {
+  // Settings → Notifications' Low Stock/Near Expiry toggles used to do
+  // nothing anywhere (found in the Sep 13, 2026 Inventory product-review) —
+  // this panel rendered unconditionally regardless of either flag. Gating
+  // the cards here is the fix: the toggle now controls the one real,
+  // already-existing surface it's closest to. Recent Bills has no toggle,
+  // so it always shows.
+  const visibleAlertCards = (lowStockEnabled ? 1 : 0) + (nearExpiryEnabled ? 1 : 0) + 1;
+  const gridColsClass = visibleAlertCards >= 3 ? 'lg:grid-cols-3' : visibleAlertCards === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-1';
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div className={`grid grid-cols-1 ${gridColsClass} gap-4 mb-6`}>
       {/* Low Stock */}
+      {lowStockEnabled && (
       <div className="bg-white rounded-xl border border-gray-200" data-testid="low-stock-alert">
         <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
@@ -46,8 +61,10 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
           )}
         </div>
       </div>
+      )}
 
       {/* Expiring Soon */}
+      {nearExpiryEnabled && (
       <div className="bg-white rounded-xl border border-gray-200" data-testid="expiring-soon-alert">
         <div className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between">
@@ -79,6 +96,7 @@ export default function AlertsPanel({ lowStock, expiringSoon, recentBills, quick
           )}
         </div>
       </div>
+      )}
 
       {/* Recent Bills */}
       <div className="bg-white rounded-xl border border-gray-200" data-testid="recent-bills-card">

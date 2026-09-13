@@ -44,7 +44,7 @@ export default function Dashboard() {
     );
   }
 
-  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats, license_alert } = data || {};
+  const { metrics, daily_trend, category_sales, top_products, top_customers, low_stock, expiring_soon, recent_bills, quick_stats, license_alert, alerts_config } = data || {};
   const isNewPharmacy = !metrics?.today_sales && !metrics?.total_sales;
 
   return (
@@ -92,6 +92,8 @@ export default function Dashboard() {
             recentBills={recent_bills}
             quickStats={quick_stats}
             onNavigate={navigate}
+            lowStockEnabled={alerts_config?.low_stock_enabled ?? true}
+            nearExpiryEnabled={alerts_config?.near_expiry_enabled ?? true}
           />
 
           {/* Row 5: Quick Stats */}

@@ -48,8 +48,10 @@ export default function DoctorsTable({ doctors, loading, searchQuery, onAdd, onE
               <tr key={doctor.id} className="group h-10 border-b border-gray-100 last:border-0 hover:bg-brand-tint">
                 <td className="px-4 py-2.5">
                   <div className="text-sm font-medium text-gray-900">Dr. {doctor.name}</div>
-                  {doctor.clinic_address && (
-                    <div className="text-xs text-gray-500">{doctor.clinic_address}</div>
+                  {(doctor.qualification || doctor.clinic_address) && (
+                    <div className="text-xs text-gray-500">
+                      {[doctor.qualification, doctor.clinic_address].filter(Boolean).join(' · ')}
+                    </div>
                   )}
                 </td>
                 <td className="px-4 py-2.5">

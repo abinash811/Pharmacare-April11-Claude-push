@@ -66,6 +66,7 @@ class Doctor(Base):
     hospital: Mapped[Optional[str]] = mapped_column(String(200))
     phone: Mapped[Optional[str]] = mapped_column(String(10))
     address: Mapped[Optional[str]] = mapped_column(Text)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(

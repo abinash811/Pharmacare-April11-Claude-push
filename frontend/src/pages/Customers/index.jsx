@@ -3,7 +3,7 @@ import { User, Stethoscope, Plus, FileSpreadsheet } from 'lucide-react';
 import { SearchInput, TableSkeleton, DeleteConfirmDialog, PaginationBar, PageTabs, PageHeader, AppButton } from '@/components/shared';
 import usePagination from '@/hooks/usePagination';
 import { toast } from 'sonner';
-import { exportCustomersToExcel } from '@/utils/excelExport';
+import { exportCustomersToExcel, exportDoctorsToExcel } from '@/utils/excelExport';
 import { useDebounce } from '@/hooks/useDebounce';
 
 import { useCustomers }          from './hooks/useCustomers';
@@ -78,8 +78,13 @@ export default function Customers() {
     setDelDoctor({ open: !ok, item: ok ? null : delDoctor.item, loading: false });
   };
   const handleExport = () => {
-    if (customers.length === 0) { toast.error('No customers to export'); return; }
-    exportCustomersToExcel(customers);
+    if (isCustomers) {
+      if (customers.length === 0) { toast.error('No customers to export'); return; }
+      exportCustomersToExcel(customers);
+    } else {
+      if (doctors.length === 0) { toast.error('No doctors to export'); return; }
+      exportDoctorsToExcel(doctors);
+    }
     toast.success('Exported to Excel');
   };
 
@@ -92,16 +97,14 @@ export default function Customers() {
         title="Customers & Doctors"
         actions={
           <div className="flex items-center gap-2">
-            {isCustomers && (
-              <AppButton
-                variant="outline"
-                icon={<FileSpreadsheet className="w-4 h-4" strokeWidth={1.5} />}
-                onClick={handleExport}
-                data-testid="export-customers-btn"
-              >
-                Export Excel
-              </AppButton>
-            )}
+            <AppButton
+              variant="outline"
+              icon={<FileSpreadsheet className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={handleExport}
+              data-testid={isCustomers ? 'export-customers-btn' : 'export-doctors-btn'}
+            >
+              Export Excel
+            </AppButton>
             <AppButton
               icon={<Plus className="w-4 h-4" strokeWidth={1.5} />}
               onClick={isCustomers ? handleAddCustomer : handleAddDoctor}

@@ -91,6 +91,9 @@ class DoctorCreate(BaseModel):
     name: str
     contact: Optional[str] = None
     specialization: Optional[str] = None
+    qualification: Optional[str] = None
+    registration_number: Optional[str] = None
+    hospital: Optional[str] = None
     clinic_address: Optional[str] = None
     notes: Optional[str] = None
 
@@ -150,6 +153,7 @@ def _doctor_response(d: DoctorORM) -> dict:
         "registration_number": d.registration_number,
         "hospital": d.hospital,
         "clinic_address": d.address,
+        "notes": d.notes,
         "is_active": d.is_active,
         "created_at": d.created_at.isoformat() if d.created_at else None,
         "updated_at": d.updated_at.isoformat() if d.updated_at else None,
@@ -332,7 +336,11 @@ async def create_doctor(doctor_data: DoctorCreate, request: Request, current_use
         name=doctor_data.name,
         phone=doctor_data.contact,
         specialization=doctor_data.specialization,
+        qualification=doctor_data.qualification,
+        registration_number=doctor_data.registration_number,
+        hospital=doctor_data.hospital,
         address=doctor_data.clinic_address,
+        notes=doctor_data.notes,
     )
     db.add(doctor)
     await db.flush()
@@ -390,7 +398,7 @@ async def update_doctor(doctor_id: str, doctor_data: dict, request: Request, cur
         not_found_detail="Doctor not found")
 
     field_map = {"contact": "phone", "clinic_address": "address"}
-    allowed = {"name", "specialization", "qualification", "registration_number", "hospital"}
+    allowed = {"name", "specialization", "qualification", "registration_number", "hospital", "notes"}
     old_values: dict = {}
     new_values: dict = {}
     for key, value in doctor_data.items():

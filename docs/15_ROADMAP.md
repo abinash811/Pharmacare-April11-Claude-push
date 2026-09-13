@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.62 | Last updated: September 13, 2026
+# Version: 2.63 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -920,21 +920,24 @@ accident.
   unrelated pre-existing shared-DB flake); `npx tsc --noEmit` and
   `design-guard.sh` clean; live-verified the real Add Customer form now
   renders and saves a Notes field.
-- **v1 — Doctors, found Sep 13, 2026, not yet built (pending Abinash's
-  go-ahead on this review):**
-  5. Doctor `registration_number`/`qualification`/`hospital` — add all
-     three to `DoctorCreate`/`update_doctor`'s accepted fields and to
+- **v1 — Doctors, found Sep 13, 2026 — ✅ Fixed Sep 13, 2026:**
+  5. ✅ Doctor `registration_number`/`qualification`/`hospital` — added to
+     `DoctorCreate`/`update_doctor`'s accepted fields and to
      `DoctorFormDialog.jsx` (same 4-field modal, 3 more inputs), plus
-     columns in `DoctorsTable.jsx`. Closes the live Schedule H1 register
+     shown in `DoctorsTable.jsx`. Closes the live Schedule H1 register
      compliance gap above — highest-severity item in this list.
-  6. Real doctor `notes` column + rendered `<Textarea>` — same fix
-     shape as items 2 (Customers) and the Aug 26 Supplier one; closes the
-     third recurrence of this exact bug class (see RULE MISSES LOG).
-- **v2:** family-wise consolidated billing; WhatsApp outstanding/refill/
-  payment reminders (now that v1.4 makes the underlying number trustworthy);
-  doctor-linked customer history view (scope against Schedule H1 first);
-  doctor-wise sales report (Marg-validated, Sep 13, 2026); Doctors Excel
-  export (Sep 13, 2026)
+  6. ✅ Real doctor `notes` column (migration `4ef3a1f0aec2`) + rendered
+     `<Textarea>` — same fix shape as items 2 (Customers) and the Aug 26
+     Supplier one; closes the third recurrence of this exact bug class
+     (see RULE MISSES LOG).
+  - Regression tests: `backend/tests/test_doctor_record_fields.py` (3
+    tests, including a full live H1-register end-to-end reproduction of
+    the original bug) — confirmed failing pre-fix, passing post-fix.
+- **v2 — building next:** doctor-wise sales report (Marg-validated, Sep
+  13, 2026); Doctors Excel export (Sep 13, 2026); family-wise consolidated
+  billing; WhatsApp outstanding/refill/payment reminders (now that v1.4
+  makes the underlying number trustworthy); doctor-linked customer history
+  view (scope against Schedule H1 first)
 - **v3:** pensioner/BPL and other segmentation tags; medicine-specific
   refill reminders (needs a real adherence-tracking layer first)
 - **Removed:** loyalty points — see above, done, not just phased out
@@ -1203,6 +1206,7 @@ way that's been caught):
 | No formal root-cause-before-fix skill; no post-merge health check | ✅ | Fixed Sep 11, 2026 — added `.claude/skills/pharmacare-investigate` and `.claude/skills/pharmacare-canary`. Prompted by reviewing Garry Tan's `gstack` (a viral, controversial open-source Claude Code skill pack — verified real via web search, not installed wholesale: most of it overlaps what PharmaCare already has, and its self-updating unvendored install pattern is a real supply-chain trust question for a compliance app). Adapted just the two genuinely missing ideas as PharmaCare-specific skills instead of importing the toolkit: `pharmacare-investigate` formalizes Manifesto rule 14 (no assumptions) as an enforced trace-before-fix workflow, citing 3 real past bugs from this log that were guesses, not verified root causes; `pharmacare-canary` is a post-merge smoke-test workflow (real browser + Lighthouse regression check), scoped honestly to local/CI since no live staging/production exists yet (see PRE-LAUNCH BLOCKERS item 5) — written to point at a real URL once one exists, no rewrite needed. |
 | `frontend/src/constants/api.js` and `api.ts` (also `routes.js`/`routes.ts`) are duplicate files that have already drifted apart | Medium | Found Sep 12, 2026 while adding the reorder-list endpoint to `api.js`: CRA's default webpack resolve order picks `.js` over `.ts` for a bare `@/constants/api` import, so `api.ts` is dead code nobody actually loads — but it still gets hand-edited sometimes (has `purchaseReturnConfirm`/`CONFIRM` that `api.js` lacks; `api.js` has `purchaseCheckDuplicateInvoice` that `api.ts` lacks). Not fixed in this pass — real fix is deleting one and finishing the other's TS migration, real scope, not a side effect of an unrelated feature. Same class of duplicate-source-of-truth risk as the seed_admin.py/constants.py role-permissions drift fixed Sep 12, 2026 (RULE MISSES LOG). |
 | Team's member list shows nothing while loading | ✅ | Fixed Sep 5, 2026 — `MembersTable.jsx` swapped `if (loading) return null` for `TableSkeleton` (Manifesto rule #16). Found as part of a full-app skeleton audit that also fixed `PurchaseReturnCreate` (plain-text loading string) and `SalesReturnCreate` (no loading state at all — form flashed empty before the original bill loaded). |
+| `test_purchase_mrp_must_be_positive.py::test_valid_mrp_purchase_still_creates_stock_batch` fails even on a clean checkout | Medium | Found Sep 13, 2026 running the full suite for the Doctors v1 fix — confirmed unrelated (fails identically with the Doctors changes fully stashed out). Uses a fixed seed login (`testadmin@pharmacy.com`) and a fixed product name ("MRP Guard Test") searched via `/products/search-with-batches?q=...` with no pagination awareness — looks like the shared dev DB has accumulated enough same-named rows across past runs that the new one no longer lands on the default result page. Not fixed in this pass — needs its own investigation, not a side effect of the Doctors work. |
 | Sheets not implemented — forms use centered modals | High | Next sprint |
 | Zod not on all forms — some use uncontrolled inputs | High | Next sprint |
 | Bill PDF template incomplete | Medium | Renderer exists, layout WIP |

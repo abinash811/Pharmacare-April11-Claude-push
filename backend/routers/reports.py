@@ -489,6 +489,80 @@ async def get_price_variation_report(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── doctor-wise sales report ─────────────────────────────────────────────────
+# Marg ERP-validated gap, Doctors product review Sep 13, 2026: "how much
+# business is Dr. X actually sending us" — a referral-doctor sales rollup.
+# Grouped by Bill.doctor_name (the free-text field DoctorDropdown lets a
+# cashier fill in without a DB doctor_id — see that component), not
+# doctor_id, so a doctor referenced by name only still shows up. Matched to
+# a real Doctor row by case-insensitive name (same rule _create_h1_entry
+# already uses) purely to attach specialization/qualification for display
+# — never to filter which bills count.
+
+
+@router.get("/reports/doctor-wise-sales")
+async def get_doctor_wise_sales_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    pid = current_user.pharmacy_id
+    conds = [
+        BillORM.pharmacy_id == pid,
+        BillORM.status.in_(["paid", "due"]),
+        BillORM.deleted_at.is_(None),
+        BillORM.doctor_name.isnot(None),
+        func.trim(BillORM.doctor_name) != "",
+    ]
+    if from_date:
+        conds.append(BillORM.bill_date >= date.fromisoformat(from_date))
+    if to_date:
+        conds.append(BillORM.bill_date <= date.fromisoformat(to_date))
+
+    stmt = (
+        select(
+            BillORM.doctor_name,
+            func.count(BillORM.id).label("bill_count"),
+            func.sum(BillORM.grand_total_paise).label("revenue_paise"),
+        )
+        .where(*conds)
+        .group_by(BillORM.doctor_name)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    doctors = (await db.execute(
+        select(DoctorORM.name, DoctorORM.specialization, DoctorORM.qualification, DoctorORM.hospital)
+        .where(DoctorORM.pharmacy_id == pid)
+    )).all()
+    doctor_by_lower_name = {d.name.lower(): d for d in doctors}
+
+    data = []
+    total_revenue_paise = 0
+    for r in rows:
+        matched = doctor_by_lower_name.get(r.doctor_name.lower())
+        data.append({
+            "doctor_name": r.doctor_name,
+            "specialization": matched.specialization if matched else None,
+            "qualification": matched.qualification if matched else None,
+            "hospital": matched.hospital if matched else None,
+            "bill_count": int(r.bill_count or 0),
+            "revenue": _p2r(r.revenue_paise),
+        })
+        total_revenue_paise += r.revenue_paise or 0
+
+    data.sort(key=lambda x: x["revenue"], reverse=True)
+
+    return {
+        "summary": {
+            "total_doctors": len(data),
+            "total_bills": sum(d["bill_count"] for d in data),
+            "total_revenue": _p2r(total_revenue_paise),
+        },
+        "data": data,
+    }
+
+
 # ── sales returns report ──────────────────────────────────────────────────────
 # UC-RET01 (return report) / RET04 (return rate) / RET06 (refund-method
 # breakdown) / RET07 (net sales after returns). Every SalesReturn is created

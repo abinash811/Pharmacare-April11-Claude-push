@@ -91,6 +91,8 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatPurchaseReturnsReport(reportData);
     case 'price-variation':
       return formatPriceVariationReport(reportData);
+    case 'doctor-wise-sales':
+      return formatDoctorWiseSalesReport(reportData);
     default:
       return reportData.data || reportData;
   }
@@ -153,6 +155,19 @@ const formatMarginReport = (data) => {
     'Cost (₹)': item.cost,
     'Margin (₹)': item.margin,
     'Margin %': item.margin_percent,
+  }));
+};
+
+const formatDoctorWiseSalesReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/doctor-wise-sales's real response exactly.
+  return data.data.map((item) => ({
+    'Doctor': `Dr. ${item.doctor_name}`,
+    'Specialization': item.specialization || '-',
+    'Qualification': item.qualification || '-',
+    'Hospital': item.hospital || '-',
+    'Bills': item.bill_count,
+    'Revenue (₹)': item.revenue,
   }));
 };
 
@@ -227,6 +242,25 @@ export const exportCustomersToExcel = (customers) => {
 };
 
 /**
+ * Export doctors to Excel
+ * @param {Array} doctors - Doctor data
+ */
+export const exportDoctorsToExcel = (doctors) => {
+  const data = doctors.map((d) => ({
+    'Name': `Dr. ${d.name}`,
+    'Contact': d.contact || '-',
+    'Qualification': d.qualification || '-',
+    'Specialization': d.specialization || '-',
+    'Registration Number': d.registration_number || '-',
+    'Hospital': d.hospital || '-',
+    'Clinic Address': d.clinic_address || '-',
+    'Notes': d.notes || '-',
+  }));
+
+  exportToExcel(data, 'doctors', { sheetName: 'Doctors' });
+};
+
+/**
  * Export suppliers to Excel
  * @param {Array} suppliers - Supplier data
  */
@@ -292,6 +326,7 @@ export default {
   exportMultiSheetExcel,
   formatReportForExcel,
   exportCustomersToExcel,
+  exportDoctorsToExcel,
   exportSuppliersToExcel,
   exportBillsToExcel,
   exportInventoryToExcel,

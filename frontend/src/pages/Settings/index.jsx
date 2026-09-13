@@ -3,7 +3,8 @@
  * Route: /settings
  */
 import React, { useContext, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Save, History } from 'lucide-react';
 import { AuthContext } from '@/App';
 import { InlineLoader, PageHeader, PageTabs, AppButton } from '@/components/shared';
 
@@ -30,6 +31,7 @@ const SETTINGS_TABS = [
 
 export default function Settings() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = React.useState('profile');
 
   const {
@@ -63,6 +65,16 @@ export default function Settings() {
     <div className="min-h-screen bg-page px-8 py-6">
       <PageHeader
         title="Settings"
+        actions={
+          <AppButton
+            variant="outline"
+            icon={<History className="w-4 h-4" strokeWidth={1.5} />}
+            onClick={() => navigate('/audit-log?entity_type=settings')}
+            data-testid="settings-history-btn"
+          >
+            Change History
+          </AppButton>
+        }
       />
       <PageTabs
         tabs={SETTINGS_TABS}

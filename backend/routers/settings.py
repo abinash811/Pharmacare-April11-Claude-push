@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, ValidationError, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,10 +15,65 @@ from constants import ALL_PERMISSIONS, DEFAULT_ROLES  # noqa: F401 — DEFAULT_R
 from deps import get_db
 from models.billing import Bill, SalesReturn
 from models.pharmacy import Pharmacy, PharmacySettings
-from models.users import Role as RoleORM, User as UserORM
+from models.users import AuditLog, Role as RoleORM, User as UserORM
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["settings"])
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
+
+
+# Every PharmacySettings/Pharmacy column update_settings() can write to —
+# used to snapshot before/after and log only the fields that actually
+# changed. Kept as one explicit list rather than instrumenting each
+# individual `setattr` call below, so a future field added to one of the
+# request models can't silently skip audit logging by omission.
+_SETTINGS_TRACKED_FIELDS = [
+    "near_expiry_threshold_days", "low_stock_threshold_days", "block_expired_stock",
+    "allow_near_expiry_sale", "alert_low_stock_enabled", "alert_near_expiry_enabled",
+    "alert_drug_license_enabled", "drug_license_alert_days",
+    "paper_size", "print_logo", "print_drug_license", "print_patient_name",
+    "bill_header", "bill_footer", "print_signature", "print_gstin", "print_fssai", "print_pan",
+    "digital_use_default_header", "digital_header_image_url", "digital_footer_image_url",
+    "digital_header_height_px", "digital_footer_height_px", "digital_bill_header", "digital_bill_footer",
+    "default_gst_rate", "default_hsn_medicines", "default_hsn_surgical", "auto_apply_hsn",
+    "round_off_amount", "print_gst_summary",
+    "enable_draft_bills", "auto_print_invoice",
+    "return_window_days", "require_original_bill", "allow_partial_return",
+]
+_PHARMACY_TRACKED_FIELDS = [
+    "name", "address", "city", "state", "pincode", "phone", "email", "gstin",
+    "drug_license_number", "drug_license_expiry", "fssai_number", "pan_number", "logo_url",
+]
+
+
+def _serialize_setting_value(value):
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
+
+
+def _snapshot_settings_fields(ps: Optional[PharmacySettings], pharmacy: Optional[Pharmacy]) -> dict:
+    snapshot = {f: _serialize_setting_value(getattr(ps, f, None)) for f in _SETTINGS_TRACKED_FIELDS}
+    snapshot.update(
+        {f: _serialize_setting_value(getattr(pharmacy, f, None)) for f in _PHARMACY_TRACKED_FIELDS})
+    return snapshot
 
 
 # ── Pydantic request models ──────────────────────────────────────────────────
@@ -282,7 +338,7 @@ async def get_settings(current_user: User = Depends(get_current_user),
 
 
 @router.put("/settings")
-async def update_settings(settings_data: dict, current_user: User = Depends(
+async def update_settings(settings_data: dict, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
 
@@ -294,6 +350,16 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
     if not ps:
         ps = PharmacySettings(pharmacy_id=pharmacy_id)
         db.add(ps)
+
+    pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
+    pharmacy = pharm_result.scalar_one_or_none()
+
+    # Settings had zero audit-log coverage — a real business-rule change
+    # (a GST rate, a return window, a billing default) left no trace of
+    # who changed what, when. Snapshot before any section below mutates
+    # ps/pharmacy; diffed against the after-snapshot once every section
+    # has applied, so only fields that actually changed get logged.
+    before_settings = _snapshot_settings_fields(ps, pharmacy)
 
     inv = settings_data.get("inventory", {})
     if "near_expiry_days" in inv:
@@ -392,8 +458,6 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
         except ValidationError as e:
             raise HTTPException(status_code=422, detail=_validation_errors(e))
 
-        pharm_result = await db.execute(select(Pharmacy).where(Pharmacy.id == pharmacy_id))
-        pharmacy = pharm_result.scalar_one_or_none()
         if pharmacy:
             for field in ["name", "address", "city", "state", "pincode", "phone", "email",
                           "gstin", "drug_license_number", "drug_license_expiry",
@@ -401,6 +465,15 @@ async def update_settings(settings_data: dict, current_user: User = Depends(
                 value = getattr(validated, field)
                 if field in general and value is not None:
                     setattr(pharmacy, field, value)
+
+    after_settings = _snapshot_settings_fields(ps, pharmacy)
+    changed_old = {f: v for f, v in before_settings.items() if after_settings[f] != v}
+    changed_new = {f: after_settings[f] for f in changed_old}
+    if changed_new:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "settings", pharmacy_id,
+            changed_new, db, old_values=changed_old, ip_address=_client_ip(request),
+        )
 
     await db.flush()
     return {"message": "Settings updated successfully"}

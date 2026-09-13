@@ -6,8 +6,9 @@
  * Shows all system actions: bill created, stock adjusted, user changed, etc.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import {
   PageHeader, DataCard, SearchInput,
   TableSkeleton, PaginationBar, StatusBadge,
@@ -19,66 +20,21 @@ import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
-
-// ── Action badge styles ──────────────────────────────────────────────────────
-function ActionBadge({ action }) {
-  const styles = {
-    create: 'bg-green-50 text-green-700',
-    update: 'bg-blue-50 text-blue-700',
-    delete: 'bg-red-50 text-red-700',
-    login:  'bg-purple-50 text-purple-700',
-    logout: 'bg-gray-100 text-gray-600',
-    bill_finalized:    'bg-green-50 text-green-700',
-    bill_parked:       'bg-amber-50 text-amber-700',
-    stock_adjusted:    'bg-orange-50 text-orange-700',
-    payment_recorded:  'bg-green-50 text-green-700',
-    return_processed:  'bg-pink-50 text-pink-700',
-  };
-  const label = action?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
-  const cls   = styles[action?.toLowerCase()] || 'bg-gray-100 text-gray-600';
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-// Entity type display labels
-const ENTITY_LABELS = {
-  bill:             'Bill',
-  purchase:         'Purchase',
-  purchase_return:  'Purchase Return',
-  sales_return:     'Sales Return',
-  product:          'Product',
-  stock_batch:      'Stock Batch',
-  stock_movement:   'Stock Adjustment',
-  user:             'User',
-  role:             'Role',
-  supplier:         'Supplier',
-  customer:         'Customer',
-  settings:         'Settings',
-};
-
-const ENTITY_TYPES = [
-  { key: 'all',             label: 'All'             },
-  { key: 'bill',            label: 'Bill'            },
-  { key: 'purchase',        label: 'Purchase'        },
-  { key: 'purchase_return', label: 'Purchase Return' },
-  { key: 'sales_return',    label: 'Sales Return'    },
-  { key: 'product',         label: 'Product'         },
-  { key: 'stock_batch',     label: 'Stock Batch'     },
-  { key: 'user',            label: 'User'            },
-  { key: 'settings',        label: 'Settings'        },
-];
+import { ActionBadge, ENTITY_LABELS, ENTITY_TYPES } from './AuditLogBadges';
 
 export default function AuditLog() {
   const { user: currentUser } = useContext(AuthContext);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [logs, setLogs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedRow, setExpandedRow] = useState(null);
 
-  // Filters
-  const [entityTypeFilter, setEntityTypeFilter] = useState('all');
+  // Filters — entity_type/entity_id can arrive pre-set via URL (e.g. a
+  // "View Change History" link from Settings, or "Login History" from a
+  // Team member row), so other pages can deep-link straight to a
+  // filtered view instead of duplicating this table elsewhere.
+  const [entityTypeFilter, setEntityTypeFilter] = useState(searchParams.get('entity_type') || 'all');
+  const entityIdFilter                          = searchParams.get('entity_id') || null;
   const [searchQuery, setSearchQuery]           = useState('');
   const debouncedSearch                         = useDebounce(searchQuery, 300);
 
@@ -93,6 +49,7 @@ export default function AuditLog() {
         page_size: pg.pageSize,
       };
       if (entityTypeFilter !== 'all') params.entity_type = entityTypeFilter;
+      if (entityIdFilter) params.entity_id = entityIdFilter;
 
       const res = await api.get(apiUrl.auditLogs(params));
       setLogs(res.data.data || []);
@@ -104,11 +61,17 @@ export default function AuditLog() {
     }
   };
 
+  const clearEntityIdFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('entity_id');
+    setSearchParams(next);
+  };
+
   useEffect(() => {
     pg.resetPage();
     fetchData(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityTypeFilter]);
+  }, [entityTypeFilter, entityIdFilter]);
 
   useEffect(() => {
     fetchData();
@@ -168,6 +131,19 @@ export default function AuditLog() {
           onChange={setEntityTypeFilter}
           className="flex-wrap"
         />
+
+        {entityIdFilter && (
+          <span className="flex items-center gap-1 pl-2.5 pr-1 py-1 bg-brand-tint text-brand text-xs font-medium rounded-lg">
+            One record only
+            <AppButton
+              variant="ghost"
+              iconOnly
+              icon={<X className="w-3.5 h-3.5" />}
+              aria-label="Clear record filter"
+              onClick={clearEntityIdFilter}
+            />
+          </span>
+        )}
       </div>
 
       {/* Table */}
@@ -226,7 +202,7 @@ export default function AuditLog() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {log.performed_by ? log.performed_by.slice(0, 8) + '…' : '—'}
+                        {log.performed_by_name || (log.performed_by ? log.performed_by.slice(0, 8) + '…' : '—')}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {(log.old_value || log.new_value) && (

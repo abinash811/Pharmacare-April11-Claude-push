@@ -1,9 +1,12 @@
 import React from 'react';
-import { Edit, XCircle, CheckCircle, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Edit, XCircle, CheckCircle, Users, History } from 'lucide-react';
 import { AppButton, PaginationBar, TableSkeleton } from '@/components/shared';
+import { formatDateTime } from '@/utils/dates';
 import RoleBadge from './RoleBadge';
 
 export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate }) {
+  const navigate = useNavigate();
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -14,15 +17,16 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
               <th scope="col" className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Email</th>
               <th scope="col" className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Role</th>
               <th scope="col" className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th scope="col" className="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
               <th scope="col" className="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="p-0"><TableSkeleton rows={6} columns={5} /></td></tr>
+              <tr><td colSpan={6} className="p-0"><TableSkeleton rows={6} columns={6} /></td></tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-16 text-center">
+                <td colSpan={6} className="py-16 text-center">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" strokeWidth={1.5} />
                   <p className="text-sm font-medium text-gray-900">No members found</p>
                   <p className="text-sm text-gray-500 mt-1">Invite your first team member</p>
@@ -44,8 +48,13 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-2.5 text-sm text-gray-500">
+                  {u.last_login_at ? formatDateTime(u.last_login_at) : 'Never'}
+                </td>
                 <td className="px-4 py-2.5">
                   <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <AppButton variant="ghost" iconOnly icon={<History className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Login history for ${u.name}`}
+                      onClick={() => navigate(`/audit-log?entity_type=auth&entity_id=${u.id}`)} />
                     <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Edit ${u.name}`}
                       onClick={() => onEdit(u)} />
                     {u.id !== currentUser.id && (

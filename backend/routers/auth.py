@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -11,7 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from deps import get_db
 from models.pharmacy import Pharmacy
-from models.users import Role as RoleORM, User as UserORM
+from models.users import AuditLog, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
     User,
     create_access_token,
@@ -22,6 +23,29 @@ from routers.auth_helpers import (
 from services.provisioning import create_pharmacy_with_defaults
 
 router = APIRouter(prefix="/api", tags=["auth"])
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+async def _record_login_event(
+    user: UserORM, action: str, db: AsyncSession, ip_address: str | None,
+) -> None:
+    # Login history (Roles & Permissions maturity gap) — nothing tracked
+    # who logged in, when, from where, or how many times a password was
+    # gotten wrong. Reuses the existing AuditLog table (entity_type="auth")
+    # instead of a new one — same rows shape every other module already
+    # writes, just a new entity_type. A user record with no pharmacy_id
+    # yet (there is none in this app — every user is created under a
+    # pharmacy) never occurs, so this only needs a matched user, which is
+    # also why an unknown email is never logged: there is no tenant to
+    # attribute the attempt to.
+    db.add(AuditLog(
+        pharmacy_id=user.pharmacy_id, user_id=user.id, action=action,
+        entity_type="auth", entity_id=user.id, new_values=None,
+        old_values=None, ip_address=ip_address,
+    ))
 
 
 class UserCreate(BaseModel):
@@ -90,17 +114,38 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/login")
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(credentials: UserLogin, request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(UserORM)
         .options(joinedload(UserORM.role))
         .where(UserORM.email == credentials.email)
     )
     user = result.scalar_one_or_none()
+    ip = _client_ip(request)
+
     if not user or not verify_password(credentials.password, user.password_hash):
+        # An unknown email has no pharmacy to attribute the attempt to —
+        # only a real account's wrong-password attempts are logged.
+        if user:
+            await _record_login_event(user, "login_failed", db, ip)
+            # A plain flush() is not enough here: get_db's own exception
+            # handler rolls back the whole transaction the moment this
+            # HTTPException propagates out, which would silently discard
+            # the very row this is trying to persist. Commit for real
+            # before raising.
+            await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
+        await _record_login_event(user, "login_blocked", db, ip)
+        await db.commit()
         raise HTTPException(status_code=403, detail="Account is inactive")
+
+    # last_login_at has existed on the User model since day one but
+    # nothing ever set it — every account showed no last-login value
+    # regardless of real usage.
+    user.last_login_at = datetime.now(timezone.utc)
+    await _record_login_event(user, "login", db, ip)
+    await db.flush()
 
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {

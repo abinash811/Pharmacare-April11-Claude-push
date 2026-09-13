@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.71 | Last updated: September 13, 2026
+# Version: 2.72 | Last updated: September 13, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1015,6 +1015,8 @@ accident.
 | Dead/orphaned code | ✅ **Removed Sep 13, 2026** | `Settings/index.jsx` had an unreachable `activeTab === 'general'` branch (no `general` tab in `SETTINGS_TABS`) rendering `GeneralTab.jsx`, which read `general.pharmacy_name`/`currency`/`timezone` — fields that exist in neither the real `settings.general` shape nor the `Pharmacy` model. Leftover from an older iteration; deleted the file and both references. |
 | Team management (add/remove users) | ✅ | |
 | Role assignment | ✅ | admin / manager / cashier / inventory_staff |
+| Settings change history | ✅ **Built Sep 13, 2026** | First item of a deliberate "make Settings/Dashboard/Roles feel like a real, matured single-pharmacy product" pass (explicitly scoped to one pharmacy, not chains — Phase 2 stays out of scope). Settings had zero audit trail: a GST rate or return-window change left no record of who/when. `PUT /settings` now snapshots before/after and logs only the fields that actually changed to the existing `audit_logs` table (`entity_type="settings"`) — no new table needed. New "Change History" button on the Settings page deep-links to `/audit-log?entity_type=settings`. |
+| Login history | ✅ **Built Sep 13, 2026** | Same pass. `User.last_login_at` existed on the model since day one but nothing ever set it or returned it via the API — every member's last-login was invisible. Now set on every successful login and returned by `GET /users`; every login attempt (success, wrong password on a real account, inactive account) is logged (`entity_type="auth"`) — an unknown email is never logged, there's no tenant to attribute it to. New "Login History" icon per row on the Team page deep-links to that user's own history. Both existing generic audit-log endpoints (`GET /audit-logs`, `GET /audit-logs/entity/{type}/{id}`) previously returned only a raw `performed_by` UUID, rendered truncated in the UI ("a3f92c1e…") — now also resolve and return `performed_by_name`. **Not the same as** the already-planned "Admin force-logout / session management" item below — that needs real session/token infrastructure (JWT here is fully stateless, no session table, no revocation); this is read-only history, a smaller and genuinely independent piece. 8 new pytest tests; live-verified in the browser (a real GST-rate change showed the correct before/after diff; a real login showed up immediately in that user's own history). |
 
 ---
 

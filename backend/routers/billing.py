@@ -17,7 +17,7 @@ from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1R
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
-from models.users import AuditLog
+from models.users import AuditLog, User as UserORM
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
 
 router = APIRouter(prefix="/api", tags=["billing"])
@@ -1298,6 +1298,17 @@ async def get_refunds(
 
 # ── /audit-logs ────────────────────────────────────────────────────────────────
 
+async def _resolve_user_names(user_ids: set[uuid.UUID], db: AsyncSession) -> dict[uuid.UUID, str]:
+    # Both audit-log endpoints below only ever returned the raw performed_by
+    # UUID — AuditLog.jsx rendered it truncated ("a3f92c1e…") instead of a
+    # real name, since it never had one to show. One batched lookup here
+    # instead of a lookup per row.
+    if not user_ids:
+        return {}
+    result = await db.execute(select(UserORM.id, UserORM.name).where(UserORM.id.in_(user_ids)))
+    return {uid: name for uid, name in result.all()}
+
+
 @router.get("/audit-logs")
 async def get_audit_logs(
     entity_type: Optional[str] = None, entity_id: Optional[str] = None,
@@ -1330,6 +1341,7 @@ async def get_audit_logs(
     offset = (page - 1) * page_size
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).offset(offset).limit(page_size))
     logs = result.scalars().all()
+    names_by_id = await _resolve_user_names({log.user_id for log in logs if log.user_id}, db)
 
     return {
         "data": [{
@@ -1341,6 +1353,7 @@ async def get_audit_logs(
             "new_value": log.new_values,
             "ip_address": log.ip_address,
             "performed_by": str(log.user_id) if log.user_id else None,
+            "performed_by_name": names_by_id.get(log.user_id) if log.user_id else None,
             "created_at": log.created_at.isoformat() if log.created_at else None,
         } for log in logs],
         "pagination": {
@@ -1374,6 +1387,7 @@ async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user:
         .order_by(AuditLog.created_at)
     )
     logs = result.scalars().all()
+    names_by_id = await _resolve_user_names({log.user_id for log in logs if log.user_id}, db)
 
     return [{
         "id": str(log.id),
@@ -1384,5 +1398,6 @@ async def get_entity_audit_trail(entity_type: str, entity_id: str, current_user:
         "new_value": log.new_values,
         "ip_address": log.ip_address,
         "performed_by": str(log.user_id) if log.user_id else None,
+        "performed_by_name": names_by_id.get(log.user_id) if log.user_id else None,
         "created_at": log.created_at.isoformat() if log.created_at else None,
     } for log in logs]

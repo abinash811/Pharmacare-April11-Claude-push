@@ -47,6 +47,10 @@ def _user_response(user: UserORM) -> dict:
         "role_id": str(user.role_id),
         "pharmacy_id": str(user.pharmacy_id),
         "is_active": user.is_active,
+        # Existed on the model since day one but nothing ever set it
+        # (fixed in auth.py's login()) or returned it here — every
+        # member's last-login was invisible regardless of real usage.
+        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
     }

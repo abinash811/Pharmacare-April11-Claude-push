@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.8 | Last updated: September 13, 2026
+# Version: 1.9 | Last updated: September 14, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -322,6 +322,14 @@ Real gaps this surfaces: a formal Purchase Order step before GRN, WhatsApp outst
 - **Pharmasoft:** dynamic QR-code payment acceptance at the counter (UPI/card/net banking); family group-wise billing (already noted under Customers). [Source](https://yadavsoftware.com/)
 
 Real gaps this surfaces: split/multi-mode payment on a single bill (PharmaCare's `payment_method` is one label per bill, not a real split), a day-end closing/Z-report (no cash-drawer reconciliation or operator-wise sales summary exists), and QR/UPI payment acceptance reconciled at the counter (already tracked as the payment-gateway gap below). All three are named, standard POS features in this category, not differentiators — none of PharmaCare's competitors treat them as advanced.
+
+**Settings competitor notes (researched Sep 14, 2026):**
+- **eVitalRx:** profile fields (Drug Licence, GSTIN, PAN) feed directly into the printed bill once set once in Settings — same pattern PharmaCare already has. Configurable staff-login authentication method. [Source](https://evital.freshdesk.com/support/solutions/articles/82000894539-profile-set-up), [Source](https://www.evitalrx.in/)
+- **Marg ERP:** deep industry-specific config (scheme/free-goods tracking, sub-stockist credit terms, drug-license tracking) baked into setup, not a generic settings page. [Source](https://margcompusoft.com/retail/pharmacy_software.html)
+- **Pharmasoft:** local-first storage with **optional secure cloud backup**, explicitly pitched as full data ownership with no internet dependency; multi-company/multi-user/multi-platform. [Source](https://pharmasoft.org/features.html)
+- **Category-wide (multiple vendors — Vyapar/Gofrugal/Healthray/Pharma24x7):** role-based access control is standard, including a specific "only admin can activate Schedule H/H1 medicines for billing" pattern — counter staff cannot self-enable restricted-schedule sales. [Source](https://pharma247.in/top-pharmacy-management-software-in-india)
+
+Real gaps this surfaces, weighed against scope discipline (a single-store retail counter, not a 10-year-mature product): **scheduled/automatic backups** (today: manual "Download Backup" button only) and a **digital receipt renderer** (fields already exist and save correctly, but nothing consumes them — WhatsApp/email bill-sharing doesn't exist yet). Both reviewed Sep 14, 2026 and explicitly parked for now (not v1) — see `docs/15_ROADMAP.md`'s Settings section. Multi-location/multi-counter config is out of scope by design (Phase 1 is single-store). No named competitor evidence found for a from-scratch "settings module" screenshot/breakdown — these vendors don't publish granular admin-panel documentation publicly; findings above are pieced together from feature/support pages, not a screen-by-screen comparison.
 
 ---
 

@@ -25,7 +25,6 @@ import PurchaseReturnsList from '@/pages/PurchaseReturnsList';
 import Customers from '@/pages/Customers';
 import Reports from '@/pages/Reports';
 import Settings from '@/pages/Settings';
-import Users from '@/pages/Users';
 // Team page — merges Users + Roles into a single tabbed page
 import Team from '@/pages/Team';
 import Suppliers from '@/pages/Suppliers';
@@ -162,9 +161,6 @@ function AppRoutes({ user }) {
         <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />
-        {/* Legacy route — kept so old links don't 404 while Team page is built */}
-        <Route path="users" element={<Users />} />
-        {/* New merged Team page */}
         <Route path="team" element={<Team />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

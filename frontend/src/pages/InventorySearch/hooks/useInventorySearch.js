@@ -14,6 +14,7 @@
  *   refetch  () — re-run current fetch (after add/edit/adjust)
  */
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
@@ -35,8 +36,15 @@ const DEFAULT_FILTER_OPTIONS = {
 let _filterCache = null;
 
 export function useInventorySearch() {
+  const [searchParams] = useSearchParams();
   const [searchQuery,   setSearchQuery]   = useState('');
-  const [activeFilters, setActiveFilters] = useState({});
+  // Can arrive pre-set via URL (?stock_status=low_stock|near_expiry) so the
+  // Dashboard's Low Stock/Expiring Soon "View All" buttons drill straight
+  // into the same filtered list instead of landing on an unfiltered page.
+  const [activeFilters, setActiveFilters] = useState(() => {
+    const stockStatus = searchParams.get('stock_status');
+    return stockStatus ? { stock_status: stockStatus } : {};
+  });
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
 
   const [inventory,   setInventory]   = useState([]);

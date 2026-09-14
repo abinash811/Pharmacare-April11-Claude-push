@@ -21,6 +21,22 @@ import AlertsPanel           from './components/AlertsPanel';
 import WelcomeCard           from './components/WelcomeCard';
 import LicenseExpiryBanner   from './components/LicenseExpiryBanner';
 
+// Drill-down date windows — same "today/this week/this month" definitions
+// the backend's fixed metric cards already use (week starts Monday, see
+// reports.py's week_start = today - timedelta(days=today.weekday())), so
+// clicking a card lands on exactly the bills/purchases that card counted.
+export const toISODate = (d) => d.toISOString().split('T')[0];
+export const getWeekStart = (d) => {
+  const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  const start = new Date(d);
+  start.setDate(d.getDate() - diffToMonday);
+  return start;
+};
+export const getMonthStart = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+
+export const dateRangeQuery = (start, end) => `from_date=${toISODate(start)}&to_date=${toISODate(end)}`;
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data, purchaseSummary, loading, refreshing, fetchDashboardData } = useDashboard();
@@ -34,6 +50,10 @@ export default function Dashboard() {
     setTrendRange(range);
     fetchDashboardData(false, range);
   };
+
+  const today = new Date();
+  const weekStart = getWeekStart(today);
+  const monthStart = getMonthStart(today);
 
   if (loading) {
     return (
@@ -80,10 +100,14 @@ export default function Dashboard() {
 
       {/* Row 1: Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard title="Today's Sales"  value={formatCompact(metrics?.today_sales)}  change={metrics?.today_change}  icon={<DollarSign className="w-5 h-5" />}  color="green"  subtitle="vs yesterday"  testId="today-sales-card" />
-        <MetricCard title="This Week"      value={formatCompact(metrics?.week_sales)}   change={metrics?.week_change}   icon={<TrendingUp className="w-5 h-5" />}  color="blue"   subtitle="vs last week"  testId="week-sales-card" />
-        <MetricCard title="This Month"     value={formatCompact(metrics?.month_sales)}  change={metrics?.month_change}  icon={<BarChart3 className="w-5 h-5" />}   color="purple" subtitle="vs last month" testId="month-sales-card" />
-        <MetricCard title="Total Sales"    value={formatCompact(metrics?.total_sales)}                                  icon={<ShoppingCart className="w-5 h-5" />} color="indigo" subtitle="all time"      testId="total-sales-card" />
+        <MetricCard title="Today's Sales"  value={formatCompact(metrics?.today_sales)}  change={metrics?.today_change}  icon={<DollarSign className="w-5 h-5" />}  color="green"  subtitle="vs yesterday"  testId="today-sales-card"
+          onClick={() => navigate(`/billing?${dateRangeQuery(today, today)}`)} />
+        <MetricCard title="This Week"      value={formatCompact(metrics?.week_sales)}   change={metrics?.week_change}   icon={<TrendingUp className="w-5 h-5" />}  color="blue"   subtitle="vs last week"  testId="week-sales-card"
+          onClick={() => navigate(`/billing?${dateRangeQuery(weekStart, today)}`)} />
+        <MetricCard title="This Month"     value={formatCompact(metrics?.month_sales)}  change={metrics?.month_change}  icon={<BarChart3 className="w-5 h-5" />}   color="purple" subtitle="vs last month" testId="month-sales-card"
+          onClick={() => navigate(`/billing?${dateRangeQuery(monthStart, today)}`)} />
+        <MetricCard title="Total Sales"    value={formatCompact(metrics?.total_sales)}                                  icon={<ShoppingCart className="w-5 h-5" />} color="indigo" subtitle="all time"      testId="total-sales-card"
+          onClick={() => navigate('/billing')} />
       </div>
 
       {isNewPharmacy ? (
@@ -109,9 +133,9 @@ export default function Dashboard() {
 
           {/* Row 5: Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing')} />
-            <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing')} />
-            <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red" />
+            <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing?filter=due')} />
+            <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing?filter=parked')} />
+            <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red"    onClick={() => navigate(`/billing/returns?${dateRangeQuery(monthStart, today)}`)} />
             <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory')} />
           </div>
 
@@ -120,9 +144,9 @@ export default function Dashboard() {
               metric only, no filters/download, per the product's own
               Reports-vs-Analytics split. */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <QuickStatCard title="Purchases (Month)"        value={formatCompact(purchaseSummary?.total_purchases_value)}        icon={<Truck className="w-4 h-4" />}  color="indigo" onClick={() => navigate('/purchases')} />
-            <QuickStatCard title="Purchase Returns (Month)" value={formatCompact(purchaseSummary?.total_purchase_returns_value)} icon={<Undo2 className="w-4 h-4" />}  color="red"    onClick={() => navigate('/purchases/returns')} />
-            <QuickStatCard title="Net Purchases (Month)"    value={formatCompact(purchaseSummary?.net_purchases)}                icon={<Wallet className="w-4 h-4" />} color="gray"   onClick={() => navigate('/purchases')} />
+            <QuickStatCard title="Purchases (Month)"        value={formatCompact(purchaseSummary?.total_purchases_value)}        icon={<Truck className="w-4 h-4" />}  color="indigo" onClick={() => navigate(`/purchases?${dateRangeQuery(monthStart, today)}`)} />
+            <QuickStatCard title="Purchase Returns (Month)" value={formatCompact(purchaseSummary?.total_purchase_returns_value)} icon={<Undo2 className="w-4 h-4" />}  color="red"    onClick={() => navigate(`/purchases/returns?${dateRangeQuery(monthStart, today)}`)} />
+            <QuickStatCard title="Net Purchases (Month)"    value={formatCompact(purchaseSummary?.net_purchases)}                icon={<Wallet className="w-4 h-4" />} color="gray"   onClick={() => navigate(`/purchases?${dateRangeQuery(monthStart, today)}`)} />
           </div>
         </>
       )}

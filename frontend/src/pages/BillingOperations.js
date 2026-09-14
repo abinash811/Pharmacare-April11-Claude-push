@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye } from 'lucide-react';
 import { BILL_STATUS, PAYMENT_METHOD } from '@/constants/domainConstants';
@@ -28,14 +28,22 @@ const WhatsAppIcon = ({ className }) => (
 
 export default function BillingOperations() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & filters
+  // Search & filters — activeFilter/dateRange can arrive pre-set via URL
+  // (?filter=due|parked|cash|upi, ?from_date=&to_date=) so a Dashboard
+  // card can drill straight into the same bills it counted, instead of
+  // landing here and making the user re-apply the filter by hand.
   const [searchQuery, setSearchQuery]   = useState('');
   const debouncedSearch                 = useDebounce(searchQuery, 300);
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange]       = useState({ start: null, end: null });
+  const [activeFilter, setActiveFilter] = useState(() => searchParams.get('filter') || 'all');
+  const [dateRange, setDateRange]       = useState(() => {
+    const from = searchParams.get('from_date');
+    const to   = searchParams.get('to_date');
+    return from && to ? { start: new Date(from), end: new Date(to) } : { start: null, end: null };
+  });
 
   // Pagination
   const pg = usePagination({ pageSize: 20 });

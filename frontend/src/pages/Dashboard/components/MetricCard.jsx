@@ -11,6 +11,7 @@
  *   subtitle   {string}             period label (e.g. "vs yesterday")
  *   sparkline  {number[]|undefined} 7-point data for mini SVG chart
  *   testId     {string}
+ *   onClick    {(() => void)|undefined} drill-down navigation, same convention as QuickStatCard
  */
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
@@ -59,12 +60,24 @@ function Sparkline({ data, color }) {
   );
 }
 
-export default function MetricCard({ title, value, change, delta, icon, color = 'blue', subtitle, sparkline, testId }) {
+export default function MetricCard({ title, value, change, delta, icon, color = 'blue', subtitle, sparkline, testId, onClick }) {
   const isPositive = change > 0;
   const isNeutral  = change === 0 || change === undefined;
 
+  const handleKeyDown = (e) => {
+    if (!onClick) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow" data-testid={testId}>
+    <div
+      className={`bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer' : ''}`}
+      data-testid={testId}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
       {/* Accent bar */}
       <div className={`h-1 w-full ${ACCENT[color] || ACCENT.blue}`} />
 

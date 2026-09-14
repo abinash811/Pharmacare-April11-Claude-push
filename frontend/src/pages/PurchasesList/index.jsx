@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Wallet, ChevronDown } from 'lucide-react';
 import { PageHeader, PageTabs, DateRangePicker, SearchInput, AppButton, DeleteConfirmDialog } from '@/components/shared';
@@ -25,12 +25,20 @@ const PAYMENT_FILTERS = [
 
 export default function PurchasesList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [purchases, setPurchases]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch               = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange]     = useState({ start: null, end: null });
+  // dateRange can arrive pre-set via URL (?from_date=&to_date=) so the
+  // Dashboard's Purchases/Net Purchases cards drill straight into the same
+  // month they counted.
+  const [dateRange, setDateRange]     = useState(() => {
+    const from = searchParams.get('from_date');
+    const to   = searchParams.get('to_date');
+    return from && to ? { start: new Date(from), end: new Date(to) } : { start: null, end: null };
+  });
   const [suppliers, setSuppliers]     = useState([]);
   const [supplierFilter, setSupplierFilter] = useState(null);
   const pg = usePagination({ pageSize: 20 });

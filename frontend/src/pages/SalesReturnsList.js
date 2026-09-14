@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
@@ -22,17 +22,24 @@ const BILLING_TABS = [
 export default function SalesReturnsList() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const [searchParams] = useSearchParams();
 
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats]     = useState({ returnsToday: 0, totalRefundedToday: 0 });
   const [allowManualReturns, setAllowManualReturns] = useState(false);
 
-  // Search & filters
+  // Search & filters — dateRange can arrive pre-set via URL (?from_date=&
+  // to_date=) so the Dashboard's "Returns (Month)" card drills straight
+  // into the same window it counted.
   const [searchQuery, setSearchQuery]   = useState('');
   const debouncedSearch                 = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange]       = useState({ start: null, end: null });
+  const [dateRange, setDateRange]       = useState(() => {
+    const from = searchParams.get('from_date');
+    const to   = searchParams.get('to_date');
+    return from && to ? { start: new Date(from), end: new Date(to) } : { start: null, end: null };
+  });
 
   // Pagination
   const pg = usePagination({ pageSize: 20 });

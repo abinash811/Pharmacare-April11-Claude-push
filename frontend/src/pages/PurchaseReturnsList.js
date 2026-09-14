@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Printer, Eye } from 'lucide-react';
 import {
@@ -21,14 +21,22 @@ const PURCHASES_TABS = [
 
 export default function PurchaseReturnsList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [allReturns, setAllReturns] = useState([]);
   const [loading, setLoading]       = useState(true);
 
-  // Search & filters (client-side — purchase returns tend to be a small list)
+  // Search & filters (client-side — purchase returns tend to be a small
+  // list). dateRange can arrive pre-set via URL (?from_date=&to_date=) so
+  // the Dashboard's "Purchase Returns (Month)" card drills straight into
+  // the same window it counted.
   const [searchQuery, setSearchQuery]   = useState('');
   const debouncedSearch                 = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [dateRange, setDateRange]       = useState({ start: null, end: null });
+  const [dateRange, setDateRange]       = useState(() => {
+    const from = searchParams.get('from_date');
+    const to   = searchParams.get('to_date');
+    return from && to ? { start: new Date(from), end: new Date(to) } : { start: null, end: null };
+  });
 
   // Pagination (client-side slice)
   const pg = usePagination({ pageSize: 20 });

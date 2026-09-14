@@ -141,26 +141,12 @@ class TestMarginReportCorrectness:
         assert not any(r["sku"] == sku for r in data["data"]), \
             "a draft sale must not appear in the margin report"
 
-    def test_due_credit_sale_counted_in_margin(self):
-        """A confirmed-but-unpaid ('due') sale is a real, stock-deducted
-        supply — same status list as GST/sales-summary (UC-GST07)."""
-        sku, batch_no = self._create_product_and_batch()
-
-        bill = self.session.post(f"{BASE_URL}/api/bills", json={
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no,
-                "quantity": 1, "unit_price": 20, "gst_percent": 5,
-            }],
-            "tax_rate": 5, "status": "due", "payment_method": "credit",
-        })
-        assert bill.status_code == 200, bill.text
-        assert bill.json()["status"] == "due"
-
-        today = date.today().isoformat()
-        resp = self.session.get(f"{BASE_URL}/api/reports/margin", params={
-            "from_date": today, "to_date": today,
-        })
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert any(r["sku"] == sku for r in data["data"]), \
-            "a confirmed 'due' credit sale must count toward the margin report"
+    # test_due_credit_sale_counted_in_margin removed Sep 14, 2026: its
+    # fixture relied on POST /bills producing a "due" bill, which is now
+    # rejected outright (due/partial-payment bills are blocked at
+    # checkout — see billing.py create_bill). The margin report's own
+    # inclusion of "due" status is unchanged and still correct for any due
+    # bill already in a real pharmacy's database — this is a
+    # test-coverage gap for that legacy case only, not a functional
+    # regression. Logged in docs/15_ROADMAP.md's RULE MISSES LOG,
+    # Sep 14, 2026 entry.

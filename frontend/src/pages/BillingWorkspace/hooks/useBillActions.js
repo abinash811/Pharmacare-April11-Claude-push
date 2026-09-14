@@ -81,8 +81,10 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   // ── saveBill ─────────────────────────────────────────────────────────────
   const saveBill = useCallback(async () => {
     if (!guardItems()) return;
-    const { paymentType } = billSnapshot;
-    const status = paymentType === 'credit' ? 'due' : 'paid';
+    // Every bill must be paid in full at checkout (Sep 14, 2026 product
+    // decision) — "credit"/"due" is no longer a reachable payment type,
+    // see BillingSubbar's PAYMENT_TYPES.
+    const status = 'paid';
     try {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
       toast.success(`Bill #${res.data.bill_number} created successfully!`);
@@ -96,7 +98,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   const saveBillAndPrint = useCallback(async () => {
     if (!guardItems()) return;
     const { paymentType, billItems, customerName, customerPhone, doctorName, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
-    const status = paymentType === 'credit' ? 'due' : 'paid';
+    const status = 'paid';
     try {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
       toast.success(`Bill #${res.data.bill_number} created!`);
@@ -152,7 +154,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         : billDiscount;
     }
 
-    const status = paymentType === 'credit' ? 'due' : 'paid';
+    const status = 'paid';
     const payload = {
       ...buildBillBase(status),
       mrp_total:      mrpTotal,

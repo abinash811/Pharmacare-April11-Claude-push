@@ -98,37 +98,15 @@ class TestGSTReportCreditSaleLiability:
         assert batch.status_code == 200, batch.text
         return sku, batch_no
 
-    def test_due_status_sale_counted_in_gst_output_tax(self):
-        sku, batch_no = self._create_product_and_batch()
-
-        # A credit sale: no payment recorded, so create_bill's status
-        # calculation lands on "due" — confirmed, stock-deducted, just
-        # unpaid. See billing.py's status assignment (paid/due/draft).
-        bill = self.session.post(f"{BASE_URL}/api/bills", json={
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no,
-                "quantity": 2, "unit_price": 20, "gst_percent": 5,
-            }],
-            "tax_rate": 5, "status": "due", "payment_method": "credit",
-        })
-        assert bill.status_code == 200, bill.text
-        assert bill.json()["status"] == "due", bill.json()
-
-        today = date.today().isoformat()
-        gst_resp = self.session.get(f"{BASE_URL}/api/reports/gst", params={
-            "start_date": today, "end_date": today,
-        })
-        assert gst_resp.status_code == 200, gst_resp.text
-        data = gst_resp.json()
-
-        # Real response shape — the same fields GSTReport.js must read.
-        assert "sales" in data and "purchases" in data
-        assert "sales_summary" in data and "purchases_summary" in data
-        assert "net_liability" in data
-
-        assert data["sales_summary"]["total_taxable"] > 0, (
-            f"a confirmed 'due' sale must count toward GST output tax, got: {data}")
-        assert any(row["gst_rate"] == 5.0 for row in data["sales"]), data
+    # test_due_status_sale_counted_in_gst_output_tax removed Sep 14, 2026:
+    # its fixture relied on POST /bills producing a "due" bill, which is
+    # now rejected outright (due/partial-payment bills are blocked at
+    # checkout — see billing.py create_bill). The GST report's own
+    # inclusion of "due" status in its query conditions is unchanged and
+    # still correct for any due bill already in a real pharmacy's
+    # database — this is a test-coverage gap for that legacy case only,
+    # not a functional regression. Logged in docs/15_ROADMAP.md's RULE
+    # MISSES LOG, Sep 14, 2026 entry.
 
     def test_draft_sale_excluded_from_gst(self):
         sku, batch_no = self._create_product_and_batch()

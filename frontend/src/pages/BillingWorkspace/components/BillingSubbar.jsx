@@ -41,10 +41,14 @@ const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wi
 // no split-entry UI at all, so a bill saved with it recorded
 // payment_method: "multiple" with zero trace of the real split, worse than
 // not offering it. Re-add only alongside a real split-entry UI, not before.
+// "Credit" removed Sep 14, 2026, direct product decision: new bills must be
+// paid in full at checkout — due/partial-payment bills are no longer
+// created going forward. The backend now rejects any bill this could have
+// produced (create_bill/update_bill), so this is defense-in-depth removed
+// at the source too. Pre-existing due bills are unaffected.
 const PAYMENT_TYPES = [
   { key: 'cash',     label: 'Cash'   },
   { key: 'upi',      label: 'UPI'    },
-  { key: 'credit',   label: 'Credit' },
   { key: 'card',     label: 'Card'   },
 ];
 

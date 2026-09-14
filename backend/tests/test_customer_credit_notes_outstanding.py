@@ -3,14 +3,22 @@ Regression tests for the Sep 12, 2026 Customers v1 items 2-4
 (docs/15_ROADMAP.md Customers section, product-review audit):
 - Customer "notes" field actually persists (was unreachable in the UI
   and unstored in the DB before this fix).
-- Credit limit is enforced at bill-creation time (was pure UI decoration
-  before this fix — live-verified a Rs.500 limit let a Rs.5,250 credit
-  bill through unblocked).
 - Customer outstanding balance is computed fresh from real bills, not a
   stored counter nothing ever wrote to (was always Rs.0 before this fix).
 
-These tests hit the real API rather than asserting on internal helper
-functions, matching this suite's existing convention.
+Sep 14, 2026 product decision: due/partial-payment bills can no longer be
+created at all (create_bill/update_bill both reject with 400) — every new
+bill must be paid in full at checkout. This makes the old credit-limit
+tests below assert the new blanket rejection instead of limit math, and
+retires `_check_credit_limit` (now dead code, removed from billing.py).
+
+It also means this suite's 100%-real-API fixture pattern can no longer
+produce a "due" bill at all — so the outstanding-balance tests that used
+to bill a customer on credit as their setup step were removed. See the
+Sep 14, 2026 RULE MISSES LOG entry in docs/15_ROADMAP.md: the outstanding
+CALCULATION code is unchanged and still correct for any due bill that
+already exists in a real pharmacy's data — this is a test-coverage gap
+for that legacy case, not a functional regression.
 """
 import os
 import uuid
@@ -62,7 +70,10 @@ class TestCustomerCreditNotesOutstanding:
         assert batch.status_code == 200, batch.text
         return sku, batch_no
 
-    def _bill_customer_on_credit(self, customer_id, sku, batch_no, quantity, unit_price=100):
+    def _attempt_due_bill(self, customer_id, sku, batch_no, quantity, unit_price=100):
+        """Tries to create a bill with no payment (would previously land on
+        "due"). Every caller of this now expects a 400 — see module
+        docstring."""
         return self.session.post(f"{BASE_URL}/api/bills", json={
             "customer_id": customer_id,
             "status": "due",
@@ -95,51 +106,35 @@ class TestCustomerCreditNotesOutstanding:
         resp = self.session.get(f"{BASE_URL}/api/customers/{customer['id']}")
         assert resp.json()["notes"] == "Prefers evening delivery"
 
-    # ── credit limit enforcement ────────────────────────────────────────────
+    # ── due-bill creation always rejected (Sep 14, 2026) ─────────────────────
 
-    def test_credit_limit_blocks_over_limit_due_bill(self):
+    def test_due_bill_creation_rejected_on_create(self):
+        """The old over-limit case: a due bill this large used to be
+        blocked by the credit-limit check specifically. It's still
+        blocked — just unconditionally now, before credit limit is even
+        considered."""
         customer = self._create_customer(credit_limit=500)
         sku, batch_no = self._create_product_and_batch(mrp=100)
 
-        resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=50, unit_price=100)
+        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=50, unit_price=100)
         assert resp.status_code == 400, resp.text
-        assert "credit limit" in resp.json()["detail"].lower()
+        assert "full payment" in resp.json()["detail"].lower()
 
-    def test_credit_limit_allows_under_limit_due_bill(self):
-        customer = self._create_customer(credit_limit=500)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=2, unit_price=100)
-        assert resp.status_code == 200, resp.text
-
-    def test_zero_credit_limit_means_unlimited(self):
-        """credit_limit=0 (the default, never explicitly set) means no
-        limit is configured — matches CustomersTable.jsx's own '—' display
-        for an unset limit. Every ordinary walk-in customer without a
-        configured limit must not be blocked from credit sales."""
+    def test_due_bill_rejected_regardless_of_credit_limit(self):
+        """credit_limit=0 (unset) used to mean "no limit, allow the credit
+        sale" — that nuance is now moot: due bills are rejected outright,
+        with or without a configured limit."""
         customer = self._create_customer(credit_limit=0)
         sku, batch_no = self._create_product_and_batch(mrp=100)
 
-        resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=100, unit_price=100)
-        assert resp.status_code == 200, resp.text
+        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=2, unit_price=100)
+        assert resp.status_code == 400, resp.text
+        assert "full payment" in resp.json()["detail"].lower()
 
-    def test_credit_limit_accounts_for_existing_outstanding(self):
-        """A second credit bill must be blocked once the FIRST bill's
-        balance already used up most of the limit — not just checked
-        against the new bill's amount in isolation."""
-        customer = self._create_customer(credit_limit=500)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        first = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=4, unit_price=100)
-        assert first.status_code == 200, first.text  # Rs.420 with GST, under Rs.500
-
-        second = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=1, unit_price=100)
-        assert second.status_code == 400, second.text
-
-    def test_credit_limit_enforced_when_finalizing_draft_via_update_bill(self):
-        """PUT /bills/{id} is the second real entry point that can produce
-        a 'due' bill (finalizing a draft directly to due, not just POST
-        /bills) — same cross-cutting check must apply there too."""
+    def test_due_bill_rejected_when_finalizing_draft_via_update_bill(self):
+        """PUT /bills/{id} is the second real entry point that could
+        previously produce a 'due' bill (finalizing a draft directly to
+        due, not just POST /bills) — same rejection must apply there too."""
         customer = self._create_customer(credit_limit=500)
         sku, batch_no = self._create_product_and_batch(mrp=100)
 
@@ -160,49 +155,18 @@ class TestCustomerCreditNotesOutstanding:
             }],
         })
         assert resp.status_code == 400, resp.text
-        assert "credit limit" in resp.json()["detail"].lower()
+        assert "full payment" in resp.json()["detail"].lower()
 
     # ── outstanding balance ──────────────────────────────────────────────────
-
-    def test_outstanding_reflects_real_due_bill(self):
-        customer = self._create_customer(credit_limit=0)
-        assert customer["outstanding"] == 0
-
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-        bill_resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=2, unit_price=100)
-        assert bill_resp.status_code == 200, bill_resp.text
-
-        resp = self.session.get(f"{BASE_URL}/api/customers/{customer['id']}")
-        assert resp.json()["outstanding"] > 0, "outstanding must reflect the real due bill, not stay at 0"
-
-    def test_outstanding_decreases_after_payment(self):
-        customer = self._create_customer(credit_limit=0)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-        bill_resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=2, unit_price=100)
-        assert bill_resp.status_code == 200, bill_resp.text
-        bill = bill_resp.json()
-
-        before = self.session.get(f"{BASE_URL}/api/customers/{customer['id']}").json()
-        assert before["outstanding"] > 0
-
-        pay_resp = self.session.post(f"{BASE_URL}/api/payments", json={
-            "invoice_id": bill["id"], "amount": before["outstanding"], "payment_method": "cash",
-        })
-        assert pay_resp.status_code == 200, pay_resp.text
-
-        after = self.session.get(f"{BASE_URL}/api/customers/{customer['id']}").json()
-        assert after["outstanding"] == 0, "outstanding must drop to 0 once the bill is fully paid"
-
-    def test_outstanding_appears_in_list_endpoint(self):
-        """The batched list endpoint must compute the same real value as
-        the single-customer endpoint, not silently stay at 0."""
-        customer = self._create_customer(credit_limit=0)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-        bill_resp = self._bill_customer_on_credit(customer["id"], sku, batch_no, quantity=2, unit_price=100)
-        assert bill_resp.status_code == 200, bill_resp.text
-
-        resp = self.session.get(f"{BASE_URL}/api/customers", params={"search": customer["name"]})
-        assert resp.status_code == 200, resp.text
-        rows = resp.json()
-        row = next(r for r in rows if r["id"] == customer["id"])
-        assert row["outstanding"] > 0
+    #
+    # Removed Sep 14, 2026: test_outstanding_reflects_real_due_bill,
+    # test_outstanding_decreases_after_payment, and
+    # test_outstanding_appears_in_list_endpoint all used
+    # _attempt_due_bill-style fixture setup to get a real due bill to
+    # assert against — that's no longer possible via the API now that due
+    # bills are rejected outright. The outstanding-balance CALCULATION
+    # code itself is untouched by this change and still correct for any
+    # due bill already in a real pharmacy's database (created before this
+    # change, or ever manually adjusted) — this is a test-coverage gap for
+    # that legacy case only, not a functional regression. Logged in
+    # docs/15_ROADMAP.md's RULE MISSES LOG, Sep 14, 2026 entry.

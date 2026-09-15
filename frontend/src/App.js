@@ -30,6 +30,7 @@ import Team from '@/pages/Team';
 import Suppliers from '@/pages/Suppliers';
 import GSTReport from '@/pages/GSTReport';
 import DayEndClosing from '@/pages/DayEndClosing';
+import OutstandingDues from '@/pages/OutstandingDues';
 import ScheduleH1Register from '@/pages/ScheduleH1Register';
 import AuditLog from '@/pages/AuditLog';
 import StockMovementLog from '@/pages/StockMovementLog';
@@ -160,6 +161,7 @@ function AppRoutes({ user }) {
         <Route path="reports" element={<Reports />} />
         <Route path="reports/gst" element={<GSTReport />} />
         <Route path="reports/day-end" element={<DayEndClosing />} />
+        <Route path="reports/outstanding-dues" element={<OutstandingDues />} />
         <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />

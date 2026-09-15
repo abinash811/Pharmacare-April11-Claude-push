@@ -56,4 +56,17 @@ describe('BillingOperations — drill-down URL params', () => {
     );
     expect(await screen.findByRole('button', { name: 'All', pressed: true })).toBeInTheDocument();
   });
+
+  // Sep 15, 2026: the Outstanding Dues report's "View Bills" action drills
+  // into a specific customer's due bills via ?search=, same pattern as
+  // ?filter=/&from_date=/&to_date= above.
+  it('seeds the search box from ?search= (Outstanding Dues drill-down)', async () => {
+    render(
+      <MemoryRouter initialEntries={['/billing?filter=due&search=9812345670']}>
+        <BillingOperations />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByDisplayValue('9812345670')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith(expect.stringContaining('search=9812345670'));
+  });
 });

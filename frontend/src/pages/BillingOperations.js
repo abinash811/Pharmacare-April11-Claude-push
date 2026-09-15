@@ -30,11 +30,12 @@ export default function BillingOperations() {
   const [collectingBill, setCollectingBill] = useState(null);
   const { downloadingId, handlePrint, handleWhatsApp } = useBillRowActions();
 
-  // Search & filters — activeFilter/dateRange can arrive pre-set via URL
-  // (?filter=due|parked|cash|upi, ?from_date=&to_date=) so a Dashboard
-  // card can drill straight into the same bills it counted, instead of
-  // landing here and making the user re-apply the filter by hand.
-  const [searchQuery, setSearchQuery]   = useState('');
+  // Search & filters — activeFilter/dateRange/searchQuery can arrive
+  // pre-set via URL (?filter=due|parked|cash|upi, ?from_date=&to_date=,
+  // ?search=) so a Dashboard card or the Outstanding Dues report can drill
+  // straight into the same bills it counted, instead of landing here and
+  // making the user re-apply the filter by hand.
+  const [searchQuery, setSearchQuery]   = useState(() => searchParams.get('search') || '');
   const debouncedSearch                 = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState(() => searchParams.get('filter') || 'all');
   const [dateRange, setDateRange]       = useState(() => {

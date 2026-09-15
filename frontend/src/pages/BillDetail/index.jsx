@@ -5,11 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, Edit, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Edit, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { AppButton, PageSkeleton, PageBreadcrumb } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatDateShort, formatTime } from '@/utils/dates';
+import { downloadBlob, extractBlobErrorMessage } from '@/utils/fileDownload';
 import BillItemsTable from './components/BillItemsTable';
 import BillTotals from './components/BillTotals';
 
@@ -38,6 +39,23 @@ export default function BillDetail() {
   const [bill, setBill]       = useState(null);
   const [pharmacy, setPharmacy] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // GET /bills/{id}/pdf (reportlab-generated, real, working) had zero UI
+  // caller anywhere in the app until now — found while checking Billing's
+  // pending list. Print (window.print, above) covers the counter-print
+  // case; this covers "give me a portable copy to email/WhatsApp/save."
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const res = await api.get(apiUrl.billPdf(bill.id), { responseType: 'blob' });
+      downloadBlob(res.data, `${bill.bill_number}.pdf`, 'application/pdf');
+    } catch (err) {
+      toast.error(await extractBlobErrorMessage(err, 'Failed to download PDF'));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -91,7 +109,12 @@ export default function BillDetail() {
         </AppButton>
         <div className="flex gap-2">
           {!isParked && (
-            <AppButton variant="outline" icon={<Printer className="w-4 h-4" strokeWidth={1.5} />} onClick={() => window.print()}>Print</AppButton>
+            <>
+              <AppButton variant="outline" icon={<Printer className="w-4 h-4" strokeWidth={1.5} />} onClick={() => window.print()}>Print</AppButton>
+              <AppButton variant="outline" icon={<Download className="w-4 h-4" strokeWidth={1.5} />} onClick={handleDownloadPdf} disabled={downloadingPdf} data-testid="download-pdf-btn">
+                {downloadingPdf ? 'Downloading…' : 'Download PDF'}
+              </AppButton>
+            </>
           )}
           {/* Editing is only real for a parked/draft bill (BillingWorkspace
               opens a finalized one read-only — a GST invoice can't be

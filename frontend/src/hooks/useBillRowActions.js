@@ -1,0 +1,43 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { downloadBlob, extractBlobErrorMessage } from '@/utils/fileDownload';
+
+/**
+ * useBillRowActions — Print (PDF download) + WhatsApp for a bill row.
+ *
+ * "Print" used to be a pure stub (toast.info only) — GET /bills/{id}/pdf
+ * already exists, works, and had zero UI caller anywhere in the app. A
+ * list row can't call window.print() for a bill it isn't currently
+ * viewing, so a direct PDF download is the correct fix, not a
+ * navigate-then-print round trip. Found/fixed Sep 15, 2026.
+ */
+export function useBillRowActions() {
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handlePrint = async (e, bill) => {
+    e.stopPropagation();
+    setDownloadingId(bill.id);
+    try {
+      const res = await api.get(apiUrl.billPdf(bill.id), { responseType: 'blob' });
+      downloadBlob(res.data, `${bill.bill_number}.pdf`, 'application/pdf');
+    } catch (err) {
+      toast.error(await extractBlobErrorMessage(err, 'Failed to download PDF'));
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleWhatsApp = (e, bill) => {
+    e.stopPropagation();
+    if (bill.customer_mobile) {
+      const msg = `Your bill #${bill.bill_number} from PharmaCare. Total: ₹${(bill.total_amount || 0).toFixed(2)}`;
+      window.open(`https://wa.me/91${bill.customer_mobile}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      toast.error('No mobile number available for this customer');
+    }
+  };
+
+  return { downloadingId, handlePrint, handleWhatsApp };
+}

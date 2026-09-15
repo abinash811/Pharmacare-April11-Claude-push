@@ -11,6 +11,7 @@ import {
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useBillRowActions } from '@/hooks/useBillRowActions';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
 
@@ -31,6 +32,7 @@ export default function BillingOperations() {
   const [searchParams] = useSearchParams();
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const { downloadingId, handlePrint, handleWhatsApp } = useBillRowActions();
 
   // Search & filters — activeFilter/dateRange can arrive pre-set via URL
   // (?filter=due|parked|cash|upi, ?from_date=&to_date=) so a Dashboard
@@ -87,22 +89,6 @@ export default function BillingOperations() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pg.page]);
-
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-  const handlePrint = (e, bill) => {
-    e.stopPropagation();
-    toast.info(`Printing bill #${bill.bill_number}...`);
-  };
-
-  const handleWhatsApp = (e, bill) => {
-    e.stopPropagation();
-    if (bill.customer_mobile) {
-      const msg = `Your bill #${bill.bill_number} from PharmaCare. Total: ₹${(bill.total_amount || 0).toFixed(2)}`;
-      window.open(`https://wa.me/91${bill.customer_mobile}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      toast.error('No mobile number available for this customer');
-    }
-  };
 
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
@@ -266,8 +252,9 @@ export default function BillingOperations() {
                             variant="ghost"
                             iconOnly
                             icon={<Printer className="w-4 h-4 text-gray-600" />}
-                            aria-label="Print"
+                            aria-label="Download PDF"
                             className="p-1.5 h-auto hover:bg-gray-100"
+                            disabled={downloadingId === bill.id}
                             onClick={(e) => handlePrint(e, bill)}
                           />
                           <AppButton

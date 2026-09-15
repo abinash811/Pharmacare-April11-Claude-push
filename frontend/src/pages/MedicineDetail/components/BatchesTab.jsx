@@ -66,9 +66,9 @@ export default function BatchesTab({
                   onChange={(e) => onSelectAll(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand" />
               </th>
-              {['Batch ID','Qty.','Exp. Date','MRP','Disc. (%)','LP','Margin%'].map(h => (
+              {['Batch ID','Qty.','Exp. Date','MRP','Disc. (%)','Cost Price','Margin%'].map(h => (
                 <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  ['MRP','LP','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
+                  ['MRP','Cost Price','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
                 }`}>{h}</th>
               ))}
             </tr>

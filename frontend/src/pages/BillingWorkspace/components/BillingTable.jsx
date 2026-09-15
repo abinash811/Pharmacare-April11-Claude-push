@@ -72,7 +72,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
     setNewItemSearch(''); setSearchResults([]); setShowSearchResults(false);
   };
 
-  const BATCH_COLS = ['Batch','Expiry','MRP','Prev','Disc%','LP','Stock'];
+  const BATCH_COLS = ['Batch','Expiry','MRP','Prev','Disc%','Cost Price','Stock'];
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">
@@ -189,7 +189,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                       <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500">
                         <span className="font-mono">{item.batch_no}</span>
                         <span>·</span>
-                        <span>LP {formatCurrency(item.cost_price || item.unit_price * 0.7)}</span>
+                        <span>Cost {formatCurrency(item.cost_price || item.unit_price * 0.7)}</span>
                         <span>·</span>
                         <span className="text-green-600">▲{(((item.unit_price - (item.cost_price || item.unit_price * 0.7)) / (item.cost_price || item.unit_price * 0.7)) * 100).toFixed(0)}%</span>
                         {item.composition && <><span>·</span><span className="truncate max-w-[120px]" title={item.composition}>{item.composition}</span></>}

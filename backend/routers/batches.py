@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from constants import PRODUCT_CATEGORIES
 from deps import get_db
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from routers.auth_helpers import (
@@ -17,6 +18,10 @@ from routers.auth_helpers import (
 )
 
 router = APIRouter(prefix="/api", tags=["batches"])
+
+# Same single source of truth the Add Medicine form's Category dropdown uses
+# (constants.py) — never a second, hand-typed label list to drift from it.
+_CATEGORY_LABELS = {c["value"]: c["label"] for c in PRODUCT_CATEGORIES}
 
 
 # ── Pydantic request models ──────────────────────────────────────────────────
@@ -110,6 +115,17 @@ def _batch_response(b: BatchORM, product: ProductORM) -> dict:
         "total_units": b.quantity_on_hand,
         "cost_price_per_unit": b.cost_price_paise / 100,
         "mrp_per_unit": b.mrp_paise / 100,
+        # gst_percent/category/discount_percent are the product's own
+        # values (not per-batch) — added Sep 15, 2026 so the Billing page's
+        # batch panel can show them without a second fetch. discount_percent
+        # is real here; the frontend's old "Prev MRP" column read a field
+        # (prev_mrp) that never existed on this response at all — same
+        # fabricated-field class as the Aug 23, 2026 Medicine Detail fix —
+        # dropped rather than backfilled with another guess.
+        "gst_percent": float(product.gst_rate),
+        "category": product.category,
+        "category_label": _CATEGORY_LABELS.get(product.category, product.category or "—"),
+        "discount_percent": float(product.discount_percent),
         "location": "default",
         "is_active": b.is_active,
         "created_at": b.created_at.isoformat() if b.created_at else None,

@@ -72,7 +72,17 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
     setNewItemSearch(''); setSearchResults([]); setShowSearchResults(false);
   };
 
-  const BATCH_COLS = ['Batch','Expiry','MRP','Prev','Disc%','Cost Price','Stock'];
+  // 'Prev' (a batch.prev_mrp field that never existed on the real API
+  // response) dropped rather than backfilled — same fabricated-field class
+  // the Aug 23, 2026 Medicine Detail fix already removed once; Type/GST%/
+  // Margin% added Sep 15, 2026, all real fields now returned by
+  // GET /stock/batches (see batches.py's _batch_response).
+  const BATCH_COLS = ['Batch','Expiry','MRP','Disc%','Cost Price','Type','GST%','Margin%','Stock'];
+  const batchMargin = (batch) => {
+    const cost = batch.cost_price_per_unit || 0;
+    if (!cost) return null;
+    return ((batch.mrp_per_unit - cost) / cost) * 100;
+  };
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">
@@ -203,7 +213,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                       {item.batch_no}
                     </AppButton>
                     {showBatchPanel === index && batchPanelData.length > 0 && (
-                      <div ref={batchPanelRef} className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-[480px] max-h-64 overflow-hidden">
+                      <div ref={batchPanelRef} className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-[640px] max-h-64 overflow-hidden">
                         <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                           <span className="text-xs font-semibold text-gray-600">Select Batch</span>
                           <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
@@ -211,26 +221,33 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                             Hide zero stock
                           </label>
                         </div>
-                        <div className="grid grid-cols-7 gap-1 px-3 py-1.5 bg-gray-50 text-[10px] font-semibold text-gray-400 uppercase border-b border-gray-200">
+                        <div className="grid grid-cols-9 gap-1 px-3 py-1.5 bg-gray-50 text-[10px] font-semibold text-gray-400 uppercase border-b border-gray-200">
                           {BATCH_COLS.map(c => <span key={c}>{c}</span>)}
                         </div>
                         <div className="max-h-40 overflow-y-auto">
-                          {batchPanelData.filter(b => !hidZeroStock || b.qty_on_hand > 0).map((batch) => (
+                          {batchPanelData.filter(b => !hidZeroStock || b.qty_on_hand > 0).map((batch) => {
+                            const margin = batchMargin(batch);
+                            return (
                             <div key={batch.id || batch.batch_no} onClick={() => handleSelectBatch(index, batch)}
                               role="button" tabIndex={0}
                               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectBatch(index, batch); } }}
-                              className={`grid grid-cols-7 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
+                              className={`grid grid-cols-9 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
                               <span className={isExpiringSoon(batch.expiry_iso || batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_iso || batch.expiry_date)}</span>
                               <span className="text-right font-semibold">{formatCurrency(batch.mrp_per_unit||0)}</span>
-                              <span className="text-right text-gray-400">{formatCurrency(batch.prev_mrp||batch.mrp_per_unit||0)}</span>
                               <span className="text-right">{(batch.discount_percent||0).toFixed(1)}%</span>
-                              <span className="text-right">{formatCurrency(batch.cost_price_per_unit||batch.ptr_per_unit||0)}</span>
+                              <span className="text-right">{formatCurrency(batch.cost_price_per_unit||0)}</span>
+                              <span className="truncate" title={batch.category_label}>{batch.category_label || '—'}</span>
+                              <span className="text-right">{batch.gst_percent != null ? `${batch.gst_percent}%` : '—'}</span>
+                              <span className={`text-right ${margin != null && margin > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
+                                {margin != null ? `${margin.toFixed(0)}%` : '—'}
+                              </span>
                               <span className={`text-right font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                                 {batch.qty_on_hand > 0 ? batch.qty_on_hand : 'Out'}
                               </span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}

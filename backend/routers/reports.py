@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +14,7 @@ from deps import get_db
 from models.billing import (
     Bill as BillORM,
     BillItem as BillItemORM,
+    DayEndClosing as DayEndClosingORM,
     SalesReturn as SalesReturnORM,
     SalesReturnItem as SalesReturnItemORM,
     ScheduleH1Register as H1ORM,
@@ -27,7 +29,7 @@ from models.purchases import (
 )
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
-from models.users import AuditLog
+from models.users import AuditLog, User as UserORM
 from routers.auth_helpers import User, get_current_user, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["reports"])
@@ -36,6 +38,19 @@ logger = logging.getLogger(__name__)
 
 def _client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
+
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID,
+    old_values: dict | None, new_values: dict | None, db: AsyncSession,
+    ip_address: str | None = None,
+) -> None:
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id,
+        old_values=old_values, new_values=new_values, ip_address=ip_address,
+    ))
 
 
 def _p2r(paise: int) -> float:
@@ -1332,3 +1347,194 @@ async def export_data(request: Request, db: AsyncSession = Depends(get_db),
     await db.flush()
 
     return {"export_date": datetime.now(timezone.utc).isoformat(), **counts}
+
+
+# ── day-end closing (Z-report) ────────────────────────────────────────────────
+# Marg-validated gap (docs/15_ROADMAP.md, researched Sep 13, 2026): "day-wise
+# and daily-closing reports plus an operator-wise log book" — no cash-drawer
+# reconciliation or per-operator sales summary existed anywhere in PharmaCare
+# before this. Deliberately scoped to a single day's real bills, not a
+# running float carried across days (no opening-balance concept exists yet)
+# — a cashier counts the drawer, the system tells them what it expected from
+# that day's cash-method sales/returns alone, and the variance is a real,
+# persisted record instead of a number nobody wrote down.
+
+class DayEndCloseRequest(BaseModel):
+    closing_date: str  # YYYY-MM-DD
+    counted_cash: float  # rupees — matches every other money field in this API
+    notes: Optional[str] = None
+
+
+async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSession) -> dict:
+    """Shared by the GET summary and the POST close (which recomputes the
+    expected cash server-side rather than trusting a client-supplied
+    number — the one thing that must never be client-trusted here)."""
+    sales_conds = [
+        BillORM.pharmacy_id == pid, BillORM.bill_date == closing_date,
+        BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None),
+    ]
+    sales_rows = (await db.execute(
+        select(BillORM.payment_method, func.count(BillORM.id).label("cnt"),
+               func.sum(BillORM.grand_total_paise).label("amt"))
+        .where(*sales_conds).group_by(BillORM.payment_method)
+    )).all()
+
+    returns_conds = [SalesReturnORM.pharmacy_id == pid, SalesReturnORM.return_date == closing_date]
+    return_rows = (await db.execute(
+        select(SalesReturnORM.refund_method, func.count(SalesReturnORM.id).label("cnt"),
+               func.sum(SalesReturnORM.grand_total_paise).label("amt"))
+        .where(*returns_conds).group_by(SalesReturnORM.refund_method)
+    )).all()
+
+    by_method: dict = {}
+    for method, cnt, amt in sales_rows:
+        key = method or "unspecified"
+        by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
+        by_method[key]["sales_count"] = int(cnt or 0)
+        by_method[key]["sales_paise"] = int(amt or 0)
+    for method, cnt, amt in return_rows:
+        key = method or "unspecified"
+        by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
+        by_method[key]["returns_count"] = int(cnt or 0)
+        by_method[key]["returns_paise"] = int(amt or 0)
+
+    payment_breakdown = [
+        {
+            "payment_method": method,
+            "sales_count": v["sales_count"], "sales_amount": _p2r(v["sales_paise"]),
+            "returns_count": v["returns_count"], "returns_amount": _p2r(v["returns_paise"]),
+            "net_amount": _p2r(v["sales_paise"] - v["returns_paise"]),
+        }
+        for method, v in sorted(by_method.items())
+    ]
+
+    operator_rows = (await db.execute(
+        select(UserORM.name, func.count(BillORM.id).label("cnt"),
+               func.sum(BillORM.grand_total_paise).label("amt"))
+        # tenant-safe: joined only against bills already scoped to pid via
+        # sales_conds below — a Bill.billed_by can only ever reference a
+        # user created within that same pharmacy.
+        .join(UserORM, UserORM.id == BillORM.billed_by)
+        .where(*sales_conds).group_by(UserORM.name).order_by(func.sum(BillORM.grand_total_paise).desc())
+    )).all()
+    operator_breakdown = [
+        {"operator_name": name, "bill_count": int(cnt or 0), "sales_amount": _p2r(amt)}
+        for name, cnt, amt in operator_rows
+    ]
+
+    total_sales_paise = sum(v["sales_paise"] for v in by_method.values())
+    total_returns_paise = sum(v["returns_paise"] for v in by_method.values())
+    expected_cash_paise = (
+        by_method.get("cash", {}).get("sales_paise", 0)
+        - by_method.get("cash", {}).get("returns_paise", 0)
+    )
+
+    return {
+        "summary": {
+            "total_bills": sum(v["sales_count"] for v in by_method.values()),
+            "total_sales": _p2r(total_sales_paise),
+            "total_returns": _p2r(total_returns_paise),
+            "net_sales": _p2r(total_sales_paise - total_returns_paise),
+            "expected_cash": _p2r(expected_cash_paise),
+        },
+        "payment_breakdown": payment_breakdown,
+        "operator_breakdown": operator_breakdown,
+        # internal — POST /close uses this, never the response's rounded rupee figure
+        "_expected_cash_paise": expected_cash_paise,
+    }
+
+
+@router.get("/reports/day-end")
+async def get_day_end_report(
+        closing_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    await _require_reports_permission(current_user, db)
+    pid = uuid.UUID(current_user.pharmacy_id)
+    the_date = date.fromisoformat(closing_date) if closing_date else date.today()
+
+    breakdown = await _day_end_breakdown(pid, the_date, db)
+    breakdown.pop("_expected_cash_paise")
+
+    closing = (await db.execute(
+        select(DayEndClosingORM, UserORM.name)
+        .join(UserORM, UserORM.id == DayEndClosingORM.closed_by)
+        .where(DayEndClosingORM.pharmacy_id == pid, DayEndClosingORM.closing_date == the_date)
+    )).first()
+    breakdown["date"] = the_date.isoformat()
+    breakdown["closing"] = None
+    if closing:
+        c, closed_by_name = closing
+        breakdown["closing"] = {
+            "expected_cash": _p2r(c.expected_cash_paise),
+            "counted_cash": _p2r(c.counted_cash_paise),
+            "variance": _p2r(c.variance_paise),
+            "notes": c.notes,
+            "closed_by_name": closed_by_name,
+            "closed_at": c.closed_at.isoformat() if c.closed_at else None,
+        }
+    return breakdown
+
+
+@router.post("/reports/day-end/close")
+async def close_day_end(
+        body: DayEndCloseRequest, request: Request,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    # A recorded cash variance is a financial-control record, same class of
+    # action as correcting a purchase or resetting another user's password
+    # — admin/super-admin only, same as those.
+    await require_admin_or_super(current_user, db)
+    pid = uuid.UUID(current_user.pharmacy_id)
+    try:
+        the_date = date.fromisoformat(body.closing_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="closing_date must be in YYYY-MM-DD format")
+
+    breakdown = await _day_end_breakdown(pid, the_date, db)
+    expected_cash_paise = breakdown["_expected_cash_paise"]
+    counted_cash_paise = int(round(body.counted_cash * 100))
+    variance_paise = counted_cash_paise - expected_cash_paise
+
+    existing = (await db.execute(
+        select(DayEndClosingORM).where(
+            DayEndClosingORM.pharmacy_id == pid, DayEndClosingORM.closing_date == the_date)
+    )).scalar_one_or_none()
+
+    old_values = None
+    if existing:
+        old_values = {
+            "counted_cash": _p2r(existing.counted_cash_paise),
+            "variance": _p2r(existing.variance_paise),
+            "notes": existing.notes,
+        }
+        existing.expected_cash_paise = expected_cash_paise
+        existing.counted_cash_paise = counted_cash_paise
+        existing.variance_paise = variance_paise
+        existing.notes = body.notes
+        existing.closed_by = uuid.UUID(current_user.id)
+        closing_row = existing
+    else:
+        closing_row = DayEndClosingORM(
+            id=uuid.uuid4(), pharmacy_id=pid, closing_date=the_date,
+            expected_cash_paise=expected_cash_paise, counted_cash_paise=counted_cash_paise,
+            variance_paise=variance_paise, notes=body.notes, closed_by=uuid.UUID(current_user.id),
+        )
+        db.add(closing_row)
+
+    await _record_audit(
+        pid, uuid.UUID(current_user.id), "reclose" if old_values else "close", "day_end_closing",
+        closing_row.id,
+        old_values, {
+            "counted_cash": _p2r(counted_cash_paise), "variance": _p2r(variance_paise), "notes": body.notes,
+        }, db, ip_address=_client_ip(request),
+    )
+    await db.flush()
+
+    return {
+        "date": the_date.isoformat(),
+        "expected_cash": _p2r(expected_cash_paise),
+        "counted_cash": _p2r(counted_cash_paise),
+        "variance": _p2r(variance_paise),
+        "notes": body.notes,
+    }

@@ -15,6 +15,7 @@ import ReportTables    from './components/ReportTables';
 const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
   { key: 'gst',     label: 'GST Report' },
+  { key: 'day-end', label: 'Day-End Closing' },
 ];
 
 // A "Stock" tab used to live here — removed Sep 12, 2026: it had no real
@@ -90,7 +91,7 @@ export default function Reports() {
   return (
     <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader title="Reports" />
-      <PageTabs tabs={REPORTS_TABS} activeTab="reports" onChange={() => navigate('/reports/gst')} />
+      <PageTabs tabs={REPORTS_TABS} activeTab="reports" onChange={(key) => navigate(key === 'day-end' ? '/reports/day-end' : '/reports/gst')} />
 
       <div className="bg-white rounded-xl border border-gray-200">
         {/* Filter bar */}

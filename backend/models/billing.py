@@ -223,3 +223,32 @@ class ScheduleH1Register(Base):
             timezone=True),
         server_default=func.now(),
         nullable=False)
+
+
+class DayEndClosing(Base):
+    """Marg-validated gap (day-wise/daily-closing reports + operator-wise
+    log book) — see docs/15_ROADMAP.md. One row per pharmacy per calendar
+    day: the cash a cashier physically counted vs. what the system expected
+    from that day's real cash-method bills, so a shortfall/overage is a
+    real, persisted record instead of a number nobody wrote down."""
+    __tablename__ = "day_end_closings"
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "closing_date"),
+        Index("idx_day_end_pharmacy_date", "pharmacy_id", "closing_date"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    closing_date: Mapped[date] = mapped_column(Date, nullable=False)
+    expected_cash_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    counted_cash_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    variance_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    closed_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    closed_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

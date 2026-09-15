@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.12 | Last updated: September 13, 2026
+# Version: 1.13 | Last updated: September 15, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -185,6 +185,23 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
 18. The backend has real pack/strip/tablet unit-conversion logic
     (`units_per_pack`), tested and working — but the Purchase entry screen
     never exposes a field for it. A real feature nobody can reach.
+19. 🐛 **Found Sep 15, 2026** (`product-review`, fresh zero-data re-verification
+    of Purchase Returns): 4 catch blocks across `PurchaseReturnCreate/index.jsx`
+    (lines 66, 118) and `PurchaseReturnDetail/index.jsx` (lines 52, 63) read
+    `err.response?.data?.detail` directly instead of the normalized
+    `err.message` (`lib/axios.js`'s interceptor). Harmless for a plain-string
+    400, but a 422 validation failure returns a FastAPI array-of-objects
+    body for `.detail` — passing that straight to `toast.error(...)` crashes
+    React with "Objects are not valid as a React child" instead of showing
+    any error at all, exactly the bug found and fixed live in
+    `SalesReturnCreate/index.jsx` the same day (see `docs/07_BUSINESS_LOGIC.md`
+    FLOW 2). Manifesto rule 10. Not caught by `design-guard.sh` Rule 14 /
+    `check_error_messages.py` — that checker only flags a toast that ignores
+    the caught error entirely; it doesn't flag one that references the error
+    but reads an unsafe raw field instead of `.message`. Logged in the RULE
+    MISSES LOG (`docs/15_ROADMAP.md`) as a tooling gap. Not fixed in this
+    review pass — flagged for a build decision, per this skill's own
+    "report, don't auto-fix" output contract.
 
 ---
 
@@ -383,6 +400,20 @@ code only ever produces one.
 > actually true through the UI** — only the navigation worked, not a real
 > submission. Logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
 
+> **Re-verified Sep 15, 2026** (`product-review`, fresh zero-data pass — a
+> brand-new supplier, product, and purchase created for this check alone,
+> nothing pre-seeded): confirmed no drift since Sep 13 (only unrelated
+> commit since then touched this area: dateRange URL-param seeding on the
+> list page). Walked a real return end-to-end through the actual browser UI
+> — Purchase Detail's "Purchase Return" MoreMenu item still works
+> correctly (item resolved with the real product name/SKU/batch, correct
+> ₹280.00 net calculated, saved successfully, `GET /purchase-returns`
+> confirms `note`/`credit_status`/`debit_note_number` all persisted
+> correctly). Also re-confirmed PR03 (no reason field anywhere in the UI;
+> backend still silently defaults every return to `reason="return"`) and
+> PR12 (`payment_type` still accepted and dropped) still hold exactly as
+> documented, and found one new bug — see #19 in the summary above.
+
 | UC | Status | Evidence |
 |---|---|---|
 | PR01 Start a return (5 entry points) | 🔄 Partial — 2 of 5 work (was 1 of 5 as of Sep 7) | Purchase Detail → works **as of the Sep 13 fix above** (was actually 422-ing on every real submission before that — see the critical bug note above the table). **New since Sep 7:** Supplier Detail's near-expiry batches list now has a real "Return" button → navigates with a valid `purchase_id` (`SupplierDetailPanel.jsx`), built as part of the Suppliers v2 "proactive near-expiry return-to-supplier" work. Still broken: Purchase List (only switches tabs), the Returns-section header button (still a toast, not a navigation), the empty-state button (still navigates with no `purchase_id`, still immediately rejected). Inventory/batch/medicine detail → still history display only, no create action. |
@@ -394,8 +425,8 @@ code only ever produces one.
 | PR07 Return statuses | 🔄 Partial (effectively one status) | Only `"confirmed"` is ever set. The model's `"pending"` default is never actually reached by any code path. None of Draft/Submitted/Accepted/Rejected/Credit-pending/etc. exist. |
 | PR08/09/10 Supplier accepts/rejects (full or partial) | ❌ Missing | No accept/reject endpoint exists — confirmed by a whole-router grep. Nothing to reject stock back into, because rejection isn't modeled at all. |
 | PR11 Supplier credit note | 🔄 Partial, improved Sep 13 | Debit-note number generation was recently fixed (was previously always null) and is verified by a regression test. **New Sep 13, 2026:** `credit_status` (pending/partially_credited/fully_credited/rejected) + `credit_received_paise` now exist and are pharmacist-updatable — see Batch 3 item #7 above. Still missing: no CGST/SGST/IGST split on the return record (unlike Purchase/PurchaseItem, which have it), no attachment field. |
-| PR12 Refund/settlement type | ❌ Missing | The Create screen has a `payment_type` selector — but the backend accepts the field and **never stores or uses it.** Silently dropped. |
-| PR13 Edit return | 🔄 Partial — backend works, frontend can't reach it | The backend genuinely supports a financial edit that recalculates stock deltas correctly (tested, including a re-validation against available stock). **The edit modal never sends items** — only note/billed-by — so this code path is effectively dead from the UI today. |
+| PR12 Refund/settlement type | ❌ Missing | The Create screen has a `payment_type` selector — but the backend accepts the field and **never stores or uses it.** Silently dropped. **Re-confirmed Sep 15, 2026** via a fresh zero-data return (new supplier + new purchase): `payment_type` reaches `PurchaseReturnCreateItem`'s Pydantic model (`purchase_returns.py:54`) and is never referenced again anywhere in the file — grepped. |
+| PR13 Edit return | 🔄 Partial — backend works, frontend deliberately doesn't reach it | The backend genuinely supports a financial edit that recalculates stock deltas correctly (tested, including a re-validation against available stock). **The edit modal never sends items** — only note/billed-by. **Re-read Sep 15, 2026**: this reads as an intentional simplification, not an oversight — `PurchaseReturnEditModal.jsx` shows the user an explicit line for financial edits ("To edit quantities or add/remove items, please create a new return for any differences"), so the backend's item-recalculation path is unreachable by design, not silently dead. Worth confirming with Abinash it's meant to stay this way rather than assuming either way. |
 | PR14 Cancel return | ❌ Missing | No cancel endpoint exists — nothing to cancel from, given the single-status model. |
 | PR15 Return against unavailable stock | ✅ Built | Explicitly guarded server-side with a clear 400 before any stock mutation; tested against both create and the financial-edit path. |
 

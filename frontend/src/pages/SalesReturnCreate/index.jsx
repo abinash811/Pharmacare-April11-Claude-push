@@ -3,13 +3,13 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { AuthContext } from '@/App';
-import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Stethoscope, Trash2 } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { ArrowLeft, Printer, Trash2 } from 'lucide-react';
 import { AppButton, PageBreadcrumb, InlineLoader } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
+import { REFUND_METHOD_SAME_AS_ORIGINAL } from '@/constants/domainConstants';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
+import SalesReturnSubbar from './components/SalesReturnSubbar';
 
 export default function SalesReturnCreate() {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ export default function SalesReturnCreate() {
   const [doctor, setDoctor]           = useState('');
   const [billedBy, setBilledBy]       = useState(user?.name || '');
   const [paymentType, setPaymentType] = useState('');
-  const [refundMethod, setRefundMethod] = useState('same_as_original');
+  const [refundMethod, setRefundMethod] = useState(REFUND_METHOD_SAME_AS_ORIGINAL);
   const [note, setNote]               = useState('');
   const [items, setItems]             = useState([]);
   const [originalBill, setOriginalBill] = useState(null);
@@ -58,7 +58,11 @@ export default function SalesReturnCreate() {
           mrp: item.mrp || item.unit_price,
           qty: item.quantity, original_qty: item.quantity,
           disc_percent: item.discount_percent || 0,
-          gst_percent: item.gst_percent || item.gst_rate || 5,
+          // ?? not || — an explicit 0% GST item (item.gst_percent === 0) was
+          // silently bumped to the 5% default, since 0 is falsy. Found live
+          // while verifying the due-balance credit feature: a 0%-GST return
+          // showed as 5% and inflated the return's net amount.
+          gst_percent: item.gst_percent ?? item.gst_rate ?? 5,
           is_damaged: false, error: null,
         })));
     } catch { toast.error('Failed to load bill details'); navigate('/billing/returns'); }
@@ -115,6 +119,15 @@ export default function SalesReturnCreate() {
 
   const formatExpiry = (d) => d ? format(new Date(d), 'MMM yyyy') : '-';
 
+  // A due bill's outstanding balance is always credited first — same rule
+  // the backend enforces (_resolve_refund_and_credit) — so the cashier
+  // never has to choose "how" for that part; only a genuine leftover
+  // (the return is worth more than what was still owed) needs a refund
+  // method at all.
+  const billDueAmount = originalBill?.status === 'due' ? (originalBill.due_amount || 0) : 0;
+  const creditToBalance = Math.min(totals.netAmount, billDueAmount);
+  const excessAfterCredit = Math.max(0, totals.netAmount - creditToBalance);
+
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><InlineLoader text="Loading bill details..." /></div>;
 
   return (
@@ -134,47 +147,15 @@ export default function SalesReturnCreate() {
       </header>
 
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
-        {/* Subbar */}
-        <section className="bg-white rounded-xl border border-gray-200 px-3 py-2 shadow-sm">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-              <PopoverTrigger asChild>
-                <AppButton variant="ghost" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200" data-testid="date-picker-btn">
-                  <CalendarIcon className="w-4 h-4 text-gray-500" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-gray-700">{format(returnDate, 'dd MMM yyyy')}</span>
-                  <ChevronDown className="w-3 h-3 text-gray-400" strokeWidth={1.5} />
-                </AppButton>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={returnDate} onSelect={(d) => { setReturnDate(d || new Date()); setShowDatePicker(false); }} disabled={(d) => d > new Date()} initialFocus />
-              </PopoverContent>
-            </Popover>
-
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">{patient.name || 'Walk-in'}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
-              <Stethoscope className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
-              <span className="text-sm font-medium text-gray-700">{doctor || 'No Doctor'}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <select value={billedBy} onChange={(e) => setBilledBy(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="billed-by">
-                <option value={user?.name || ''}>{user?.name || 'User'}</option>
-                {users.filter((u) => u.name !== user?.name).map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-              </select>
-            </div>
-            <div className="flex-grow" />
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="refund-method">
-                <option value="same_as_original">Same as Original</option>
-                <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
-                <option value="credit_to_account">Credit to Account</option>
-              </select>
-            </div>
-            <AppButton disabled={hasErrors()} onClick={() => setShowFinaliseModal(true)} data-testid="save-btn">Save Return</AppButton>
-          </div>
-        </section>
+        <SalesReturnSubbar
+          returnDate={returnDate} showDatePicker={showDatePicker}
+          onShowDatePickerChange={setShowDatePicker} onReturnDateChange={setReturnDate}
+          patient={patient} doctor={doctor} billedBy={billedBy} onBilledByChange={setBilledBy}
+          user={user} users={users}
+          creditToBalance={creditToBalance} excessAfterCredit={excessAfterCredit} billDueAmount={billDueAmount}
+          refundMethod={refundMethod} onRefundMethodChange={setRefundMethod}
+          hasErrors={hasErrors} onSaveClick={() => setShowFinaliseModal(true)}
+        />
 
         {/* Items Table */}
         <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">

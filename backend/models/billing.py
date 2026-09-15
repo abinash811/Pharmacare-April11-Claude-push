@@ -146,6 +146,12 @@ class SalesReturn(Base):
     total_gst_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     grand_total_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     refund_method: Mapped[Optional[str]] = mapped_column(String(20))
+    # How much of this return's value was credited against the original
+    # bill's due balance (0 if the bill was already fully paid). Stored so
+    # a later financial edit can reverse exactly this amount before
+    # reapplying the recalculated total — same reverse-then-rebuild shape
+    # already used for stock in update_sales_return.
+    credit_applied_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(

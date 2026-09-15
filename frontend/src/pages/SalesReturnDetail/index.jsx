@@ -173,6 +173,11 @@ export default function SalesReturnDetail() {
             <div className="text-right">
               <span className="text-[10px] text-gray-500 uppercase font-semibold block">Net Amount</span>
               <span className="text-2xl font-semibold tabular-nums text-red-600">{formatCurrency(returnData.net_amount || 0)}</span>
+              {returnData.credit_applied > 0 && (
+                <span className="text-xs text-brand font-medium block mt-0.5">
+                  {formatCurrency(returnData.credit_applied)} credited to due balance
+                </span>
+              )}
             </div>
           </div>
         </section>

@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ from models.billing import Bill, BillItem, SalesReturn as SalesReturnORM, SalesR
 from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
-from models.users import Role as RoleORM
+from models.users import AuditLog, Role as RoleORM
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super
 
 router = APIRouter(prefix="/api", tags=["sales_returns"])
@@ -62,6 +62,55 @@ class SalesReturnUpdate(BaseModel):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    # Mirrors billing.py/purchase_returns.py's identical local helper — no
+    # cross-router import exists anywhere in this codebase, each router
+    # keeps its own copy. This router never logged anything at all before
+    # (Sep 15, 2026 product-review finding), despite create/financial-edit
+    # both mutating real stock and, now, a due bill's balance.
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+def _resolve_refund_and_credit(
+        requested_method: str, grand_total_paise: int, bill: Bill) -> tuple[str, int]:
+    """Decide how much of a return credits the bill's due balance vs. is an
+    actual cash/UPI refund, and what refund_method label to store.
+
+    Always credits any outstanding balance on the bill first, regardless of
+    the caller's requested method — a customer can't be handed cash for
+    goods they never fully paid for (Sep 15, 2026 product-review: "Credit
+    to Account" was previously a decorative dropdown option with zero real
+    effect on what a customer owed). Shared by create and financial-edit so
+    both resolve the exact same way.
+
+    A return can exceed what was still owed (e.g. a due bill for ₹200 gets
+    a ₹500 return) — the ₹200 still credits the balance, but the remaining
+    ₹300 is a real refund, so refund_method describes that leftover, not
+    the whole return.
+    """
+    credit_paise = min(grand_total_paise, max(0, bill.balance_paise))
+    excess_paise = grand_total_paise - credit_paise
+    if excess_paise == 0 and credit_paise > 0:
+        return "credit_to_account", credit_paise
+    if requested_method == "same_as_original":
+        # Nothing (or only part) left to credit — refund the rest however
+        # the sale itself was settled.
+        return (bill.payment_method or "cash"), credit_paise
+    return requested_method, credit_paise
+
 
 async def _generate_credit_note_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
     # Configurable prefix/length via Settings > Bill Sequence (Sales Return),
@@ -123,6 +172,7 @@ def _return_response(
         "gst_amount": r.total_gst_paise / 100,
         "net_amount": r.grand_total_paise / 100,
         "refund_method": r.refund_method,
+        "credit_applied": r.credit_applied_paise / 100,
         "note": r.notes,
         "items": item_list,
         "created_at": r.created_at.isoformat() if r.created_at else None,
@@ -216,7 +266,7 @@ async def _reverse_stock(
 # ── /sales-returns ─────────────────────────────────────────────────────────────
 
 @router.post("/sales-returns")
-async def create_sales_return(return_data: SalesReturnCreate, current_user: User = Depends(
+async def create_sales_return(return_data: SalesReturnCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
@@ -398,6 +448,9 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
 
     return_date_val = date.fromisoformat(return_data.return_date[:10])
 
+    resolved_refund_method, credit_to_balance_paise = _resolve_refund_and_credit(
+        return_data.refund_method, grand_total_paise, original_bill)
+
     sales_return = SalesReturnORM(
         pharmacy_id=pharmacy_id,
         original_bill_id=bill_id,
@@ -407,7 +460,8 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
         total_paise=total_paise,
         total_gst_paise=gst_paise,
         grand_total_paise=grand_total_paise,
-        refund_method=return_data.refund_method,
+        refund_method=resolved_refund_method,
+        credit_applied_paise=credit_to_balance_paise,
         status="completed",
         notes=return_data.note,
         created_by=user_id,
@@ -427,6 +481,40 @@ async def create_sales_return(return_data: SalesReturnCreate, current_user: User
             pharmacy_id, user_id, sales_return.id, reason, db,
         )
         final_items.append(item_orm)
+
+    ip = _client_ip(request)
+    await _record_audit(
+        pharmacy_id, user_id, "create", "sales_return", sales_return.id,
+        {"return_number": return_no, "original_bill_no": original_bill.bill_number,
+         "net_amount": grand_total_paise / 100, "refund_method": resolved_refund_method,
+         "credit_applied": credit_to_balance_paise / 100},
+        db, ip_address=ip,
+    )
+
+    if credit_to_balance_paise > 0:
+        old_balance = original_bill.balance_paise / 100
+        old_paid = original_bill.amount_paid_paise / 100
+        old_status = original_bill.status
+
+        original_bill.amount_paid_paise += credit_to_balance_paise
+        original_bill.balance_paise = max(
+            0, original_bill.grand_total_paise - original_bill.amount_paid_paise)
+        if original_bill.balance_paise <= 0:
+            original_bill.status = "paid"
+
+        # A distinct action ("return_credit", not "payment") so Day-End
+        # Closing's cash-drawer reconciliation — which reads AuditLog rows
+        # scoped to action in ("create", "payment") — never mistakes a
+        # returned-goods credit for real cash collected that day.
+        await _record_audit(
+            pharmacy_id, user_id, "return_credit", "invoice", bill_id,
+            {"paid_amount": original_bill.amount_paid_paise / 100,
+             "due_amount": original_bill.balance_paise / 100, "status": original_bill.status,
+             "return_number": return_no},
+            db,
+            old_values={"paid_amount": old_paid, "due_amount": old_balance, "status": old_status},
+            ip_address=ip,
+        )
 
     await db.flush()
 
@@ -543,13 +631,14 @@ async def get_sales_return(return_id: str, current_user: User = Depends(
 
 @router.put("/sales-returns/{return_id}")
 async def update_sales_return(
-    return_id: str, update_data: SalesReturnUpdate,
+    return_id: str, update_data: SalesReturnUpdate, request: Request,
     financial_edit: bool = False,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
     rid = uuid.UUID(return_id)
+    ip = _client_ip(request)
 
     sales_return = await get_owned_or_404(
         db, SalesReturnORM, rid, pharmacy_id, not_found_detail="Sales return not found")
@@ -560,6 +649,20 @@ async def update_sales_return(
         # fix on create_sales_return's allow_manual_returns check above.
         if not await has_permission(current_user, "allow_financial_edit_return", db):
             raise HTTPException(status_code=403, detail="Financial edit requires permission")
+
+        # tenant-safe: sales_return already scoped
+        bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
+        original_bill = bill_result.scalar_one()
+
+        # Reverse any credit this return previously applied to the bill's
+        # due balance, before recalculating totals below — same
+        # reverse-then-rebuild shape as the stock handling that follows.
+        old_credit_applied = sales_return.credit_applied_paise
+        if old_credit_applied > 0:
+            original_bill.amount_paid_paise = max(0, original_bill.amount_paid_paise - old_credit_applied)
+            original_bill.balance_paise = max(
+                0, original_bill.grand_total_paise - original_bill.amount_paid_paise)
+            original_bill.status = "due" if original_bill.balance_paise > 0 else "paid"
 
         # Reverse old stock changes
         old_items_result = await db.execute(
@@ -589,6 +692,15 @@ async def update_sales_return(
         gst_paise = 0
         new_items: list[SalesReturnItemORM] = []
 
+        # Same fallback create_sales_return uses: the real edit UI
+        # (SalesReturnEditModal) never sends product_sku/medicine_id, only
+        # medicine_name/batch_no — without this, every edited item silently
+        # dropped (product stayed None -> `continue`), zeroing the whole
+        # return. Found while adding due-balance credit reversal here.
+        orig_bill_items_result = await db.execute(
+            select(BillItem).where(BillItem.bill_id == sales_return.original_bill_id))
+        bill_items_by_batch = {bi.batch_number: bi for bi in orig_bill_items_result.scalars().all()}
+
         for item_data in update_data.items:
             sale_price_paise = int(item_data.mrp * 100)
             base_paise = sale_price_paise * item_data.qty
@@ -614,6 +726,12 @@ async def update_sales_return(
                     product = prod_result.scalar_one_or_none()
                 except ValueError:
                     pass
+            if not product:
+                bi = bill_items_by_batch.get(item_data.batch_no)
+                if bi:
+                    prod_result = await db.execute(select(ProductORM).where(
+                        ProductORM.id == bi.product_id, ProductORM.pharmacy_id == pharmacy_id))
+                    product = prod_result.scalar_one_or_none()
             if not product:
                 continue
 
@@ -657,25 +775,61 @@ async def update_sales_return(
             await _restore_stock(batch, item_data.qty, product, return_to_stock, pharmacy_id, user_id, rid, reason, db)
 
         grand_total_paise = round((total_paise + gst_paise) / 100) * 100
+        requested_method = update_data.refund_method or sales_return.refund_method or "same_as_original"
+        resolved_refund_method, new_credit_applied = _resolve_refund_and_credit(
+            requested_method, grand_total_paise, original_bill)
+
+        old_balance = original_bill.balance_paise / 100
+        old_paid = original_bill.amount_paid_paise / 100
+        old_status = original_bill.status
+        if new_credit_applied > 0:
+            original_bill.amount_paid_paise += new_credit_applied
+            original_bill.balance_paise = max(
+                0, original_bill.grand_total_paise - original_bill.amount_paid_paise)
+            if original_bill.balance_paise <= 0:
+                original_bill.status = "paid"
+
         sales_return.total_paise = total_paise
         sales_return.total_gst_paise = gst_paise
         sales_return.grand_total_paise = grand_total_paise
-        if update_data.refund_method:
-            sales_return.refund_method = update_data.refund_method
+        sales_return.refund_method = resolved_refund_method
+        sales_return.credit_applied_paise = new_credit_applied
+
+        await _record_audit(
+            pharmacy_id, user_id, "financial_edit", "sales_return", rid,
+            {"net_amount": grand_total_paise / 100, "refund_method": resolved_refund_method,
+             "credit_applied": new_credit_applied / 100},
+            db, ip_address=ip,
+        )
+        if old_credit_applied > 0 or new_credit_applied > 0:
+            await _record_audit(
+                pharmacy_id, user_id, "return_credit_adjusted", "invoice", original_bill.id,
+                {"paid_amount": original_bill.amount_paid_paise / 100,
+                 "due_amount": original_bill.balance_paise / 100, "status": original_bill.status},
+                db,
+                old_values={"paid_amount": old_paid, "due_amount": old_balance, "status": old_status},
+                ip_address=ip,
+            )
 
         await db.flush()
         await db.refresh(sales_return)  # updated_at has onupdate=func.now() — see purchases.py
 
-        # tenant-safe: sales_return already scoped
-        bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
-        return _return_response(sales_return, new_items, bill_result.scalar_one_or_none())
+        return _return_response(sales_return, new_items, original_bill)
 
     # Non-financial edit
+    old_note = sales_return.notes
+    old_refund_method = sales_return.refund_method
     if update_data.note is not None:
         sales_return.notes = update_data.note
         sales_return.return_reason = update_data.note
     if update_data.refund_method is not None:
         sales_return.refund_method = update_data.refund_method
+
+    await _record_audit(
+        pharmacy_id, user_id, "update", "sales_return", rid,
+        {"note": sales_return.notes, "refund_method": sales_return.refund_method},
+        db, old_values={"note": old_note, "refund_method": old_refund_method}, ip_address=ip,
+    )
 
     await db.flush()
     await db.refresh(sales_return)  # updated_at has onupdate=func.now() — see purchases.py

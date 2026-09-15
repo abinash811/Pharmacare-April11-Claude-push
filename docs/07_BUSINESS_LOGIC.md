@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.5 | Last updated: September 15, 2026
+# Version: 2.6 | Last updated: September 15, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -176,9 +176,14 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   own gapless numbered series), from `PharmacySettings.return_prefix` /
   `return_sequence_number` / `return_number_length`, same atomic-counter pattern
   as bill numbers. Configurable in Settings > Bill Sequence > Sales Return.
-- Requires `original_bill_id` (or admin + an `allow_manual_returns` permission
-  for a manual return not tied to a bill) — a return without a real originating
-  bill is otherwise rejected with 400.
+- Requires `original_bill_id` — always, regardless of the `allow_manual_returns`
+  permission or the "Require original bill" setting: `create_sales_return`
+  unconditionally raises 400 without one, and `original_bill_id` is a `NOT NULL`
+  column on `sales_returns`. **Manual returns (no original bill) are not
+  actually built** — the permission and setting exist and are checked, but the
+  code path they gate always 400s anyway, and the frontend has no bill-search UI
+  to reach it either. Found Sep 15, 2026 (`product-review`); real, named gap
+  (Marg ERP ships this), tracked in `docs/15_ROADMAP.md`'s Billing v2 list.
 - Return quantity per item is validated against the original bill item's quantity
   — cannot return more than was sold.
 - Stock is **restored** to the original batch (`quantity_on_hand += returned_qty`),
@@ -186,6 +191,31 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   stock (`return_to_stock=False` on the item, no quantity added back).
 - A `StockMovement` is created with `movement_type="sales_return"`.
 - Status is always `"completed"` on creation — there's no separate approval step.
+- **Due-balance credit (built Sep 15, 2026):** if the original bill still has
+  money owed (`Bill.status == "due"`), the return's value always credits that
+  balance first — `_resolve_refund_and_credit()` in `sales_returns.py`, applied
+  unconditionally regardless of the caller's `refund_method`, so it can't be
+  bypassed by picking Cash on a due bill. `min(return_grand_total, bill.balance_paise)`
+  is added to `Bill.amount_paid_paise` (same field `POST /payments` already
+  mutates) and `balance_paise` recomputed from it; the bill flips to `"paid"` if
+  that clears it. Only a genuine leftover (the return is worth more than what
+  was still owed) is an actual cash/UPI refund, and `refund_method` is stored as
+  whichever concrete method covers that leftover — `"credit_to_account"` when the
+  due balance absorbs the whole return, otherwise the caller's method (or the
+  original bill's own `payment_method` for `"same_as_original"`). The credited
+  amount is stored on the return itself (`SalesReturn.credit_applied_paise`) so a
+  later financial edit (`update_sales_return?financial_edit=true`) can reverse
+  exactly that amount before recalculating and reapplying — same reverse-then-
+  rebuild shape already used for stock in that function. Both create and the
+  financial-edit path now call `_record_audit()` — `sales_return` entity for the
+  return itself, plus a `return_credit`/`return_credit_adjusted` action (never
+  `"payment"`) on the `invoice` entity, so Day-End Closing's cash reconciliation
+  (FLOW 1, reads only `create`/`payment` invoice-audit actions) never mistakes a
+  returned-goods credit for real cash collected that day.
+- **Entry point (fixed Sep 15, 2026):** a real `BillDetail` "Return Items" button
+  (any non-parked bill) → `/billing/returns/new?billId=`. Before this there was
+  no reachable UI path to file a return against a finalized bill at all — see
+  the Billing row in `docs/15_ROADMAP.md` for the full history.
 
 ```
 1. POST /api/sales-returns

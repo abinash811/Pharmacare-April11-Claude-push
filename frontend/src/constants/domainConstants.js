@@ -120,6 +120,18 @@ export const BILLING_FOR = {
   OTHER: 'other',
 };
 
+// ─── Sales Return Refund Methods ───────────────────────────────────────────────
+// Stored in sales_returns.refund_method. SAME_AS_ORIGINAL is a frontend-only
+// convenience default sent to POST /sales-returns — the backend always
+// resolves it to one of the concrete REFUND_METHOD values below before
+// saving, so a return is never stored with an ambiguous label.
+export const REFUND_METHOD = {
+  CASH:              'cash',
+  UPI:               'upi',
+  CREDIT_TO_ACCOUNT: 'credit_to_account',
+};
+export const REFUND_METHOD_SAME_AS_ORIGINAL = 'same_as_original';
+
 // ─── User Roles ───────────────────────────────────────────────────────────────
 // Mirrors backend/constants.py::DEFAULT_ROLES names exactly. A new pharmacy
 // (created at signup — see routers/auth.py) always gets all four; the

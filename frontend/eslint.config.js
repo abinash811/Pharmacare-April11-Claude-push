@@ -215,11 +215,16 @@ module.exports = [
 
   // Test files also need Jest's globals (describe/it/expect/beforeEach/…),
   // which aren't part of globals.browser — without this every test file
-  // failed lint with "'describe' is not defined" etc.
+  // failed lint with "'describe' is not defined" etc. Also needs Node's
+  // globals (require/global/module/__dirname) — jest.mock()'s factory
+  // often has to `require()` a module lazily inside itself (babel-jest
+  // hoists jest.mock() above every import, so it can't close over an
+  // imported binding), and every test file has real CommonJS `module`
+  // underneath even when written with ESM `import`.
   {
     files: ['src/**/*.test.{js,jsx,ts,tsx}', 'src/setupTests.js'],
     languageOptions: {
-      globals: { ...globals.jest },
+      globals: { ...globals.jest, ...globals.node },
     },
     // jsx-a11y checks real accessibility of shipped UI. Test files render
     // throwaway mock markup to exercise component logic (e.g. a fake

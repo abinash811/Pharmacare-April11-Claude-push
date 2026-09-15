@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, Download, Edit, CheckCircle, Clock, AlertCircle, Wallet } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Edit, RotateCcw, CheckCircle, Clock, AlertCircle, Wallet } from 'lucide-react';
 import { AppButton, PageSkeleton, PageBreadcrumb } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -131,6 +131,22 @@ export default function BillDetail() {
           {bill.status === 'due' && (
             <AppButton icon={<Wallet className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowCollectPayment(true)} data-testid="collect-payment-btn">
               Collect Payment
+            </AppButton>
+          )}
+          {/* Sep 15, 2026 product-review: a finalized bill had no return
+              entry point at all — "Edit Bill" was correctly hidden here
+              (below) since editing a GST invoice post-issue isn't real,
+              but that also silently removed the only click path to
+              BillingWorkspace's Return action. This button is the real,
+              direct fix — a return doesn't need the workspace at all. */}
+          {!isParked && (
+            <AppButton
+              variant="outline"
+              icon={<RotateCcw className="w-4 h-4" strokeWidth={1.5} />}
+              onClick={() => navigate(`/billing/returns/new?billId=${bill.id}`)}
+              data-testid="return-items-btn"
+            >
+              Return Items
             </AppButton>
           )}
           {/* Editing is only real for a parked/draft bill (BillingWorkspace

@@ -32,6 +32,14 @@ class BillCreate(BaseModel):
     customer_mobile: Optional[str] = None
     doctor_id: Optional[str] = None
     doctor_name: Optional[str] = None
+    # Schedule H1 register (Drugs & Cosmetics Rules, Rule 65): the patient's
+    # name AND address must be recorded at the time of supply, same standing
+    # as the prescriber's name/registration — not something a saved customer
+    # profile can stand in for, since a one-off walk-in buying a single H1
+    # item is exactly who this rule exists for. Age isn't a legal
+    # requirement, kept optional.
+    patient_address: Optional[str] = None
+    patient_age: Optional[int] = None
     items: List[Dict[str, Any]]
     discount: float = 0
     tax_rate: float
@@ -314,6 +322,7 @@ async def _create_h1_entry(
     bill: BillORM, bill_item: BillItemORM,
     doctor_name: str | None, customer_name: str | None,
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
+    patient_address: str | None = None, patient_age: int | None = None,
 ) -> None:
     """Create Schedule H1 register entry if product is H1."""
     if product.drug_schedule != "H1":
@@ -345,6 +354,8 @@ async def _create_h1_entry(
         prescriber_registration_number=prescriber_reg,
         prescriber_address=prescriber_address,
         patient_name=customer_name or "Walk-in Customer",
+        patient_address=patient_address,
+        patient_age=patient_age,
         dispensed_by=user_id,
     ))
 
@@ -438,6 +449,17 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
             raise HTTPException(
                 status_code=400,
                 detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+
+        # H1 patient-address requirement — same standing as the doctor
+        # check above (Rule 65: patient name AND address recorded at time
+        # of supply). A saved Customer's own address can't be relied on:
+        # `customer_name` is often just "Walk-in Customer" with no linked
+        # record at all, exactly the one-off sale this rule is for.
+        if not is_draft and is_sale and product.drug_schedule == "H1" and (
+                not bill_data.patient_address or not bill_data.patient_address.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Patient address required for Schedule H1 drug: {product.name}")
 
         quantity = item.get("quantity", 0)
         mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
@@ -628,7 +650,8 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
             if is_sale:
                 await _create_h1_entry(
                     product, batch, bill_item.quantity, bill, bill_item,
-                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
+                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db,
+                    bill_data.patient_address, bill_data.patient_age)
 
     await _record_audit(
         pharmacy_id, user_id, "create", "invoice", bill.id, None,
@@ -700,6 +723,15 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
             raise HTTPException(
                 status_code=400,
                 detail=f"Prescription details required for Schedule H1 drug: {product.name}")
+
+        # Same patient-address requirement as create_bill — see the comment
+        # there. This finalize-a-draft path is the other real entry point
+        # that can turn an H1 item into a real sale.
+        if is_finalizing_preview and is_sale_preview and product.drug_schedule == "H1" and (
+                not bill_data.patient_address or not bill_data.patient_address.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Patient address required for Schedule H1 drug: {product.name}")
 
         quantity = item.get("quantity", 0)
         mrp_paise = int(item.get("unit_price", item.get("mrp", 0)) * 100)
@@ -852,7 +884,8 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
             if is_sale:
                 await _create_h1_entry(
                     product, batch, bill_item.quantity, bill, bill_item,
-                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db)
+                    bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db,
+                    bill_data.patient_address, bill_data.patient_age)
 
     await db.flush()
     await db.refresh(bill)  # updated_at has onupdate=func.now() — see purchases.py

@@ -108,6 +108,7 @@ class TestDoctorRecordFields:
 
         bill_resp = self.session.post(f"{BASE_URL}/api/bills", json={
             "customer_name": "H1 Fields Walk-in", "doctor_name": doctor_name,
+            "patient_address": "12 Fields Test Road, Testville",
             "payment_method": "cash", "status": "paid", "tax_rate": 5,
             "items": [{
                 "product_sku": sku, "batch_id": batch_resp.json()["id"],

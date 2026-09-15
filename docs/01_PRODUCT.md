@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.9 | Last updated: September 14, 2026
+# Version: 1.10 | Last updated: September 15, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -330,6 +330,13 @@ Real gaps this surfaces: split/multi-mode payment on a single bill (PharmaCare's
 - **Category-wide (multiple vendors — Vyapar/Gofrugal/Healthray/Pharma24x7):** role-based access control is standard, including a specific "only admin can activate Schedule H/H1 medicines for billing" pattern — counter staff cannot self-enable restricted-schedule sales. [Source](https://pharma247.in/top-pharmacy-management-software-in-india)
 
 Real gaps this surfaces, weighed against scope discipline (a single-store retail counter, not a 10-year-mature product): **scheduled/automatic backups** (today: manual "Download Backup" button only) and a **digital receipt renderer** (fields already exist and save correctly, but nothing consumes them — WhatsApp/email bill-sharing doesn't exist yet). Both reviewed Sep 14, 2026 and explicitly parked for now (not v1) — see `docs/15_ROADMAP.md`'s Settings section. Multi-location/multi-counter config is out of scope by design (Phase 1 is single-store). No named competitor evidence found for a from-scratch "settings module" screenshot/breakdown — these vendors don't publish granular admin-panel documentation publicly; findings above are pieced together from feature/support pages, not a screen-by-screen comparison.
+
+**Schedule H1 register — legal requirement + competitor notes (researched Sep 15, 2026):**
+- **Legal (Drugs & Cosmetics Rules, Rule 65):** every Schedule H1 supply must be recorded, at the time of supply, with the prescriber's name and address, the **patient's name and address**, the drug name, quantity, batch number, and date — patient address carries the same legal standing as the prescriber's own details, not an optional extra. Records retained 3 years. [Source](https://indiankanoon.org/doc/147665881/), [Source](https://shelflifepro.in/blog/schedule-h1-drug-register-compliance-guide/)
+- **GOFRUGAL POS** (named, real competitor product): "the schedule register... prompts for... doctor name and address, patient name and address detail... for Schedule H1 items" — captured as a prompt at the point of sale, not pulled from a saved customer record. [Source](https://www.gofrugal.com/blog/schedule-h1-drugs/)
+- **Marg ERP:** must "capture prescriber details for Schedule H1 and produce an audit trail that survives a Drug Inspector visit" — same emphasis on real, inspection-ready records, not just a UI checkbox. [Source](https://margerpmaharashtra.in/pharmacy-software/)
+
+Real gap this surfaced (found via a live product-review of the Schedule H1 Register, not a docs pass): `patient_address`/`patient_age` were real, unused columns on `ScheduleH1Register` — returned by the API, shown as dedicated table columns, but nothing in `_create_h1_entry` ever set them, so every H1 register entry, for every pharmacy, always showed a blank Address and Age. Fixed Sep 15, 2026 — capture-at-billing-time (matching GOFRUGAL's pattern and the legal text's "at the time of supply," not a saved-profile lookup, since a one-off walk-in buying a single H1 item won't have one). See `docs/15_ROADMAP.md`'s Reports/Compliance section.
 
 ---
 

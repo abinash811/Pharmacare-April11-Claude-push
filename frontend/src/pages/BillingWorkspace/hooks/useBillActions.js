@@ -21,7 +21,9 @@ import { apiUrl } from '@/constants/api';
  *   .billItems, .customerName, .customerPhone, .doctorName,
  *   .paymentType, .billedBy, .billDiscount, .billDiscountType,
  *   .mrpTotal, .totalDiscount, .totalGst, .totalCess,
- *   .grandTotal, .subtotal, .margin, .draftNumber, .editingDraftId
+ *   .grandTotal, .subtotal, .margin, .draftNumber, .editingDraftId,
+ *   .patientAddress, .patientAge — Schedule H1 register fields, only
+ *   required when the bill contains an H1 item (see ScheduleHWarning)
  * @param {Function} onSaveSuccess   — called after any successful save
  * @param {Function} onPrintReady    — called with billData to trigger window.print()
  * @param {object}   printPharmacyInfo — pharmacy_name/address/phone/gstin/
@@ -51,11 +53,16 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   }));
 
   const buildBillBase = (status) => {
-    const { billItems, customerName, customerPhone, doctorName, paymentType, totalDiscount } = billSnapshot;
+    const {
+      billItems, customerName, customerPhone, doctorName, paymentType, totalDiscount,
+      patientAddress, patientAge,
+    } = billSnapshot;
     return {
       customer_name:   customerName || 'Walk-in Customer',
       customer_mobile: customerPhone,
       doctor_name:     doctorName,
+      patient_address: patientAddress || undefined,
+      patient_age:     patientAge ? Number(patientAge) : undefined,
       payment_method:  paymentType || 'cash',
       items:           buildItemPayload(billItems),
       discount:        totalDiscount,

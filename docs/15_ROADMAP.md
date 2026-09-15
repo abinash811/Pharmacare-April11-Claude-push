@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.79 | Last updated: September 15, 2026
+# Version: 2.80 | Last updated: September 15, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -988,7 +988,7 @@ accident.
 | Stock valuation report | 📋 | Cost × qty on hand — not built |
 | Purchase report | ✅ | By date range, supplier |
 | Expiry report | ✅ | Batches expiring in N days |
-| Schedule H1 register | ✅ | Read-only compliance view |
+| Schedule H1 register | ✅ **Real gap found + fixed Sep 15, 2026 — live browser test, per Abinash's direct question "is Schedule H1 reports done?"** | Register page itself was already solid (correct permission gate via `_require_reports_permission`, correct field mapping, CSV export, print, doctor `registration_number` fixed Sep 13) — but `patient_address`/`patient_age` were real, unused `ScheduleH1Register` columns, returned by `GET /compliance/schedule-h1-register`, shown as dedicated table columns in `ScheduleH1Register.jsx`, but never set by `_create_h1_entry` (`billing.py`) — every H1 entry, for every pharmacy, always showed a blank Address and Age. Per Rule 65 (Drugs & Cosmetics Rules), patient name AND address carry the same legal standing as the prescriber's own details, recorded "at the time of supply" — researched how real competitors solve this (GOFRUGAL POS: prompts for patient name/address per-sale, not from a saved profile) before building, since a saved-Customer-profile approach would still leave every walk-in blank, same as today. Fixed: `BillCreate` gained optional `patient_address`/`patient_age`; `create_bill` and `update_bill` (both real H1-sale entry points) now reject with 400 if an H1 item is being sold without a patient address, mirroring the existing doctor-name check exactly; `_create_h1_entry` persists both fields. Frontend: `ScheduleHWarning.jsx` (the existing Schedule H dialog) now collects Doctor Name + Patient Address (required) + Age (optional) for an H1 item, Confirm disabled until both required fields are filled — plain Schedule H items keep the original confirm-only dialog unchanged. 10 new pytest tests (`test_h1_patient_details.py`, covering both `create_bill` and `update_bill`'s finalize-draft path) + 5 new jest tests (`ScheduleHWarning.test.tsx`); full backend suite (511 passed, pre-existing shared-DB flakes confirmed unrelated via isolation re-runs) and full jest suite (210 passed) green; live-verified end-to-end in a real headless browser — registered a zero-data pharmacy, sold a real H1 item with no doctor/address filled (Confirm correctly disabled), filled both, finalized, and confirmed the real Schedule H1 Register page showed the real address and age for the first time. |
 | Audit log viewer | ✅ | Read-only, all actions, `old_values`/`ip_address` populated (Batch 5) |
 | Dead-stock report / physical stock reconciliation | 📋 | Deferred to Phase 2 (Sep 12, 2026 — Batch 8 decision) |
 

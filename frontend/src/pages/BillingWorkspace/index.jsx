@@ -39,6 +39,13 @@ export default function BillingWorkspace() {
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [doctorName,    setDoctorName]    = useState('');
+  // Schedule H1 register (Drugs & Cosmetics Rules, Rule 65): patient name
+  // AND address must be recorded at the time of supply, same standing as
+  // the prescriber's own name/registration — captured here, not pulled
+  // from a saved customer profile, since a one-off walk-in is exactly who
+  // this rule is for.
+  const [patientAddress, setPatientAddress] = useState('');
+  const [patientAge,     setPatientAge]     = useState('');
   const [billedBy,      setBilledBy]      = useState('');
   const [billingFor,    setBillingFor]    = useState('self');
   const [paymentType,   setPaymentType]   = useState('cash');
@@ -81,6 +88,7 @@ export default function BillingWorkspace() {
   const clearBill = useCallback(() => {
     setItems([]); setCustomerName(''); setCustomerPhone('');
     setDoctorName(''); setPaymentType('cash');
+    setPatientAddress(''); setPatientAge('');
     localStorage.removeItem('billing_draft'); setDraftNumber(null);
   }, [setItems]);
 
@@ -169,16 +177,23 @@ export default function BillingWorkspace() {
   const openFinaliseModal = useCallback(() => {
     if (!billItems.length)  { toast.error('Add items to bill first'); return; }
     if (!paymentType)       { toast.error('Select a payment method'); return; }
-    const hasH = billItems.some(i => i.schedule === 'H' || i.schedule === 'H1' || i.scheduleH);
-    if (hasH && !doctorName?.trim()) { setShowScheduleH(true); return; }
+    const hasH  = billItems.some(i => i.schedule === 'H' || i.schedule === 'H1' || i.scheduleH);
+    const hasH1 = billItems.some(i => i.schedule === 'H1');
+    if ((hasH && !doctorName?.trim()) || (hasH1 && !patientAddress?.trim())) {
+      setShowScheduleH(true);
+      return;
+    }
     setShowFinalise(true);
-  }, [billItems, paymentType, doctorName]);
+  }, [billItems, paymentType, doctorName, patientAddress]);
+
+  const hasH1Item = billItems.some(i => i.schedule === 'H1');
 
   // ── Bill actions ──────────────────────────────────────────────────────────
   const billSnapshot = {
     billItems, customerName, customerPhone, doctorName, paymentType, billedBy,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
+    patientAddress, patientAge,
   };
 
   // Real pharmacy identity for the printed receipt — previously fetched but
@@ -251,8 +266,15 @@ export default function BillingWorkspace() {
         />
       </main>
 
-      <ScheduleHWarning  open={showScheduleH}   onCancel={() => setShowScheduleH(false)}
-        onConfirm={() => { setShowScheduleH(false); setShowFinalise(true); }} />
+      <ScheduleHWarning
+        open={showScheduleH}
+        requireAddress={hasH1Item}
+        doctorName={doctorName} onDoctorNameChange={setDoctorName}
+        patientAddress={patientAddress} onPatientAddressChange={setPatientAddress}
+        patientAge={patientAge} onPatientAgeChange={setPatientAge}
+        onCancel={() => setShowScheduleH(false)}
+        onConfirm={() => { setShowScheduleH(false); setShowFinalise(true); }}
+      />
       <FinaliseModal
         open={showFinalise} onClose={() => setShowFinalise(false)}
         customerName={customerName} paymentType={paymentType}

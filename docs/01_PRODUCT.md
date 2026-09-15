@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.10 | Last updated: September 15, 2026
+# Version: 1.11 | Last updated: September 15, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -337,6 +337,13 @@ Real gaps this surfaces, weighed against scope discipline (a single-store retail
 - **Marg ERP:** must "capture prescriber details for Schedule H1 and produce an audit trail that survives a Drug Inspector visit" — same emphasis on real, inspection-ready records, not just a UI checkbox. [Source](https://margerpmaharashtra.in/pharmacy-software/)
 
 Real gap this surfaced (found via a live product-review of the Schedule H1 Register, not a docs pass): `patient_address`/`patient_age` were real, unused columns on `ScheduleH1Register` — returned by the API, shown as dedicated table columns, but nothing in `_create_h1_entry` ever set them, so every H1 register entry, for every pharmacy, always showed a blank Address and Age. Fixed Sep 15, 2026 — capture-at-billing-time (matching GOFRUGAL's pattern and the legal text's "at the time of supply," not a saved-profile lookup, since a one-off walk-in buying a single H1 item won't have one). See `docs/15_ROADMAP.md`'s Reports/Compliance section.
+
+**Dashboard / home-screen competitor notes (researched Sep 15, 2026):**
+- **Marg ERP:** a remote "owner dashboard" — daily sales, purchases, stock, payments, **and profit** reports, viewable from anywhere; multi-location combined-or-per-store view (Phase 2, out of scope for PharmaCare's single-store Phase 1). [Source](https://margcompusoft.com/retail/pharmacy_software.html), [Source](https://www.softwaresuggest.com/marg-pharmacy)
+- **eVitalRx:** the dashboard itself shows LP/PTR, expiring/expired items, **sales margin**, **customer payments due AND distributor payments due** side by side, plus daily/weekly/monthly sales — a single glance screen pairing receivables and payables, not just revenue. [Source](https://www.evitalrx.in/), [Source](https://mwm.ai/apps/evitalrx-pharmacy-software/1637429769)
+- **Pharmasoft:** "monitoring of receivables and payables" as a named capability, plus P&L/profit statements reachable in a few clicks. [Source](https://pharmasoft.org/features.html), [Source](https://kireetisoft.com/pharmasoft/)
+
+Real gaps this surfaces, weighed against `docs/01_PRODUCT.md` §4.2's own Rajesh persona (whose stated need is explicitly "Dashboard showing today's sales, **margin per product**, expiry alerts, GST summary" — today's sales ✅ and expiry alerts ✅ are on the real Dashboard, margin and GST are not, anywhere on it): **no margin/profit figure anywhere on Dashboard** (a Margin Report already exists on the Reports page, built Sep 12, 2026 — the gap is that Dashboard itself, the glance surface the persona actually checks on his phone, shows none of it), and **no "payable to distributors" figure** paired against the existing "Purchases (Month)" card (Suppliers already computes real per-supplier outstanding — Suppliers v1, this session — nothing sums it to one Dashboard number the way "Pending Payments" already does for the receivables side). Both real, both cheap to build (reuse existing aggregates, no new computation), phased v2 — not blocking, since both numbers are one click away on their own pages today. Multi-location dashboard views are correctly out of scope (Phase 2).
 
 ---
 

@@ -18,10 +18,18 @@ const COLOR_CLASSES = {
 };
 
 export default function QuickStatCard({ title, value, icon, color, onClick }) {
+  const handleKeyDown = (e) => {
+    if (!onClick) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); }
+  };
+
   return (
     <div
       className={`p-4 rounded-xl border ${COLOR_CLASSES[color]} ${onClick ? 'cursor-pointer hover:shadow-md' : ''} transition-all`}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={handleKeyDown}
       data-testid={`quick-stat-${title.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <div className="flex items-center gap-2 mb-2">

@@ -112,7 +112,12 @@ export default function AlertsPanel({
               {recentBills.map((bill, idx) => (
                 <div key={idx}
                   className="flex justify-between items-center p-2 bg-blue-50 rounded-lg text-sm cursor-pointer hover:bg-blue-50"
-                  onClick={() => onNavigate(`/billing/${bill.id}`)}>
+                  onClick={() => onNavigate(`/billing/${bill.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(`/billing/${bill.id}`); }
+                  }}>
                   <div>
                     <p className="font-medium text-gray-800">{bill.bill_number}</p>
                     <p className="text-xs text-gray-500">{bill.customer_name}</p>

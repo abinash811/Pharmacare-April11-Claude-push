@@ -85,7 +85,7 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _resolve_refund_and_credit(
-        requested_method: str, grand_total_paise: int, bill: Bill) -> tuple[str, int]:
+        requested_method: str, grand_total_paise: int, bill: Bill | None) -> tuple[str, int]:
     """Decide how much of a return credits the bill's due balance vs. is an
     actual cash/UPI refund, and what refund_method label to store.
 
@@ -100,7 +100,14 @@ def _resolve_refund_and_credit(
     a ₹500 return) — the ₹200 still credits the balance, but the remaining
     ₹300 is a real refund, so refund_method describes that leftover, not
     the whole return.
+
+    `bill` is None for a manual return (no original bill) — nothing to
+    credit, and "same_as_original" has no original sale to fall back to.
     """
+    if bill is None:
+        resolved = "cash" if requested_method == "same_as_original" else requested_method
+        return resolved, 0
+
     credit_paise = min(grand_total_paise, max(0, bill.balance_paise))
     excess_paise = grand_total_paise - credit_paise
     if excess_paise == 0 and credit_paise > 0:
@@ -164,7 +171,7 @@ def _return_response(
     return {
         "id": str(r.id),
         "return_no": r.return_number,
-        "original_bill_id": str(r.original_bill_id),
+        "original_bill_id": str(r.original_bill_id) if r.original_bill_id else None,
         "original_bill_no": bill.bill_number if bill else None,
         "return_date": r.return_date.isoformat() if r.return_date else None,
         "status": r.status,
@@ -278,7 +285,11 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
     require_original_bill = ps.require_original_bill if ps else False
     allow_partial_return = ps.allow_partial_return if ps else True
 
-    # Require original bill unless admin
+    original_bill: Bill | None = None
+    bill_id: uuid.UUID | None = None
+    bill_items: list[BillItem] = []
+    bill_items_by_batch: dict[str, BillItem] = {}
+
     if not return_data.original_bill_id:
         # Settings → Returns "Require original bill for all returns" — found
         # Sep 13, 2026 (Settings product-review): this toggle saved but was
@@ -301,57 +312,63 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
                 status_code=403,
                 detail="Manual returns require permission. Returns can only be created from an existing bill.",
             )
-        raise HTTPException(status_code=400, detail="Original bill ID is required")
+        # Sep 15, 2026: this used to unconditionally 400 right here even
+        # after the permission checks passed — allow_manual_returns and
+        # "Require original bill" were both checked and enforced, but the
+        # actual manual-return code path never existed. original_bill/
+        # bill_id/bill_items_by_batch all stay empty below, which the rest
+        # of this function (and _resolve_refund_and_credit) already treats
+        # as "no bill to validate or credit against."
+    else:
+        original_bill = await get_owned_or_404(
+            db, Bill, return_data.original_bill_id, pharmacy_id, not_found_detail="Original bill not found")
+        bill_id = original_bill.id
 
-    original_bill = await get_owned_or_404(
-        db, Bill, return_data.original_bill_id, pharmacy_id, not_found_detail="Original bill not found")
-    bill_id = original_bill.id
-
-    # Settings → Returns "Return window (days)" — found Sep 13, 2026
-    # (Settings product-review): saved but never checked against the
-    # original bill's age, so a return could be filed for a sale from
-    # years ago regardless of what the pharmacy configured.
-    if original_bill.created_at:
-        bill_age_days = (date.today() - original_bill.created_at.date()).days
-        if bill_age_days > return_window_days:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"This bill is {bill_age_days} days old — returns are only allowed within "
-                    f"{return_window_days} days (Settings → Returns)."
-                ),
-            )
-
-    # Get original bill items for validation
-    bill_items_result = await db.execute(select(BillItem).where(BillItem.bill_id == bill_id))
-    bill_items = bill_items_result.scalars().all()
-    bill_items_by_batch = {bi.batch_number: bi for bi in bill_items}
-
-    for item in return_data.items:
-        orig_item = bill_items_by_batch.get(item.batch_no)
-        if orig_item and item.qty > orig_item.quantity:
-            raise HTTPException(
-                status_code=400,
-                detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
-                        f"original billed quantity ({orig_item.quantity})"),
-            )
-
-    # Settings → Returns "Allow partial returns" — found Sep 13, 2026
-    # (Settings product-review): saved but never enforced, so a return for
-    # only some of a bill's items always succeeded regardless of the
-    # toggle. When off, every item on the original bill must be returned
-    # in full.
-    if not allow_partial_return:
-        returned_batches = {item.batch_no: item.qty for item in return_data.items}
-        for bi in bill_items:
-            if returned_batches.get(bi.batch_number, 0) != bi.quantity:
+        # Settings → Returns "Return window (days)" — found Sep 13, 2026
+        # (Settings product-review): saved but never checked against the
+        # original bill's age, so a return could be filed for a sale from
+        # years ago regardless of what the pharmacy configured.
+        if original_bill.created_at:
+            bill_age_days = (date.today() - original_bill.created_at.date()).days
+            if bill_age_days > return_window_days:
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        "Partial returns are disabled (Settings → Returns) — "
-                        "the full quantity of every item on the original bill must be returned."
+                        f"This bill is {bill_age_days} days old — returns are only allowed within "
+                        f"{return_window_days} days (Settings → Returns)."
                     ),
                 )
+
+        # Get original bill items for validation
+        bill_items_result = await db.execute(select(BillItem).where(BillItem.bill_id == bill_id))
+        bill_items = bill_items_result.scalars().all()
+        bill_items_by_batch = {bi.batch_number: bi for bi in bill_items}
+
+        for item in return_data.items:
+            orig_item = bill_items_by_batch.get(item.batch_no)
+            if orig_item and item.qty > orig_item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
+                            f"original billed quantity ({orig_item.quantity})"),
+                )
+
+        # Settings → Returns "Allow partial returns" — found Sep 13, 2026
+        # (Settings product-review): saved but never enforced, so a return for
+        # only some of a bill's items always succeeded regardless of the
+        # toggle. When off, every item on the original bill must be returned
+        # in full. Meaningless without an original bill, so only checked here.
+        if not allow_partial_return:
+            returned_batches = {item.batch_no: item.qty for item in return_data.items}
+            for bi in bill_items:
+                if returned_batches.get(bi.batch_number, 0) != bi.quantity:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Partial returns are disabled (Settings → Returns) — "
+                            "the full quantity of every item on the original bill must be returned."
+                        ),
+                    )
 
     return_no = await _generate_credit_note_number(pharmacy_id, db)
 
@@ -408,24 +425,28 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
             raise HTTPException(status_code=404,
                                 detail=f"Batch not found for {item_data.medicine_name}")
 
-        # Find the matching bill_item for the FK
-        bill_item = await _find_bill_item(bill_id, product_id, batch.id, db)
-        if not bill_item:
-            # Fallback: find by batch_number
-            bi_result = await db.execute(
-                select(BillItem).where(
-                    BillItem.bill_id == bill_id,
-                    BillItem.batch_number == item_data.batch_no)
-            )
-            bill_item = bi_result.scalar_one_or_none()
-        if not bill_item:
-            raise HTTPException(status_code=400,
-                                detail=f"No matching bill item found for {item_data.medicine_name}")
+        # Find the matching bill_item for the FK — only when this return is
+        # actually tied to a bill. A manual return has none to link.
+        bill_item_id: uuid.UUID | None = None
+        if bill_id:
+            bill_item = await _find_bill_item(bill_id, product_id, batch.id, db)
+            if not bill_item:
+                # Fallback: find by batch_number
+                bi_result = await db.execute(
+                    select(BillItem).where(
+                        BillItem.bill_id == bill_id,
+                        BillItem.batch_number == item_data.batch_no)
+                )
+                bill_item = bi_result.scalar_one_or_none()
+            if not bill_item:
+                raise HTTPException(status_code=400,
+                                    detail=f"No matching bill item found for {item_data.medicine_name}")
+            bill_item_id = bill_item.id
 
         return_to_stock = not item_data.is_damaged
 
         item_orm = SalesReturnItemORM(
-            bill_item_id=bill_item.id,
+            bill_item_id=bill_item_id,
             product_id=product_id,
             batch_id=batch.id,
             product_name=item_data.medicine_name,
@@ -485,7 +506,8 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
     ip = _client_ip(request)
     await _record_audit(
         pharmacy_id, user_id, "create", "sales_return", sales_return.id,
-        {"return_number": return_no, "original_bill_no": original_bill.bill_number,
+        {"return_number": return_no,
+         "original_bill_no": original_bill.bill_number if original_bill else None,
          "net_amount": grand_total_paise / 100, "refund_method": resolved_refund_method,
          "credit_applied": credit_to_balance_paise / 100},
         db, ip_address=ip,
@@ -563,7 +585,7 @@ async def get_sales_returns(
         for item in items_result.scalars().all():
             items_by_return[item.sales_return_id].append(item)
 
-    bill_ids = {r.original_bill_id for r in returns}
+    bill_ids = {r.original_bill_id for r in returns if r.original_bill_id}
     bill_map: dict[uuid.UUID, Bill] = {}
     if bill_ids:
         bills_result = await db.execute(select(Bill).where(Bill.id.in_(bill_ids)))
@@ -650,15 +672,19 @@ async def update_sales_return(
         if not await has_permission(current_user, "allow_financial_edit_return", db):
             raise HTTPException(status_code=403, detail="Financial edit requires permission")
 
-        # tenant-safe: sales_return already scoped
-        bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
-        original_bill = bill_result.scalar_one()
+        # None for a manual return (no original bill) — _resolve_refund_and_
+        # credit already treats that as "nothing to credit."
+        original_bill: Bill | None = None
+        if sales_return.original_bill_id:
+            # tenant-safe: sales_return already scoped
+            bill_result = await db.execute(select(Bill).where(Bill.id == sales_return.original_bill_id))
+            original_bill = bill_result.scalar_one()
 
         # Reverse any credit this return previously applied to the bill's
         # due balance, before recalculating totals below — same
         # reverse-then-rebuild shape as the stock handling that follows.
         old_credit_applied = sales_return.credit_applied_paise
-        if old_credit_applied > 0:
+        if original_bill and old_credit_applied > 0:
             original_bill.amount_paid_paise = max(0, original_bill.amount_paid_paise - old_credit_applied)
             original_bill.balance_paise = max(
                 0, original_bill.grand_total_paise - original_bill.amount_paid_paise)
@@ -692,14 +718,14 @@ async def update_sales_return(
         gst_paise = 0
         new_items: list[SalesReturnItemORM] = []
 
-        # Same fallback create_sales_return uses: the real edit UI
-        # (SalesReturnEditModal) never sends product_sku/medicine_id, only
-        # medicine_name/batch_no — without this, every edited item silently
-        # dropped (product stayed None -> `continue`), zeroing the whole
-        # return. Found while adding due-balance credit reversal here.
-        orig_bill_items_result = await db.execute(
-            select(BillItem).where(BillItem.bill_id == sales_return.original_bill_id))
-        bill_items_by_batch = {bi.batch_number: bi for bi in orig_bill_items_result.scalars().all()}
+        # The real edit UI (SalesReturnEditModal) never sends product_sku/
+        # medicine_id, only medicine_name/batch_no — without a fallback,
+        # every edited item silently dropped (product stayed None ->
+        # `continue`), zeroing the whole return. Found while adding
+        # due-balance credit reversal here. Resolves via this return's own
+        # pre-edit items (always available, bill or manual) rather than the
+        # original bill's items, so it works for a manual return too.
+        old_items_by_batch = {oi.batch_number: oi for oi in old_items}
 
         for item_data in update_data.items:
             sale_price_paise = int(item_data.mrp * 100)
@@ -727,10 +753,10 @@ async def update_sales_return(
                 except ValueError:
                     pass
             if not product:
-                bi = bill_items_by_batch.get(item_data.batch_no)
-                if bi:
+                oi = old_items_by_batch.get(item_data.batch_no)
+                if oi:
                     prod_result = await db.execute(select(ProductORM).where(
-                        ProductORM.id == bi.product_id, ProductORM.pharmacy_id == pharmacy_id))
+                        ProductORM.id == oi.product_id, ProductORM.pharmacy_id == pharmacy_id))
                     product = prod_result.scalar_one_or_none()
             if not product:
                 continue
@@ -739,22 +765,27 @@ async def update_sales_return(
             if not batch:
                 continue
 
-            bill_item = await _find_bill_item(sales_return.original_bill_id, product.id, batch.id, db)
-            if not bill_item:
-                bi_result = await db.execute(
-                    select(BillItem).where(
-                        BillItem.bill_id == sales_return.original_bill_id,
-                        BillItem.batch_number == item_data.batch_no)
-                )
-                bill_item = bi_result.scalar_one_or_none()
-            if not bill_item:
-                continue
+            # Only a bill-based return needs a bill_item FK — a manual
+            # return (sales_return.original_bill_id is None) has none to link.
+            bill_item_id: uuid.UUID | None = None
+            if sales_return.original_bill_id:
+                bill_item = await _find_bill_item(sales_return.original_bill_id, product.id, batch.id, db)
+                if not bill_item:
+                    bi_result = await db.execute(
+                        select(BillItem).where(
+                            BillItem.bill_id == sales_return.original_bill_id,
+                            BillItem.batch_number == item_data.batch_no)
+                    )
+                    bill_item = bi_result.scalar_one_or_none()
+                if not bill_item:
+                    continue
+                bill_item_id = bill_item.id
 
             return_to_stock = not item_data.is_damaged
 
             item_orm = SalesReturnItemORM(
                 sales_return_id=rid,
-                bill_item_id=bill_item.id,
+                bill_item_id=bill_item_id,
                 product_id=product.id,
                 batch_id=batch.id,
                 product_name=item_data.medicine_name,
@@ -779,9 +810,12 @@ async def update_sales_return(
         resolved_refund_method, new_credit_applied = _resolve_refund_and_credit(
             requested_method, grand_total_paise, original_bill)
 
-        old_balance = original_bill.balance_paise / 100
-        old_paid = original_bill.amount_paid_paise / 100
-        old_status = original_bill.status
+        old_balance = old_paid = 0.0
+        old_status = None
+        if original_bill:
+            old_balance = original_bill.balance_paise / 100
+            old_paid = original_bill.amount_paid_paise / 100
+            old_status = original_bill.status
         if new_credit_applied > 0:
             original_bill.amount_paid_paise += new_credit_applied
             original_bill.balance_paise = max(

@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.6 | Last updated: September 15, 2026
+# Version: 2.7 | Last updated: September 15, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -176,14 +176,31 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   own gapless numbered series), from `PharmacySettings.return_prefix` /
   `return_sequence_number` / `return_number_length`, same atomic-counter pattern
   as bill numbers. Configurable in Settings > Bill Sequence > Sales Return.
-- Requires `original_bill_id` — always, regardless of the `allow_manual_returns`
-  permission or the "Require original bill" setting: `create_sales_return`
-  unconditionally raises 400 without one, and `original_bill_id` is a `NOT NULL`
-  column on `sales_returns`. **Manual returns (no original bill) are not
-  actually built** — the permission and setting exist and are checked, but the
-  code path they gate always 400s anyway, and the frontend has no bill-search UI
-  to reach it either. Found Sep 15, 2026 (`product-review`); real, named gap
-  (Marg ERP ships this), tracked in `docs/15_ROADMAP.md`'s Billing v2 list.
+- **Manual returns (built Sep 15, 2026):** `original_bill_id` is nullable on
+  `sales_returns` (and `bill_item_id` nullable on `sales_return_items`) —
+  a return can be filed with no originating bill at all, gated by the
+  pre-existing `allow_manual_returns` permission (403 without it) and the
+  `require_original_bill` Settings toggle (400, "Original bill is required",
+  when on). Before this both existed and were checked, but the code path
+  they gated always 400'd regardless — found Sep 15, 2026 (`product-review`).
+  For a manual return: items are resolved by `product_sku`/`batch_no` only
+  (no bill items to match against), quantity has no bill-derived cap,
+  `refund_method="same_as_original"` resolves to `"cash"` (there's no
+  original payment method to copy), and there's nothing to credit — due-
+  balance credit logic below is skipped entirely (`credit_applied_paise`
+  stays 0). Frontend: `SalesReturnCreate` with no `billId` in the URL shows
+  a product/batch search (`ManualItemSearch` — searches `/products/search-
+  with-batches`, then lists the picked product's full batch set via
+  `/stock/batches?product_sku=`, deliberately unfiltered by stock level
+  since a return adds stock back rather than requiring it be available)
+  and a free-text patient-name field instead of the bill's read-only
+  customer name.
+- **Cross-cutting fix (Sep 15, 2026):** `get_product_transactions`
+  (`inventory.py`) used to inner-join `Bill` on `original_bill_id` — a
+  manual return has no bill, so it was silently dropped from a medicine's
+  own transaction history. Changed to an outer join; `original_invoice`
+  is `None` and `customer_name` falls back to `"Walk-in"` for a manual
+  return's row.
 - Return quantity per item is validated against the original bill item's quantity
   — cannot return more than was sold.
 - Stock is **restored** to the original batch (`quantity_on_hand += returned_qty`),

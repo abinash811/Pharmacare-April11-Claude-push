@@ -505,7 +505,9 @@ async def get_product_transactions(
             select(SalesReturnItem, SalesReturn.return_number, SalesReturn.return_date,
                    SalesReturn.status, Bill.bill_number, Bill.customer_name)
             .join(SalesReturn, SalesReturnItem.sales_return_id == SalesReturn.id)
-            .join(Bill, SalesReturn.original_bill_id == Bill.id)
+            # Outer join: a manual return (no original_bill_id) must still show
+            # up in a medicine's transaction history, not be silently dropped.
+            .outerjoin(Bill, SalesReturn.original_bill_id == Bill.id)
             .where(SalesReturnItem.product_id == pid)
             .order_by(SalesReturn.return_date.desc()).limit(200))
         for sri, rnum, rdate, st, orig_bill_no, cust in rows:

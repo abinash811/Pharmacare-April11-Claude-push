@@ -108,9 +108,11 @@ class TestSalesReturnsPermissionWildcard(_AuthedTestBase):
         hand-rolled role/permissions-list lookup that only matched the
         literal string "allow_manual_returns" — a "*" role failed it. Now
         uses has_permission(), which already honors "*". Proves the
-        permission gate itself passes (falls through to the unrelated,
-        separately-tracked "no bill-less return flow exists yet" 400,
-        not the 403 a real permission failure would raise)."""
+        permission gate itself passes (falls through to the unrelated
+        "No valid return items" 400 for the empty items list this test
+        sends — manual returns with real items are covered by
+        test_manual_sales_returns.py — not the 403 a real permission
+        failure would raise)."""
         role = self._create_role(["*"])
         user_session = self._session_as_new_user_with_role(role["name"])
 

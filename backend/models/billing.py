@@ -136,8 +136,10 @@ class SalesReturn(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     pharmacy_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
-    original_bill_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("bills.id"), nullable=False)
+    # Nullable for a manual return (no originating bill) — see
+    # allow_manual_returns/require_original_bill in create_sales_return.
+    original_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bills.id"), nullable=True)
     return_number: Mapped[str] = mapped_column(String(50), nullable=False)
     return_date: Mapped[date] = mapped_column(
         Date, nullable=False, server_default=func.current_date())
@@ -175,8 +177,10 @@ class SalesReturnItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sales_return_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sales_returns.id", ondelete="CASCADE"), nullable=False)
-    bill_item_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("bill_items.id"), nullable=False)
+    # Nullable for a manual return item — there's no bill_item to link when
+    # the return isn't tied to an original bill.
+    bill_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bill_items.id"), nullable=True)
     product_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     batch_id: Mapped[uuid.UUID] = mapped_column(

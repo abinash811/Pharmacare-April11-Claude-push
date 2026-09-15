@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { REFUND_METHOD_SAME_AS_ORIGINAL } from '@/constants/domainConstants';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 import SalesReturnSubbar from './components/SalesReturnSubbar';
+import ManualItemSearch from './components/ManualItemSearch';
 
 export default function SalesReturnCreate() {
   const navigate = useNavigate();
@@ -88,13 +89,42 @@ export default function SalesReturnCreate() {
     const newItems = [...items];
     newItems[index][field] = value;
     if (field === 'qty') {
-      const orig = newItems[index].original_qty;
-      newItems[index].error = value > orig ? `Max: ${orig}` : value < 1 ? 'Min: 1' : null;
+      if (newItems[index].is_manual) {
+        newItems[index].original_qty = value;
+        newItems[index].error = value < 1 ? 'Min: 1' : null;
+      } else {
+        const orig = newItems[index].original_qty;
+        newItems[index].error = value > orig ? `Max: ${orig}` : value < 1 ? 'Min: 1' : null;
+      }
     }
     setItems(newItems);
   };
 
   const hasErrors = () => items.some((i) => i.error) || items.length === 0;
+
+  // A manual return (no original bill) has no prior sale to cap the return
+  // qty against — is_manual skips the max-qty check entirely (see
+  // updateItem below) instead of faking an original_qty. The backend's
+  // SalesReturnItemCreate.original_qty is a required int; sending
+  // Infinity serialized to JSON `null` and 422'd.
+  const addManualItem = (product, batch) => {
+    setItems((prev) => [...prev, {
+      id: crypto.randomUUID(),
+      medicine_id: null,
+      medicine_name: product.name,
+      product_sku: product.sku,
+      batch_id: batch.id,
+      batch_no: batch.batch_no,
+      expiry_date: batch.expiry_iso || batch.expiry_date,
+      mrp: batch.mrp_per_unit || 0,
+      qty: 1,
+      original_qty: 1,
+      is_manual: true,
+      disc_percent: 0,
+      gst_percent: batch.gst_percent ?? 5,
+      is_damaged: false, error: null,
+    }]);
+  };
 
   const handleSave = async (andPrint = false) => {
     if (hasErrors()) { toast.error('Please fix validation errors before saving'); return; }
@@ -113,7 +143,7 @@ export default function SalesReturnCreate() {
       if (andPrint) toast.info('Print functionality coming soon');
       setShowFinaliseModal(false);
       navigate('/billing/returns');
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to create return'); }
+    } catch (err) { toast.error(err.message || 'Failed to create return'); }
     finally { setIsSaving(false); }
   };
 
@@ -150,12 +180,23 @@ export default function SalesReturnCreate() {
         <SalesReturnSubbar
           returnDate={returnDate} showDatePicker={showDatePicker}
           onShowDatePickerChange={setShowDatePicker} onReturnDateChange={setReturnDate}
-          patient={patient} doctor={doctor} billedBy={billedBy} onBilledByChange={setBilledBy}
+          patient={patient} isManual={!originalBill}
+          onPatientNameChange={(name) => setPatient((p) => ({ ...p, name }))}
+          doctor={doctor} billedBy={billedBy} onBilledByChange={setBilledBy}
           user={user} users={users}
           creditToBalance={creditToBalance} excessAfterCredit={excessAfterCredit} billDueAmount={billDueAmount}
           refundMethod={refundMethod} onRefundMethodChange={setRefundMethod}
           hasErrors={hasErrors} onSaveClick={() => setShowFinaliseModal(true)}
         />
+
+        {/* Manual return (no original bill) — search to add items directly,
+            same "allow_manual_returns" flow SalesReturnsList's New Return
+            button already gates, now actually reachable. */}
+        {!originalBill && (
+          <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-3">
+            <ManualItemSearch onAdd={addManualItem} />
+          </section>
+        )}
 
         {/* Items Table */}
         <section className="bg-white rounded-xl border border-gray-200 shadow-sm flex-grow flex flex-col overflow-hidden">
@@ -189,7 +230,7 @@ export default function SalesReturnCreate() {
                       <td className="px-4 py-2 text-right text-sm text-gray-700">{formatCurrency(item.mrp)}</td>
                       <td className="px-4 py-2 text-right">
                         <div className="flex flex-col items-end">
-                          <input type="number" min="1" max={item.original_qty} value={item.qty}
+                          <input type="number" min="1" max={item.is_manual ? undefined : item.original_qty} value={item.qty}
                             onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 0)}
                             className={`w-16 text-right text-sm font-medium bg-transparent border-b ${item.error ? 'border-red-500 text-red-600' : 'border-transparent'} focus:outline-none`}
                             data-testid={`qty-${index}`} />
@@ -210,7 +251,11 @@ export default function SalesReturnCreate() {
                     </tr>
                   );
                 })}
-                {items.length === 0 && <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">No items to return. Please select items from the original bill.</td></tr>}
+                {items.length === 0 && (
+                  <tr><td colSpan={11} className="px-4 py-12 text-center text-gray-400">
+                    {originalBill ? 'No items to return. Please select items from the original bill.' : 'No items added yet. Search above to add a return item.'}
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -19,11 +19,14 @@ export default function MembersTab({ currentUser }) {
   const [showAddDialog, setShowAddDialog]         = useState(false);
   const [showEditDialog, setShowEditDialog]       = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showResetDialog, setShowResetDialog]     = useState(false);
+  const [resetTarget, setResetTarget]             = useState(null);
   const [selectedUser, setSelectedUser]           = useState(null);
   const [deactivateDialog, setDeactivateDialog]   = useState({ open: false, userId: null, loading: false });
 
   const [formData, setFormData]     = useState({ name: '', email: '', password: '', role: '' });
   const [passwordData, setPasswordData] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [resetData, setResetData] = useState({ new_password: '', confirm_password: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
   const pg = usePagination({ pageSize: 15 });
@@ -75,6 +78,19 @@ export default function MembersTab({ currentUser }) {
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to change password'); }
   };
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (resetData.new_password !== resetData.confirm_password) { toast.error('Passwords do not match'); return; }
+    if (resetData.new_password.length < 6) { toast.error('Minimum 6 characters'); return; }
+    try {
+      await api.put(apiUrl.resetUserPassword(resetTarget.id), { new_password: resetData.new_password });
+      toast.success(`Password reset for ${resetTarget.name}. Share the new password with them directly.`);
+      setShowResetDialog(false);
+      setResetTarget(null);
+      setResetData({ new_password: '', confirm_password: '' });
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to reset password'); }
+  };
+
   const confirmDeactivate = async () => {
     setDeactivateDialog((p) => ({ ...p, loading: true }));
     try {
@@ -118,7 +134,8 @@ export default function MembersTab({ currentUser }) {
       ) : (
         <MembersTable users={pg.slice(filteredUsers)} loading={loading} currentUser={currentUser} pagination={pg}
           onEdit={handleEditClick} onDeactivate={(id) => setDeactivateDialog({ open: true, userId: id, loading: false })}
-          onActivate={async (id) => { try { await api.put(apiUrl.user(id), { is_active: true }); toast.success('User activated'); fetchUsers(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }} />
+          onActivate={async (id) => { try { await api.put(apiUrl.user(id), { is_active: true }); toast.success('User activated'); fetchUsers(); } catch (err) { toast.error(err.response?.data?.detail || 'Failed'); } }}
+          onResetPassword={(u) => { setResetTarget(u); setResetData({ new_password: '', confirm_password: '' }); setShowResetDialog(true); }} />
       )}
 
       {/* Invite Dialog */}
@@ -165,6 +182,26 @@ export default function MembersTab({ currentUser }) {
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowPasswordDialog(false)}>Cancel</AppButton>
               <AppButton type="submit">Change Password</AppButton>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog — admin sets a new password directly for
+          another member, no email/token infra needed (unlike a future
+          self-service "forgot password" flow) */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reset Password{resetTarget ? ` for ${resetTarget.name}` : ''}</DialogTitle></DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4 mt-2">
+            <p className="text-xs text-gray-500">
+              Set a new password for this member. Share it with them directly — there is no email notification.
+            </p>
+            <div><label htmlFor="reset-new-password" className="block text-xs font-medium text-gray-700 mb-1">New Password *</label><input id="reset-new-password" type="password" value={resetData.new_password} onChange={(e) => setResetData({ ...resetData, new_password: e.target.value })} className={inputCls} required minLength={6} /></div>
+            <div><label htmlFor="reset-confirm-password" className="block text-xs font-medium text-gray-700 mb-1">Confirm New Password *</label><input id="reset-confirm-password" type="password" value={resetData.confirm_password} onChange={(e) => setResetData({ ...resetData, confirm_password: e.target.value })} className={inputCls} required minLength={6} /></div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <AppButton type="button" variant="secondary" onClick={() => setShowResetDialog(false)}>Cancel</AppButton>
+              <AppButton type="submit">Reset Password</AppButton>
             </div>
           </form>
         </DialogContent>

@@ -289,6 +289,7 @@ export const apiUrl = {
   // Users & Roles
   users:            () => API_ENDPOINTS.USERS.LIST,
   user:             (id) => `users/${id}`,
+  resetUserPassword:(id) => `users/${id}/reset-password`,
   changePassword:   () => API_ENDPOINTS.USERS.CHANGE_PASSWORD,
   roles:            () => API_ENDPOINTS.ROLES.LIST,
   role:             (id) => `roles/${id}`,

@@ -92,7 +92,11 @@ export default function AuditLog() {
 
   const toggleExpand = (id) => setExpandedRow((prev) => (prev === id ? null : id));
 
-  if (currentUser?.role !== 'admin') {
+  // See Team/index.jsx and Settings/index.jsx's identical comment — a
+  // wildcard-permission custom role ("Super Admin") must not be blocked
+  // here just because its name isn't literally "admin". Found via the
+  // same grep that surfaced the Team/Settings bug (Sep 15, 2026).
+  if (currentUser?.role !== 'admin' && !currentUser?.is_super_admin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

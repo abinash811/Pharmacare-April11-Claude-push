@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, XCircle, CheckCircle, Users, History } from 'lucide-react';
+import { Edit, XCircle, CheckCircle, Users, History, KeyRound } from 'lucide-react';
 import { AppButton, PaginationBar, TableSkeleton } from '@/components/shared';
 import { formatDateTime } from '@/utils/dates';
 import RoleBadge from './RoleBadge';
 
-export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate }) {
+export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate, onResetPassword }) {
   const navigate = useNavigate();
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -57,6 +57,10 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
                       onClick={() => navigate(`/audit-log?entity_type=auth&entity_id=${u.id}`)} />
                     <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Edit ${u.name}`}
                       onClick={() => onEdit(u)} />
+                    {u.id !== currentUser.id && (
+                      <AppButton variant="ghost" iconOnly icon={<KeyRound className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Reset password for ${u.name}`}
+                        onClick={() => onResetPassword(u)} />
+                    )}
                     {u.id !== currentUser.id && (
                       u.is_active
                         ? <AppButton variant="ghost" iconOnly icon={<XCircle className="h-4 w-4 text-red-500" strokeWidth={1.5} />} aria-label={`Deactivate ${u.name}`} onClick={() => onDeactivate(u.id)} />

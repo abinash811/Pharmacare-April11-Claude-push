@@ -26,7 +26,11 @@ export default function Team() {
   const { user: currentUser } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('members');
 
-  if (currentUser?.role !== 'admin') return <AccessDenied />;
+  // A custom role granted the "*" wildcard permission ("Super Admin" in
+  // RolesTab.jsx) has real admin-equivalent backend access — checking only
+  // the literal role name here would wrongly lock such a user out, same
+  // bug already fixed once on the backend (require_admin_or_super, Sep 13).
+  if (currentUser?.role !== 'admin' && !currentUser?.is_super_admin) return <AccessDenied />;
 
   return (
     <div className="px-8 py-6 min-h-screen bg-page">

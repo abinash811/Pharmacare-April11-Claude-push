@@ -50,7 +50,10 @@ export default function Settings() {
     if (activeTab === 'bill_sequence') fetchBillSequences();
   }, [activeTab]); // eslint-disable-line
 
-  if (user?.role !== 'admin') {
+  // See Team/index.jsx's identical comment — a wildcard-permission custom
+  // role ("Super Admin") must not be blocked here just because its name
+  // isn't literally "admin".
+  if (user?.role !== 'admin' && !user?.is_super_admin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

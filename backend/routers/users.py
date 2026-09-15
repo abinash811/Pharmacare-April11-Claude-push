@@ -37,6 +37,10 @@ class ChangePassword(BaseModel):
     new_password: str
 
 
+class AdminResetPassword(BaseModel):
+    new_password: str
+
+
 def _user_response(user: UserORM) -> dict:
     """Format a UserORM row for API response (excludes password_hash)."""
     return {
@@ -177,6 +181,23 @@ async def deactivate_user(user_id: str, current_user: User = Depends(
     user.is_active = False
     await db.flush()
     return {"message": "User deactivated successfully"}
+
+
+@router.put("/users/{user_id}/reset-password")
+async def admin_reset_password(user_id: str, password_data: AdminResetPassword, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    """Admin/Super Admin sets a new password directly for another user —
+    no email/token infra needed, unlike a self-service "forgot password"
+    flow (still separately planned). Closes a real gap: a locked-out
+    cashier previously had no way back in short of a direct DB edit.
+    """
+    await require_admin_or_super(current_user, db)
+    user = await get_owned_or_404(
+        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
+
+    user.password_hash = hash_password(password_data.new_password)
+    await db.flush()
+    return {"message": "Password reset successfully"}
 
 
 @router.put("/users/me/change-password")

@@ -131,5 +131,55 @@ class TestSalesReturnsPermissionWildcard(_AuthedTestBase):
         assert "permission" in resp.json()["detail"].lower()
 
 
+class TestSuperAdminFrontendGateField(_AuthedTestBase):
+    """Sep 15, 2026 follow-up (Team product-review): the backend fix above
+    made every admin-only endpoint honor a wildcard-permission custom
+    role, but Settings/index.jsx and Team/index.jsx's own frontend page
+    gates still checked the literal string role === "admin" — so a real
+    wildcard-role user, live-verified, saw "Access Denied" on both pages
+    despite every one of their API calls succeeding. Fixed by exposing
+    is_super_admin on /auth/me and /auth/login so the frontend can check
+    the real thing instead of the role name."""
+
+    def test_auth_me_reports_is_super_admin_true_for_wildcard_role(self):
+        role = self._create_role(["*"])
+        user_session = self._session_as_new_user_with_role(role["name"])
+
+        resp = user_session.get(f"{BASE_URL}/api/auth/me")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["is_super_admin"] is True
+
+    def test_auth_me_reports_is_super_admin_false_for_normal_role(self):
+        role = self._create_role(["billing:view"])
+        user_session = self._session_as_new_user_with_role(role["name"])
+
+        resp = user_session.get(f"{BASE_URL}/api/auth/me")
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["is_super_admin"] is False
+
+    def test_login_response_reports_is_super_admin_for_wildcard_role(self):
+        """The gate must work immediately after login too, not just after
+        a page reload re-fetches /auth/me — the real bug would otherwise
+        persist for exactly one page load."""
+        role = self._create_role(["*"])
+        email = f"superadminlogin_{uuid.uuid4().hex[:8]}@pharmacy.com"
+        password = "SuperAdminLoginTest123"
+        create_resp = self.session.post(f"{BASE_URL}/api/users", json={
+            "email": email, "name": "Super Admin Login Test", "password": password, "role": role["name"],
+        })
+        assert create_resp.status_code == 200, create_resp.text
+
+        login_resp = requests.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": password})
+        assert login_resp.status_code == 200, login_resp.text
+        assert login_resp.json()["user"]["is_super_admin"] is True
+
+    def test_login_response_reports_is_super_admin_true_for_real_admin(self):
+        login_resp = requests.post(f"{BASE_URL}/api/auth/login", json={
+            "email": "testadmin@pharmacy.com", "password": "admin123",
+        })
+        assert login_resp.status_code == 200, login_resp.text
+        assert login_resp.json()["user"]["is_super_admin"] is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

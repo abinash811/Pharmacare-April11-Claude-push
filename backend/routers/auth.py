@@ -17,6 +17,7 @@ from routers.auth_helpers import (
     User,
     create_access_token,
     get_current_user,
+    has_permission,
     hash_password,
     verify_password,
 )
@@ -148,10 +149,17 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
     await db.flush()
 
     token = create_access_token({"sub": str(user.id), "email": user.email})
+    # is_super_admin included here too, not just /auth/me — otherwise a
+    # wildcard-role user would still be wrongly blocked from Settings/Team
+    # immediately after login, only fixed after a page reload re-fetches
+    # /auth/me. See /auth/me's own comment for the full context.
+    perms = user.role.permissions or []
+    is_super_admin = user.role.name == "admin" or (isinstance(perms, list) and "*" in perms)
     return {
         "token": token,
         "user": {
             "id": str(user.id), "email": user.email, "name": user.name, "role": user.role.name,
+            "is_super_admin": is_super_admin,
         },
     }
 
@@ -228,11 +236,19 @@ async def logout(response: Response, current_user: User = Depends(get_current_us
 
 
 @router.get("/auth/me")
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return {
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
         "role": current_user.role,
         "is_active": current_user.is_active,
+        # A custom role granted the "*" wildcard permission (RolesTab.jsx's
+        # "Super Admin" badge) has real admin-equivalent backend access via
+        # require_admin_or_super() — but every frontend admin-only page gate
+        # checked the literal string role == "admin", so a user in such a
+        # role couldn't even open Settings/Team, unlike the real admin.
+        # Found Sep 15, 2026 (Team product-review), same shape as the Sep
+        # 13 backend-only fix. Frontend gates now check this field too.
+        "is_super_admin": current_user.role == "admin" or await has_permission(current_user, "*", db),
     }

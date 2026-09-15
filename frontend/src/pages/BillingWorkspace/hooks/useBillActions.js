@@ -52,18 +52,32 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     cost_price:       item.cost_price || item.unit_price * 0.7,
   }));
 
+  // A "Due" bill's payment_method reflects how any paid-now portion was
+  // actually collected (always cash for v1 — see BillingSubbar's Paid Now
+  // field), not the "due" chip itself; a zero-paid-now due bill has no
+  // real payment method yet. This keeps Day-End Closing's cash
+  // reconciliation (reports.py _day_end_breakdown) accurate: it sums
+  // amount_paid_paise per payment_method, so a partially-paid due bill
+  // must be tagged by what was actually collected, not by "due".
+  const isDuePayment = () => billSnapshot.paymentType === 'due';
+  const paidNowPaise = () => Math.round((Number(billSnapshot.paidNow) || 0) * 100);
+
   const buildBillBase = (status) => {
     const {
-      billItems, customerName, customerPhone, doctorName, paymentType, totalDiscount,
+      billItems, customerName, customerPhone, customerId, doctorName, paymentType, totalDiscount,
       patientAddress, patientAge,
     } = billSnapshot;
+    const due = isDuePayment();
+    const paidNowAmount = due ? paidNowPaise() / 100 : undefined;
     return {
       customer_name:   customerName || 'Walk-in Customer',
       customer_mobile: customerPhone,
+      customer_id:     customerId || undefined,
       doctor_name:     doctorName,
       patient_address: patientAddress || undefined,
       patient_age:     patientAge ? Number(patientAge) : undefined,
-      payment_method:  paymentType || 'cash',
+      payment_method:  due ? (paidNowAmount > 0 ? 'cash' : 'due') : (paymentType || 'cash'),
+      payments:        due && paidNowAmount > 0 ? [{ amount: paidNowAmount }] : undefined,
       items:           buildItemPayload(billItems),
       discount:        totalDiscount,
       tax_rate:        billItems.length > 0 ? billItems[0].gst_percent : 5,
@@ -79,6 +93,20 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     return true;
   };
 
+  const guardDuePayment = () => {
+    if (!isDuePayment()) return true;
+    const paidNowRupees = Number(billSnapshot.paidNow) || 0;
+    if (paidNowRupees < 0) {
+      toast.error('Paid now cannot be negative.');
+      return false;
+    }
+    if (paidNowRupees > billSnapshot.grandTotal) {
+      toast.error('Paid now cannot be more than the bill total — the rest stays due.');
+      return false;
+    }
+    return true;
+  };
+
   const afterSuccess = () => {
     localStorage.removeItem('billing_draft');
     onSaveSuccess?.();
@@ -87,11 +115,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBill ─────────────────────────────────────────────────────────────
   const saveBill = useCallback(async () => {
-    if (!guardItems()) return;
-    // Every bill must be paid in full at checkout (Sep 14, 2026 product
-    // decision) — "credit"/"due" is no longer a reachable payment type,
-    // see BillingSubbar's PAYMENT_TYPES.
-    const status = 'paid';
+    if (!guardItems() || !guardDuePayment()) return;
+    const status = isDuePayment() ? 'due' : 'paid';
     try {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
       toast.success(`Bill #${res.data.bill_number} created successfully!`);
@@ -103,9 +128,9 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBillAndPrint ──────────────────────────────────────────────────────
   const saveBillAndPrint = useCallback(async () => {
-    if (!guardItems()) return;
+    if (!guardItems() || !guardDuePayment()) return;
     const { paymentType, billItems, customerName, customerPhone, doctorName, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
-    const status = 'paid';
+    const status = isDuePayment() ? 'due' : 'paid';
     try {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
       toast.success(`Bill #${res.data.bill_number} created!`);
@@ -146,7 +171,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── confirmAndSaveBill (finalise) ─────────────────────────────────────────
   const confirmAndSaveBill = useCallback(async ({ internalNote }) => {
-    if (!guardItems()) return;
+    if (!guardItems() || !guardDuePayment()) return;
     setIsSaving(true);
     const {
       paymentType, billedBy, mrpTotal, totalDiscount, totalGst, totalCess,
@@ -161,7 +186,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         : billDiscount;
     }
 
-    const status = 'paid';
+    const status = isDuePayment() ? 'due' : 'paid';
     const payload = {
       ...buildBillBase(status),
       mrp_total:      mrpTotal,

@@ -5,6 +5,7 @@
  *   onClose           {() => void}
  *   customerName      {string}
  *   paymentType       {string}
+ *   paidNow           {string}  — partial cash amount when paymentType === 'due'
  *   mrpTotal          {number}
  *   totalDiscount     {number}
  *   billDiscount      {number}
@@ -26,6 +27,7 @@ export default function FinaliseModal({
   onClose,
   customerName   = '',
   paymentType    = '',
+  paidNow        = '',
   mrpTotal       = 0,
   totalDiscount  = 0,
   billDiscount   = 0,
@@ -128,6 +130,19 @@ export default function FinaliseModal({
                 <span className="text-xs text-gray-400 block mb-1">Payment Method</span>
                 <span className="font-semibold text-gray-700 capitalize">{paymentType || 'Not selected'}</span>
               </div>
+
+              {paymentType === 'due' && (
+                <div className="p-3 bg-amber-50 rounded-lg space-y-1" data-testid="due-summary">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-amber-700">Paid now</span>
+                    <span className="font-semibold text-amber-800">{formatCurrency(Number(paidNow) || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-amber-700">Stays due</span>
+                    <span className="font-semibold text-amber-800">{formatCurrency(Math.max(0, grandTotal - (Number(paidNow) || 0)))}</span>
+                  </div>
+                </div>
+              )}
 
               <AppButton
                 onClick={handleConfirm}

@@ -1,6 +1,7 @@
 /**
  * BillingWorkspace — orchestrator
- * Route: /billing/new · /billing/:id
+ * Route: /billing/new · /billing/create · /billing/edit/:id (viewing a
+ * completed/due/parked bill is BillDetail, /billing/:id)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
@@ -19,6 +20,7 @@ import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
 import BarcodeScannerModal from '@/components/BarcodeScannerModal';
+import CollectPaymentModal from '@/components/CollectPaymentModal';
 import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
 import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
@@ -38,6 +40,7 @@ export default function BillingWorkspace() {
   // ── Header / customer fields ─────────────────────────────────────────────
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerId,    setCustomerId]    = useState(null);
   const [doctorName,    setDoctorName]    = useState('');
   // Schedule H1 register (Drugs & Cosmetics Rules, Rule 65): patient name
   // AND address must be recorded at the time of supply, same standing as
@@ -49,6 +52,7 @@ export default function BillingWorkspace() {
   const [billedBy,      setBilledBy]      = useState('');
   const [billingFor,    setBillingFor]    = useState('self');
   const [paymentType,   setPaymentType]   = useState('cash');
+  const [paidNow,       setPaidNow]       = useState('');
   const [billDate,      setBillDate]      = useState(new Date());
   const [draftNumber,   setDraftNumber]   = useState(null);
   const [billDiscount,     setBillDiscount]     = useState(0);
@@ -63,6 +67,7 @@ export default function BillingWorkspace() {
   const [showFinalise,      setShowFinalise]      = useState(false);
   const [showScheduleH,     setShowScheduleH]     = useState(false);
   const [showPatientModal,  setShowPatientModal]  = useState(false);
+  const [showCollectPayment, setShowCollectPayment] = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData,  setSavedBillData]  = useState(null);
@@ -86,8 +91,8 @@ export default function BillingWorkspace() {
   }, [customerName, customerPhone, doctorName, paymentType, billItems, draftNumber]);
 
   const clearBill = useCallback(() => {
-    setItems([]); setCustomerName(''); setCustomerPhone('');
-    setDoctorName(''); setPaymentType('cash');
+    setItems([]); setCustomerName(''); setCustomerPhone(''); setCustomerId(null);
+    setDoctorName(''); setPaymentType('cash'); setPaidNow('');
     setPatientAddress(''); setPatientAge('');
     localStorage.removeItem('billing_draft'); setDraftNumber(null);
   }, [setItems]);
@@ -102,6 +107,7 @@ export default function BillingWorkspace() {
       else setViewMode('view');
       setCustomerName(bill.customer_name || 'Walk-in Customer');
       setCustomerPhone(bill.customer_mobile || bill.customer_phone || '');
+      setCustomerId(bill.customer_id || null);
       setDoctorName(bill.doctor_name || '');
       setPaymentType(bill.payment_method || bill.payment_type || 'cash');
       setBilledBy(bill.cashier_name || bill.created_by?.name || '');
@@ -190,7 +196,7 @@ export default function BillingWorkspace() {
 
   // ── Bill actions ──────────────────────────────────────────────────────────
   const billSnapshot = {
-    billItems, customerName, customerPhone, doctorName, paymentType, billedBy,
+    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, billedBy,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
     patientAddress, patientAge,
@@ -202,12 +208,6 @@ export default function BillingWorkspace() {
 
   const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
     useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo, autoPrintInvoice);
-
-  const handlePatientSelect = (patient) => {
-    if (patient === 'counter') { setCustomerName('Counter Sale'); setCustomerPhone(''); }
-    else { setCustomerName(patient.name || ''); setCustomerPhone(patient.phone || patient.mobile || ''); }
-    saveDraft();
-  };
 
   // ── Barcode scanner ───────────────────────────────────────────────────────
   const { showBarcodeScanner, setShowBarcodeScanner, handleBarcodeScan } =
@@ -231,7 +231,7 @@ export default function BillingWorkspace() {
         onSavePrint={saveBillAndPrint}
         onFinalise={openFinaliseModal}
         onPrint={() => window.print()}
-        onCollectPayment={() => toast.info('Collect payment coming soon')}
+        onCollectPayment={() => setShowCollectPayment(true)}
         onReturn={() => navigate(`/billing/returns/new?billId=${loadedBill?.id}`)}
         onHistory={() => toast.info('History coming soon')}
       />
@@ -239,13 +239,14 @@ export default function BillingWorkspace() {
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         <BillingSubbar
           viewMode={viewMode} billDate={billDate} onBillDateChange={setBillDate}
-          customerName={customerName} customerPhone={customerPhone}
-          onPatientSelect={({ name, phone }) => { setCustomerName(name); setCustomerPhone(phone || ''); saveDraft(); }}
+          customerName={customerName} customerPhone={customerPhone} customerId={customerId}
+          onPatientSelect={({ name, phone, id }) => { setCustomerName(name); setCustomerPhone(phone || ''); setCustomerId(id || null); saveDraft(); }}
           doctorName={doctorName} onDoctorChange={setDoctorName}
           billingFor={billingFor} onBillingForChange={setBillingFor}
           billedBy={billedBy} onBilledByChange={setBilledBy}
           users={users} currentUser={currentUser}
-          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); saveDraft(); }}
+          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'due') setPaidNow(''); saveDraft(); }}
+          paidNow={paidNow} onPaidNowChange={setPaidNow}
           onBarcodeScan={() => setShowBarcodeScanner(true)}
         />
 
@@ -277,12 +278,16 @@ export default function BillingWorkspace() {
       />
       <FinaliseModal
         open={showFinalise} onClose={() => setShowFinalise(false)}
-        customerName={customerName} paymentType={paymentType}
+        customerName={customerName} paymentType={paymentType} paidNow={paidNow}
         mrpTotal={mrpTotal} totalDiscount={totalDiscount}
         billDiscount={billDiscount} billDiscountType={billDiscountType}
         totalGst={totalGst} totalCess={totalCess} grandTotal={grandTotal} margin={margin}
         isSaving={isSaving}
         onConfirm={(notes) => confirmAndSaveBill(notes).then(() => setShowFinalise(false))}
+      />
+      <CollectPaymentModal
+        bill={loadedBill} open={showCollectPayment}
+        onClose={() => setShowCollectPayment(false)} onSuccess={() => loadExistingBill(billId)}
       />
       <PrintReceipt billData={savedBillData} format={printFormat} />
       <BarcodeScannerModal

@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.4 | Last updated: September 5, 2026
+# Version: 2.5 | Last updated: September 15, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -463,6 +463,17 @@ When the billing form contains a Schedule H1 drug:
 
 ## FLOW 7 — PAYMENTS (for due bills)
 
+### Creating a due bill (reinstated Sep 15, 2026)
+
+`create_bill`/`update_bill` set `status = "due"` when `balance_paise > 0`
+after payment, subject to two checks:
+- **A real `customer_id` is required.** No customer (walk-in) → HTTP 400.
+  There must be someone to collect from later.
+- **`_check_credit_limit`** (billing.py) blocks the bill if the customer's
+  `credit_limit_paise` is set (> 0) and this bill would push their total
+  outstanding `due` balance over it. `credit_limit_paise == 0` means no
+  limit configured — unlimited due is allowed.
+
 ### When a bill has `status = "due"`
 
 A bill is "due" when `balance_paise > 0` after creation. The pharmacist
@@ -477,6 +488,12 @@ POST /api/payments
   "reference_number": "UPI-ref-123"
 }
 ```
+
+### Validation (added Sep 15, 2026, alongside the real Collect Payment UI)
+`POST /api/payments` rejects, before writing anything:
+- the bill's current `status` is not `"due"` (nothing to collect)
+- `amount <= 0`
+- `amount` exceeds the bill's current `balance_paise`
 
 ### Payment status transitions (verified against `create_payment`)
 

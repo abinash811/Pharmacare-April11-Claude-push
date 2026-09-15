@@ -5,12 +5,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, Download, Edit, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Edit, CheckCircle, Clock, AlertCircle, Wallet } from 'lucide-react';
 import { AppButton, PageSkeleton, PageBreadcrumb } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import { downloadBlob, extractBlobErrorMessage } from '@/utils/fileDownload';
+import CollectPaymentModal from '@/components/CollectPaymentModal';
 import BillItemsTable from './components/BillItemsTable';
 import BillTotals from './components/BillTotals';
 
@@ -40,6 +41,7 @@ export default function BillDetail() {
   const [pharmacy, setPharmacy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showCollectPayment, setShowCollectPayment] = useState(false);
 
   // GET /bills/{id}/pdf (reportlab-generated, real, working) had zero UI
   // caller anywhere in the app until now — found while checking Billing's
@@ -57,23 +59,33 @@ export default function BillDetail() {
     }
   };
 
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [billRes, settingsRes] = await Promise.all([
+        api.get(apiUrl.bill(id)),
+        api.get(apiUrl.settings()).catch(() => ({ data: { general: {} } })),
+      ]);
+      setBill(billRes.data);
+      setPharmacy(settingsRes.data?.general || {});
+    } catch {
+      toast.error('Failed to load bill');
+      navigate('/billing');
+    } finally { setLoading(false); }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [billRes, settingsRes] = await Promise.all([
-          api.get(apiUrl.bill(id)),
-          api.get(apiUrl.settings()).catch(() => ({ data: { general: {} } })),
-        ]);
-        setBill(billRes.data);
-        setPharmacy(settingsRes.data?.general || {});
-      } catch {
-        toast.error('Failed to load bill');
-        navigate('/billing');
-      } finally { setLoading(false); }
-    };
     loadData();
   }, [id]); // eslint-disable-line
+
+  const refetchBill = async () => {
+    try {
+      const res = await api.get(apiUrl.bill(id));
+      setBill(res.data);
+    } catch {
+      toast.error('Failed to refresh bill');
+    }
+  };
 
   if (loading) return <PageSkeleton />;
   if (!bill)   return null;
@@ -115,6 +127,11 @@ export default function BillDetail() {
                 {downloadingPdf ? 'Downloading…' : 'Download PDF'}
               </AppButton>
             </>
+          )}
+          {bill.status === 'due' && (
+            <AppButton icon={<Wallet className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowCollectPayment(true)} data-testid="collect-payment-btn">
+              Collect Payment
+            </AppButton>
           )}
           {/* Editing is only real for a parked/draft bill (BillingWorkspace
               opens a finalized one read-only — a GST invoice can't be
@@ -186,6 +203,13 @@ export default function BillDetail() {
           body { -webkit-print-color-adjust: exact; }
         }
       `}</style>
+
+      <CollectPaymentModal
+        bill={bill}
+        open={showCollectPayment}
+        onClose={() => setShowCollectPayment(false)}
+        onSuccess={refetchBill}
+      />
     </div>
   );
 }

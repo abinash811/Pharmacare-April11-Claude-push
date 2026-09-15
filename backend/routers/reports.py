@@ -899,11 +899,18 @@ async def get_analytics_summary(db: AsyncSession = Depends(
         row = (await db.execute(select(
             func.coalesce(
                 func.sum(case((BillORM.status.in_(["paid", "due"]), BillORM.grand_total_paise), else_=0)), 0),
+            # "Pending Payments" is what's actually still owed — balance_paise,
+            # not the full grand_total. Was dead code while due-bill creation
+            # was blocked (every due bill had balance == grand_total anyway,
+            # since a paid_now partial couldn't exist); re-checked and fixed
+            # here alongside re-allowing due bills with a paid_now amount
+            # (Sep 15, 2026) — grand_total would have overstated the real
+            # outstanding balance for any partially-paid due bill.
             func.coalesce(
                 func.sum(
                     case(
                         (BillORM.status == "due",
-                         BillORM.grand_total_paise),
+                         BillORM.balance_paise),
                         else_=0)),
                 0),
             func.count(case((BillORM.status == "draft", 1))),
@@ -1373,11 +1380,17 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
         BillORM.pharmacy_id == pid, BillORM.bill_date == closing_date,
         BillORM.status.in_(["paid", "due"]), BillORM.deleted_at.is_(None),
     ]
+    # "Total Sales"/"Total Bills" below are the full invoiced value — a due
+    # bill counts in full, same as any other bill made today. This part is
+    # safe to read live: grand_total_paise/bill_date/count are never
+    # touched again after creation (only amount_paid_paise/payment_method
+    # are, by a later POST /payments — see below).
     sales_rows = (await db.execute(
-        select(BillORM.payment_method, func.count(BillORM.id).label("cnt"),
-               func.sum(BillORM.grand_total_paise).label("amt"))
-        .where(*sales_conds).group_by(BillORM.payment_method)
-    )).all()
+        select(func.count(BillORM.id), func.sum(BillORM.grand_total_paise))
+        .where(*sales_conds)
+    )).one()
+    total_bill_count = int(sales_rows[0] or 0)
+    total_sales_paise = int(sales_rows[1] or 0)
 
     returns_conds = [SalesReturnORM.pharmacy_id == pid, SalesReturnORM.return_date == closing_date]
     return_rows = (await db.execute(
@@ -1387,16 +1400,40 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
     )).all()
 
     by_method: dict = {}
-    for method, cnt, amt in sales_rows:
-        key = method or "unspecified"
-        by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
-        by_method[key]["sales_count"] = int(cnt or 0)
-        by_method[key]["sales_paise"] = int(amt or 0)
     for method, cnt, amt in return_rows:
         key = method or "unspecified"
         by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
         by_method[key]["returns_count"] = int(cnt or 0)
         by_method[key]["returns_paise"] = int(amt or 0)
+
+    # Real cash/UPI/card movement today — sourced entirely from the audit
+    # trail, never from the live Bill row. Bill.amount_paid_paise/
+    # payment_method are mutable running totals (POST /payments overwrites
+    # them on every collection), so re-reading them live would attribute a
+    # bill's CURRENT cumulative state to whichever day happens to query it,
+    # double-counting across days or losing the original day's attribution
+    # entirely. AuditLog rows are immutable per-event snapshots instead:
+    # "create" carries the payment made at checkout (paid_amount/
+    # payment_method, added Sep 15, 2026 for exactly this), "payment"
+    # carries each later Collect-Payment event's own incremental
+    # amount/method (already logged by record_payment).
+    money_rows = (await db.execute(
+        select(AuditLog.action, AuditLog.new_values)
+        .where(AuditLog.pharmacy_id == pid, AuditLog.entity_type == "invoice",
+               AuditLog.action.in_(["create", "payment"]),
+               AuditLog.created_at >= closing_date,
+               AuditLog.created_at < closing_date + timedelta(days=1))
+    )).all()
+    for action, new_values in money_rows:
+        if not new_values:
+            continue
+        amount = new_values.get("paid_amount") if action == "create" else new_values.get("amount")
+        if not amount:
+            continue
+        key = new_values.get("payment_method") or "unspecified"
+        by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
+        by_method[key]["sales_count"] += 1
+        by_method[key]["sales_paise"] += int(round(amount * 100))
 
     payment_breakdown = [
         {
@@ -1422,7 +1459,6 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
         for name, cnt, amt in operator_rows
     ]
 
-    total_sales_paise = sum(v["sales_paise"] for v in by_method.values())
     total_returns_paise = sum(v["returns_paise"] for v in by_method.values())
     expected_cash_paise = (
         by_method.get("cash", {}).get("sales_paise", 0)
@@ -1431,7 +1467,7 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
 
     return {
         "summary": {
-            "total_bills": sum(v["sales_count"] for v in by_method.values()),
+            "total_bills": total_bill_count,
             "total_sales": _p2r(total_sales_paise),
             "total_returns": _p2r(total_returns_paise),
             "net_sales": _p2r(total_sales_paise - total_returns_paise),

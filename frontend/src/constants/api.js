@@ -239,6 +239,7 @@ export const apiUrl = {
   bills:            (params) => `bills${qs(params)}`,
   bill:             (id)     => `bills/${id}`,
   billPdf:          (id)     => `bills/${id}/pdf`,
+  payments:         ()       => `payments`,
 
   // Sales Returns
   salesReturns:     (params) => `sales-returns${qs(params)}`,

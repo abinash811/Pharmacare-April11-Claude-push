@@ -23,12 +23,15 @@
  *   currentUser         {{name: string}|null}
  *   paymentType         {string}
  *   onPaymentTypeChange {(string) => void}
+ *   paidNow             {string}            — partial cash amount when paymentType === 'due'
+ *   onPaidNowChange     {(string) => void}
  *   onBarcodeScan       {() => void}
  */
 
 import React, { useState } from 'react';
 import { ChevronDown, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { FilterPills, AppButton } from '@/components/shared';
@@ -41,15 +44,15 @@ const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wi
 // no split-entry UI at all, so a bill saved with it recorded
 // payment_method: "multiple" with zero trace of the real split, worse than
 // not offering it. Re-add only alongside a real split-entry UI, not before.
-// "Credit" removed Sep 14, 2026, direct product decision: new bills must be
-// paid in full at checkout — due/partial-payment bills are no longer
-// created going forward. The backend now rejects any bill this could have
-// produced (create_bill/update_bill), so this is defense-in-depth removed
-// at the source too. Pre-existing due bills are unaffected.
+// "Due" removed Sep 14, 2026, reinstated Sep 15, 2026 (see docs/15_ROADMAP.md
+// Billing table) — needs a real customer selected (BillingSubbar blocks the
+// pill otherwise) so there's someone to collect from later; credit-limit
+// enforcement lives server-side in _check_credit_limit (billing.py).
 const PAYMENT_TYPES = [
   { key: 'cash',     label: 'Cash'   },
   { key: 'upi',      label: 'UPI'    },
   { key: 'card',     label: 'Card'   },
+  { key: 'due',      label: 'Due'    },
 ];
 
 function ColDivider() {
@@ -62,6 +65,7 @@ export default function BillingSubbar({
   onBillDateChange,
   customerName,
   customerPhone,
+  customerId,
   onPatientSelect,
   doctorName,
   onDoctorChange,
@@ -73,6 +77,8 @@ export default function BillingSubbar({
   currentUser,
   paymentType,
   onPaymentTypeChange,
+  paidNow,
+  onPaidNowChange,
   onBarcodeScan,
 }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -217,9 +223,36 @@ export default function BillingSubbar({
           {isView ? (
             <span className="text-sm font-medium text-gray-900 capitalize">{paymentType || '–'}</span>
           ) : (
-            <FilterPills options={PAYMENT_TYPES} active={paymentType} onChange={onPaymentTypeChange} />
+            <FilterPills
+              options={PAYMENT_TYPES}
+              active={paymentType}
+              onChange={(key) => {
+                if (key === 'due' && !customerId) {
+                  toast.error('Pick a customer first — a due bill needs someone to collect from later.');
+                  return;
+                }
+                onPaymentTypeChange(key);
+              }}
+            />
           )}
         </div>
+
+        {/* ── PAID NOW (only for Due) ───────────────────────────────────── */}
+        {!isView && paymentType === 'due' && (
+          <div className="pl-4 shrink-0">
+            <span className={LABEL}>Paid Now (Cash)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={paidNow}
+              onChange={(e) => onPaidNowChange(e.target.value)}
+              placeholder="0.00"
+              className="w-24 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
+              data-testid="paid-now-input"
+            />
+          </div>
+        )}
 
       </div>
     </section>

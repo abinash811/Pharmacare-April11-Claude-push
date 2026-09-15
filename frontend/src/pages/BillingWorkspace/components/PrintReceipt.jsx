@@ -25,7 +25,7 @@ function ThermalReceipt({ billData, format }) {
     payment_method, pharmacy_name, pharmacy_address, pharmacy_phone,
     gstin, drug_license, fssai, pan, items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
-    bill_footer, print_patient_name = true,
+    bill_header, bill_footer, print_patient_name = true,
   } = billData;
 
   return (
@@ -33,6 +33,7 @@ function ThermalReceipt({ billData, format }) {
       {/* Pharmacy header */}
       <div style={{ textAlign: 'center', marginBottom: '8px' }}>
         <div style={{ fontSize: '15px', fontWeight: 'bold' }}>{pharmacy_name || 'PharmaCare'}</div>
+        {bill_header && <div style={{ fontSize: '9px', marginTop: '2px', color: '#555' }}>{bill_header}</div>}
         {pharmacy_address && <div style={{ fontSize: '9px', marginTop: '2px' }}>{pharmacy_address}</div>}
         {pharmacy_phone && <div style={{ fontSize: '9px' }}>Tel: {pharmacy_phone}</div>}
         {gstin && <div style={{ fontSize: '9px' }}>GSTIN: {gstin}</div>}

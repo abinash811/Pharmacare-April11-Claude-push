@@ -161,6 +161,21 @@ export const PURCHASE_RETURN_REASON_LABELS = {
   [PURCHASE_RETURN_REASON.OTHER]:           'Other',
 };
 
+// ─── Purchase Return Settlement Type ───────────────────────────────────────────
+// Stored in purchase_returns.payment_type — the create form's dropdown always
+// sent this, but nothing stored or read it back until Sep 16, 2026
+// (product-review PR12); the Returns list's Cash/UPI/Credit filter pills were
+// silently broken the whole time as a result (always compared against
+// `undefined`). Record-keeping only — does not gate how the return's value is
+// netted against the supplier's outstanding balance (see the model comment on
+// PurchaseReturn.payment_type for why that's a separate, still-open question).
+export const PURCHASE_RETURN_PAYMENT_TYPE_LABELS = {
+  cash: 'Cash',
+  upi: 'UPI',
+  credit: 'Credit',
+  adjust_outstanding: 'Adjust Against Outstanding',
+};
+
 // ─── User Roles ───────────────────────────────────────────────────────────────
 // Mirrors backend/constants.py::DEFAULT_ROLES names exactly. A new pharmacy
 // (created at signup — see routers/auth.py) always gets all four; the

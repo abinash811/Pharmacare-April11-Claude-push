@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.14 | Last updated: September 16, 2026
+# Version: 1.15 | Last updated: September 16, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -428,7 +428,7 @@ code only ever produces one.
 | PR07 Return statuses | 🔄 Partial (effectively one status) | Only `"confirmed"` is ever set. The model's `"pending"` default is never actually reached by any code path. None of Draft/Submitted/Accepted/Rejected/Credit-pending/etc. exist. |
 | PR08/09/10 Supplier accepts/rejects (full or partial) | ❌ Missing | No accept/reject endpoint exists — confirmed by a whole-router grep. Nothing to reject stock back into, because rejection isn't modeled at all. |
 | PR11 Supplier credit note | 🔄 Partial, improved Sep 13 | Debit-note number generation was recently fixed (was previously always null) and is verified by a regression test. **New Sep 13, 2026:** `credit_status` (pending/partially_credited/fully_credited/rejected) + `credit_received_paise` now exist and are pharmacist-updatable — see Batch 3 item #7 above. Still missing: no CGST/SGST/IGST split on the return record (unlike Purchase/PurchaseItem, which have it), no attachment field. |
-| PR12 Refund/settlement type | ❌ Missing | The Create screen has a `payment_type` selector — but the backend accepts the field and **never stores or uses it.** Silently dropped. **Re-confirmed Sep 15, 2026** via a fresh zero-data return (new supplier + new purchase): `payment_type` reaches `PurchaseReturnCreateItem`'s Pydantic model (`purchase_returns.py:54`) and is never referenced again anywhere in the file — grepped. |
+| PR12 Refund/settlement type | ✅ Fixed Sep 16, 2026 | New `purchase_returns.payment_type` column (migration `4227da9b84c7`, `server_default='credit'` to backfill existing rows) — the create screen's Cash/UPI/Credit/Adjust Against Outstanding selector now actually stores what's picked, and `_return_response` exposes it. **Real second bug found fixing this**: `PurchaseReturnsList.js`'s Credit/Cash/UPI filter pills already compared against `ret.payment_type` client-side — that key never existed in the response, so selecting any filter other than "All" silently matched zero rows, for every pharmacy, since the filter pills were built. Both confirmed fixed live (zero-data return created as Cash; Credit filter correctly showed 0 rows, Cash filter correctly showed the return). Displayed as a "Settlement" chip on detail. Record-keeping only — deliberately does **not** gate `_calc_outstanding()`'s existing unconditional netting of every confirmed return against the supplier's outstanding balance (a separate Sep 13, 2026 design decision); whether a cash/UPI-settled return should be excluded from that netting (since the pharmacy received real cash back rather than a credit against future purchases) is a real, still-open question — flagged, not decided here. |
 | PR13 Edit return | 🔄 Partial — backend works, frontend deliberately doesn't reach it | The backend genuinely supports a financial edit that recalculates stock deltas correctly (tested, including a re-validation against available stock). **The edit modal never sends items** — only note/billed-by. **Re-read Sep 15, 2026**: this reads as an intentional simplification, not an oversight — `PurchaseReturnEditModal.jsx` shows the user an explicit line for financial edits ("To edit quantities or add/remove items, please create a new return for any differences"), so the backend's item-recalculation path is unreachable by design, not silently dead. Worth confirming with Abinash it's meant to stay this way rather than assuming either way. |
 | PR14 Cancel return | ❌ Missing | No cancel endpoint exists — nothing to cancel from, given the single-status model. |
 | PR15 Return against unavailable stock | ✅ Built | Explicitly guarded server-side with a clear 400 before any stock mutation; tested against both create and the financial-edit path. |
@@ -596,9 +596,11 @@ worklist is short:
   2026, simple credit-status tracker built and live-verified (see Batch 3
   item #7 above). ~~PR03 (reason field) and PR01's remaining 3 broken
   entry points~~ — ✅ both fixed Sep 16, 2026, see the executive summary.
-- PR12 (refund/settlement `payment_type` accepted but never stored or
-  used) is still open — flagged Sep 15, 2026, not part of the Sep 16 fix
-  pass.
+- ~~PR12 (refund/settlement `payment_type` accepted but never stored or
+  used)~~ — ✅ fixed Sep 16, 2026, see the executive summary and PR12's
+  row. Whether a cash/UPI-settled return should be excluded from
+  `_calc_outstanding()`'s automatic netting is a real, separate open
+  question this fix deliberately left alone.
 
 Everything else in this document (unit-of-measure UI, per-line discount,
 free-goods-in-returns, ageing buckets, etc.) is real but lower-impact —

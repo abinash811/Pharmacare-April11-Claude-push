@@ -356,3 +356,53 @@ class TestReturnReason(_AuthedTestBase):
         resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json=payload)
         assert resp.status_code == 200, resp.text
         assert resp.json()["reason"] == "return"
+
+
+class TestReturnPaymentType(_AuthedTestBase):
+    """Regression tests for the Sep 16, 2026 fix (Purchase Returns
+    product-review, PR12): the create screen's Cash/UPI/Credit/Adjust
+    Against Outstanding dropdown was accepted by the backend and silently
+    dropped — nothing stored or read it back. This also silently broke
+    PurchaseReturnsList.js's Cash/UPI/Credit filter pills, which compare
+    against `ret.payment_type` client-side — that key never existed in
+    the response, so any non-"all" filter always matched nothing."""
+
+    def test_payment_type_round_trips_through_create_response(self):
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        created = self._create_return(supplier_id, purchase, product, payment_type="cash")
+        assert created["payment_type"] == "cash"
+
+    def test_payment_type_visible_on_detail_and_list(self):
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        created = self._create_return(supplier_id, purchase, product, payment_type="upi")
+
+        detail = self.session.get(f"{BASE_URL}/api/purchase-returns/{created['id']}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["payment_type"] == "upi"
+
+        listing = self.session.get(f"{BASE_URL}/api/purchase-returns?supplier_id={supplier_id}")
+        rows = listing.json()
+        rows = rows.get("data", rows) if isinstance(rows, dict) else rows
+        matched = next(r for r in rows if r["id"] == created["id"])
+        assert matched["payment_type"] == "upi"
+
+    def test_missing_payment_type_defaults_to_credit(self):
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        payload = {
+            "supplier_id": supplier_id, "purchase_id": purchase["id"],
+            "return_date": date.today().isoformat(),
+            "items": [{
+                "product_sku": product["sku"], "product_name": product["name"],
+                "batch_no": purchase["items"][0]["batch_no"],
+                "return_qty_units": 1, "cost_price_per_unit": 10.0, "gst_percent": 5.0,
+            }],
+        }
+        resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json=payload)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["payment_type"] == "credit"

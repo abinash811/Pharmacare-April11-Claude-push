@@ -25,6 +25,7 @@ const RETURN = {
   id: 'ret-1', return_number: 'PRET-2026-0001', status: 'confirmed',
   supplier_name: 'Test Distributors', purchase_number: 'PUR-2026-0001',
   return_date: '2026-09-15', billed_by: 'Admin User', reason: 'near_expiry',
+  payment_type: 'upi',
   ptr_total: 250, gst_amount: 30, total_value: 280,
   credit_status: 'pending', credit_received: 0, credit_owed: 280,
   items: [{ id: 'i1', product_name: 'Paracetamol 500mg', product_sku: 'PARA-500',
@@ -50,6 +51,15 @@ describe('PurchaseReturnDetail', () => {
     });
     renderPage();
     expect(await screen.findByText('Near expiry')).toBeInTheDocument();
+  });
+
+  it('shows the settlement type as a readable label', async () => {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/users')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: RETURN });
+    });
+    renderPage();
+    expect(await screen.findByText('UPI')).toBeInTheDocument();
   });
 
   it('does not show a reason label when no reason is present', async () => {

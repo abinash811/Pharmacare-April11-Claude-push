@@ -7,7 +7,7 @@ import { ArrowLeft, Printer, Edit, FileText, Package } from 'lucide-react';
 import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu, StatusBadge, EmptyState } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { formatDate } from '@/utils/dates';
-import { PURCHASE_RETURN_REASON_LABELS } from '@/constants/domainConstants';
+import { PURCHASE_RETURN_REASON_LABELS, PURCHASE_RETURN_PAYMENT_TYPE_LABELS } from '@/constants/domainConstants';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 import CreditStatusModal from './components/CreditStatusModal';
 
@@ -126,6 +126,10 @@ export default function PurchaseReturnDetail() {
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
               <span className="text-[10px] text-gray-500 uppercase font-medium">Reason</span>
               <span className="font-medium text-gray-700">{PURCHASE_RETURN_REASON_LABELS[purchaseReturn.reason] || purchaseReturn.reason || '—'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="text-[10px] text-gray-500 uppercase font-medium">Settlement</span>
+              <span className="font-medium text-gray-700">{PURCHASE_RETURN_PAYMENT_TYPE_LABELS[purchaseReturn.payment_type] || purchaseReturn.payment_type || '—'}</span>
             </div>
           </div>
         </section>

@@ -169,6 +169,16 @@ class PurchaseReturn(Base):
     return_date: Mapped[date] = mapped_column(
         Date, nullable=False, server_default=func.current_date())
     return_reason: Mapped[str] = mapped_column(String(50), nullable=False)
+    # How the distributor is settling this return's value (cash/upi/credit/
+    # adjust_outstanding) — added Sep 16, 2026 (Purchases product-review):
+    # the create form already sent this, but nothing stored or read it back.
+    # Record-keeping only, same as return_reason — does NOT gate
+    # _calc_outstanding()'s existing unconditional netting of every
+    # confirmed return against the supplier's outstanding balance (a
+    # separate, deliberate Sep 13, 2026 design decision); whether a cash/
+    # UPI-settled return should be excluded from that netting is a real
+    # open question, not addressed by this fix (see docs/23's PR12 note).
+    payment_type: Mapped[str] = mapped_column(String(20), default="credit", nullable=False)
     subtotal_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_gst_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     grand_total_paise: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

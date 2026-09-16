@@ -12,7 +12,9 @@ import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import { formatCurrency } from '@/utils/currency';
+import { PURCHASE_RETURN_REASON_LABELS } from '@/constants/domainConstants';
 import usePagination from '@/hooks/usePagination';
+import PurchaseReturnPickerModal from './PurchaseReturnPickerModal';
 
 const PURCHASES_TABS = [
   { key: 'purchases', label: 'Purchases'        },
@@ -24,6 +26,7 @@ export default function PurchaseReturnsList() {
   const [searchParams] = useSearchParams();
   const [allReturns, setAllReturns] = useState([]);
   const [loading, setLoading]       = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
 
   // Search & filters (client-side — purchase returns tend to be a small
   // list). dateRange can arrive pre-set via URL (?from_date=&to_date=) so
@@ -94,11 +97,7 @@ export default function PurchaseReturnsList() {
         actions={
           <AppButton
             icon={<Plus className="w-4 h-4" />}
-            onClick={() =>
-              toast.info(
-                'Purchase returns can only be created from a confirmed purchase. Go to a purchase → More → Purchase Return'
-              )
-            }
+            onClick={() => setShowPicker(true)}
             data-testid="new-return-btn"
           >
             Purchase Return
@@ -145,6 +144,7 @@ export default function PurchaseReturnsList() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return No.</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Purchase</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Date</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -155,17 +155,17 @@ export default function PurchaseReturnsList() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-0">
-                    <TableSkeleton rows={6} columns={7} />
+                  <td colSpan="9" className="p-0">
+                    <TableSkeleton rows={6} columns={8} />
                   </td>
                 </tr>
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-0">
+                  <td colSpan="9" className="p-0">
                     <PurchaseReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <AppButton icon={<Plus className="w-4 h-4" />} onClick={() => navigate('/purchases/returns/create')} data-testid="empty-new-return-btn">
+                        <AppButton icon={<Plus className="w-4 h-4" />} onClick={() => setShowPicker(true)} data-testid="empty-new-return-btn">
                           New Purchase Return
                         </AppButton>
                       }
@@ -194,6 +194,10 @@ export default function PurchaseReturnsList() {
 
                     <td className="px-4 py-2.5">
                       <div className="font-medium text-gray-800">{ret.supplier_name || '—'}</div>
+                    </td>
+
+                    <td className="px-4 py-2.5">
+                      <span className="text-sm text-gray-700">{PURCHASE_RETURN_REASON_LABELS[ret.reason] || ret.reason || '—'}</span>
                     </td>
 
                     <td className="px-4 py-2.5">
@@ -246,6 +250,8 @@ export default function PurchaseReturnsList() {
         {/* Pagination footer */}
         <PaginationBar {...pg} />
       </DataCard>
+
+      {showPicker && <PurchaseReturnPickerModal onClose={() => setShowPicker(false)} />}
     </div>
   );
 }

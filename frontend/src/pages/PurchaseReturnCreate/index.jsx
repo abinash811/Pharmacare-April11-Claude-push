@@ -9,6 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AppButton, EmptyState, InlineLoader } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
+import { PURCHASE_RETURN_REASON, PURCHASE_RETURN_REASON_LABELS } from '@/constants/domainConstants';
 import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModal';
 
 export default function PurchaseReturnCreate() {
@@ -24,6 +25,7 @@ export default function PurchaseReturnCreate() {
   const [purchaseNumber, setPurchaseNumber] = useState('');
   const [billedBy, setBilledBy]       = useState(user?.name || '');
   const [paymentType, setPaymentType] = useState('credit');
+  const [reason, setReason]           = useState(PURCHASE_RETURN_REASON.DAMAGED);
   const [note, setNote]               = useState('');
   const [items, setItems]             = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -63,7 +65,7 @@ export default function PurchaseReturnCreate() {
         return_qty: 0, max_returnable_qty: item.max_returnable_qty, error: null,
       })));
       setLoading(false);
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to load purchase'); navigate('/purchases'); }
+    } catch (err) { toast.error(err.message || 'Failed to load purchase'); navigate('/purchases'); }
   };
 
   const fetchUsers = async () => {
@@ -102,20 +104,20 @@ export default function PurchaseReturnCreate() {
       const res = await api.post(`/purchase-returns`, {
         supplier_id: supplier.id, purchase_id: purchaseId,
         return_date: format(returnDate, 'yyyy-MM-dd'),
-        billed_by: billedBy, payment_type: paymentType, note,
+        billed_by: billedBy, payment_type: paymentType, reason, note,
         items: items.filter((i) => i.return_qty > 0).map((item) => ({
           product_sku: item.product_sku, product_name: item.medicine_name,
           batch_id: item.batch_id, batch_no: item.batch_no,
           expiry_date: item.expiry_date, mrp: item.mrp, ptr: item.ptr,
           gst_percent: item.gst_percent, return_qty_units: item.return_qty,
-          cost_price_per_unit: item.ptr, reason: 'return',
+          cost_price_per_unit: item.ptr,
         })),
       });
       toast.success(`Return ${res.data.return_number} created successfully`);
       if (andPrint) toast.info('Print functionality coming soon');
       setShowFinaliseModal(false);
       navigate('/purchases/returns');
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to create return'); }
+    } catch (err) { toast.error(err.message || 'Failed to create return'); }
     finally { setIsSaving(false); }
   };
 
@@ -173,6 +175,13 @@ export default function PurchaseReturnCreate() {
               </select>
             </div>
             <div className="flex-grow" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
+              <select value={reason} onChange={(e) => setReason(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="return-reason">
+                {Object.values(PURCHASE_RETURN_REASON).map((r) => (
+                  <option key={r} value={r}>{PURCHASE_RETURN_REASON_LABELS[r]}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
               <select value={paymentType} onChange={(e) => setPaymentType(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="payment-type">
                 <option value="cash">Cash</option>

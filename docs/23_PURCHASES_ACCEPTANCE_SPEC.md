@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.13 | Last updated: September 15, 2026
+# Version: 1.14 | Last updated: September 16, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -143,17 +143,20 @@ row here (status + evidence), not just in `docs/15_ROADMAP.md`.
    too (a real cross-cutting consumer of the same `PurchasePayment`
    rows, per Manifesto rule 11).
 10. ~~4 of 5 spec'd entry points to start a return are broken or
-    missing~~ — **improved to 3 of 5 broken/missing (Sep 13, 2026).** New
-    since Sep 7: Supplier Detail's near-expiry batches list now has a real
-    "Return" button that navigates with a valid `purchase_id`
-    (`SupplierDetailPanel.jsx`). Purchase List tab (still just switches
-    tabs), the Returns-section header button (still a toast, not a
-    navigation), and the empty-state button (still navigates with no
-    `purchase_id`, which the create page still immediately rejects) remain
-    broken. Inventory/batch/medicine detail still has no create action.
-11. Return reason is never actually sent to the backend — every return
-    silently gets `reason="return"` regardless of what (if anything) the
-    user typed.
+    missing~~ — ✅ **Fixed Sep 16, 2026 — down to 1 of 5.** Purchase List's
+    per-row action, the Returns-section header button, and the empty-state
+    button all now reach a real create-return flow (a new per-row action
+    reusing Purchase Detail's own pattern; a new `PurchaseReturnPickerModal`
+    for the two buttons that previously had no purchase context at all).
+    Live-verified end-to-end with a fresh zero-data pharmacy. Only
+    Inventory/batch/medicine detail still lacks a create action — lower
+    priority, since a pharmacist reaching for a return starts from the
+    purchase or the Returns list, not a medicine's own page.
+11. ~~Return reason is never actually sent to the backend~~ — ✅ **Fixed
+    Sep 16, 2026.** A real reason `<select>` on the create screen now
+    sends one of 8 standard reasons; `_return_response` was also silently
+    dropping the stored reason from every response, fixed to round-trip
+    through create/list/detail.
 12. No way to distinguish free vs. paid quantity in a return.
 13. ~~Zero purchase-return reports or analytics exist~~ — ✅ **Fixed**
     (Batch 7, between Sep 7–13, 2026). `GET /reports/purchase-returns` is a
@@ -416,9 +419,9 @@ code only ever produces one.
 
 | UC | Status | Evidence |
 |---|---|---|
-| PR01 Start a return (5 entry points) | 🔄 Partial — 2 of 5 work (was 1 of 5 as of Sep 7) | Purchase Detail → works **as of the Sep 13 fix above** (was actually 422-ing on every real submission before that — see the critical bug note above the table). **New since Sep 7:** Supplier Detail's near-expiry batches list now has a real "Return" button → navigates with a valid `purchase_id` (`SupplierDetailPanel.jsx`), built as part of the Suppliers v2 "proactive near-expiry return-to-supplier" work. Still broken: Purchase List (only switches tabs), the Returns-section header button (still a toast, not a navigation), the empty-state button (still navigates with no `purchase_id`, still immediately rejected). Inventory/batch/medicine detail → still history display only, no create action. |
+| PR01 Start a return (5 entry points) | ✅ Built — 4 of 5 work (was 2 of 5 as of Sep 13) | Purchase Detail → works (Sep 13 fix). Supplier Detail's near-expiry batches list → works (Suppliers v2). **Fixed Sep 16, 2026:** Purchase List now has a real per-row "Return" icon action (`PurchasesTable.jsx`, confirmed purchases only — a draft has no items to return), navigating straight to `/purchases/returns/create?purchase_id=` with that row's real id — same shape as Purchase Detail's own working entry point. The Returns-section header button and the empty-state button both used to either show a toast or navigate with no `purchase_id` at all (immediately rejected); both now open `PurchaseReturnPickerModal` — search confirmed purchases by number/invoice/supplier, pick one, land on the create page with a real id. Live-verified end-to-end with a fresh zero-data pharmacy/supplier/purchase: all three fixed entry points reach a real, saved return. Still missing: Inventory/batch/medicine detail → history display only, no create action (lower-impact — a pharmacist reaching for a return almost always starts from the purchase or the Returns list, not a medicine's own detail page). |
 | PR02 Select returnable items | ✅ Built (mostly) | Server computes original/already-returned/max-returnable qty correctly, keyed by product_id not name (tested). Missing: no free-qty or sold-qty fields exposed at all. |
-| PR03 Return by reason | ❌ Missing (as spec'd) | Backend accepts free text defaulting to `"return"` if omitted. **The frontend has no reason field and never sends one** — every return silently gets `reason="return"` regardless of what actually happened. None of the spec's 11 named reasons exist anywhere in the UI. |
+| PR03 Return by reason | 🔄 Partial, real gap closed (was ❌ Missing) | **Fixed Sep 16, 2026:** a real reason `<select>` on the create screen (`PURCHASE_RETURN_REASON` — Damaged in transit/Expired/Near expiry/Wrong item shipped/Excess stock/Quality issue/Order cancelled/Other, `domainConstants.js`) now sends a real `reason` per return; `_return_response` (`purchase_returns.py`) was also silently dropping it from every response (stored, never read back) — fixed so it round-trips through create/list/detail. Deliberately a small standard set (8), not the spec's full 11 — several of the spec's named reasons were shaped for a sales return, not stock going back to a distributor. Displayed on the Returns list (new column) and return detail (new chip). Live-verified with a real zero-data return: picked "Wrong item shipped," visible correctly in both list and detail after reload. Still short of the spec: no per-item reason (one reason for the whole return, matching the simpler existing payment-type/note UX already on this screen), no free-text "Other, specify" follow-up field. |
 | PR04 Partial return | ✅ Built | Server-validated against remaining returnable qty, UI blocks over-entry, only the returned amount is deducted. |
 | PR05 Return free goods | ❌ Missing | No free/paid distinction exists on a return item at all — column, field, nothing. |
 | PR06 Return damaged/expired stock | 🔄 Partial | Stock removed, reason typeable in free-text notes, supplier/batch traceability preserved. No quarantine/hold state — "prevents sale while pending" is moot since stock is already fully deducted at creation, not held. |
@@ -553,11 +556,11 @@ partial items, in small batches. Suggested batch order, worst-impact first:
    - **What this did NOT change:** the reason field (#9) and the 3
      still-broken PR01 entry points (#8) are unaffected — those remain
      open, tracked separately below.
-8. **Still open** — PR01 improved from 1-of-5 to 2-of-5 working entry
-   points (Supplier Detail's near-expiry return button, built as part of
-   unrelated Suppliers work) but the other 3 (Purchase List, Returns
-   header, empty-state) are unchanged.
-9. **Still open** — reason field (PR03).
+8. ~~Still open — PR01's other 3 broken entry points~~ — ✅ **Fixed Sep
+   16, 2026** (Purchase Returns product-review). Now 4-of-5 working — see
+   the executive summary's #10 for the full detail.
+9. ~~Still open — reason field (PR03)~~ — ✅ **Fixed Sep 16, 2026.** See
+   the executive summary's #11.
 
 **Batch 4 — correction mechanisms**
 10. ~~Some controlled way to correct a confirmed purchase (P09)~~ — ✅
@@ -591,8 +594,11 @@ worklist is short:
 - `supplier_invoice_date` still isn't captured by the frontend (UC-P05).
 - ~~The Returns workflow product decision (#7)~~ — ✅ resolved Sep 13,
   2026, simple credit-status tracker built and live-verified (see Batch 3
-  item #7 above). PR03 (reason field) and PR01's remaining 3 broken entry
-  points are still open, tracked separately.
+  item #7 above). ~~PR03 (reason field) and PR01's remaining 3 broken
+  entry points~~ — ✅ both fixed Sep 16, 2026, see the executive summary.
+- PR12 (refund/settlement `payment_type` accepted but never stored or
+  used) is still open — flagged Sep 15, 2026, not part of the Sep 16 fix
+  pass.
 
 Everything else in this document (unit-of-measure UI, per-line discount,
 free-goods-in-returns, ageing buckets, etc.) is real but lower-impact —

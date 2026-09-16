@@ -7,6 +7,7 @@ import { ArrowLeft, Printer, Edit, FileText, Package } from 'lucide-react';
 import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu, StatusBadge, EmptyState } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { formatDate } from '@/utils/dates';
+import { PURCHASE_RETURN_REASON_LABELS } from '@/constants/domainConstants';
 import PurchaseReturnEditModal from './components/PurchaseReturnEditModal';
 import CreditStatusModal from './components/CreditStatusModal';
 
@@ -33,7 +34,7 @@ export default function PurchaseReturnDetail() {
       setPurchaseReturn(res.data);
       setEditNote(res.data.note || '');
       setEditBilledBy(res.data.billed_by || '');
-    } catch { toast.error('Failed to load purchase return'); navigate('/purchases'); }
+    } catch (err) { toast.error(err.message || 'Failed to load purchase return'); navigate('/purchases'); }
     finally { setLoading(false); }
   };
 
@@ -49,7 +50,7 @@ export default function PurchaseReturnDetail() {
       toast.success('Return updated successfully');
       setShowEditModal(false);
       fetchPurchaseReturn();
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to update return'); }
+    } catch (err) { toast.error(err.message || 'Failed to update return'); }
     finally { setIsSaving(false); }
   };
 
@@ -60,7 +61,7 @@ export default function PurchaseReturnDetail() {
       toast.success('Credit status updated');
       setShowCreditModal(false);
       fetchPurchaseReturn();
-    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to update credit status'); }
+    } catch (err) { toast.error(err.message || 'Failed to update credit status'); }
     finally { setIsSavingCredit(false); }
   };
 
@@ -122,6 +123,10 @@ export default function PurchaseReturnDetail() {
               </div>
             )}
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"><span className="font-medium text-gray-700">{purchaseReturn.billed_by || '—'}</span></div>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
+              <span className="text-[10px] text-gray-500 uppercase font-medium">Reason</span>
+              <span className="font-medium text-gray-700">{PURCHASE_RETURN_REASON_LABELS[purchaseReturn.reason] || purchaseReturn.reason || '—'}</span>
+            </div>
           </div>
         </section>
 

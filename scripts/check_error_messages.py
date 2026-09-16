@@ -28,6 +28,21 @@ inside a catch block, since a plain validation message elsewhere (e.g.
 "No data to export") already states its own real, specific reason and
 isn't hiding a caught exception.
 
+Found Sep 15, 2026 (Purchase Returns product-review): a raw
+`err.response?.data?.detail` read used to be treated as an equally safe
+alternative to `err.message` — it isn't. `lib/axios.js`'s response
+interceptor normalises a 422's `detail` (a FastAPI array-of-validation-
+error-objects, not a string) into a real string on `.message` via
+`formatValidationError()`; reading `.detail` directly bypasses that and
+hands a toast a raw array, which React then refuses to render
+("Objects are not valid as a React child") — the exact crash found live
+in `SalesReturnCreate/index.jsx` and `PurchaseReturnCreate/index.jsx`
+the same day. `check_file()` now emits a second, NOTE-only list for this
+pattern (printed but not counted toward the exit code) — 20+ pre-existing
+files repo-wide share it, so making it a hard block here would fail every
+one of them at once; that repo-wide cleanup is tracked in
+docs/15_ROADMAP.md, not done as a side effect of this fix.
+
 Usage: python3 scripts/check_error_messages.py
 Exit 0 = no unreviewed hardcoded-only error toast found.
 Exit 1 = at least one found (prints file:line).
@@ -56,8 +71,10 @@ def _find_matching_close(source: str, open_idx: int) -> int | None:
     return None
 
 
-def check_file(path: Path) -> list[str]:
+def check_file(path: Path) -> tuple[list[str], list[str]]:
+    """Returns (blocking_violations, raw_detail_notes)."""
     violations = []
+    raw_detail_notes = []
     source = path.read_text()
     lines = source.split("\n")
 
@@ -76,31 +93,40 @@ def check_file(path: Path) -> list[str]:
                 continue
             call_text = block[tm.start():call_end + 1]
             arg = call_text[len("toast.error("):-1].strip()
-            # A bare identifier (not a string/template literal) is a
-            # variable that may already hold a real, derived reason (e.g.
-            # `const message = getErrorMessage(err, fallback)` computed
-            # just above) — this heuristic can't trace that data flow, so
-            # only flag calls whose argument is directly a literal.
-            if not (arg.startswith("'") or arg.startswith('"') or arg.startswith("`")):
-                continue
-            # A real reason is shown either via the axios interceptor's
-            # normalised `.message` (lib/axios.js), or by reading the raw
-            # backend `detail` off the response directly — both are
-            # legitimate, pre-existing patterns in this codebase.
-            if f"{var_name}.message" in call_text or f"{var_name}?.message" in call_text:
-                continue
-            if "response?.data?.detail" in call_text or "response.data.detail" in call_text:
-                continue
             abs_pos = open_idx + tm.start()
             line_no = source.count("\n", 0, abs_pos) + 1
             line_text = lines[line_no - 1] if line_no <= len(lines) else ""
             prev_line = lines[line_no - 2] if line_no >= 2 else ""
-            if SAFE_MARKER in line_text or SAFE_MARKER in prev_line:
-                continue
-            snippet = " ".join(call_text.split())[:100]
-            violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {snippet}")
+            is_marked_safe = SAFE_MARKER in line_text or SAFE_MARKER in prev_line
+            has_message = f"{var_name}.message" in call_text or f"{var_name}?.message" in call_text
 
-    return violations
+            # Blocking class: a bare identifier (not a string/template
+            # literal) is a variable that may already hold a real, derived
+            # reason (e.g. `const message = getErrorMessage(err, fallback)`
+            # computed just above) — this heuristic can't trace that data
+            # flow, so only flag calls whose argument is directly a
+            # literal AND never references `.message` anywhere in the call.
+            if (arg.startswith("'") or arg.startswith('"') or arg.startswith("`")) \
+                    and not has_message and not is_marked_safe:
+                snippet = " ".join(call_text.split())[:100]
+                violations.append(f"{path.relative_to(REPO_ROOT)}:{line_no}: {snippet}")
+                continue
+
+            # Note-only class (not blocking — see main()'s note below):
+            # the call reads the error's raw `.response...detail` directly
+            # instead of the axios interceptor's normalised `.message`.
+            # Harmless for a plain-string 400, but a 422 returns an
+            # array-of-objects `detail` that crashes React if handed
+            # straight to a toast (found Sep 15, 2026, Purchase Returns
+            # product-review). Not blocking yet: 20+ pre-existing files
+            # share this pattern repo-wide — flipping it to a hard gate
+            # now would fail every one of them at once, out of scope for
+            # the fix that found it. Fix `.message` first, blocking gate
+            # once the repo-wide cleanup happens (docs/15_ROADMAP.md).
+            if f"{var_name}.response" in call_text and not has_message and not is_marked_safe:
+                raw_detail_notes.append(f"{path.relative_to(REPO_ROOT)}:{line_no}")
+
+    return violations, raw_detail_notes
 
 
 def _find_matching_close_paren(source: str, open_idx: int) -> int | None:
@@ -121,11 +147,22 @@ def main() -> int:
         return 0
 
     all_violations = []
+    all_raw_detail_notes = []
     for ext in ("*.js", "*.jsx", "*.ts", "*.tsx"):
         for path in sorted(FRONTEND_SRC.rglob(ext)):
             if "__tests__" in path.parts or path.name.endswith((".test.js", ".test.jsx", ".test.ts", ".test.tsx")):
                 continue
-            all_violations.extend(check_file(path))
+            violations, notes = check_file(path)
+            all_violations.extend(violations)
+            all_raw_detail_notes.extend(notes)
+
+    if all_raw_detail_notes:
+        print("Error message check NOTE (not blocking): raw err.response...detail "
+              "read(s) found — crashes React on a 422 (array body), unlike "
+              "err.message. See check_error_messages.py's module docstring.")
+        for n in all_raw_detail_notes:
+            print(f"  {n}")
+        print()
 
     if not all_violations:
         print("Error message check: OK — every caught-error toast shows the real "

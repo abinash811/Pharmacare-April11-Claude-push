@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, CreditCard, Trash2 } from 'lucide-react';
+import { Eye, Edit, CreditCard, Trash2, RotateCcw } from 'lucide-react';
 import { AppButton, StatusBadge, TableSkeleton, PurchasesEmptyState, PaginationBar } from '@/components/shared';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import { formatCurrency } from '@/utils/currency';
@@ -73,6 +73,9 @@ export default function PurchasesTable({ purchases, loading, pagination, isFilte
                       <AppButton variant="ghost" iconOnly icon={<Eye className="h-4 w-4 text-blue-600" strokeWidth={1.5} />} aria-label="View purchase" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/${item.id}`); }} />
                       {isParked && <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label="Edit purchase" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/edit/${item.id}?type=purchase`); }} />}
                       {badge.clickable && <AppButton variant="ghost" iconOnly icon={<CreditCard className="h-4 w-4 text-green-600" strokeWidth={1.5} />} aria-label="Record payment" onClick={(e) => { e.stopPropagation(); onPayClick(item); }} />}
+                      {/* Only a confirmed purchase has real stock/items to
+                          return against — a draft was never received. */}
+                      {!isParked && <AppButton variant="ghost" iconOnly icon={<RotateCcw className="h-4 w-4 text-gray-500" strokeWidth={1.5} />} aria-label="Purchase return" onClick={(e) => { e.stopPropagation(); navigate(`/purchases/returns/create?purchase_id=${item.id}`); }} data-testid={`return-${item.id}`} />}
                       {/* Only a draft can ever be deleted — it's never touched
                           stock or supplier balances (backend enforces this
                           too, this is UX guidance, not the real guard). */}

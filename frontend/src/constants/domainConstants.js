@@ -132,6 +132,35 @@ export const REFUND_METHOD = {
 };
 export const REFUND_METHOD_SAME_AS_ORIGINAL = 'same_as_original';
 
+// ─── Purchase Return Reasons ────────────────────────────────────────────────────
+// Stored free-text in purchase_returns.return_reason (String(50), no DB enum) —
+// found Sep 15, 2026 (product-review) sending only ever the literal "return"
+// regardless of what actually happened, since the frontend had no reason field
+// at all. A standard, small set for what a pharmacist actually returns goods to
+// a distributor for — not the full 11-item list from the original use-case spec,
+// which mixed in sales-return-shaped reasons that don't apply to a purchase
+// going back to a supplier.
+export const PURCHASE_RETURN_REASON = {
+  DAMAGED:         'damaged',
+  EXPIRED:         'expired',
+  NEAR_EXPIRY:     'near_expiry',
+  WRONG_ITEM:      'wrong_item',
+  EXCESS_STOCK:    'excess_stock',
+  QUALITY_ISSUE:   'quality_issue',
+  ORDER_CANCELLED: 'order_cancelled',
+  OTHER:           'other',
+};
+export const PURCHASE_RETURN_REASON_LABELS = {
+  [PURCHASE_RETURN_REASON.DAMAGED]:         'Damaged in transit',
+  [PURCHASE_RETURN_REASON.EXPIRED]:         'Expired',
+  [PURCHASE_RETURN_REASON.NEAR_EXPIRY]:     'Near expiry',
+  [PURCHASE_RETURN_REASON.WRONG_ITEM]:      'Wrong item shipped',
+  [PURCHASE_RETURN_REASON.EXCESS_STOCK]:    'Excess stock',
+  [PURCHASE_RETURN_REASON.QUALITY_ISSUE]:   'Quality issue',
+  [PURCHASE_RETURN_REASON.ORDER_CANCELLED]: 'Order cancelled',
+  [PURCHASE_RETURN_REASON.OTHER]:           'Other',
+};
+
 // ─── User Roles ───────────────────────────────────────────────────────────────
 // Mirrors backend/constants.py::DEFAULT_ROLES names exactly. A new pharmacy
 // (created at signup — see routers/auth.py) always gets all four; the

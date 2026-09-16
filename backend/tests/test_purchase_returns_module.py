@@ -305,3 +305,54 @@ class TestEditPurchaseReturn(_AuthedTestBase):
             f"{BASE_URL}/api/purchase-returns/{uuid.uuid4()}",
             json={"note": "x", "edit_type": "non_financial"})
         assert resp.status_code == 404
+
+
+class TestReturnReason(_AuthedTestBase):
+    """Regression tests for the Sep 15, 2026 fix (Purchase Returns
+    product-review): the frontend never sent a real reason, so every
+    return silently stored/showed reason="return" regardless of what the
+    pharmacist actually picked. `_return_response` now includes `reason`
+    in both create/list/detail responses (it previously stored
+    return_reason but never read it back)."""
+
+    def test_reason_round_trips_through_create_response(self):
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        created = self._create_return(supplier_id, purchase, product, reason="expired")
+        assert created["reason"] == "expired"
+
+    def test_reason_visible_on_detail_and_list(self):
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        created = self._create_return(supplier_id, purchase, product, reason="wrong_item")
+
+        detail = self.session.get(f"{BASE_URL}/api/purchase-returns/{created['id']}")
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["reason"] == "wrong_item"
+
+        listing = self.session.get(f"{BASE_URL}/api/purchase-returns?supplier_id={supplier_id}")
+        rows = listing.json()
+        rows = rows.get("data", rows) if isinstance(rows, dict) else rows
+        matched = next(r for r in rows if r["id"] == created["id"])
+        assert matched["reason"] == "wrong_item"
+
+    def test_missing_reason_still_defaults_to_return(self):
+        # Pre-existing fallback behavior, unchanged by this fix — a caller
+        # that omits reason entirely (e.g. an older client) still works.
+        product = self._create_product()
+        supplier_id = self._create_supplier()
+        purchase = self._create_confirmed_purchase(supplier_id, product)
+        payload = {
+            "supplier_id": supplier_id, "purchase_id": purchase["id"],
+            "return_date": date.today().isoformat(),
+            "items": [{
+                "product_sku": product["sku"], "product_name": product["name"],
+                "batch_no": purchase["items"][0]["batch_no"],
+                "return_qty_units": 1, "cost_price_per_unit": 10.0, "gst_percent": 5.0,
+            }],
+        }
+        resp = self.session.post(f"{BASE_URL}/api/purchase-returns", json=payload)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["reason"] == "return"

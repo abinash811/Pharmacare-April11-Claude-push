@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.8 | Last updated: September 12, 2026
+# Version: 1.9 | Last updated: September 16, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -14,14 +14,14 @@
 **Migrations:** Alembic
 **Driver:** asyncpg
 
-**Total tables: 21**
+**Total tables: 23**
 
 | Domain | Tables |
 |--------|--------|
 | Pharmacy | `pharmacies`, `pharmacy_settings` |
-| Users | `users`, `roles`, `audit_logs` |
+| Users | `users`, `roles`, `audit_logs`, `password_reset_tokens` |
 | Products | `products`, `stock_batches`, `stock_movements` |
-| Billing | `bills`, `bill_items`, `sales_returns`, `sales_return_items`, `schedule_h1_register` |
+| Billing | `bills`, `bill_items`, `bill_payment_splits`, `sales_returns`, `sales_return_items`, `schedule_h1_register` |
 | Purchases | `purchases`, `purchase_items`, `purchase_payments`, `purchase_returns`, `purchase_return_items` |
 | Customers | `customers`, `doctors` |
 | Suppliers | `suppliers` |
@@ -215,6 +215,25 @@ Pharmacy staff members. One user belongs to one pharmacy and one role.
 
 ---
 
+### `password_reset_tokens`
+Self-service "Forgot password" tokens (added Sep 16, 2026 —
+docs/15_ROADMAP.md Auth Overhaul #6). No `pharmacy_id` column — a
+locked-out user has no JWT to derive one from; the row's own `user_id` FK
+is the only scope needed, and lookups always go by `token_hash`, not by id.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `user_id` | UUID FK → users, `ondelete=CASCADE` | — |
+| `token_hash` | String(64) | SHA-256 hex digest of the raw token — never the raw value itself |
+| `expires_at` | TIMESTAMP | 1 hour after creation |
+| `used_at` | TIMESTAMP | NULL until consumed — single-use enforced by checking this is still NULL |
+| `created_at` | TIMESTAMP | — |
+
+**Indexes:** `token_hash` (unique)
+
+---
+
 ### `audit_logs`
 Immutable record of every significant action. Never delete rows from this table.
 
@@ -396,6 +415,28 @@ Line items on a bill. All values are snapshots — do not join to products for d
 
 **Critical rule:** Never use `product_id` to look up product name for bill display.
 Always use `product_name` (the snapshot column).
+
+---
+
+### `bill_payment_splits`
+One leg of a "Multi" payment — a bill paid across 2+ real methods at
+checkout (e.g. ₹300 cash + ₹200 UPI). Added Sep 16, 2026; only created for
+a fully-paid bill split across `cash`/`upi`/`card` — "Due" is its own
+separate flow, never combined with a split. No `pharmacy_id` column —
+always reached via its `bill_id` FK, which is already pharmacy-scoped.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `bill_id` | UUID FK → bills, `ondelete=CASCADE` | — |
+| `payment_method` | String(20) | `cash`, `upi`, or `card` — never `due`/`multiple` |
+| `amount_paise` | Integer | This leg's share of the bill total |
+| `created_at` | TIMESTAMP | — |
+
+**Cross-cutting:** Day-End Closing (`reports.py _day_end_breakdown`) reads
+this via the audit log's `payment_splits` snapshot, not this table
+directly, to explode a Multi bill into real per-method cash-drawer
+buckets — see `docs/07_BUSINESS_LOGIC.md`'s Multi payment section.
 
 ---
 

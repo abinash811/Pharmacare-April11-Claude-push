@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 2.93 | Last updated: September 16, 2026
+# Version: 2.95 | Last updated: September 16, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1091,12 +1091,51 @@ Replace all centered modals for data-entry forms.
 > simple reset-token table is enough on top of today's stateless JWT.
 > #7 (session management) stays `📋 Planned` for V2.
 
-### 6. Forgot password / reset flow — `📋 Planned` — V1
+### 6. Forgot password / reset flow — ✅ **Built Sep 16, 2026 — email delivery deferred, asked not assumed**
 
-- **What:** "Forgot password?" on login → email with reset link → user sets new password
-- **Why:** Currently no self-service recovery. If a user forgets their password, they are locked out.
-- **Needs:** Email infrastructure (SMTP / SendGrid), password reset token table in DB
-- **Rule:** Reset tokens expire in 1 hour. Single use only.
+- **What:** "Forgot password?" on login → `POST /auth/forgot-password` generates a
+  single-use, 1-hour token (new `password_reset_tokens` table, migration
+  `2e45f4808592`, `token_hash` column stores a SHA-256 digest, never the raw
+  token) → `POST /auth/reset-password` validates it and sets the new
+  password. Always returns the same generic message regardless of whether
+  the email matches a real account, so a caller can't enumerate registered
+  emails; the same protection applies to a deactivated account.
+- **Why:** Currently no self-service recovery — a solo owner with no other
+  admin logged in had no way back into their own account. Complements
+  `admin_reset_password` (#8, built Sep 15, 2026), which only helps when
+  an admin is already available.
+- **Email infrastructure decision — asked, not assumed:** no SMTP/SendGrid
+  service exists in this codebase; adding one needs real credentials only
+  Abinash can provide (same class of decision as the `ANTHROPIC_API_KEY`/
+  Chromatic asks). Asked how to proceed; answer was to build the full flow
+  now and wire in real email later. Until then, `forgot-password`'s
+  response includes `dev_reset_link` directly (also logged server-side)
+  so the flow is genuinely usable end-to-end today — `ForgotPassword.tsx`
+  shows it in a clearly labeled "Dev mode — no email service configured
+  yet" box, never presented as a real email confirmation. Wiring in a
+  real mailer later only means replacing the one function body that
+  currently just logs the link — the token/validation logic doesn't change.
+- **Frontend:** new `/forgot-password` and `/reset-password` routes
+  (public, unauthenticated — added to `App.js`'s pre-login `<Routes>`
+  block, which previously only had `/`), a "Forgot password?" link added
+  to `AuthPage.js`'s login form. `components/ui/label.jsx` converted to
+  a properly-typed `label.tsx` in the same change — the untyped version's
+  inferred prop shape didn't include `htmlFor` for any `.tsx` consumer,
+  which these two new pages were the first to hit.
+- **Tests:** 6 new backend pytest tests (generic-message anti-enumeration
+  for both unknown and deactivated accounts, full round-trip, single-use
+  enforcement, invalid-token rejection — token *expiry* itself isn't
+  covered, since this suite is 100% real-API with no direct-DB fixture
+  pattern and there's no way to fast-forward the server's clock through
+  the API alone), 8 new frontend jest tests. Live-verified end-to-end in
+  the browser: real `testadmin@pharmacy.com` → dev reset link shown →
+  clicked through → invalid/garbage token correctly shows the real
+  backend error message via toast (Manifesto rule 10) with zero console
+  errors. (The real seed admin's password was deliberately never actually
+  changed in this walkthrough — dozens of other backend tests log in as
+  that fixed account.)
+- **Rule:** Reset tokens expire in 1 hour. Single use only. (Both enforced
+  server-side in `routers/auth.py`.)
 
 ### 7. Admin force-logout / session management — `📋 Planned`
 
@@ -1275,9 +1314,9 @@ way that's been caught):
 | No visual-regression tool (e.g. Chromatic) | Low | Asked Abinash Sep 8, 2026, same pattern as the `ANTHROPIC_API_KEY` ask — needs an external Chromatic.com account + project token, so surfaced as a decision rather than assumed. **Decision: skipped for now.** Revisit only if he brings it up again — don't re-ask each session. |
 | No component state matrix; inconsistent micro-interactions | ✅ | Fixed Sep 11, 2026. Real gaps found by reading the actual component code (not guessed): (1) no button anywhere had a pressed/press-down state — fixed once in `ui/button.tsx` (`active:scale-[0.98]`), cascades to every `AppButton`/`MoreMenu`. (2) An invalid form field never looked different from a valid one — `aria-invalid` was already being set (shadcn `FormControl`, or manually) but no CSS reacted to it, since Tailwind's default `aria` variant list doesn't include `invalid`. Added it in `tailwind.config.js`, wired `aria-invalid:border-red-500` into `ui/input.tsx`/`textarea.jsx`/`select.jsx`, retrofitted `SupplierFormModal.tsx` as the live reference (regression test added). (3) 21 table-row hover states across 18 files (`hover:bg-brand-tint`) had no `transition-colors`, so the hover snapped instantly while every other interactive element faded — added the missing class mechanically across all 18. Full state-by-state comparison now documented in `docs/06_COMPONENTS.md`'s new COMPONENT STATE MATRIX section. Verified live (Suppliers page: empty-name submit now shows a red-bordered input, not just a message below it) and via `npx tsc --noEmit` + full jest suite (142/142) + `design-guard.sh`. |
 | No formal root-cause-before-fix skill; no post-merge health check | ✅ | Fixed Sep 11, 2026 — added `.claude/skills/pharmacare-investigate` and `.claude/skills/pharmacare-canary`. Prompted by reviewing Garry Tan's `gstack` (a viral, controversial open-source Claude Code skill pack — verified real via web search, not installed wholesale: most of it overlaps what PharmaCare already has, and its self-updating unvendored install pattern is a real supply-chain trust question for a compliance app). Adapted just the two genuinely missing ideas as PharmaCare-specific skills instead of importing the toolkit: `pharmacare-investigate` formalizes Manifesto rule 14 (no assumptions) as an enforced trace-before-fix workflow, citing 3 real past bugs from this log that were guesses, not verified root causes; `pharmacare-canary` is a post-merge smoke-test workflow (real browser + Lighthouse regression check), scoped honestly to local/CI since no live staging/production exists yet (see PRE-LAUNCH BLOCKERS item 5) — written to point at a real URL once one exists, no rewrite needed. |
-| `frontend/src/constants/api.js` and `api.ts` (also `routes.js`/`routes.ts`) are duplicate files that have already drifted apart | Medium | Found Sep 12, 2026 while adding the reorder-list endpoint to `api.js`: CRA's default webpack resolve order picks `.js` over `.ts` for a bare `@/constants/api` import, so `api.ts` is dead code nobody actually loads — but it still gets hand-edited sometimes (has `purchaseReturnConfirm`/`CONFIRM` that `api.js` lacks; `api.js` has `purchaseCheckDuplicateInvoice` that `api.ts` lacks). Not fixed in this pass — real fix is deleting one and finishing the other's TS migration, real scope, not a side effect of an unrelated feature. Same class of duplicate-source-of-truth risk as the seed_admin.py/constants.py role-permissions drift fixed Sep 12, 2026 (RULE MISSES LOG). |
+| `frontend/src/constants/api.js` and `api.ts` (also `routes.js`/`routes.ts`) are duplicate files that have already drifted apart | ✅ **Fixed Sep 16, 2026** | Confirmed `api.ts`'s only export `api.js` lacked, `purchaseReturnConfirm`/`PURCHASE_RETURNS.CONFIRM`, was itself dead — `purchase_returns.py` explicitly documents no such endpoint exists (a return is created already-confirmed), and grep found zero frontend callers. `routes.ts` was functionally identical to `routes.js` (one type annotation, no behavioral difference). Deleted both `.ts` files outright — no migration/merge needed since nothing real was lost. `npx tsc --noEmit` stayed clean after deletion (proof nothing was actually type-checking against them), full frontend suite (286 passing, same 1 pre-existing date-flake) and `design-guard.sh` both green. |
 | Team's member list shows nothing while loading | ✅ | Fixed Sep 5, 2026 — `MembersTable.jsx` swapped `if (loading) return null` for `TableSkeleton` (Manifesto rule #16). Found as part of a full-app skeleton audit that also fixed `PurchaseReturnCreate` (plain-text loading string) and `SalesReturnCreate` (no loading state at all — form flashed empty before the original bill loaded). |
-| `test_purchase_mrp_must_be_positive.py::test_valid_mrp_purchase_still_creates_stock_batch` fails even on a clean checkout | Medium | Found Sep 13, 2026 running the full suite for the Doctors v1 fix — confirmed unrelated (fails identically with the Doctors changes fully stashed out). Uses a fixed seed login (`testadmin@pharmacy.com`) and a fixed product name ("MRP Guard Test") searched via `/products/search-with-batches?q=...` with no pagination awareness — looks like the shared dev DB has accumulated enough same-named rows across past runs that the new one no longer lands on the default result page. Not fixed in this pass — needs its own investigation, not a side effect of the Doctors work. Re-confirmed still true and still unrelated Sep 14, 2026 (Due-bills-blocking full-suite run — failed identically against a `git stash`-clean checkout). |
+| `test_purchase_mrp_must_be_positive.py::test_valid_mrp_purchase_still_creates_stock_batch` fails even on a clean checkout | ✅ **Fixed Sep 16, 2026** | Confirmed root cause: `_create_product()` used a fixed literal name (`"MRP Guard Test"`, only the SKU was randomized), and `search_products_with_batches` (`inventory.py`) runs `.limit(50)` with no `ORDER BY` — once more than 50 rows across the shared dev DB matched that literal name (accumulated across every prior test run since this file was written), which 50 came back was arbitrary, so the newly-created product had a real chance of not being among them. Not an endpoint bug — a test-fixture hygiene issue: no real pharmacy has 50+ products named identically. Fixed by making the product name unique per run (`f"MRP Guard Test {suffix}"`, same `uuid.uuid4().hex[:8]` suffix already used for the SKU) so the search query only ever matches this run's own row. Verified stable across 3 consecutive isolated runs post-fix (previously intermittent even in isolation once the shared DB had enough accumulated rows). |
 | No pytest coverage for a real, pre-existing due bill being correctly handled by GST report, margin report, payment audit logging, or customer outstanding balance | Medium | Created Sep 14, 2026 as a direct consequence of the due-bill-creation-blocking product decision (see Billing table's "Credit / due bills" row): 8 tests across `test_customer_credit_notes_outstanding.py`, `test_reports_gst_and_permissions.py`, `test_margin_report.py`, and `test_audit_log_old_values_and_ip_address.py` all used `POST /bills` (or `PUT /bills/{id}`) to create a "due" bill as fixture setup for something else they were really testing — that fixture path is now rejected outright (by design), so those tests were removed rather than left broken. This suite is 100% real-API (no direct-DB fixture pattern exists anywhere in it — confirmed by grep before deciding); asked Abinash whether to add a one-off direct-DB seeding helper to keep the coverage vs. remove and log the gap — decision: remove and log, revisit if/when the due-bill/legacy-data handling becomes its own piece of work. The CODE under test in all 4 cases is unchanged and untouched by this fix — this is a coverage gap for bills that already existed before Sep 14, 2026, not a functional regression on anything built today. |
 | Sheets not implemented — forms use centered modals | High | Next sprint |
 | Zod not on all forms — some use uncontrolled inputs | High | Next sprint |
@@ -1292,6 +1331,7 @@ way that's been caught):
 | `npx tsc --noEmit` fails — `SupplierDropdown.test.tsx` (7 errors: implicit `any` params, mock typing on the real `api.post` signature) | ✅ | Fixed Sep 5, 2026 as part of wiring `tsc --noEmit` into `design-guard.sh` Rule 10 + a matching pre-commit check — fixed the pre-existing errors first, same order as the skeleton rule (fix what's broken before turning on a new blocking gate). |
 | `main` branch protection doesn't require "PharmaCare Design System Checks" (design-guard CI job) | Medium | Deliberately left out Sep 6, 2026 when branch protection was enabled — the job was red at the time (21 Rule 1 + 2 Rule 5 violations). Those are now fixed (Sep 6) and the job is green — add it to the required-checks list in GitHub branch protection settings next. |
 | `design-guard.yml`'s separate `ESLint`/`TypeScript` jobs use plain `npm ci` (no `--legacy-peer-deps`) | Low | Fails on a pre-existing ERESOLVE conflict between `typescript@5.9.3` and `react-scripts@5.0.1`'s peer dependency. Pre-existing, unrelated to any specific feature; `ci.yml` and the `design-guard` job in the same file already use `--legacy-peer-deps` correctly — just these two jobs need the same fix. |
+| CRA/craco's live dev-server type-checker (fork-ts-checker) shows a stale "Cannot find module" error overlay for files deleted mid-session, even after the file is restored | Low | Found Sep 16, 2026 deleting the dead `api.ts`/`routes.ts` duplicates (see the Tech Debt row above): after deletion, `npm start`'s browser overlay correctly showed 9 real consumer files failing to resolve `@/constants/api` — but restoring the exact same files via `git show` did NOT clear the overlay, even after a hot recompile. Root-caused before concluding anything: `npx tsc --noEmit` (a fresh CLI invocation) stayed 100% clean throughout, and a full dev-server **restart** (not just a recompile) with the files deleted again showed "No issues found" — proving the checker's internal file-resolution cache doesn't reliably invalidate for files added/removed while its own process is already running, independent of whether the change is otherwise correct. Not a real regression from the deletion; not fixed (external tool quirk, not this codebase's bug) — logging so a future session doesn't mistake a stale overlay for a real break after deleting/renaming a file mid-session. Always restart `npm start` fresh (not just wait for hot-reload) before trusting its overlay as the final word on a file add/delete/rename. |
 
 ---
 

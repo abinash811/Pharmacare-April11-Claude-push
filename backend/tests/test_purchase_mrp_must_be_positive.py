@@ -43,9 +43,19 @@ class _AuthedTestBase:
             pytest.skip("Authentication failed - skipping MRP validation tests")
 
     def _create_product(self):
-        sku = f"MRPGUARD-{uuid.uuid4().hex[:8]}"
+        # Both the SKU and the name must be unique per run: name is a fixed
+        # literal, this run's product would just be one of hundreds
+        # accumulated in the shared dev DB across every prior test run, and
+        # search_products_with_batches (inventory.py) has no ORDER BY on its
+        # `.limit(50)` query — once more than 50 rows match "MRP Guard Test",
+        # which run's row lands in that arbitrary 50 is not guaranteed. This
+        # was the real, confirmed cause of this file's long-standing
+        # intermittent full-suite failure (see docs/15_ROADMAP.md KNOWN
+        # ISSUES), not a flake in the endpoint itself.
+        suffix = uuid.uuid4().hex[:8]
+        sku = f"MRPGUARD-{suffix}"
         resp = self.session.post(f"{BASE_URL}/api/products", json={
-            "sku": sku, "name": "MRP Guard Test", "category": "medicine",
+            "sku": sku, "name": f"MRP Guard Test {suffix}", "category": "medicine",
             "gst_percent": 5, "units_per_pack": 1,
         })
         assert resp.status_code == 200, resp.text

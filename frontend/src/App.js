@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 
 // Pages
 import AuthPage from '@/pages/AuthPage';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 import Dashboard from '@/pages/Dashboard';
 import BillingOperations from '@/pages/BillingOperations';
 import BillingWorkspace from '@/pages/BillingWorkspace';
@@ -125,6 +127,8 @@ function AppRoutes({ user }) {
     return (
       <Routes>
         <Route path="/" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

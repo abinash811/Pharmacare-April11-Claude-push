@@ -67,6 +67,28 @@ class User(Base):
     role: Mapped[Role] = relationship(back_populates="users")
 
 
+class PasswordResetToken(Base):
+    """Self-service "Forgot password" flow (docs/15_ROADMAP.md Auth
+    Overhaul #6) — a simple reset-token table on top of today's stateless
+    JWT, not a full session-management rework (that's #7, separately
+    planned). `token_hash` stores a SHA-256 digest, never the raw token —
+    the raw value only ever exists in the outgoing email/response, exactly
+    like a password is never stored in plaintext. Single-use (`used_at`)
+    and 1-hour expiry, both enforced in routers/auth.py.
+    """
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (Index("idx_password_reset_tokens_token_hash", "token_hash", unique=True),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[str] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    used_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     __table_args__ = (

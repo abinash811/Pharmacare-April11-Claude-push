@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '@/App';
 import { AppButton } from '@/components/shared';
 import { Input } from '@/components/ui/input';
@@ -163,7 +164,12 @@ export default function AuthPage() {
                     <Input id="login-email" name="email" type="email" placeholder="admin@pharmacy.com" required className="h-12 md:h-9" data-testid="login-email-input" />
                   </div>
                   <div>
-                    <Label htmlFor="login-password">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="login-password">Password</Label>
+                      <Link to="/forgot-password" className="text-xs font-medium text-brand" data-testid="forgot-password-link">
+                        Forgot password?
+                      </Link>
+                    </div>
                     <Input id="login-password" name="password" type="password" required className="h-12 md:h-9" data-testid="login-password-input" />
                   </div>
                   <AppButton type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="login-submit-btn">

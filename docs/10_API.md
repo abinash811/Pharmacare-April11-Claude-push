@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.2 | Last updated: September 5, 2026
+# Version: 1.3 | Last updated: September 16, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -107,6 +107,52 @@ Login with email and password.
 
 **Errors:**
 - `400` — Invalid credentials
+
+---
+
+### `POST /auth/forgot-password`
+Self-service password reset, step 1 (added Sep 16, 2026 — docs/15_ROADMAP.md
+Auth Overhaul #6). Public, unauthenticated.
+
+**Request:**
+```json
+{ "email": "admin@pharmacy.com" }
+```
+
+**Response:** Always the same generic message, whether or not the email
+matches a real, active account (anti-enumeration):
+```json
+{ "message": "If an account exists for that email, a password reset link has been sent." }
+```
+
+If a real, active account matches, the response also includes
+`dev_reset_link` — no real SMTP/SendGrid service is wired in yet (a
+deliberate, asked-not-assumed decision — needs real credentials only
+Abinash can provide), so the reset link is returned directly instead of
+emailed, and also logged server-side:
+```json
+{ "message": "...", "dev_reset_link": "/reset-password?token=<raw-token>" }
+```
+
+---
+
+### `POST /auth/reset-password`
+Self-service password reset, step 2. Public, unauthenticated — the token
+itself (single-use, SHA-256-hashed, expires 1 hour after creation) is the
+authorization, not a JWT.
+
+**Request:**
+```json
+{ "token": "<raw-token-from-the-reset-link>", "new_password": "NewPass123" }
+```
+
+**Response:**
+```json
+{ "message": "Password reset successfully. You can now log in with your new password." }
+```
+
+**Errors:**
+- `400` — Token is missing, unknown, already used, or expired: `"This reset link is invalid or has expired."`
 
 ---
 

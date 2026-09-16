@@ -1,5 +1,5 @@
 # PharmaCare — Security
-# Version: 1.2 | Last updated: September 5, 2026
+# Version: 1.3 | Last updated: September 16, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
@@ -9,9 +9,14 @@
 ## CORE SECURITY RULES
 
 1. **Every API route requires a valid JWT.** No public routes except `/api/auth/register`,
-   `/api/auth/login`, and `/api/auth/session` (see the tech-debt warning on
+   `/api/auth/login`, `/api/auth/session` (see the tech-debt warning on
    the latter in `docs/10_API.md` — it's a leftover third-party auth path,
-   not a designed public route).
+   not a designed public route), and — added Sep 16, 2026 for the
+   self-service password reset flow — `/api/auth/forgot-password` and
+   `/api/auth/reset-password`. Both are deliberately unauthenticated (a
+   locked-out user by definition has no JWT); `reset-password`'s own
+   authorization is the single-use, SHA-256-hashed, 1-hour token itself,
+   not a `pharmacy_id` scope — see PASSWORD RULES below.
 2. **Every DB query filters by `pharmacy_id`.** A user from Pharmacy A must never see Pharmacy B's data.
 3. **Passwords are bcrypt-hashed.** Never store plain text. Never log passwords.
 4. **Tokens expire.** Default: **8 hours** (`ACCESS_TOKEN_EXPIRE_MINUTES=480` in `backend/config.py`). Never issue non-expiring tokens.
@@ -291,6 +296,20 @@ user.password = plain_password          # forbidden
 # ❌ Never log passwords
 logger.info(f"Login attempt: {email} / {password}")   # forbidden
 ```
+
+### Password reset tokens (self-service "Forgot password")
+
+- New `password_reset_tokens` table (`models/users.py::PasswordResetToken`,
+  migration `2e45f4808592`). `token_hash` stores a SHA-256 digest of the
+  raw token — never the raw value itself, same principle as a password.
+- Generated with `secrets.token_urlsafe(32)` — cryptographically random,
+  not guessable.
+- Single-use (`used_at` set the moment it's consumed) and expires 1 hour
+  after creation — both checked in `POST /auth/reset-password`
+  (`routers/auth.py`).
+- `POST /auth/forgot-password` always returns the same generic message
+  whether or not the email matches a real, active account — a
+  distinguishable response would let a caller enumerate registered emails.
 
 ### Minimum password requirements
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -12,7 +15,7 @@ from sqlalchemy.orm import joinedload
 
 from deps import get_db
 from models.pharmacy import Pharmacy
-from models.users import AuditLog, Role as RoleORM, User as UserORM
+from models.users import AuditLog, PasswordResetToken as PasswordResetTokenORM, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
     User,
     create_access_token,
@@ -24,6 +27,10 @@ from routers.auth_helpers import (
 from services.provisioning import create_pharmacy_with_defaults
 
 router = APIRouter(prefix="/api", tags=["auth"])
+logger = logging.getLogger(__name__)
+
+# 1 hour, single use — see docs/15_ROADMAP.md Auth Overhaul #6.
+PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
 
 
 def _client_ip(request: Request) -> str | None:
@@ -69,6 +76,15 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    token: str
+    new_password: str
 
 
 @router.post("/auth/register")
@@ -162,6 +178,78 @@ async def login(credentials: UserLogin, request: Request, db: AsyncSession = Dep
             "is_super_admin": is_super_admin,
         },
     }
+
+
+@router.post("/auth/forgot-password")
+async def forgot_password(payload: ForgotPassword, request: Request, db: AsyncSession = Depends(get_db)):
+    """Self-service password reset (docs/15_ROADMAP.md Auth Overhaul #6) —
+    a locked-out user with no admin around previously had no way back in
+    at all (admin_reset_password in users.py covers the "an admin is
+    available" case, built Sep 15, 2026; this is the other half).
+
+    Always returns the same generic message regardless of whether the
+    email matches a real account — a distinguishable response here would
+    let a caller enumerate which emails are registered.
+
+    No real email-sending service is wired in yet (see docs/15_ROADMAP.md
+    Auth Overhaul #6's "Needs: Email infrastructure" line — asked, not
+    assumed, since that needs real SMTP/SendGrid credentials only Abinash
+    can provide). Until then, the reset link is logged server-side and
+    also returned directly in the response as `dev_reset_link` so the
+    flow is actually usable end-to-end today; wiring in a real mailer
+    later only means replacing this one function's body, not any of the
+    token/validation logic around it.
+    """
+    result = await db.execute(select(UserORM).where(UserORM.email == payload.email))
+    user = result.scalar_one_or_none()
+
+    generic_response = {
+        "message": "If an account exists for that email, a password reset link has been sent.",
+    }
+
+    if not user or not user.is_active:
+        return generic_response
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    db.add(PasswordResetTokenORM(
+        user_id=user.id, token_hash=token_hash,
+        expires_at=datetime.now(timezone.utc) + PASSWORD_RESET_TOKEN_TTL,
+    ))
+    await _record_login_event(user, "password_reset_requested", db, _client_ip(request))
+    await db.flush()
+
+    reset_link = f"/reset-password?token={raw_token}"
+    # TODO once real SMTP/SendGrid credentials exist: send `reset_link` as
+    # an actual email to user.email instead of only logging it. Everything
+    # else in this endpoint (token generation, hashing, expiry, audit log)
+    # stays exactly as-is.
+    logger.info("Password reset requested for %s — reset link: %s", user.email, reset_link)
+
+    return {**generic_response, "dev_reset_link": reset_link}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(payload: ResetPassword, request: Request, db: AsyncSession = Depends(get_db)):
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    result = await db.execute(
+        select(PasswordResetTokenORM).where(PasswordResetTokenORM.token_hash == token_hash))
+    reset_token = result.scalar_one_or_none()
+
+    if (not reset_token or reset_token.used_at is not None
+            or reset_token.expires_at < datetime.now(timezone.utc)):
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+
+    # tenant-safe: unauthenticated; user_id is from a row found via a random, hashed, single-use token
+    user_result = await db.execute(select(UserORM).where(UserORM.id == reset_token.user_id))
+    user = user_result.scalar_one()  # FK guarantees this exists
+
+    user.password_hash = hash_password(payload.new_password)
+    reset_token.used_at = datetime.now(timezone.utc)
+    await _record_login_event(user, "password_reset_completed", db, _client_ip(request))
+    await db.flush()
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}
 
 
 @router.post("/auth/session")

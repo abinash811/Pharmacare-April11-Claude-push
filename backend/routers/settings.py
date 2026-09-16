@@ -504,7 +504,7 @@ async def get_all_roles(current_user: User = Depends(get_current_user),
 
 
 @router.post("/roles")
-async def create_role(role_data: RoleCreate, current_user: User = Depends(
+async def create_role(role_data: RoleCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -522,6 +522,11 @@ async def create_role(role_data: RoleCreate, current_user: User = Depends(
     )
     db.add(role)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "role", role.id,
+        {"name": role.name, "permissions": role.permissions}, db, ip_address=_client_ip(request),
+    )
+    await db.flush()
     return _role_response(role)
 
 
@@ -535,13 +540,15 @@ async def get_role(role_id: str, current_user: User = Depends(
 
 
 @router.put("/roles/{role_id}")
-async def update_role(role_id: str, role_update: RoleUpdate, current_user: User = Depends(
+async def update_role(role_id: str, role_update: RoleUpdate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
     if role.is_system_role:
         raise HTTPException(status_code=400, detail="Cannot edit default roles")
+
+    old_values = {"display_name": role.description, "permissions": role.permissions}
 
     if role_update.display_name is not None:
         role.description = role_update.display_name
@@ -550,11 +557,17 @@ async def update_role(role_id: str, role_update: RoleUpdate, current_user: User 
 
     await db.flush()
     await db.refresh(role)  # updated_at has onupdate=func.now() — see purchases.py for the full note
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "update", "role", role.id,
+        {"display_name": role.description, "permissions": role.permissions}, db,
+        old_values=old_values, ip_address=_client_ip(request),
+    )
+    await db.flush()
     return _role_response(role)
 
 
 @router.delete("/roles/{role_id}")
-async def delete_role(role_id: str, current_user: User = Depends(
+async def delete_role(role_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
     role = await get_owned_or_404(
@@ -570,6 +583,11 @@ async def delete_role(role_id: str, current_user: User = Depends(
             detail=f"Cannot delete role. {user_count} user(s) are assigned this role")
 
     role.is_active = False
+    await db.flush()
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "delete", "role", role.id,
+        {"is_active": False}, db, old_values={"is_active": True}, ip_address=_client_ip(request),
+    )
     await db.flush()
     return {"message": "Role deleted successfully"}
 
@@ -613,6 +631,7 @@ async def get_bill_sequence_settings(
 @router.put("/settings/bill-sequence")
 async def update_bill_sequence_settings(
         seq_settings: BillSequenceSettings,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
@@ -672,9 +691,18 @@ async def update_bill_sequence_settings(
         ps = PharmacySettings(pharmacy_id=pharmacy_id)
         db.add(ps)
 
+    old_values = {"prefix": getattr(ps, prefix_attr, None), "starting_number": current_seq,
+                  "sequence_length": getattr(ps, length_attr, None)}
     setattr(ps, prefix_attr, seq_settings.prefix)
     setattr(ps, seq_attr, seq_settings.starting_number)
     setattr(ps, length_attr, seq_settings.sequence_length)
+    await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "update", "bill_sequence", pharmacy_id,
+        {"document_type": seq_settings.document_type, "prefix": seq_settings.prefix,
+         "starting_number": seq_settings.starting_number, "sequence_length": seq_settings.sequence_length},
+        db, old_values=old_values, ip_address=_client_ip(request),
+    )
     await db.flush()
 
     return _sequence_response(ps, seq_settings.document_type)

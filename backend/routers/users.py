@@ -3,19 +3,41 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from deps import get_db
-from models.users import Role as RoleORM, User as UserORM
+from models.users import AuditLog, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
 )
 
 router = APIRouter(prefix="/api", tags=["users"])
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    # Mirrors settings.py/customers.py's identical local helper — no
+    # cross-router import exists anywhere in this codebase, each router
+    # keeps its own copy. This router had zero audit trail at all before
+    # Sep 16, 2026 (found by scripts/check_audit_log_coverage.py) — staff
+    # account create/edit/deactivate and admin password resets left no
+    # record of who did it.
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
 
 
 class UserCreate(BaseModel):
@@ -73,7 +95,7 @@ async def get_all_users(current_user: User = Depends(get_current_user),
 
 
 @router.post("/users")
-async def create_user(user_data: UserCreate, current_user: User = Depends(
+async def create_user(user_data: UserCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
 
@@ -101,6 +123,12 @@ async def create_user(user_data: UserCreate, current_user: User = Depends(
     )
     db.add(user)
     await db.flush()
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "user", user.id,
+        {"name": user.name, "email": user.email, "role": user_data.role}, db,
+        ip_address=_client_ip(request),
+    )
+    await db.flush()
 
     result = await db.execute(
         # tenant-safe: user just created in this same request
@@ -124,7 +152,7 @@ async def get_user(user_id: str, current_user: User = Depends(
 
 
 @router.put("/users/{user_id}")
-async def update_user(user_id: str, user_update: UserUpdate, current_user: User = Depends(
+async def update_user(user_id: str, user_update: UserUpdate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
     result = await db.execute(
@@ -134,6 +162,8 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    old_values = {"name": user.name, "email": user.email, "role": user.role.name, "is_active": user.is_active}
 
     if user_update.role is not None:
         role_result = await db.execute(
@@ -162,6 +192,14 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
         user.is_active = user_update.is_active
 
     await db.flush()
+    await db.refresh(user, attribute_names=["role"])
+    new_values = {"name": user.name, "email": user.email, "role": user.role.name, "is_active": user.is_active}
+    if new_values != old_values:
+        await _record_audit(
+            uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "update", "user", user.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request),
+        )
+        await db.flush()
     result = await db.execute(
         # tenant-safe: user already scoped above
         select(UserORM).options(joinedload(UserORM.role)).where(UserORM.id == user.id)
@@ -170,7 +208,7 @@ async def update_user(user_id: str, user_update: UserUpdate, current_user: User 
 
 
 @router.delete("/users/{user_id}")
-async def deactivate_user(user_id: str, current_user: User = Depends(
+async def deactivate_user(user_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     await require_admin_or_super(current_user, db)
     if user_id == current_user.id:
@@ -180,11 +218,17 @@ async def deactivate_user(user_id: str, current_user: User = Depends(
 
     user.is_active = False
     await db.flush()
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "deactivate", "user", user.id,
+        {"is_active": False}, db, old_values={"is_active": True}, ip_address=_client_ip(request),
+    )
+    await db.flush()
     return {"message": "User deactivated successfully"}
 
 
 @router.put("/users/{user_id}/reset-password")
-async def admin_reset_password(user_id: str, password_data: AdminResetPassword, current_user: User = Depends(
+async def admin_reset_password(user_id: str, password_data: AdminResetPassword, request: Request,
+                               current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     """Admin/Super Admin sets a new password directly for another user —
     no email/token infra needed, unlike a self-service "forgot password"
@@ -197,12 +241,23 @@ async def admin_reset_password(user_id: str, password_data: AdminResetPassword, 
 
     user.password_hash = hash_password(password_data.new_password)
     await db.flush()
+    # No password hash/value in new_values — this row only needs to answer
+    # "who reset whose password, when," never carry a credential.
+    await _record_audit(
+        uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "admin_reset_password", "user", user.id,
+        {"reset_by": current_user.id}, db, ip_address=_client_ip(request),
+    )
+    await db.flush()
     return {"message": "Password reset successfully"}
 
 
 @router.put("/users/me/change-password")
 async def change_password(password_data: ChangePassword, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: self-service — any authenticated user may change their own
+    # password, gated by knowing the current password, not by role
+    # audit-exempt: self-initiated password change with no privilege change;
+    # login/auth events already have their own trail (_record_login_event)
     # tenant-safe: self-scoped, id is the caller's own JWT subject
     result = await db.execute(select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))
     user = result.scalar_one_or_none()

@@ -249,6 +249,47 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 15: Mutating backend endpoints must have a permission check ────
+# Found Sep 2026: the real permissions system (roles table, has_permission())
+# was wired into Purchases/Purchase Returns only — Billing, Inventory,
+# Customers, Reports, Settings stayed fully open to any authenticated user
+# for months, because each module's review checked that module's own logic,
+# never "does this module's writes need a gate like Purchases got." See
+# docs/15_ROADMAP.md RULE MISSES LOG.
+if python3 scripts/check_permission_coverage.py > /tmp/permission_coverage_output 2>&1; then
+  green "Rule 15 PASS: Every mutating endpoint has a permission check"
+else
+  red "Rule 15 FAIL: unguarded mutating endpoint(s) found in $BACKEND_ROUTERS"
+  cat /tmp/permission_coverage_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
+# ── Rule 16: Mutating backend endpoints must write an audit trail ───────
+# Found Sep 2026: sales_returns.py shipped with zero _record_audit() calls
+# for months, and customers.py had none until a later product-review pass
+# found it as an unchecked dependency. An audit gap doesn't break a
+# feature's own tests — it just leaves no record of who did what. See
+# docs/15_ROADMAP.md RULE MISSES LOG.
+if python3 scripts/check_audit_log_coverage.py > /tmp/audit_log_coverage_output 2>&1; then
+  green "Rule 16 PASS: Every mutating endpoint writes an audit trail"
+else
+  red "Rule 16 FAIL: silently-unaudited mutating endpoint(s) found in $BACKEND_ROUTERS"
+  cat /tmp/audit_log_coverage_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
+# ── Rule 17: Every *_paise column must be Integer ───────────────────────
+# CLAUDE.md Manifesto rule 5 ("money is integer paise, always") had no
+# automated check behind it — the same "manual habit, not tooling" gap
+# already closed for tenant isolation, permissions, and audit logging.
+if python3 scripts/check_money_paise_columns.py > /tmp/money_paise_output 2>&1; then
+  green "Rule 17 PASS: Every *_paise column is Integer"
+else
+  red "Rule 17 FAIL: non-Integer *_paise column(s) found in backend/models"
+  cat /tmp/money_paise_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

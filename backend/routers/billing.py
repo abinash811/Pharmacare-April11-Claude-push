@@ -476,6 +476,9 @@ async def _save_payment_splits(bill_id: uuid.UUID, splits: list[dict], db: Async
 @router.post("/bills")
 async def create_bill(bill_data: BillCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: app-wide Billing RBAC rollout is an explicit, undecided
+    # product decision (docs/15_ROADMAP.md KNOWN ISSUES) — gating this blind risks
+    # locking cashiers out of billing itself; do not add a check here without asking
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
     is_draft = bill_data.status == "draft"
@@ -807,6 +810,7 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
 @router.put("/bills/{bill_id}")
 async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
 
@@ -1361,6 +1365,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 @router.post("/payments")
 async def create_payment(payment_data: PaymentCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
     bill = await get_owned_or_404(
@@ -1457,6 +1462,7 @@ async def get_payments(invoice_id: Optional[str] = None, current_user: User = De
 @router.post("/refunds")
 async def create_refund(refund_data: RefundCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: same pending app-wide Billing RBAC decision as create_bill above
     bill = await get_owned_or_404(
         db, BillORM, refund_data.return_invoice_id, uuid.UUID(current_user.pharmacy_id),
         not_found_detail="Return invoice not found")

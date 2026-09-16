@@ -312,6 +312,10 @@ async def update_stock_batch(
         batch_data: StockBatchUpdate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
+    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — a
+    # qty_on_hand change already records a StockMovement (_record_movement below),
+    # but a non-quantity edit (MRP/cost/expiry) leaves no record at all. Real,
+    # scoped gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass.
     await require_admin_or_super(current_user, db, detail="Only admins can update stock batches")
 
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
@@ -365,6 +369,8 @@ async def update_stock_batch(
 @router.delete("/stock/batches/{batch_id}")
 async def delete_stock_batch(batch_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
+    # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
     await require_admin_or_super(current_user, db, detail="Only admins can delete stock batches")
 
     batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)

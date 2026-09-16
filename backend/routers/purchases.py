@@ -568,6 +568,8 @@ async def import_purchase_bill(
     them straight into the existing, already-tested purchase-creation
     flow for review and submission — this endpoint only parses, it never
     creates a purchase itself."""
+    # audit-exempt: read-only parse/preview — writes no DB row, creates no
+    # purchase; the real purchase this feeds into is audited by create_purchase
     await _require_purchases_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 

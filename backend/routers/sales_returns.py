@@ -904,6 +904,7 @@ async def get_role_return_permissions(role_name: str, current_user: User = Depen
 @router.put("/roles/{role_id}/permissions/returns")
 async def update_role_return_permissions(
     role_id: str,
+    request: Request,
     allow_manual_returns: bool = False,
     allow_financial_edit_return: bool = False,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
@@ -913,7 +914,8 @@ async def update_role_return_permissions(
     role = await get_owned_or_404(
         db, RoleORM, role_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Role not found")
 
-    perms = list(role.permissions) if isinstance(role.permissions, list) else []
+    old_perms = list(role.permissions) if isinstance(role.permissions, list) else []
+    perms = list(old_perms)
     for perm, enabled in [("allow_manual_returns", allow_manual_returns),
                           ("allow_financial_edit_return", allow_financial_edit_return)]:
         if enabled and perm not in perms:
@@ -922,6 +924,15 @@ async def update_role_return_permissions(
             perms.remove(perm)
     role.permissions = perms
     await db.flush()
+
+    if perms != old_perms:
+        await _record_audit(
+            uuid.UUID(current_user.pharmacy_id), uuid.UUID(current_user.id), "update",
+            "role", role.id, {"permissions": perms}, db,
+            old_values={"permissions": old_perms}, ip_address=_client_ip(request) if request else None,
+        )
+        await db.flush()
+
     return {"message": "Permissions updated successfully"}
 
 

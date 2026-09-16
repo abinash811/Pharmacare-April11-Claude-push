@@ -150,6 +150,33 @@ if [ -n "$ROUTER_FILES_TOUCHED" ]; then
     reason "Found Sep 12, 2026: a get/update/delete-by-id endpoint without a pharmacy_id check let one pharmacy read/write another's data. Use get_owned_or_404() from routers/auth_helpers.py, or mark a reviewed exception with a trailing '# tenant-safe: <reason>' comment."
     ERRORS=$((ERRORS+1))
   fi
+
+  PERMISSION_OUTPUT=$(python3 scripts/check_permission_coverage.py 2>&1) || true
+  if ! echo "$PERMISSION_OUTPUT" | grep -q "^Permission coverage check: OK"; then
+    red "BLOCKED: mutating endpoint(s) with no permission check found in backend/routers"
+    echo "$PERMISSION_OUTPUT" | while read -r l; do file "$l"; done
+    reason "Found Sep 2026: the real permissions system was wired into Purchases only for months — Billing/Inventory/Customers/Reports/Settings stayed fully open to any authenticated user. Add a call to the module's _require_<module>_permission() helper, or mark a reviewed exception with a '# permission-exempt: <reason>' comment."
+    ERRORS=$((ERRORS+1))
+  fi
+
+  AUDIT_OUTPUT=$(python3 scripts/check_audit_log_coverage.py 2>&1) || true
+  if ! echo "$AUDIT_OUTPUT" | grep -q "^Audit log coverage check: OK"; then
+    red "BLOCKED: mutating endpoint(s) with no audit trail found in backend/routers"
+    echo "$AUDIT_OUTPUT" | while read -r l; do file "$l"; done
+    reason "Found Sep 2026: sales_returns.py shipped with zero _record_audit() calls for months. Add a call to the module's _record_audit() helper, or mark a reviewed exception with a '# audit-exempt: <reason>' comment."
+    ERRORS=$((ERRORS+1))
+  fi
+fi
+
+MODEL_FILES_TOUCHED=$(echo "$STAGED" | grep -E '^backend/models/.*\.py$' || true)
+if [ -n "$MODEL_FILES_TOUCHED" ]; then
+  PAISE_OUTPUT=$(python3 scripts/check_money_paise_columns.py 2>&1) || true
+  if ! echo "$PAISE_OUTPUT" | grep -q "^Money-paise column check: OK"; then
+    red "BLOCKED: non-Integer *_paise column found in backend/models"
+    echo "$PAISE_OUTPUT" | while read -r l; do file "$l"; done
+    reason "CLAUDE.md Manifesto rule 5: money is integer paise, always. A *_paise column must be Integer, never Float/Numeric/DECIMAL."
+    ERRORS=$((ERRORS+1))
+  fi
 fi
 
 if [ -n "$FRONTEND_ALL_FILES" ]; then

@@ -182,3 +182,41 @@ class TestProductPermissions(_AuthedTestBase):
             "category": "medicine", "gst_percent": 5, "units_per_pack": 1,
         })
         assert resp.status_code == 200, resp.text
+
+
+class TestBulkUpdatePermissions(_AuthedTestBase):
+    """Regression for the Sep 2026 permission-coverage check (scripts/
+    check_permission_coverage.py): POST /products/bulk-update had a
+    hardcoded `role not in ["admin", "manager"]` check instead of the real
+    inventory:edit permission this file's other mutating endpoints already
+    use — the exact "reached some call sites, not all" pattern this new
+    gate was built to catch. inventory_staff has inventory:edit in seed
+    data, same as it does for a single-product edit, so it must succeed
+    here too, not just the two roles the old hardcoded check happened to
+    name."""
+
+    def test_cashier_cannot_bulk_update(self):
+        cashier = self._session_as_role("cashier")
+        product = self._create_product_as_admin()
+        resp = cashier.post(f"{BASE_URL}/api/products/bulk-update", json={
+            "skus": [product["sku"]], "field": "gst_percent", "value": 12,
+        })
+        assert resp.status_code == 403, resp.text
+
+    def test_inventory_staff_can_bulk_update(self):
+        staff = self._session_as_role("inventory_staff")
+        product = self._create_product_as_admin()
+        resp = staff.post(f"{BASE_URL}/api/products/bulk-update", json={
+            "skus": [product["sku"]], "field": "gst_percent", "value": 12,
+        })
+        assert resp.status_code == 200, (
+            f"inventory_staff has inventory:edit in seed data, must not be blocked "
+            f"by a hardcoded admin/manager-only check: {resp.text}")
+
+    def test_manager_can_bulk_update(self):
+        manager = self._session_as_role("manager")
+        product = self._create_product_as_admin()
+        resp = manager.post(f"{BASE_URL}/api/products/bulk-update", json={
+            "skus": [product["sku"]], "field": "gst_percent", "value": 12,
+        })
+        assert resp.status_code == 200, resp.text

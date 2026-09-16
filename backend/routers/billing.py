@@ -13,7 +13,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
-from models.billing import Bill as BillORM, BillItem as BillItemORM, ScheduleH1Register
+from models.billing import (
+    Bill as BillORM, BillItem as BillItemORM, BillPaymentSplit as BillPaymentSplitORM,
+    ScheduleH1Register,
+)
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
@@ -129,7 +132,12 @@ def _client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-def _bill_response(b: BillORM, items: list[BillItemORM]) -> dict:
+def _bill_response(
+        b: BillORM, items: list[BillItemORM],
+        payment_splits: Optional[list[dict]] = None) -> dict:
+    """`payment_splits` — already-normalized [{"method", "amount"}]
+    (rupees) list for a "Multi"-paid bill; empty/None for an ordinary
+    single-method bill, same as no payment_method at all."""
     return {
         "id": str(b.id),
         "bill_number": b.bill_number,
@@ -156,6 +164,7 @@ def _bill_response(b: BillORM, items: list[BillItemORM]) -> dict:
         "paid_amount": b.amount_paid_paise / 100,
         "due_amount": b.balance_paise / 100,
         "payment_method": b.payment_method,
+        "payment_splits": payment_splits or [],
         "cashier_id": str(b.billed_by) if b.billed_by else None,
         "cashier_name": "",
         "created_at": b.created_at.isoformat() if b.created_at else None,
@@ -401,6 +410,67 @@ async def _check_credit_limit(
         )
 
 
+# "Multi" is only for a fully-paid bill split across real payment
+# instruments — "due" as a split leg would mean "not paid," which is
+# what the separate Due flow (BillingSubbar's own paid_now/balance
+# handling) already covers; combining the two is real scope, not built.
+_VALID_SPLIT_METHODS = {"cash", "upi", "card"}
+
+
+def _resolve_payment_splits(
+        payments: Optional[List[Dict[str, Any]]], grand_total_paise: int,
+) -> tuple[Optional[str], int, list[dict]]:
+    """Resolve a bill's real payment_method plus, for a genuine "Multi"
+    payment (2+ legs in `payments`), the validated per-leg split to
+    persist as BillPaymentSplit rows and in the audit log.
+
+    Added Sep 16, 2026 — "Multi" used to be a pill that set
+    payment_method="multiple" with no split-entry UI behind it and
+    nowhere the real breakdown was stored (found in the Billing
+    product-review, the pill itself removed Sep 13, 2026 rather than ship
+    that). Shared between create_bill and update_bill's finalize path —
+    the exact "reached one entry point, not the other" shape Manifesto
+    rule 11 exists to catch.
+
+    Returns (resolved_payment_method, paid_paise, splits). A single-leg
+    (or absent) `payments` array is unchanged prior behavior — the caller
+    still reads its own payment_method/paid_paise the way it always did;
+    this only activates for 2+ legs.
+    """
+    if not payments or len(payments) < 2:
+        return None, 0, []
+
+    splits: list[dict] = []
+    total_paise = 0
+    for leg in payments:
+        method = leg.get("method") or leg.get("payment_method")
+        if method not in _VALID_SPLIT_METHODS:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Invalid split payment method: {method!r}. "
+                        f"Must be one of cash, upi, card."))
+        amount_paise = int(round((leg.get("amount") or 0) * 100))
+        if amount_paise <= 0:
+            raise HTTPException(
+                status_code=400, detail="Each split payment amount must be greater than zero.")
+        splits.append({"method": method, "amount_paise": amount_paise})
+        total_paise += amount_paise
+
+    if total_paise != grand_total_paise:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Split payments must add up to the bill total exactly — "
+                    f"got ₹{total_paise / 100:.2f}, expected ₹{grand_total_paise / 100:.2f}."))
+
+    return "multiple", total_paise, splits
+
+
+async def _save_payment_splits(bill_id: uuid.UUID, splits: list[dict], db: AsyncSession) -> None:
+    for leg in splits:
+        db.add(BillPaymentSplitORM(
+            bill_id=bill_id, payment_method=leg["method"], amount_paise=leg["amount_paise"]))
+
+
 # ── /bills ─────────────────────────────────────────────────────────────────────
 
 @router.post("/bills")
@@ -587,7 +657,12 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
 
     # Determine payment
     paid_paise = 0
-    if bill_data.payments:
+    resolved_payment_method, multi_paid_paise, payment_splits = _resolve_payment_splits(
+        bill_data.payments, grand_total_paise)
+    if resolved_payment_method:
+        bill_data.payment_method = resolved_payment_method
+        paid_paise = multi_paid_paise
+    elif bill_data.payments:
         paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
     elif bill_data.invoice_type == "SALES_RETURN" and bill_data.refund:
         paid_paise = int(bill_data.refund.get("amount", grand_total_paise / 100) * 100)
@@ -684,6 +759,9 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
     db.add(bill)
     await db.flush()
 
+    if payment_splits:
+        await _save_payment_splits(bill.id, payment_splits, db)
+
     # Create bill items and handle stock
     final_items: list[BillItemORM] = []
     for bill_item, batch, product in item_orms:
@@ -710,16 +788,24 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
          # as the immutable record of how much/which method was actually
          # collected AT CREATION time, since Bill.payment_method itself
          # gets overwritten by a later POST /payments collection.
-         "payment_method": bill.payment_method},
+         "payment_method": bill.payment_method,
+         # payment_splits — added Sep 16, 2026 for "Multi" — Day-End
+         # Closing explodes this into its own per-method buckets instead
+         # of lumping the whole amount under the meaningless "multiple"
+         # key. Rupees here (not paise) to match paid_amount/due_amount's
+         # own units in this same audit payload.
+         "payment_splits": [{"method": s["method"], "amount": s["amount_paise"] / 100}
+                            for s in payment_splits] if payment_splits else None},
         db, ip_address=_client_ip(request),
     )
     await db.flush()
 
-    return _bill_response(bill, final_items)
+    normalized_splits = [{"method": s["method"], "amount": s["amount_paise"] / 100} for s in payment_splits]
+    return _bill_response(bill, final_items, normalized_splits)
 
 
 @router.put("/bills/{bill_id}")
-async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = Depends(
+async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
@@ -875,10 +961,18 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
         bill.bill_number = await _generate_bill_number(pharmacy_id, db)
 
     paid_paise = 0
-    if is_finalizing and bill_data.payments:
-        paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
-    elif is_finalizing and bill_data.payment_method:
-        paid_paise = grand_total_paise
+    payment_splits: list[dict] = []
+    resolved_payment_method = None
+    if is_finalizing:
+        resolved_payment_method, multi_paid_paise, payment_splits = _resolve_payment_splits(
+            bill_data.payments, grand_total_paise)
+        if resolved_payment_method:
+            bill_data.payment_method = resolved_payment_method
+            paid_paise = multi_paid_paise
+        elif bill_data.payments:
+            paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
+        elif bill_data.payment_method:
+            paid_paise = grand_total_paise
 
     balance_paise = max(0, grand_total_paise - paid_paise)
     if is_finalizing:
@@ -929,6 +1023,9 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
     bill.payment_method = bill_data.payment_method
     bill.status = new_status
 
+    if payment_splits:
+        await _save_payment_splits(bill.id, payment_splits, db)
+
     await db.flush()
 
     # Deduct stock if finalizing
@@ -943,11 +1040,33 @@ async def update_bill(bill_id: str, bill_data: BillCreate, current_user: User = 
                     bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db,
                     bill_data.patient_address, bill_data.patient_age)
 
+        # Real, separate pre-existing gap closed here (necessary for this
+        # feature to work correctly, not a gratuitous side fix): finalizing
+        # a draft into a paid bill never wrote ANY audit_logs row at all —
+        # create_bill logs a "create" action carrying paid_amount/
+        # payment_method for Day-End Closing's cash breakdown to read
+        # (see the comment on that call), but this, the *other* real path
+        # that can produce a freshly-paid bill, logged nothing. Without
+        # this, a draft finalized with a "Multi" split (or any payment
+        # method) would be invisible to Day-End Closing, same root shape
+        # as the Aug 22 MRP/stock/H1 miss Manifesto rule 11 is named after.
+        await _record_audit(
+            pharmacy_id, user_id, "create", "invoice", bill.id, None,
+            {"bill_number": bill.bill_number, "invoice_type": bill.invoice_type, "status": new_status,
+             "customer_name": bill.customer_name, "total_amount": grand_total_paise / 100,
+             "paid_amount": paid_paise / 100, "due_amount": balance_paise / 100,
+             "payment_method": bill.payment_method,
+             "payment_splits": [{"method": s["method"], "amount": s["amount_paise"] / 100}
+                                for s in payment_splits] if payment_splits else None},
+            db, ip_address=_client_ip(request),
+        )
+
     await db.flush()
     await db.refresh(bill)  # updated_at has onupdate=func.now() — see purchases.py
 
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bid))
-    return _bill_response(bill, items_result.scalars().all())
+    normalized_splits = [{"method": s["method"], "amount": s["amount_paise"] / 100} for s in payment_splits]
+    return _bill_response(bill, items_result.scalars().all(), normalized_splits)
 
 
 @router.get("/bills")
@@ -1014,7 +1133,11 @@ async def get_bill(bill_id: str, current_user: User = Depends(
     bill = await get_owned_or_404(
         db, BillORM, bill_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="Bill not found")
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
-    return _bill_response(bill, items_result.scalars().all())
+    splits_result = await db.execute(
+        select(BillPaymentSplitORM).where(BillPaymentSplitORM.bill_id == bill.id))
+    splits = [{"method": s.payment_method, "amount": s.amount_paise / 100}
+              for s in splits_result.scalars().all()]
+    return _bill_response(bill, items_result.scalars().all(), splits)
 
 
 @router.get("/bills/{bill_id}/pdf")
@@ -1036,6 +1159,21 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
 
     items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bill.id))
     items = items_result.scalars().all()
+
+    # For a "Multi" bill, bill.payment_method is the literal string
+    # "multiple" — printed on its own that told the pharmacy nothing about
+    # how the invoice was actually paid. Same fix as get_bill/_bill_response
+    # (payment_splits) and PrintReceipt.jsx/BillTotals.jsx on the frontend —
+    # found while checking every display surface of Bill.payment_method for
+    # the Multi-payment feature (Manifesto rule 11).
+    if bill.payment_method == "multiple":
+        splits_result = await db.execute(
+            select(BillPaymentSplitORM).where(BillPaymentSplitORM.bill_id == bill.id))
+        payment_label = " + ".join(
+            f"{s.payment_method.title()} ₹{s.amount_paise / 100:.2f}"
+            for s in splits_result.scalars().all())
+    else:
+        payment_label = (bill.payment_method or "").title()
 
     product_ids = [item.product_id for item in items]
     product_info: Dict[Any, Dict[str, str]] = {}
@@ -1103,8 +1241,8 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
     bill_date_str = bill.bill_date.isoformat() if bill.bill_date else ""
     pdf.drawRightString(545, meta_y, f"Date: {bill_date_str}")
     meta_y -= 13
-    if bill.payment_method:
-        pdf.drawRightString(545, meta_y, f"Payment: {bill.payment_method.title()}")
+    if payment_label:
+        pdf.drawRightString(545, meta_y, f"Payment: {payment_label}")
         meta_y -= 13
 
     detail_y = min(detail_y, meta_y) - 10

@@ -19,6 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
   upi: 'bg-blue-50 text-blue-700',
   credit: 'bg-purple-50 text-purple-700',
   card: 'bg-purple-50 text-purple-700',
+  multiple: 'bg-blue-50 text-blue-700',
   adjusted: 'bg-purple-50 text-purple-700',
   same_as_original: 'bg-gray-100 text-gray-700',
   credit_to_account: 'bg-purple-50 text-purple-700',
@@ -56,6 +57,7 @@ const LABEL_MAPPINGS: Record<string, string> = {
   out_of_stock: 'Out of Stock',
   partially_credited: 'Partially Credited',
   fully_credited: 'Fully Credited',
+  multiple: 'Multi',
 };
 
 export interface StatusBadgeProps {

@@ -17,12 +17,24 @@ import { formatDateTime } from '@/utils/dates';
 
 const isThermal = (format) => format === '80mm' || format === '58mm';
 
+// A "Multi" bill's payment_method is the literal string "multiple" — on its
+// own that told a customer nothing about how they actually paid. Renders
+// the real per-method split instead (e.g. "CASH ₹300.00 + UPI ₹200.00").
+function paymentLine(payment_method, payment_splits) {
+  if (payment_method === 'multiple' && payment_splits?.length) {
+    return payment_splits
+      .map((s) => `${s.method?.toUpperCase()} ${formatCurrency(Number(s.amount))}`)
+      .join(' + ');
+  }
+  return payment_method?.toUpperCase() || '';
+}
+
 // ── Thermal receipt (80mm / 58mm) ────────────────────────────────────────────
 function ThermalReceipt({ billData, format }) {
   const width = format === '58mm' ? '58mm' : '80mm';
   const {
     bill_number, customer_name, customer_phone, doctor_name,
-    payment_method, pharmacy_name, pharmacy_address, pharmacy_phone,
+    payment_method, payment_splits, pharmacy_name, pharmacy_address, pharmacy_phone,
     gstin, drug_license, fssai, pan, items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
     bill_header, bill_footer, print_patient_name = true,
@@ -87,7 +99,7 @@ function ThermalReceipt({ billData, format }) {
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '9px' }}>
-        <div>Payment: {payment_method?.toUpperCase()}</div>
+        <div>Payment: {paymentLine(payment_method, payment_splits)}</div>
         <div style={{ marginTop: '4px' }}>{bill_footer || 'Thank you for your purchase!'}</div>
       </div>
     </div>
@@ -98,7 +110,7 @@ function ThermalReceipt({ billData, format }) {
 function A4Invoice({ billData, format }) {
   const {
     bill_number, customer_name, customer_phone, doctor_name,
-    payment_method, pharmacy_name, pharmacy_address, pharmacy_phone,
+    payment_method, payment_splits, pharmacy_name, pharmacy_address, pharmacy_phone,
     gstin, drug_license, fssai, pan,
     items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
@@ -132,7 +144,7 @@ function A4Invoice({ billData, format }) {
           <div style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Tax Invoice</div>
           <div className="text-gray-600" style={{ fontSize: '10px', marginTop: '2px' }}>Bill No: <strong>{bill_number}</strong></div>
           <div style={{ fontSize: '10px', color: '#555' }}>Date: <strong>{formatDateTime(new Date())}</strong></div>
-          <div style={{ fontSize: '10px', color: '#555' }}>Payment: <strong style={{ textTransform: 'capitalize' }}>{payment_method}</strong></div>
+          <div style={{ fontSize: '10px', color: '#555' }}>Payment: <strong>{paymentLine(payment_method, payment_splits)}</strong></div>
         </div>
         <div style={{ textAlign: 'right', fontSize: '10px' }}>
           {print_patient_name ? (

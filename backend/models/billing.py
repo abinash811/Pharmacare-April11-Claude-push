@@ -82,6 +82,28 @@ class Bill(Base):
         nullable=False)
 
 
+class BillPaymentSplit(Base):
+    """One leg of a "Multi" payment — a bill paid across 2+ real methods
+    at checkout (e.g. ₹300 cash + ₹200 UPI). Added Sep 16, 2026: "Multi"
+    used to be a pill that selected `payment_method="multiple"` with no
+    split-entry UI behind it and nowhere the real breakdown was stored —
+    found in the Billing product-review, removed Sep 13, 2026 rather than
+    ship a button that recorded a payment method with zero traceable
+    detail. Only created for a fully-paid bill split across methods —
+    "Due" stays its own separate flow (BillingSubbar's own paid_now/
+    balance handling), not combined with a multi-split leg.
+    """
+    __tablename__ = "bill_payment_splits"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bill_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bills.id", ondelete="CASCADE"), nullable=False)
+    payment_method: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+
 class BillItem(Base):
     __tablename__ = "bill_items"
     __table_args__ = (

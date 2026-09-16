@@ -6,6 +6,7 @@
  *   customerName      {string}
  *   paymentType       {string}
  *   paidNow           {string}  — partial cash amount when paymentType === 'due'
+ *   paymentSplits     {Array<{method, amount}>} — split legs when paymentType === 'multiple'
  *   mrpTotal          {number}
  *   totalDiscount     {number}
  *   billDiscount      {number}
@@ -28,6 +29,7 @@ export default function FinaliseModal({
   customerName   = '',
   paymentType    = '',
   paidNow        = '',
+  paymentSplits  = /** @type {Array<{method: string, amount: string}>} */ ([]),
   mrpTotal       = 0,
   totalDiscount  = 0,
   billDiscount   = 0,
@@ -128,8 +130,21 @@ export default function FinaliseModal({
 
               <div className="p-3 bg-gray-50 rounded-lg">
                 <span className="text-xs text-gray-400 block mb-1">Payment Method</span>
-                <span className="font-semibold text-gray-700 capitalize">{paymentType || 'Not selected'}</span>
+                <span className="font-semibold text-gray-700 capitalize">
+                  {paymentType === 'multiple' ? 'Multi' : (paymentType || 'Not selected')}
+                </span>
               </div>
+
+              {paymentType === 'multiple' && paymentSplits.length > 0 && (
+                <div className="p-3 bg-gray-50 rounded-lg space-y-1" data-testid="multi-split-summary">
+                  {paymentSplits.map((s, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-gray-600 capitalize">{s.method}</span>
+                      <span className="font-semibold text-gray-800">{formatCurrency(Number(s.amount) || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {paymentType === 'due' && (
                 <div className="p-3 bg-amber-50 rounded-lg space-y-1" data-testid="due-summary">

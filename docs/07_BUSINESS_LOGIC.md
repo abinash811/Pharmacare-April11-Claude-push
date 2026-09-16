@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.7 | Last updated: September 15, 2026
+# Version: 2.8 | Last updated: September 16, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -116,6 +116,51 @@ Same as above except:
 - Stock NOT deducted, no StockMovement, no H1 register entry
 - Drug License check, Schedule H1 check, MRP check, and stock check are all
   skipped (drafts aren't finalized sales)
+
+### Multi payment (split across 2+ real methods)
+
+Added Sep 16, 2026, rebuilding the Sep 13, 2026 "Multi" pill removal (it
+recorded `payment_method: "multiple"` with zero trace of the real split —
+worse than not offering it).
+
+```
+1. Frontend sends payments: [{method, amount}, {method, amount}, ...] — 2+ legs.
+   A single-entry payments array (e.g. a due bill's paid-now amount) is
+   unchanged prior behavior; this only activates for 2+ legs.
+2. Backend (_resolve_payment_splits, shared by create_bill AND update_bill's
+   finalize path — same function, so a change to one always reaches both):
+   - Each leg's method must be one of cash/upi/card (not "due" — a due leg
+     isn't a real settled instrument; combining Multi with Due is out of
+     scope, not built) → else HTTP 400.
+   - Each leg's amount must be > 0 → else HTTP 400.
+   - The legs must sum to EXACTLY the bill's grand_total_paise → else HTTP 400
+     naming the real vs. expected amount.
+3. On success: bill.payment_method = "multiple", one BillPaymentSplit row per
+   leg persisted (bill_id, payment_method, amount_paise), and the audit log's
+   new_values carries the same breakdown (rupees) under "payment_splits" —
+   this is what Day-End Closing reads, not the BillPaymentSplit table
+   directly (see Day-End Closing note below).
+4. GET /api/bills/{id} and the create/update response both return
+   payment_splits: [{method, amount}, ...] (rupees) alongside the bare
+   payment_method="multiple" — every display surface (printed receipt,
+   BillDetail, downloaded PDF, BillingOperations list) renders this real
+   breakdown instead of the bare word "multiple"/"MULTIPLE".
+```
+
+**Cross-cutting consumers checked and fixed in the same change (Manifesto
+rule 11)** — found before any frontend UI existed to trigger them:
+- **Day-End Closing** (`reports.py _day_end_breakdown`) explodes a Multi
+  bill's audit-logged `payment_splits` into its own per-method buckets
+  instead of lumping the whole amount under a meaningless "multiple" key —
+  otherwise a ₹1000 Multi bill (₹400 cash + ₹600 card) would misattribute
+  ₹1000 to a bucket nobody can reconcile against the physical cash drawer.
+- **Sales returns'** `same_as_original` resolution (`_resolve_refund_and_credit`
+  in sales_returns.py) falls back to `"cash"` when the original bill's
+  `payment_method == "multiple"`, instead of persisting the invalid literal
+  `"multiple"` as a `refund_method`.
+- **`update_bill`'s finalize path never wrote an audit log entry at all**
+  before this change — found as a necessary dependency for Day-End Closing
+  to see ANY finalized-draft's payment (multi or not), fixed alongside.
 
 ### GST Calculation (exact formula — verified against `create_bill`)
 

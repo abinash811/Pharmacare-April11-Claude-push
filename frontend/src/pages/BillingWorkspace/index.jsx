@@ -25,6 +25,8 @@ import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
 import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
 import { buildPrintPharmacyInfo } from './utils/buildPrintPharmacyInfo';
+import { getPaymentSplitsError } from './utils/validatePaymentSplits';
+import { mapBillItemsToRows } from './utils/mapBillItemsToRows';
 
 export default function BillingWorkspace() {
   const navigate       = useNavigate();
@@ -53,6 +55,10 @@ export default function BillingWorkspace() {
   const [billingFor,    setBillingFor]    = useState('self');
   const [paymentType,   setPaymentType]   = useState('cash');
   const [paidNow,       setPaidNow]       = useState('');
+  // Split legs for a "Multi" payment (e.g. ₹300 cash + ₹200 UPI) — only
+  // populated when paymentType === 'multiple'. Cleared whenever the payment
+  // type changes away from 'multiple', same pattern as paidNow/'due' below.
+  const [paymentSplits, setPaymentSplits] = useState([]);
   const [billDate,      setBillDate]      = useState(new Date());
   const [draftNumber,   setDraftNumber]   = useState(null);
   const [billDiscount,     setBillDiscount]     = useState(0);
@@ -92,7 +98,7 @@ export default function BillingWorkspace() {
 
   const clearBill = useCallback(() => {
     setItems([]); setCustomerName(''); setCustomerPhone(''); setCustomerId(null);
-    setDoctorName(''); setPaymentType('cash'); setPaidNow('');
+    setDoctorName(''); setPaymentType('cash'); setPaidNow(''); setPaymentSplits([]);
     setPatientAddress(''); setPatientAge('');
     localStorage.removeItem('billing_draft'); setDraftNumber(null);
   }, [setItems]);
@@ -110,28 +116,10 @@ export default function BillingWorkspace() {
       setCustomerId(bill.customer_id || null);
       setDoctorName(bill.doctor_name || '');
       setPaymentType(bill.payment_method || bill.payment_type || 'cash');
+      setPaymentSplits((bill.payment_splits || []).map(s => ({ method: s.method, amount: String(s.amount) })));
       setBilledBy(bill.cashier_name || bill.created_by?.name || '');
       if (bill.bill_date || bill.created_at) setBillDate(new Date(bill.bill_date || bill.created_at));
-      setItems((bill.items || []).map((item, i) => ({
-        id: item.id || Date.now() + i,
-        product_sku:      item.product_sku || item.sku,
-        product_name:     item.product_name || item.name || item.medicine_name,
-        manufacturer:     item.manufacturer || '',
-        composition:      item.composition || '',
-        batch_no:         item.batch_no || item.batch_number,
-        batch_id:         item.batch_id,
-        expiry_date:      item.expiry_date,
-        qty:              item.quantity || item.qty,
-        unit_price:       item.unit_price || item.mrp,
-        cost_price:       item.cost_price || (item.unit_price || item.mrp) * 0.7,
-        discount_percent: item.discount_percent || 0,
-        gst_percent:      item.gst_percent || item.gst_rate || 5,
-        cess_percent:     item.cess_percent || 0,
-        available_qty:    item.available_qty || 999,
-        schedule:         item.schedule || null,
-        scheduleH:        item.scheduleH || item.schedule === 'H' || item.schedule === 'H1',
-        net_amount:       item.line_total || item.net_amount || item.amount || 0,
-      })));
+      setItems(mapBillItemsToRows(bill.items));
     } catch { toast.error('Failed to load bill'); navigate('/billing'); }
   }, [setItems, navigate]);
 
@@ -183,6 +171,10 @@ export default function BillingWorkspace() {
   const openFinaliseModal = useCallback(() => {
     if (!billItems.length)  { toast.error('Add items to bill first'); return; }
     if (!paymentType)       { toast.error('Select a payment method'); return; }
+    if (paymentType === 'multiple') {
+      const splitError = getPaymentSplitsError(paymentSplits, grandTotal);
+      if (splitError) { toast.error(splitError); return; }
+    }
     const hasH  = billItems.some(i => i.schedule === 'H' || i.schedule === 'H1' || i.scheduleH);
     const hasH1 = billItems.some(i => i.schedule === 'H1');
     if ((hasH && !doctorName?.trim()) || (hasH1 && !patientAddress?.trim())) {
@@ -190,13 +182,13 @@ export default function BillingWorkspace() {
       return;
     }
     setShowFinalise(true);
-  }, [billItems, paymentType, doctorName, patientAddress]);
+  }, [billItems, paymentType, doctorName, patientAddress, paymentSplits, grandTotal]);
 
   const hasH1Item = billItems.some(i => i.schedule === 'H1');
 
   // ── Bill actions ──────────────────────────────────────────────────────────
   const billSnapshot = {
-    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, billedBy,
+    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, paymentSplits, billedBy,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
     patientAddress, patientAge,
@@ -245,8 +237,10 @@ export default function BillingWorkspace() {
           billingFor={billingFor} onBillingForChange={setBillingFor}
           billedBy={billedBy} onBilledByChange={setBilledBy}
           users={users} currentUser={currentUser}
-          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'due') setPaidNow(''); saveDraft(); }}
+          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'due') setPaidNow(''); if (v !== 'multiple') setPaymentSplits([]); saveDraft(); }}
           paidNow={paidNow} onPaidNowChange={setPaidNow}
+          paymentSplits={paymentSplits} onPaymentSplitsChange={setPaymentSplits}
+          grandTotal={grandTotal}
           onBarcodeScan={() => setShowBarcodeScanner(true)}
         />
 
@@ -278,7 +272,7 @@ export default function BillingWorkspace() {
       />
       <FinaliseModal
         open={showFinalise} onClose={() => setShowFinalise(false)}
-        customerName={customerName} paymentType={paymentType} paidNow={paidNow}
+        customerName={customerName} paymentType={paymentType} paidNow={paidNow} paymentSplits={paymentSplits}
         mrpTotal={mrpTotal} totalDiscount={totalDiscount}
         billDiscount={billDiscount} billDiscountType={billDiscountType}
         totalGst={totalGst} totalCess={totalCess} grandTotal={grandTotal} margin={margin}

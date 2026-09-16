@@ -1,6 +1,19 @@
 import React from 'react';
 import { formatCurrency } from '@/utils/currency';
 
+// A "Multi" bill's payment_method is the literal string "multiple" — shown
+// on its own that told the pharmacist nothing about how it was actually
+// paid. Render the real per-method split instead (matches PrintReceipt.jsx's
+// identical fix for the printed invoice).
+function paymentLabel(bill) {
+  if (bill.payment_method === 'multiple' && bill.payment_splits?.length) {
+    return bill.payment_splits
+      .map((s) => `${s.method?.toUpperCase()} ${formatCurrency(Number(s.amount))}`)
+      .join(' + ');
+  }
+  return bill.payment_method?.toUpperCase() || 'CASH';
+}
+
 export default function BillTotals({ bill, gstRows, isParked }) {
   return (
     <div className="px-8 pb-6 grid grid-cols-2 gap-8">
@@ -60,7 +73,7 @@ export default function BillTotals({ bill, gstRows, isParked }) {
           {!isParked && (
             <>
               <div className="flex justify-between text-gray-600">
-                <span>Paid ({bill.payment_method?.toUpperCase() || 'CASH'})</span>
+                <span>Paid ({paymentLabel(bill)})</span>
                 <span className="text-green-600">{formatCurrency(bill.paid_amount || 0)}</span>
               </div>
               {(bill.due_amount || 0) > 0 && (

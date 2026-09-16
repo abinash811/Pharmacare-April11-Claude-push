@@ -1430,6 +1430,21 @@ async def _day_end_breakdown(pid: uuid.UUID, closing_date: date, db: AsyncSessio
         amount = new_values.get("paid_amount") if action == "create" else new_values.get("amount")
         if not amount:
             continue
+        # A "multiple" (Multi-payment split, added Sep 16, 2026) bill has
+        # its real per-method breakdown in payment_splits — explode it
+        # into its own buckets instead of lumping the whole amount under
+        # the meaningless "multiple" key, which would make the cash
+        # drawer count wrong by everything collected via UPI/card in the
+        # same split.
+        splits = new_values.get("payment_splits") if new_values.get("payment_method") == "multiple" else None
+        if splits:
+            for leg in splits:
+                leg_key = leg.get("method") or "unspecified"
+                by_method.setdefault(
+                    leg_key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
+                by_method[leg_key]["sales_count"] += 1
+                by_method[leg_key]["sales_paise"] += int(round((leg.get("amount") or 0) * 100))
+            continue
         key = new_values.get("payment_method") or "unspecified"
         by_method.setdefault(key, {"sales_count": 0, "sales_paise": 0, "returns_count": 0, "returns_paise": 0})
         by_method[key]["sales_count"] += 1

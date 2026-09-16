@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { getPaymentSplitsError } from '../utils/validatePaymentSplits';
 
 /**
  * @param {object} billSnapshot  — read-only snapshot of current bill state
@@ -62,13 +63,26 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   const isDuePayment = () => billSnapshot.paymentType === 'due';
   const paidNowPaise = () => Math.round((Number(billSnapshot.paidNow) || 0) * 100);
 
+  // A "Multi" bill is only sent to the backend as payment_method: "multiple"
+  // when its splits are actually complete (2+ rows, real method + amount
+  // each) — an incomplete split (e.g. while parking mid-entry) falls back
+  // to plain "cash" rather than sending payment_method: "multiple" with no
+  // real breakdown, which the backend would reject anyway (_resolve_payment_
+  // splits in billing.py validates eagerly regardless of draft status).
+  const isMultiPayment = () => billSnapshot.paymentType === 'multiple';
+  const validMultiSplits = () => {
+    const splits = billSnapshot.paymentSplits || [];
+    return splits.length >= 2 && splits.every((s) => s.method && Number(s.amount) > 0);
+  };
+
   const buildBillBase = (status) => {
     const {
       billItems, customerName, customerPhone, customerId, doctorName, paymentType, totalDiscount,
-      patientAddress, patientAge,
+      patientAddress, patientAge, paymentSplits,
     } = billSnapshot;
     const due = isDuePayment();
     const paidNowAmount = due ? paidNowPaise() / 100 : undefined;
+    const multi = isMultiPayment() && validMultiSplits();
     return {
       customer_name:   customerName || 'Walk-in Customer',
       customer_mobile: customerPhone,
@@ -76,8 +90,14 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       doctor_name:     doctorName,
       patient_address: patientAddress || undefined,
       patient_age:     patientAge ? Number(patientAge) : undefined,
-      payment_method:  due ? (paidNowAmount > 0 ? 'cash' : 'due') : (paymentType || 'cash'),
-      payments:        due && paidNowAmount > 0 ? [{ amount: paidNowAmount }] : undefined,
+      payment_method:  due ? (paidNowAmount > 0 ? 'cash' : 'due')
+        : multi ? 'multiple'
+        : (paymentType === 'multiple' ? 'cash' : (paymentType || 'cash')),
+      payments:        due && paidNowAmount > 0
+        ? [{ amount: paidNowAmount }]
+        : multi
+          ? paymentSplits.map((s) => ({ method: s.method, amount: Number(s.amount) }))
+          : undefined,
       items:           buildItemPayload(billItems),
       discount:        totalDiscount,
       tax_rate:        billItems.length > 0 ? billItems[0].gst_percent : 5,
@@ -107,6 +127,13 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     return true;
   };
 
+  const guardMultiPayment = () => {
+    if (!isMultiPayment()) return true;
+    const splitError = getPaymentSplitsError(billSnapshot.paymentSplits || [], billSnapshot.grandTotal);
+    if (splitError) { toast.error(splitError); return false; }
+    return true;
+  };
+
   const afterSuccess = () => {
     localStorage.removeItem('billing_draft');
     onSaveSuccess?.();
@@ -115,7 +142,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBill ─────────────────────────────────────────────────────────────
   const saveBill = useCallback(async () => {
-    if (!guardItems() || !guardDuePayment()) return;
+    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
     const status = isDuePayment() ? 'due' : 'paid';
     try {
       const res = await api.post(apiUrl.bills(), buildBillBase(status));
@@ -128,7 +155,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBillAndPrint ──────────────────────────────────────────────────────
   const saveBillAndPrint = useCallback(async () => {
-    if (!guardItems() || !guardDuePayment()) return;
+    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
     const { paymentType, billItems, customerName, customerPhone, doctorName, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
     const status = isDuePayment() ? 'due' : 'paid';
     try {
@@ -142,6 +169,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         customer_phone: customerPhone,
         doctor_name:    doctorName,
         payment_method: paymentType,
+        payment_splits: paymentType === 'multiple' ? billSnapshot.paymentSplits : undefined,
         subtotal,
         total_discount: totalDiscount,
         total_gst:      totalGst,
@@ -171,7 +199,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── confirmAndSaveBill (finalise) ─────────────────────────────────────────
   const confirmAndSaveBill = useCallback(async ({ internalNote }) => {
-    if (!guardItems() || !guardDuePayment()) return;
+    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
     setIsSaving(true);
     const {
       paymentType, billedBy, mrpTotal, totalDiscount, totalGst, totalCess,
@@ -223,6 +251,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
           customer_phone: customerPhone,
           doctor_name:    doctorName,
           payment_method: paymentType,
+          payment_splits: paymentType === 'multiple' ? billSnapshot.paymentSplits : undefined,
           subtotal,
           total_discount: totalDiscount,
           total_gst:      totalGst,
@@ -242,7 +271,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── handlePrintCurrentBill ────────────────────────────────────────────────
   const handlePrintCurrentBill = useCallback(() => {
-    const { billItems, customerName, customerPhone, doctorName, paymentType, draftNumber, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
+    const { billItems, customerName, customerPhone, doctorName, paymentType, paymentSplits, draftNumber, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
     if (billItems.length === 0) { toast.error('Add items to bill first'); return; }
     onPrintReady?.({
       ...printPharmacyInfo,
@@ -252,6 +281,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       customer_phone: customerPhone,
       doctor_name:    doctorName,
       payment_method: paymentType,
+      payment_splits: paymentType === 'multiple' ? paymentSplits : undefined,
       subtotal,
       total_discount: totalDiscount,
       total_gst:      totalGst,

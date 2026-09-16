@@ -114,8 +114,13 @@ def _resolve_refund_and_credit(
         return "credit_to_account", credit_paise
     if requested_method == "same_as_original":
         # Nothing (or only part) left to credit — refund the rest however
-        # the sale itself was settled.
-        return (bill.payment_method or "cash"), credit_paise
+        # the sale itself was settled. A "multiple" (Multi-payment split,
+        # added Sep 16, 2026) original bill has no single method to copy —
+        # falls back to cash, same as the bill-is-None case above, rather
+        # than storing the meaningless literal "multiple" as a refund
+        # method REFUND_METHOD doesn't even define.
+        original_method = bill.payment_method if bill.payment_method != "multiple" else None
+        return (original_method or "cash"), credit_paise
     return requested_method, credit_paise
 
 

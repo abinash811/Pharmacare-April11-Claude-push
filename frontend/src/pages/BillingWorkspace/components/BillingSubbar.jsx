@@ -25,6 +25,9 @@
  *   onPaymentTypeChange {(string) => void}
  *   paidNow             {string}            — partial cash amount when paymentType === 'due'
  *   onPaidNowChange     {(string) => void}
+ *   paymentSplits       {Array<{method, amount}>} — split legs when paymentType === 'multiple'
+ *   onPaymentSplitsChange {(Array) => void}
+ *   grandTotal          {number}            — bill total in rupees, for split-sum validation display
  *   onBarcodeScan       {() => void}
  */
 
@@ -37,13 +40,17 @@ import { Calendar } from '@/components/ui/calendar';
 import { FilterPills, AppButton } from '@/components/shared';
 import DoctorDropdown from './DoctorDropdown';
 import PatientCombobox from './PatientCombobox';
+import SplitPaymentPanel, { SPLIT_METHODS } from './SplitPaymentPanel';
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
-// "Multi" (a split cash+card/etc. payment) used to be listed here — removed
-// Sep 13, 2026, found in the Billing product-review: selecting it rendered
-// no split-entry UI at all, so a bill saved with it recorded
-// payment_method: "multiple" with zero trace of the real split, worse than
-// not offering it. Re-add only alongside a real split-entry UI, not before.
+// "Multi" (a split cash+card/etc. payment) — removed Sep 13, 2026, found in
+// the Billing product-review: selecting it rendered no split-entry UI at
+// all, so a bill saved with it recorded payment_method: "multiple" with
+// zero trace of the real split, worse than not offering it. Re-added Sep 16,
+// 2026 alongside the real split-entry panel below (SPLIT_METHODS + the
+// "Split Payment" row) — only for a fully-paid bill split across real
+// instruments; combining with "Due" is out of scope (see backend's
+// _VALID_SPLIT_METHODS comment in billing.py).
 // "Due" removed Sep 14, 2026, reinstated Sep 15, 2026 (see docs/15_ROADMAP.md
 // Billing table) — needs a real customer selected (BillingSubbar blocks the
 // pill otherwise) so there's someone to collect from later; credit-limit
@@ -53,6 +60,7 @@ const PAYMENT_TYPES = [
   { key: 'upi',      label: 'UPI'    },
   { key: 'card',     label: 'Card'   },
   { key: 'due',      label: 'Due'    },
+  { key: 'multiple', label: 'Multi'  },
 ];
 
 function ColDivider() {
@@ -79,6 +87,9 @@ export default function BillingSubbar({
   onPaymentTypeChange,
   paidNow,
   onPaidNowChange,
+  paymentSplits = /** @type {Array<{method: string, amount: string}>} */ ([]),
+  onPaymentSplitsChange = () => {},
+  grandTotal = 0,
   onBarcodeScan,
 }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -221,7 +232,20 @@ export default function BillingSubbar({
         <div className="pl-3 shrink-0">
           <span className={LABEL}>Payment</span>
           {isView ? (
-            <span className="text-sm font-medium text-gray-900 capitalize">{paymentType || '–'}</span>
+            paymentType === 'multiple' && paymentSplits.length > 0 ? (
+              <span className="text-sm font-medium text-gray-900" data-testid="payment-split-summary">
+                {paymentSplits.map((s, i) => (
+                  <span key={i}>
+                    {i > 0 && ' + '}
+                    {SPLIT_METHODS.find((m) => m.value === s.method)?.label || s.method} ₹{Number(s.amount).toFixed(2)}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-gray-900 capitalize">
+                {paymentType === 'multiple' ? 'Multi' : (paymentType || '–')}
+              </span>
+            )
           ) : (
             <FilterPills
               options={PAYMENT_TYPES}
@@ -230,6 +254,9 @@ export default function BillingSubbar({
                 if (key === 'due' && !customerId) {
                   toast.error('Pick a customer first — a due bill needs someone to collect from later.');
                   return;
+                }
+                if (key === 'multiple' && paymentSplits.length < 2) {
+                  onPaymentSplitsChange([{ method: '', amount: '' }, { method: '', amount: '' }]);
                 }
                 onPaymentTypeChange(key);
               }}
@@ -255,6 +282,15 @@ export default function BillingSubbar({
         )}
 
       </div>
+
+      {/* ── SPLIT PAYMENT PANEL (only for Multi) ──────────────────────────── */}
+      {!isView && paymentType === 'multiple' && (
+        <SplitPaymentPanel
+          paymentSplits={paymentSplits}
+          onPaymentSplitsChange={onPaymentSplitsChange}
+          grandTotal={grandTotal}
+        />
+      )}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.8 | Last updated: September 12, 2026
+# Version: 1.9 | Last updated: September 16, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -442,6 +442,57 @@ This map covers billing, purchases, returns, reports, inventory,
 customers, and suppliers (walked Sep 12, 2026). Settings and users
 haven't been walked the same way yet — extend this table instead of
 assuming they're fine.
+
+### Standing endpoint invariants — check these on every new mutating endpoint
+
+Added Sep 16, 2026, after Abinash's direct question ("how did this
+happen," "why wasn't this re-checked," "what else is only enforced for
+security and data") about the permission system being enforced module by
+module for months. The map above is about **data** cross-cutting — the
+same fact read or duplicated in several places. This section is a
+different axis: **invariants every mutating endpoint must satisfy,
+regardless of which domain it belongs to.** Each one below was built as
+real infrastructure, then wired into some routers and not others, because
+nothing forced re-checking the rest of the app once the infrastructure
+existed. That's the exact shape this section exists to stop repeating.
+
+| Invariant | Enforcement | How to check |
+|---|---|---|
+| Every by-ID lookup is scoped to `pharmacy_id` | **Automated** — `design-guard.sh` Rule 13 / `scripts/check_tenant_isolation.py` | Use `get_owned_or_404()`. Reviewed exception: trailing `# tenant-safe: <reason>` comment. |
+| Every mutating endpoint has a role/permission check | **Automated** — Rule 15 / `scripts/check_permission_coverage.py` | Call the module's `_require_<module>_permission()` (or `has_permission()`/`require_admin_or_super()`). Reviewed exception: `# permission-exempt: <reason>` comment. |
+| Every mutating endpoint writes an audit trail | **Automated** — Rule 16 / `scripts/check_audit_log_coverage.py` | Call the module's `_record_audit()` (or `_record_movement()` for a stock-quantity change). Reviewed exception: `# audit-exempt: <reason>` comment. |
+| Every `*_paise` column is Integer, never Float/Numeric | **Automated** — Rule 17 / `scripts/check_money_paise_columns.py` | Runs against `backend/models/*.py` on every commit that touches a model file. No exception marker exists — there is no legitimate case for a non-integer money column. |
+| No magic strings — a status/domain value comes from `constants.py`, not a bare literal | **Manual** — no automated check exists; assessed twice (Sep 7, Sep 12) and judged too false-positive-prone to lint safely (a legitimate local string is indistinguishable from a magic one without more type information than a static check has here) | Read `constants.py` before writing a status check or assignment; grep for the same literal already used correctly elsewhere in the same router before introducing a new one. |
+
+**The meta-rule this section exists to state explicitly:** when you build a
+new piece of enforcement infrastructure (a permission helper, an audit
+helper, a schema constraint — anything with the shape "every X should have
+Y"), do not treat wiring it into the one router you're already looking at
+as done. Before calling the change finished:
+
+1. Grep the same shape (`grep -rn "same pattern" backend/routers/`) across
+   every router file, not just the one you're editing.
+2. If you find **even one more** router that needs the identical fix,
+   that is the signal to build the automated gate **now**, in the same
+   change — not a note to revisit "once it comes up a few more times."
+   Permissions recurred independently at least 4 times (Purchases → Aug 24,
+   Suppliers/Inventory → Sep 12, Customers → Sep 12, Suppliers'
+   toggle-status → Sep 12 again) before a gate existed for it; audit
+   logging recurred at least twice (`sales_returns.py`, `customers.py`)
+   with the same result. Waiting for the pattern to "prove itself" first is
+   what let both drift for months.
+3. When a new `design-guard.sh` Rule is added, run it against the **whole
+   repo** in the same commit, not just staged/new files — a rule that only
+   starts checking new code leaves every pre-existing violation invisible
+   until someone happens to touch that file again. Mark any real
+   pre-existing violation with the rule's own reviewed-exception comment
+   (or fix it outright) before merging the rule itself.
+4. If a check genuinely can't be automated without unacceptable false
+   positives (the magic-strings row above is the current example), say so
+   explicitly in this table rather than leaving it as an unstated gap —
+   an entry that says "manual, and here's why automating it isn't safe"
+   is a decision; a rule with no entry here at all is just a blind spot
+   waiting to be found the hard way again.
 
 ### Error Handling Pattern
 

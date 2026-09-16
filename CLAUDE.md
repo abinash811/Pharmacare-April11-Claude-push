@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.16 | Last updated: September 16, 2026
+# Version: 2.17 | Last updated: September 16, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -213,6 +213,33 @@
   step at a time, and say what to click/type exactly — don't assume he
   already knows what a step means. This applies everywhere, not just
   chat replies.
+- **Explain the use case in plain terms before building anything, and
+  never assume — ask.** Added Sep 16, 2026, direct instruction, after a
+  session found and fixed 6+ real permission/audit-log gaps in one pass
+  without checking which ones Abinash wanted fixed now vs. asked about
+  first (e.g. broadening who can bulk-update products, deciding on its
+  own that Billing should stay ungated, picking which modules got real
+  fixes vs. a deferred comment). None of those were hidden, but none were
+  run past him individually either — the gap this rule closes.
+  Concretely, every time, not just for large changes:
+  - Before writing code (not just before a big feature), say in plain,
+    non-technical language why this is being built or changed — what
+    real problem it solves or what breaks without it — the same "why"
+    already required by the product-manager-first rule below, just
+    stated up front instead of only in a later report.
+  - Where a decision could reasonably go more than one way (which module
+    to prioritize, whether a gap is safe to auto-fix vs. needs a human
+    call, what a fix should be named, how strict a new check should be),
+    stop and ask with `AskUserQuestion` instead of picking a default and
+    moving forward. A reasonable-sounding judgment call made silently is
+    still an assumption — the standard is "asked," not "defensible after
+    the fact."
+  - This does not undo "commit + push automatically as checkpoints"
+    above — a checkpoint after a change Abinash already scoped and
+    approved doesn't need re-asking. It applies to the scoping/decision
+    itself: what to build, what to fix now vs. defer, and any behavior
+    change (who can do what, what gets logged, what a gate allows) —
+    decide those with him, not for him.
 - **Product manager first, project manager second.** Added August 25,
   2026, direct correction after Claude called Purchases "solid" from a
   docs/code audit alone — never having walked it as a real pharmacist's

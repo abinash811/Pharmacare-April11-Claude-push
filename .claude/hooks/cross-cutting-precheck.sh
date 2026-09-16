@@ -64,6 +64,20 @@ $NEW_MAGIC_STRINGS
 "
 fi
 
+# ── 4. New/changed permission or audit-log calls in a router file ───────
+# design-guard.sh Rules 15/16 already prove SOME permission/audit call
+# exists on every mutating endpoint — they can't prove it's the RIGHT one
+# (correct action string, correct entity_type). Same residual judgment-call
+# gap rules 9/11 already have this hook for — reuse it instead of a new hook.
+NEW_ENDPOINT_GUARDS="$(git diff --cached -- 'backend/routers/*.py' 2>/dev/null | grep -E '^\+[^+].*(_require_[a-z_]*_permission\(|has_permission\(|require_admin_or_super\(|_record_audit\(|# permission-exempt:|# audit-exempt:)')"
+if [ -n "$NEW_ENDPOINT_GUARDS" ]; then
+  FOUND=1
+  REPORT="$REPORT
+=== New/changed permission or audit-log call(s) in a router (verify the action/entity_type is correct for what this endpoint does, and that any -exempt comment is a genuine exemption per docs/08_ARCHITECTURE.md's Standing endpoint invariants section) ===
+$NEW_ENDPOINT_GUARDS
+"
+fi
+
 if [ "$FOUND" -eq 0 ]; then
   echo "NOTHING_RELEVANT"
   exit 0

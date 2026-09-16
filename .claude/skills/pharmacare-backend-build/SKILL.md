@@ -31,6 +31,19 @@ one change) if you haven't this session.
 3. **No magic strings.** Every status value comes from the backend's own
    enum/constant, not a bare string typed inline — see
    `docs/16_NAMING_CONVENTIONS.md`.
+4. **Every mutating endpoint (POST/PUT/PATCH/DELETE) is permission-checked
+   and audit-logged, on top of being tenant-scoped.** Added Sep 16, 2026 —
+   these three (plus paise typing) are the "standing endpoint invariants,"
+   `docs/08_ARCHITECTURE.md`'s cross-cutting map for endpoint shape rather
+   than domain data. All four now have an automated gate
+   (`design-guard.sh` Rules 13/15-17) that blocks the commit if missed —
+   but the gate only proves *something* is there, not that it's the
+   *right* something (the correct permission action, the right
+   `entity_type`). Get it right the first time: call the module's
+   `_require_<module>_permission(current_user, "<action>", db)` and
+   `_record_audit(...)` yourself, matching the pattern already used by
+   sibling endpoints in the same router — don't rely on the gate to catch
+   a wrong-but-present call.
 
 ## Workflow — copy this checklist into your response
 
@@ -40,7 +53,10 @@ one change) if you haven't this session.
 - [ ] Step 3: Read docs/08_ARCHITECTURE.md's cross-cutting consumers map — does this domain have other consumers?
 - [ ] Step 4: Write the router/service, following existing patterns in backend/routers/
 - [ ] Step 5: If Step 3 found consumers, verify/update each one in this same change
-- [ ] Step 6: Write the pytest that proves it (see pharmacare-testing skill)
+- [ ] Step 6: New/edited endpoint is tenant-scoped, permission-checked, and audit-logged
+      (docs/08_ARCHITECTURE.md's "Standing endpoint invariants" table) — or has a reviewed
+      # tenant-safe: / # permission-exempt: / # audit-exempt: comment if deliberately not
+- [ ] Step 7: Write the pytest that proves it (see pharmacare-testing skill)
 ```
 
 **Step 3 is the one most often skipped.** `docs/08_ARCHITECTURE.md`'s

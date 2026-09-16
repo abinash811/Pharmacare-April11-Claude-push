@@ -23,7 +23,7 @@ const BASE_SNAPSHOT = {
   customerName: 'Walk-in Customer', customerPhone: '', customerId: null,
   doctorName: '', paymentType: 'multiple', paidNow: '',
   paymentSplits: [{ method: 'cash', amount: '300' }, { method: 'upi', amount: '200' }],
-  billedBy: '', billDiscount: 0, billDiscountType: '%',
+  billDiscount: 0, billDiscountType: '%',
   mrpTotal: 500, totalDiscount: 0, totalGst: 0, totalCess: 0,
   grandTotal: 500, subtotal: 500, margin: { amount: 0, percent: 0 },
   draftNumber: null, editingDraftId: null, patientAddress: '', patientAge: '',

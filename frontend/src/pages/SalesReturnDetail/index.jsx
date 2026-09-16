@@ -24,7 +24,7 @@ export default function SalesReturnDetail() {
   const [loading, setLoading]               = useState(true);
   const [showEditModal, setShowEditModal]   = useState(false);
   const [allowFinancialEdit, setAllowFinancialEdit] = useState(false);
-  const [editForm, setEditForm]             = useState({ billing_for: '', doctor: '', billed_by: '', note: '' });
+  const [editForm, setEditForm]             = useState({ doctor: '', note: '' });
   const [isSaving, setIsSaving]             = useState(false);
 
   useEffect(() => { fetchReturnData(); fetchRolePermissions(); }, [id]); // eslint-disable-line
@@ -33,7 +33,7 @@ export default function SalesReturnDetail() {
     try {
       const res = await api.get(`/sales-returns/${id}`);
       setReturnData(res.data);
-      setEditForm({ billing_for: res.data.billing_for || 'self', doctor: res.data.doctor || '', billed_by: res.data.created_by?.name || '', note: res.data.note || '' });
+      setEditForm({ doctor: res.data.doctor || '', note: res.data.note || '' });
     } catch { toast.error('Failed to load return details'); navigate('/billing/returns'); }
     finally { setLoading(false); }
   };
@@ -105,7 +105,6 @@ export default function SalesReturnDetail() {
               ...(returnData.original_bill_no ? [{ label: 'Original Bill', value: <span className="font-mono text-sm font-medium text-gray-700">#{returnData.original_bill_no}</span> }] : []),
               { label: 'Bill Date',    value: formatDate(returnData.return_date) },
               { label: 'Customer',     value: returnData.patient?.name || 'Walk-in' },
-              { label: 'Billing For',  value: returnData.billing_for || 'Self' },
               { label: 'Doctor',       value: returnData.doctor || '-' },
             ].map((f) => (
               <div key={f.label}>

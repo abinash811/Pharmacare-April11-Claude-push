@@ -283,7 +283,6 @@ async def bulk_update_products(data: dict, current_user: User = Depends(
 @router.get("/products/barcode/{barcode}")
 async def lookup_by_barcode(
         barcode: str,
-        location_id: Optional[str] = "default",
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -322,7 +321,6 @@ async def lookup_by_barcode(
 
 @router.get("/products/search-with-batches")
 async def search_products_with_batches(q: str,
-                                       location_id: Optional[str] = "default",
                                        current_user: User = Depends(get_current_user),
                                        db: AsyncSession = Depends(get_db)):
     if len(q) < 2:

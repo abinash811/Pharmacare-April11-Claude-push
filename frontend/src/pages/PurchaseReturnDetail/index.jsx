@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Edit, FileText, Package } from 'lucide-react';
 import { AppButton, InlineLoader, PageBreadcrumb, MoreMenu, StatusBadge, EmptyState } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
@@ -13,40 +12,31 @@ import CreditStatusModal from './components/CreditStatusModal';
 
 export default function PurchaseReturnDetail() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext); // eslint-disable-line
   const { id } = useParams();
   const [purchaseReturn, setPurchaseReturn] = useState(null);
   const [loading, setLoading]               = useState(true);
   const [showEditModal, setShowEditModal]   = useState(false);
   const [editType, setEditType]             = useState(null);
   const [editNote, setEditNote]             = useState('');
-  const [editBilledBy, setEditBilledBy]     = useState('');
   const [isSaving, setIsSaving]             = useState(false);
-  const [users, setUsers]                   = useState([]);
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [isSavingCredit, setIsSavingCredit]   = useState(false);
 
-  useEffect(() => { fetchPurchaseReturn(); fetchUsers(); }, [id]); // eslint-disable-line
+  useEffect(() => { fetchPurchaseReturn(); }, [id]); // eslint-disable-line
 
   const fetchPurchaseReturn = async () => {
     try {
       const res = await api.get(`/purchase-returns/${id}`);
       setPurchaseReturn(res.data);
       setEditNote(res.data.note || '');
-      setEditBilledBy(res.data.billed_by || '');
     } catch (err) { toast.error(err.message || 'Failed to load purchase return'); navigate('/purchases'); }
     finally { setLoading(false); }
-  };
-
-  const fetchUsers = async () => {
-    try { const res = await api.get(`/users`); setUsers(res.data || []); }
-    catch { /* silent */ }
   };
 
   const handleEditSave = async () => {
     setIsSaving(true);
     try {
-      await api.put(`/purchase-returns/${id}`, { edit_type: editType, note: editNote, billed_by: editBilledBy });
+      await api.put(`/purchase-returns/${id}`, { edit_type: editType, note: editNote });
       toast.success('Return updated successfully');
       setShowEditModal(false);
       fetchPurchaseReturn();
@@ -122,7 +112,6 @@ export default function PurchaseReturnDetail() {
                 <span className="font-medium font-mono text-brand">{purchaseReturn.purchase_number}</span>
               </div>
             )}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg"><span className="font-medium text-gray-700">{purchaseReturn.billed_by || '—'}</span></div>
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
               <span className="text-[10px] text-gray-500 uppercase font-medium">Reason</span>
               <span className="font-medium text-gray-700">{PURCHASE_RETURN_REASON_LABELS[purchaseReturn.reason] || purchaseReturn.reason || '—'}</span>
@@ -236,9 +225,6 @@ export default function PurchaseReturnDetail() {
         editType={editType}
         editNote={editNote}
         onNoteChange={setEditNote}
-        editBilledBy={editBilledBy}
-        onBilledByChange={setEditBilledBy}
-        users={users}
         isSaving={isSaving}
         onSave={handleEditSave}
       />

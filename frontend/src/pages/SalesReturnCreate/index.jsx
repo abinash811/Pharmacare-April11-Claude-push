@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { AuthContext } from '@/App';
 import { ArrowLeft, Printer, Trash2 } from 'lucide-react';
 import { AppButton, PageBreadcrumb, InlineLoader } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
@@ -14,28 +13,24 @@ import ManualItemSearch from './components/ManualItemSearch';
 
 export default function SalesReturnCreate() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
   const billId = searchParams.get('billId');
 
   const [returnDate, setReturnDate]   = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [patient, setPatient]         = useState({ id: null, name: '', phone: '' });
-  const [billingFor, setBillingFor]   = useState('self');
   const [doctor, setDoctor]           = useState('');
-  const [billedBy, setBilledBy]       = useState(user?.name || '');
   const [paymentType, setPaymentType] = useState('');
   const [refundMethod, setRefundMethod] = useState(REFUND_METHOD_SAME_AS_ORIGINAL);
   const [note, setNote]               = useState('');
   const [items, setItems]             = useState([]);
   const [originalBill, setOriginalBill] = useState(null);
-  const [users, setUsers]             = useState([]);
   const [showFinaliseModal, setShowFinaliseModal] = useState(false);
   const [isSaving, setIsSaving]       = useState(false);
   const [totals, setTotals]           = useState({ mrpTotal: 0, totalDiscount: 0, gstAmount: 0, netAmount: 0 });
   const [loading, setLoading]         = useState(!!billId);
 
-  useEffect(() => { if (billId) fetchOriginalBill(billId); fetchUsers(); }, [billId]); // eslint-disable-line
+  useEffect(() => { if (billId) fetchOriginalBill(billId); }, [billId]); // eslint-disable-line
   useEffect(() => { calculateTotals(); }, [items]); // eslint-disable-line
 
   const fetchOriginalBill = async (id) => {
@@ -68,10 +63,6 @@ export default function SalesReturnCreate() {
         })));
     } catch { toast.error('Failed to load bill details'); navigate('/billing/returns'); }
     finally { setLoading(false); }
-  };
-
-  const fetchUsers = async () => {
-    try { const res = await api.get(`/users`); setUsers(res.data || []); } catch { /* silent */ }
   };
 
   const calculateTotals = () => {
@@ -134,7 +125,7 @@ export default function SalesReturnCreate() {
         original_bill_id: originalBill?.id || null,
         original_bill_no: originalBill?.bill_number || null,
         return_date: returnDate.toISOString(),
-        patient, billing_for: billingFor, doctor,
+        patient, doctor,
         items: items.map(({ medicine_id, medicine_name, product_sku, batch_id, batch_no, expiry_date, mrp, qty, original_qty, disc_percent, gst_percent, is_damaged }) =>
           ({ medicine_id, medicine_name, product_sku, batch_id, batch_no, expiry_date, mrp, qty, original_qty, disc_percent, gst_percent, is_damaged })),
         payment_type: paymentType, refund_method: refundMethod, note,
@@ -182,8 +173,7 @@ export default function SalesReturnCreate() {
           onShowDatePickerChange={setShowDatePicker} onReturnDateChange={setReturnDate}
           patient={patient} isManual={!originalBill}
           onPatientNameChange={(name) => setPatient((p) => ({ ...p, name }))}
-          doctor={doctor} billedBy={billedBy} onBilledByChange={setBilledBy}
-          user={user} users={users}
+          doctor={doctor}
           creditToBalance={creditToBalance} excessAfterCredit={excessAfterCredit} billDueAmount={billDueAmount}
           refundMethod={refundMethod} onRefundMethodChange={setRefundMethod}
           hasErrors={hasErrors} onSaveClick={() => setShowFinaliseModal(true)}

@@ -114,12 +114,6 @@ export const STOCK_MOVEMENT_TYPE = {
   ADJUST:   'adjustment',
 };
 
-// ─── Billing For ──────────────────────────────────────────────────────────────
-export const BILLING_FOR = {
-  SELF:  'self',
-  OTHER: 'other',
-};
-
 // ─── Sales Return Refund Methods ───────────────────────────────────────────────
 // Stored in sales_returns.refund_method. SAME_AS_ORIGINAL is a frontend-only
 // convenience default sent to POST /sales-returns — the backend always

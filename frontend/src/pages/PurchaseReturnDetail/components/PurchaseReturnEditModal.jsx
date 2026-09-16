@@ -2,7 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AppButton } from '@/components/shared';
 
-export default function PurchaseReturnEditModal({ open, onClose, editType, editNote, onNoteChange, editBilledBy, onBilledByChange, users, isSaving, onSave }) {
+export default function PurchaseReturnEditModal({ open, onClose, editType, editNote, onNoteChange, isSaving, onSave }) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -17,14 +17,6 @@ export default function PurchaseReturnEditModal({ open, onClose, editType, editN
               Financial edits will recalculate stock and supplier outstanding. This action requires elevated permissions.
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Billed By</label>
-            <select value={editBilledBy} onChange={(e) => onBilledByChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand">
-              <option value="">Select staff</option>
-              {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-            </select>
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Note</label>
             <textarea value={editNote} onChange={(e) => onNoteChange(e.target.value.slice(0, 150))}

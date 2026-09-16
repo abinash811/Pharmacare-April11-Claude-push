@@ -465,7 +465,6 @@ export interface SalesReturn {
   return_date:       ISODateTime;
   entry_date:        ISODateTime;
   patient:           { id?: UUID; name?: string; phone?: string };
-  billing_for:       string;
   status:            SalesReturnStatus;
   items:             SalesReturnItem[];
   total_amount:      number;

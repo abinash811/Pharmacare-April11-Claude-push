@@ -44,7 +44,6 @@ class SalesReturnCreate(BaseModel):
     original_bill_no: Optional[str] = None
     return_date: str
     patient: Optional[Dict[str, Any]] = None
-    billing_for: str = "self"
     doctor: Optional[str] = None
     items: List[SalesReturnItemCreate]
     payment_type: Optional[str] = None
@@ -53,9 +52,7 @@ class SalesReturnCreate(BaseModel):
 
 
 class SalesReturnUpdate(BaseModel):
-    billing_for: Optional[str] = None
     doctor: Optional[str] = None
-    billed_by: Optional[str] = None
     note: Optional[str] = None
     items: Optional[List[SalesReturnItemCreate]] = None
     refund_method: Optional[str] = None

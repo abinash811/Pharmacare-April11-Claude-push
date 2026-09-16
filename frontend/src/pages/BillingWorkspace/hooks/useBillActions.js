@@ -20,7 +20,7 @@ import { getPaymentSplitsError } from '../utils/validatePaymentSplits';
 /**
  * @param {object} billSnapshot  — read-only snapshot of current bill state
  *   .billItems, .customerName, .customerPhone, .doctorName,
- *   .paymentType, .billedBy, .billDiscount, .billDiscountType,
+ *   .paymentType, .billDiscount, .billDiscountType,
  *   .mrpTotal, .totalDiscount, .totalGst, .totalCess,
  *   .grandTotal, .subtotal, .margin, .draftNumber, .editingDraftId,
  *   .patientAddress, .patientAge — Schedule H1 register fields, only
@@ -202,7 +202,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
     setIsSaving(true);
     const {
-      paymentType, billedBy, mrpTotal, totalDiscount, totalGst, totalCess,
+      paymentType, mrpTotal, totalDiscount, totalGst, totalCess,
       grandTotal, margin, billDiscount, billDiscountType,
       billItems, customerName, customerPhone, doctorName, subtotal,
     } = billSnapshot;
@@ -231,8 +231,6 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
       grand_total:    grandTotal,
       round_off:      0,
       internal_note:  internalNote,
-      billed_by:      billedBy,
-      cashier_name:   billedBy,
     };
 
     try {

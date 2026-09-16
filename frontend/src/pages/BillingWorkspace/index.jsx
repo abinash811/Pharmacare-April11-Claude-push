@@ -51,8 +51,6 @@ export default function BillingWorkspace() {
   // this rule is for.
   const [patientAddress, setPatientAddress] = useState('');
   const [patientAge,     setPatientAge]     = useState('');
-  const [billedBy,      setBilledBy]      = useState('');
-  const [billingFor,    setBillingFor]    = useState('self');
   const [paymentType,   setPaymentType]   = useState('cash');
   const [paidNow,       setPaidNow]       = useState('');
   // Split legs for a "Multi" payment (e.g. ₹300 cash + ₹200 UPI) — only
@@ -64,9 +62,6 @@ export default function BillingWorkspace() {
   const [billDiscount,     setBillDiscount]     = useState(0);
   const [billDiscountType, setBillDiscountType] = useState('%');
 
-  // ── Users ────────────────────────────────────────────────────────────────
-  const [users,          setUsers]          = useState([]);
-  const [currentUser,    setCurrentUser]    = useState(null);
   const [isInitialising, setIsInitialising] = useState(true);
 
   // ── Modal flags ──────────────────────────────────────────────────────────
@@ -117,7 +112,6 @@ export default function BillingWorkspace() {
       setDoctorName(bill.doctor_name || '');
       setPaymentType(bill.payment_method || bill.payment_type || 'cash');
       setPaymentSplits((bill.payment_splits || []).map(s => ({ method: s.method, amount: String(s.amount) })));
-      setBilledBy(bill.cashier_name || bill.created_by?.name || '');
       if (bill.bill_date || bill.created_at) setBillDate(new Date(bill.bill_date || bill.created_at));
       setItems(mapBillItemsToRows(bill.items));
     } catch { toast.error('Failed to load bill'); navigate('/billing'); }
@@ -127,14 +121,7 @@ export default function BillingWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const [ur, mr, sr] = await Promise.all([
-          api.get(apiUrl.users()),
-          api.get(apiUrl.authMe()),
-          api.get(apiUrl.settings()),
-        ]);
-        setUsers(ur.data || []);
-        setCurrentUser(mr.data);
-        setBilledBy(mr.data?.name || mr.data?.email || '');
+        const sr = await api.get(apiUrl.settings());
         setPrintFormat(sr.data?.print?.paper_size || '80mm');
         setPharmacyGeneral(sr.data?.general || null);
         setPrintSettings(sr.data?.print || null);
@@ -188,7 +175,7 @@ export default function BillingWorkspace() {
 
   // ── Bill actions ──────────────────────────────────────────────────────────
   const billSnapshot = {
-    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, paymentSplits, billedBy,
+    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, paymentSplits,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
     patientAddress, patientAge,
@@ -234,9 +221,6 @@ export default function BillingWorkspace() {
           customerName={customerName} customerPhone={customerPhone} customerId={customerId}
           onPatientSelect={({ name, phone, id }) => { setCustomerName(name); setCustomerPhone(phone || ''); setCustomerId(id || null); saveDraft(); }}
           doctorName={doctorName} onDoctorChange={setDoctorName}
-          billingFor={billingFor} onBillingForChange={setBillingFor}
-          billedBy={billedBy} onBilledByChange={setBilledBy}
-          users={users} currentUser={currentUser}
           paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'due') setPaidNow(''); if (v !== 'multiple') setPaymentSplits([]); saveDraft(); }}
           paidNow={paidNow} onPaidNowChange={setPaidNow}
           paymentSplits={paymentSplits} onPaymentSplitsChange={setPaymentSplits}

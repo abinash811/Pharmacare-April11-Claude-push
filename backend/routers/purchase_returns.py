@@ -50,13 +50,11 @@ class PurchaseReturnCreate(BaseModel):
     note: Optional[str] = None
     notes: Optional[str] = None
     reason: Optional[str] = None
-    billed_by: Optional[str] = None
     payment_type: Optional[str] = "credit"
 
 
 class PurchaseReturnUpdate(BaseModel):
     note: Optional[str] = None
-    billed_by: Optional[str] = None
     items: Optional[List[PurchaseReturnItemCreate]] = None
     edit_type: str = "non_financial"
 

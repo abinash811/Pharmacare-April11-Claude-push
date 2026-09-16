@@ -18,8 +18,6 @@ const BASE_PROPS = {
   viewMode: 'new', billDate: new Date('2026-09-15'), onBillDateChange: jest.fn(),
   customerName: '', customerPhone: '', onPatientSelect: jest.fn(),
   doctorName: '', onDoctorChange: jest.fn(),
-  billingFor: 'self', onBillingForChange: jest.fn(),
-  billedBy: '', onBilledByChange: jest.fn(), users: [], currentUser: { name: 'Test User' },
   paymentType: 'cash', onPaymentTypeChange: jest.fn(),
   paidNow: '', onPaidNowChange: jest.fn(),
   onBarcodeScan: jest.fn(),

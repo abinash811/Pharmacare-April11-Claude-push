@@ -19,10 +19,6 @@ interface SalesReturnSubbarProps {
   isManual: boolean;
   onPatientNameChange: (name: string) => void;
   doctor: string;
-  billedBy: string;
-  onBilledByChange: (name: string) => void;
-  user?: { name?: string } | null;
-  users: { id: string; name: string }[];
   creditToBalance: number;
   excessAfterCredit: number;
   billDueAmount: number;
@@ -33,13 +29,14 @@ interface SalesReturnSubbarProps {
 }
 
 /**
- * Subbar for SalesReturnCreate — date, patient/doctor context, billed-by,
- * and the due-balance-credit note + refund-method choice. Split out of
- * index.jsx Sep 15, 2026 to stay under the 300-line file cap.
+ * Subbar for SalesReturnCreate — date, patient/doctor context, and the
+ * due-balance-credit note + refund-method choice. Split out of index.jsx
+ * Sep 15, 2026 to stay under the 300-line file cap. "Billed By" removed
+ * Sep 16, 2026 — never sent to the backend on create, fully decorative.
  */
 export default function SalesReturnSubbar({
   returnDate, showDatePicker, onShowDatePickerChange, onReturnDateChange,
-  patient, isManual, onPatientNameChange, doctor, billedBy, onBilledByChange, user, users,
+  patient, isManual, onPatientNameChange, doctor,
   creditToBalance, excessAfterCredit, billDueAmount,
   refundMethod, onRefundMethodChange,
   hasErrors, onSaveClick,
@@ -77,12 +74,6 @@ export default function SalesReturnSubbar({
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
           <Stethoscope className="w-4 h-4 text-gray-400" strokeWidth={1.5} />
           <span className="text-sm font-medium text-gray-700">{doctor || 'No Doctor'}</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-          <select value={billedBy} onChange={(e) => onBilledByChange(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="billed-by">
-            <option value={user?.name || ''}>{user?.name || 'User'}</option>
-            {users.filter((u) => u.name !== user?.name).map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-          </select>
         </div>
         <div className="flex-grow" />
         {creditToBalance > 0 && (

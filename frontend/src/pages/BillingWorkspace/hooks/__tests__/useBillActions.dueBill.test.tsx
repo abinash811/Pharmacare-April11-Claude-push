@@ -23,7 +23,7 @@ const BASE_SNAPSHOT = {
   billItems: [{ product_sku: 'X', product_name: 'X', batch_no: 'B1', qty: 1, unit_price: 500, gst_percent: 0 }],
   customerName: 'Suresh Kumar', customerPhone: '9876543210', customerId: 'cust-1',
   doctorName: '', paymentType: 'due', paidNow: '100',
-  billedBy: '', billDiscount: 0, billDiscountType: '%',
+  billDiscount: 0, billDiscountType: '%',
   mrpTotal: 500, totalDiscount: 0, totalGst: 0, totalCess: 0,
   grandTotal: 500, subtotal: 500, margin: { amount: 0, percent: 0 },
   draftNumber: null, editingDraftId: null, patientAddress: '', patientAge: '',

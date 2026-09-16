@@ -24,7 +24,7 @@ jest.mock('@/lib/axios', () => ({
 const RETURN = {
   id: 'ret-1', return_number: 'PRET-2026-0001', status: 'confirmed',
   supplier_name: 'Test Distributors', purchase_number: 'PUR-2026-0001',
-  return_date: '2026-09-15', billed_by: 'Admin User', reason: 'near_expiry',
+  return_date: '2026-09-15', reason: 'near_expiry',
   payment_type: 'upi',
   ptr_total: 250, gst_amount: 30, total_value: 280,
   credit_status: 'pending', credit_received: 0, credit_owed: 280,

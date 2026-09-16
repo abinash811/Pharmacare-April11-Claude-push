@@ -2,10 +2,16 @@
  * BillingSubbar
  *
  * Labeled-column metadata strip below the page header.
- * Columns: DATE | PATIENT | DOCTOR | BILLING FOR | BILLED BY | [spacer] | SCAN | PAYMENT
+ * Columns: DATE | PATIENT | DOCTOR | [spacer] | SCAN | PAYMENT
  *
  * In view mode all fields are read-only.
  * Save buttons have been moved to BillingHeader.
+ *
+ * "Billing For" (Self/Other) and "Billed By" removed Sep 16, 2026 — both were
+ * fully decorative (docs/15_ROADMAP.md KNOWN ISSUES): "Billing For" had zero
+ * consumer anywhere, and "Billed By" was silently ignored server-side, which
+ * always credits the real logged-in user via the JWT session regardless of
+ * what was picked here.
  *
  * Props:
  *   viewMode            {'new'|'edit'|'view'}
@@ -15,12 +21,6 @@
  *   onPatientChipClick  {() => void}        — opens PatientSearchModal
  *   doctorName          {string}
  *   onDoctorChange      {(string) => void}
- *   billingFor          {string}            — 'self' | 'other'
- *   onBillingForChange  {(string) => void}
- *   billedBy            {string}
- *   onBilledByChange    {(string) => void}
- *   users               {Array<{id, name}>}
- *   currentUser         {{name: string}|null}
  *   paymentType         {string}
  *   onPaymentTypeChange {(string) => void}
  *   paidNow             {string}            — partial cash amount when paymentType === 'due'
@@ -77,12 +77,6 @@ export default function BillingSubbar({
   onPatientSelect,
   doctorName,
   onDoctorChange,
-  billingFor,
-  onBillingForChange,
-  billedBy,
-  onBilledByChange,
-  users = [],
-  currentUser,
   paymentType,
   onPaymentTypeChange,
   paidNow,
@@ -161,52 +155,6 @@ export default function BillingSubbar({
             readOnly={isView}
             compact
           />
-        </div>
-
-        <ColDivider />
-
-        {/* ── BILLING FOR ─────────────────────────────────────────────── */}
-        <div className="px-5 shrink-0">
-          <span className={LABEL}>Billing For</span>
-          {isView ? (
-            <span className="text-sm font-medium text-gray-900 capitalize">{billingFor || 'Self'}</span>
-          ) : (
-            <select
-              value={billingFor}
-              onChange={(e) => onBillingForChange(e.target.value)}
-              className="text-sm font-medium text-gray-900 bg-transparent border-none focus:outline-none cursor-pointer -ml-0.5"
-              data-testid="billing-for"
-            >
-              <option value="self">Self</option>
-              <option value="other">Other</option>
-            </select>
-          )}
-        </div>
-
-        <ColDivider />
-
-        {/* ── BILLED BY ───────────────────────────────────────────────── */}
-        <div className="px-5 shrink-0">
-          <span className={LABEL}>Billed By</span>
-          {isView ? (
-            <span className="text-sm font-medium text-gray-900">
-              {billedBy || currentUser?.name || '–'}
-            </span>
-          ) : (
-            <select
-              value={billedBy}
-              onChange={(e) => onBilledByChange(e.target.value)}
-              className="text-sm font-medium text-gray-900 bg-transparent border-none focus:outline-none cursor-pointer -ml-0.5 max-w-[100px] truncate"
-              data-testid="billed-by"
-            >
-              <option value={currentUser?.name || ''}>{currentUser?.name || 'User'}</option>
-              {users
-                .filter((u) => u.name !== currentUser?.name)
-                .map((u) => (
-                  <option key={u.id} value={u.name}>{u.name}</option>
-                ))}
-            </select>
-          )}
         </div>
 
         {/* ── Spacer ───────────────────────────────────────────────────── */}

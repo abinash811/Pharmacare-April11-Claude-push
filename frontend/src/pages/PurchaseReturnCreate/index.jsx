@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
-import { AuthContext } from '@/App';
 import { ArrowLeft, ChevronDown, Calendar as CalendarIcon, Printer, Trash2, Package } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -14,7 +13,6 @@ import PurchaseReturnFinaliseModal from './components/PurchaseReturnFinaliseModa
 
 export default function PurchaseReturnCreate() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
   const purchaseId = searchParams.get('purchase_id');
 
@@ -23,13 +21,11 @@ export default function PurchaseReturnCreate() {
   const [supplier, setSupplier]       = useState({ id: null, name: '' });
   const [invoiceNo, setInvoiceNo]     = useState('');
   const [purchaseNumber, setPurchaseNumber] = useState('');
-  const [billedBy, setBilledBy]       = useState(user?.name || '');
   const [paymentType, setPaymentType] = useState('credit');
   const [reason, setReason]           = useState(PURCHASE_RETURN_REASON.DAMAGED);
   const [note, setNote]               = useState('');
   const [items, setItems]             = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [users, setUsers]             = useState([]);
   const [showFinaliseModal, setShowFinaliseModal] = useState(false);
   const [isSaving, setIsSaving]       = useState(false);
   const [totals, setTotals]           = useState({ ptrTotal: 0, gstAmount: 0, netAmount: 0 });
@@ -37,7 +33,6 @@ export default function PurchaseReturnCreate() {
   useEffect(() => {
     if (purchaseId) { fetchPurchaseForReturn(purchaseId); }
     else { toast.error('No purchase ID provided'); navigate('/purchases'); }
-    fetchUsers();
   }, [purchaseId]); // eslint-disable-line
   useEffect(() => { calculateTotals(); }, [items]); // eslint-disable-line
 
@@ -66,10 +61,6 @@ export default function PurchaseReturnCreate() {
       })));
       setLoading(false);
     } catch (err) { toast.error(err.message || 'Failed to load purchase'); navigate('/purchases'); }
-  };
-
-  const fetchUsers = async () => {
-    try { const res = await api.get(`/users`); setUsers(res.data || []); } catch { /* silent */ }
   };
 
   const calculateTotals = () => {
@@ -104,7 +95,7 @@ export default function PurchaseReturnCreate() {
       const res = await api.post(`/purchase-returns`, {
         supplier_id: supplier.id, purchase_id: purchaseId,
         return_date: format(returnDate, 'yyyy-MM-dd'),
-        billed_by: billedBy, payment_type: paymentType, reason, note,
+        payment_type: paymentType, reason, note,
         items: items.filter((i) => i.return_qty > 0).map((item) => ({
           product_sku: item.product_sku, product_name: item.medicine_name,
           batch_id: item.batch_id, batch_no: item.batch_no,
@@ -167,12 +158,6 @@ export default function PurchaseReturnCreate() {
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
               <span className="text-[10px] text-gray-500 uppercase font-medium">Inv#</span>
               <span className="text-sm font-medium text-gray-700">{invoiceNo || '—'}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <select value={billedBy} onChange={(e) => setBilledBy(e.target.value)} className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none cursor-pointer pr-1" data-testid="billed-by">
-                <option value={user?.name || ''}>{user?.name || 'User'}</option>
-                {users.filter((u) => u.name !== user?.name).map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-              </select>
             </div>
             <div className="flex-grow" />
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">

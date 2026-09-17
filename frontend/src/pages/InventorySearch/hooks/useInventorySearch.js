@@ -1,15 +1,18 @@
 /**
  * useInventorySearch
  *
- * Owns search query, active filters, inventory results, pagination,
- * and summary counters. Wires debounced search → fetch.
+ * Owns search query, active filters, inventory results, and pagination.
+ * Wires debounced search → fetch. Always fetches (including on mount) —
+ * with no search/filters yet, the page's default landing state shows the
+ * 10 most recently added medicines instead of a blank "search to begin"
+ * screen; search/filters are how a pharmacist reaches the rest of the
+ * catalog.
  *
  * Returns:
  *   searchQuery, setSearchQuery
  *   activeFilters, applyFilters, removeFilter, clearAllFilters
  *   filterOptions
- *   inventory, loading, hasSearched
- *   summary  { total, low_stock, expiring_soon }
+ *   inventory, loading, hasActiveQuery  — false = showing the default 10-recent view
  *   currentPage, totalPages, totalItems, setPage
  *   refetch  () — re-run current fetch (after add/edit/adjust)
  */
@@ -48,9 +51,10 @@ export function useInventorySearch() {
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS);
 
   const [inventory,   setInventory]   = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [summary,     setSummary]     = useState({ total: 0, low_stock: 0, expiring_soon: 0 });
+  // Starts true: the page always fetches on mount now (default view = 10
+  // most recently added), so there's no pre-fetch frame to render — see
+  // Manifesto rule 16, no blank/flash screen while data loads.
+  const [loading,     setLoading]     = useState(true);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages,  setTotalPages]  = useState(1);
@@ -58,7 +62,7 @@ export function useInventorySearch() {
 
   const debouncedSearch = useDebounce(searchQuery, 500);
 
-  // ── Load filter options + summary on mount ──────────────────────────────
+  // ── Load filter options on mount ────────────────────────────────────────
   // Extracted so refetch() (called after add/edit/adjust) can force a real
   // re-fetch, not just null the cache for some future component mount that
   // may never happen in a single-page app — a newly added brand/category/
@@ -91,25 +95,19 @@ export function useInventorySearch() {
 
   useEffect(() => {
     loadFilterOptions();
-
-    (async () => {
-      try {
-        const res = await api.get(apiUrl.inventory({ page: 1, page_size: 1 }));
-        setSummary({
-          total:          res.data.pagination?.total_items || 0,
-          low_stock:      res.data.summary?.warning_count  || 0,
-          expiring_soon:  res.data.summary?.critical_count || 0,
-        });
-      } catch { /* silent */ }
-    })();
   }, [loadFilterOptions]);
 
   // ── Fetch when debounced search or filters change ───────────────────────
+  const hasActiveQuery = debouncedSearch.length >= 2 || Object.keys(activeFilters).length > 0;
+
   const fetchInventory = useCallback(async (page = currentPage) => {
     setLoading(true);
     try {
-      const params = { page, page_size: 20 };
-      if (debouncedSearch)           params.search          = debouncedSearch;
+      // No search/filters yet (the page's default landing state): show only
+      // the 10 most recently added medicines — search/filters are how a
+      // pharmacist reaches the rest of the catalog, not pagination.
+      const params = { page, page_size: hasActiveQuery ? 20 : 10 };
+      if (debouncedSearch.length >= 2) params.search        = debouncedSearch;
       if (activeFilters.stock_status) params.status_filter  = activeFilters.stock_status;
       if (activeFilters.category)     params.category_filter = activeFilters.category;
       if (activeFilters.requires_refrigeration) params.cold_chain_only = true;
@@ -129,9 +127,7 @@ export function useInventorySearch() {
   }, [debouncedSearch, activeFilters, currentPage]);
 
   useEffect(() => {
-    const shouldSearch = debouncedSearch.length >= 2 || Object.keys(activeFilters).length > 0;
-    if (shouldSearch) { fetchInventory(currentPage); setHasSearched(true); }
-    else { setInventory([]); setHasSearched(false); }
+    fetchInventory(currentPage);
   }, [debouncedSearch, activeFilters, currentPage]);
 
   // ── Filter helpers ───────────────────────────────────────────────────────
@@ -153,14 +149,6 @@ export function useInventorySearch() {
 
   const refetch = useCallback(() => {
     fetchInventory(currentPage);
-    // Refresh summary counts too
-    api.get(apiUrl.inventory({ page: 1, page_size: 1 })).then(res => {
-      setSummary({
-        total:         res.data.pagination?.total_items || 0,
-        low_stock:     res.data.summary?.warning_count  || 0,
-        expiring_soon: res.data.summary?.critical_count || 0,
-      });
-    }).catch(() => {});
     loadFilterOptions(true); // real re-fetch, not just a cache null — see loadFilterOptions above
   }, [fetchInventory, currentPage, loadFilterOptions]);
 
@@ -168,8 +156,7 @@ export function useInventorySearch() {
     searchQuery, setSearchQuery,
     activeFilters, applyFilters, removeFilter, clearAllFilters,
     filterOptions,
-    inventory, loading, hasSearched,
-    summary,
+    inventory, loading, hasActiveQuery,
     currentPage, totalPages, totalItems, setPage,
     refetch,
   };

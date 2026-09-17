@@ -30,11 +30,14 @@ export default function InventorySearch() {
     searchQuery, setSearchQuery,
     activeFilters, applyFilters, removeFilter, clearAllFilters,
     filterOptions,
-    inventory, loading, hasSearched,
-    summary,
+    inventory, loading, hasActiveQuery,
     currentPage, totalPages, totalItems, setPage,
     refetch,
   } = useInventorySearch();
+
+  // True only for a genuinely empty pharmacy (no medicines added yet) —
+  // otherwise the default view shows the 10 most recently added.
+  const isEmptyPharmacy = !hasActiveQuery && totalItems === 0;
 
   // ── Selection state ───────────────────────────────────────────────────────
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -69,7 +72,6 @@ export default function InventorySearch() {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const handleApplyFilters = (filters) => { applyFilters(filters); setShowFilterDrawer(false); };
-  const handleViewLowStock = () => applyFilters({ stock_status: 'low_stock' });
 
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
@@ -115,16 +117,12 @@ export default function InventorySearch() {
         />
 
         {/* Results area */}
-        {!hasSearched ? (
-          <InventoryEmptyState
-            summary={summary}
-            onFocusSearch={() => searchInputRef.current?.focus()}
-            onViewLowStock={handleViewLowStock}
-          />
-        ) : loading ? (
+        {loading ? (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <TableSkeleton rows={8} columns={6} />
           </div>
+        ) : isEmptyPharmacy ? (
+          <InventoryEmptyState onAddMedicine={() => setShowAddModal(true)} />
         ) : inventory.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">
             No medicines found for your search.{hasActiveFilters && ' Try clearing some filters.'}

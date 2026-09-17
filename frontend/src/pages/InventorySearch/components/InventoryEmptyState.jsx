@@ -1,19 +1,15 @@
 /**
- * InventoryEmptyState — shown before any search is made.
- * Displays summary cards (total items / low stock / expiring soon)
- * and two CTA buttons (Recent Searches + View Low Stock).
+ * InventoryEmptyState — shown only for a genuinely empty pharmacy
+ * (no medicines added yet). Once at least one medicine exists, the
+ * page's default view shows the 10 most recently added instead.
  * Props:
- *   summary        {{ total, low_stock, expiring_soon }}
- *   onFocusSearch  {() => void}
- *   onViewLowStock {() => void}
+ *   onAddMedicine  {() => void}
  */
 import React from 'react';
-import { Search, Package, AlertTriangle, Clock } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 
-export default function InventoryEmptyState({ summary = {}, onFocusSearch, onViewLowStock }) {
-  const { total = 0, low_stock = 0, expiring_soon = 0 } = summary;
-
+export default function InventoryEmptyState({ onAddMedicine }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-dashed">
       {/* Hero */}
@@ -24,63 +20,18 @@ export default function InventoryEmptyState({ summary = {}, onFocusSearch, onVie
               <Package className="w-12 h-12 text-brand" />
             </div>
           </div>
-          <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-white rounded-lg shadow-md flex items-center justify-center">
-            <Search className="w-5 h-5 text-gray-400" />
-          </div>
         </div>
 
         <h3 className="text-xl font-semibold text-gray-900 mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
-          Ready to manage stock?
+          No medicines yet
         </h3>
         <p className="text-gray-500 text-center max-w-md mb-6">
-          Start searching or apply filters to manage your medicine inventory and track stock levels.
+          Add your first medicine to start tracking stock levels, batches, and expiry dates.
         </p>
 
-        <div className="flex items-center gap-3">
-          <AppButton variant="secondary" onClick={onFocusSearch}>
-            Recent Searches
-          </AppButton>
-          <AppButton onClick={onViewLowStock} data-testid="view-low-stock-btn">
-            View Low Stock
-          </AppButton>
-        </div>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4 p-6 border-t border-gray-100">
-        <div className="bg-sky-50 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{total.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-red-50 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{low_stock}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-amber-50 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Expiring Soon</p>
-              <p className="text-2xl font-bold text-gray-900">{expiring_soon}</p>
-            </div>
-          </div>
-        </div>
+        <AppButton onClick={onAddMedicine} data-testid="empty-state-add-medicine-btn">
+          Add Medicine
+        </AppButton>
       </div>
     </div>
   );

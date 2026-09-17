@@ -592,6 +592,15 @@ async def get_inventory_with_health(
         query = query.where(ProductORM.storage_location == location_filter)
 
     products = (await db.execute(query)).scalars().all()
+    # No search/filters applied (the page's default landing state): show the
+    # most recently added medicines first instead of the severity-based sort
+    # below, so a pharmacy isn't greeted with the oldest-alphabetical items —
+    # filters/search remain how a pharmacist reaches the rest of the catalog.
+    no_filters_applied = not any([
+        search, status_filter, category_filter, brand_filter, cold_chain_only,
+        dosage_form_filter, schedule_filter, gst_filter is not None, location_filter])
+    if no_filters_applied:
+        products = sorted(products, key=lambda p: p.created_at, reverse=True)
     product_ids = [p.id for p in products]
     batch_rows = (await db.execute(select(BatchORM).where(
         BatchORM.product_id.in_(product_ids), BatchORM.is_active))).scalars().all()
@@ -625,11 +634,12 @@ async def get_inventory_with_health(
 
     if status_filter:
         items = [i for i in items if i["status"] == status_filter]
-    items.sort(
-        key=lambda x: (
-            x["severity"],
-            x["nearest_expiry"] or "9999-12-31",
-            x["product"]["name"].lower()))
+    if not no_filters_applied:
+        items.sort(
+            key=lambda x: (
+                x["severity"],
+                x["nearest_expiry"] or "9999-12-31",
+                x["product"]["name"].lower()))
     total_items = len(items)
     start = (page - 1) * page_size
     return {

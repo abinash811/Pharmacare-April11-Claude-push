@@ -106,27 +106,29 @@ export default function AuthPage() {
       <div className="hidden md:flex w-[42%] bg-sidebar flex-col p-8 relative overflow-hidden flex-shrink-0">
         <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full border-[40px] border-brand/[0.08]" />
         <div className="absolute -top-10 -left-10 w-40 h-40 rounded-full border-[28px] border-brand/[0.06]" />
-        <div className="flex items-center gap-2 mb-auto relative z-10">
+        <div className="flex items-center gap-2 relative z-10">
           <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center">
             <BrandIcon cls="w-4 h-4 text-white" />
           </div>
           <span className="text-sm font-semibold text-white">PharmaCare</span>
         </div>
-        <div className="mb-8 relative z-10">
-          <h2 className="text-[22px] font-bold text-white leading-snug mb-2">Run your pharmacy<br/>with confidence</h2>
-          <p className="text-xs text-white/45 leading-relaxed">Billing, inventory, purchases, compliance<br/>and GST — all in one place.</p>
-        </div>
-        <div className="flex flex-col gap-2 relative z-10">
-          {TRUST_ITEMS.map(item => (
-            <div key={item} className="flex items-center gap-2 text-[11px] text-white/50">
-              <div className="w-[18px] h-[18px] rounded-[5px] bg-white/[0.07] flex items-center justify-center flex-shrink-0">
-                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
+        <div className="flex-1 flex flex-col justify-center gap-8 relative z-10">
+          <div>
+            <h2 className="text-[22px] font-bold text-white leading-snug mb-2">Run your pharmacy<br/>with confidence</h2>
+            <p className="text-xs text-white/45 leading-relaxed">Billing, inventory, purchases, compliance<br/>and GST — all in one place.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {TRUST_ITEMS.map(item => (
+              <div key={item} className="flex items-center gap-2 text-[11px] text-white/50">
+                <div className="w-[18px] h-[18px] rounded-[5px] bg-white/[0.07] flex items-center justify-center flex-shrink-0">
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                {item}
               </div>
-              {item}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -146,7 +148,6 @@ export default function AuthPage() {
 
         <Card className="w-full max-w-sm relative z-10 shadow-[0_20px_60px_rgba(0,0,0,0.30)] md:shadow-[0_4px_20px_rgba(0,0,0,0.08)]" data-testid="auth-card">
           <CardHeader className="text-center">
-            <p className="text-[10px] font-bold text-brand uppercase tracking-widest mb-1">Sign in</p>
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>Enter your credentials to continue</CardDescription>
           </CardHeader>

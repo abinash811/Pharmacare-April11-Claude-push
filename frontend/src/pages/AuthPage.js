@@ -112,12 +112,12 @@ export default function AuthPage() {
           </div>
           <span className="text-sm font-semibold text-white">PharmaCare</span>
         </div>
-        <div className="flex-1 flex flex-col justify-center gap-8 relative z-10">
+        <div className="flex-1 flex flex-col items-center justify-center gap-10 relative z-10 text-center">
           <div>
-            <h2 className="text-[22px] font-bold text-white leading-snug mb-2">Run your pharmacy<br/>with confidence</h2>
-            <p className="text-xs text-white/45 leading-relaxed">Billing, inventory, purchases, compliance<br/>and GST — all in one place.</p>
+            <h2 className="text-[28px] font-bold text-white leading-tight mb-3">Run your pharmacy<br/>with confidence</h2>
+            <p className="text-sm text-white/45 leading-relaxed max-w-[260px] mx-auto">Billing, inventory, purchases, compliance<br/>and GST — all in one place.</p>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col items-center gap-3">
             {TRUST_ITEMS.map(item => (
               <div key={item} className="flex items-center gap-2 text-[11px] text-white/50">
                 <div className="w-[18px] h-[18px] rounded-[5px] bg-white/[0.07] flex items-center justify-center flex-shrink-0">

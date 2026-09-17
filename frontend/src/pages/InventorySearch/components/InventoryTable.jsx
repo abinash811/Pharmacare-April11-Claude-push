@@ -52,11 +52,12 @@ export default function InventoryTable({
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — compact row density: less vertical padding, single-line
+          medicine cell, smaller icon, so more medicines fit per screen. */}
       <table className="w-full" data-testid="inventory-results-table">
         <thead className="bg-gray-50 border-b border-gray-100">
           <tr>
-            <th className="w-12 px-4 py-3">
+            <th className="w-10 px-4 py-2">
               <input type="checkbox"
                 checked={selectedItems.size === inventory.length && inventory.length > 0}
                 onChange={(e) => onSelectAll(e.target.checked)}
@@ -64,7 +65,7 @@ export default function InventoryTable({
                 data-testid="select-all-checkbox" />
             </th>
             {['Medicine','Total Stock','Location','Discount %','Nearest Expiry','Status','Actions'].map((h) => (
-              <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider tracking-wider ${h === 'Total Stock' || h === 'Discount %' || h === 'Actions' ? 'text-right' : 'text-left'} ${h === 'Status' ? 'text-center' : ''}`}>
+              <th key={h} className={`px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider tracking-wider ${h === 'Total Stock' || h === 'Discount %' || h === 'Actions' ? 'text-right' : 'text-left'} ${h === 'Status' ? 'text-center' : ''}`}>
                 {h}
               </th>
             ))}
@@ -80,7 +81,7 @@ export default function InventoryTable({
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(item); } }}
               data-testid={`inventory-row-${item.product.sku}`}
             >
-              <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+              <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox"
                   checked={selectedItems.has(item.product.sku)}
                   onChange={(e) => onSelectItem(item.product.sku, e.target.checked)}
@@ -88,30 +89,29 @@ export default function InventoryTable({
                   data-testid={`select-${item.product.sku}`} />
               </td>
 
-              <td className="px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                    <Package className="w-6 h-6 text-gray-400" />
+              <td className="px-4 py-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                    <Package className="w-4 h-4 text-gray-400" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-gray-900 truncate" title={item.product.name}>{item.product.name}</p>
-                      {item.product.strength && (
-                        <span className="text-xs text-gray-500 shrink-0">{item.product.strength}</span>
-                      )}
-                      {item.product.requires_refrigeration && (
-                        <span title="Requires refrigeration" data-testid={`cold-chain-${item.product.sku}`}>
-                          <Snowflake className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500 truncate" title={item.product.manufacturer || item.product.brand || ''}>{item.product.manufacturer || item.product.brand || '–'}</p>
-                    <p className="text-xs text-gray-400">{item.product.pack_info || `${item.product.units_per_pack || 1} units/pack`}</p>
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-gray-900 truncate" title={item.product.name}>{item.product.name}</p>
+                    {item.product.strength && (
+                      <span className="text-xs text-gray-500 shrink-0">{item.product.strength}</span>
+                    )}
+                    {item.product.requires_refrigeration && (
+                      <span title="Requires refrigeration" data-testid={`cold-chain-${item.product.sku}`}>
+                        <Snowflake className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 truncate shrink-0" title={item.product.manufacturer || item.product.brand || ''}>
+                      · {item.product.manufacturer || item.product.brand || '–'}
+                    </span>
                   </div>
                 </div>
               </td>
 
-              <td className="px-4 py-4 text-right">
+              <td className="px-4 py-2 text-right">
                 <span className="font-semibold text-gray-900">{item.total_qty_units?.toLocaleString() || 0}</span>
                 <span className="text-gray-500 text-sm ml-1">units</span>
               </td>
@@ -122,19 +122,19 @@ export default function InventoryTable({
                   showed "Default" for every product regardless of what was
                   actually set, even though Medicine Detail displayed the
                   real value correctly from the same field. */}
-              <td className="px-4 py-4 text-gray-700">{item.product.storage_location || 'Default'}</td>
+              <td className="px-4 py-2 text-gray-700">{item.product.storage_location || 'Default'}</td>
 
-              <td className="px-4 py-4 text-right text-gray-700">{item.product.discount_percent || 0}%</td>
+              <td className="px-4 py-2 text-right text-gray-700">{item.product.discount_percent || 0}%</td>
 
-              <td className="px-4 py-4">
+              <td className="px-4 py-2">
                 <span className={`text-sm ${item.status === 'expired' || item.status === 'near_expiry' ? 'text-orange-600 font-medium' : 'text-gray-700'}`}>
                   {formatDate(item.nearest_expiry)}
                 </span>
               </td>
 
-              <td className="px-4 py-4 text-center"><StatusBadge status={item.status || 'healthy'} dot /></td>
+              <td className="px-4 py-2 text-center"><StatusBadge status={item.status || 'healthy'} dot /></td>
 
-              <td className="px-4 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+              <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-end gap-2">
                   <AppButton variant="ghost" iconOnly icon={<Edit2 className="w-4 h-4" />} onClick={(e) => onEdit(item, e)} title="Edit" data-testid={`edit-${item.product.sku}`} />
                   <AppButton variant="ghost" iconOnly icon={<Scale className="w-4 h-4" />} onClick={(e) => onAdjust(item, e)} title="Adjust Stock" data-testid={`adjust-${item.product.sku}`} />

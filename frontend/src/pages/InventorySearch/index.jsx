@@ -14,7 +14,6 @@ import { useInventorySearch }  from './hooks/useInventorySearch';
 import InventorySearchBar      from './components/InventorySearchBar';
 import InventoryEmptyState     from './components/InventoryEmptyState';
 import InventoryTable          from './components/InventoryTable';
-import FilterDrawer            from './components/FilterDrawer';
 import BulkUpdateModal         from './components/BulkUpdateModal';
 import { AddMedicineModal }    from '@/components/shared';
 import AdjustStockModal        from './components/AdjustStockModal';
@@ -50,7 +49,6 @@ export default function InventorySearch() {
   };
 
   // ── Modal state ───────────────────────────────────────────────────────────
-  const [showFilterDrawer,   setShowFilterDrawer]   = useState(false);
   const [showBulkModal,      setShowBulkModal]      = useState(false);
   const [showAddModal,       setShowAddModal]       = useState(false);
   const [showExcelWizard,    setShowExcelWizard]    = useState(false);
@@ -69,9 +67,6 @@ export default function InventorySearch() {
       toast.error(err.response?.data?.detail || 'Bulk update failed');
     }
   };
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const handleApplyFilters = (filters) => { applyFilters(filters); setShowFilterDrawer(false); };
 
   const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
@@ -109,10 +104,11 @@ export default function InventorySearch() {
         <InventorySearchBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          filterOptions={filterOptions}
           activeFilters={activeFilters}
+          onApplyFilters={applyFilters}
           onRemoveFilter={removeFilter}
           onClearAll={clearAllFilters}
-          onOpenFilters={() => setShowFilterDrawer(true)}
           searchInputRef={searchInputRef}
         />
 
@@ -144,16 +140,6 @@ export default function InventorySearch() {
           />
         )}
       </div>
-
-      {/* ── Filter Drawer ─────────────────────────────────────────────────── */}
-      {showFilterDrawer && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30 animate-in fade-in duration-base" onClick={() => setShowFilterDrawer(false)} />
-          <div className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl animate-in slide-in-from-right duration-slower ease-out-smooth">
-            <FilterDrawer filterOptions={filterOptions} activeFilters={activeFilters} onApply={handleApplyFilters} onClose={() => setShowFilterDrawer(false)} />
-          </div>
-        </div>
-      )}
 
       {/* ── Modals ───────────────────────────────────────────────────────── */}
       {showBulkModal && (

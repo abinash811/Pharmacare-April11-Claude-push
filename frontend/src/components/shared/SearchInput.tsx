@@ -8,6 +8,7 @@ export interface SearchInputProps {
   placeholder?: string;
   className?: string;
   inputRef?: React.Ref<HTMLInputElement>;
+  id?: string;
   'data-testid'?: string;
 }
 
@@ -17,6 +18,7 @@ export function SearchInput({
   placeholder = 'Search...',
   className = '',
   inputRef,
+  id,
   'data-testid': testId = 'search-input',
 }: SearchInputProps) {
   return (
@@ -24,6 +26,7 @@ export function SearchInput({
       <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
       <Input
         ref={inputRef}
+        id={id}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

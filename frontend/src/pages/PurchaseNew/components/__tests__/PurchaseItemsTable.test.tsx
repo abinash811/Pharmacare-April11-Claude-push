@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { toast } from 'sonner';
 import PurchaseItemsTable from '../PurchaseItemsTable';
 import api from '@/lib/axios';
 
@@ -10,20 +9,7 @@ jest.mock('@/lib/axios', () => ({
   default: { get: jest.fn() },
 }));
 
-jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
-
 const mockedGet = api.get as jest.Mock;
-
-// The real modal drives a camera library (html5-qrcode) that has no place
-// in jsdom — stand in with a trigger that calls onScan directly, the same
-// contract the real modal honors. Deliberately not a raw button element,
-// since those are banned repo-wide (CLAUDE.md Manifesto rule 1).
-jest.mock('@/components/BarcodeScannerModal', () => ({
-  __esModule: true,
-  useUSBBarcodeScanner: jest.fn(),
-  default: ({ isOpen, onScan }: { isOpen: boolean; onScan: (code: string) => void }) =>
-    isOpen ? <div role="button" onClick={() => onScan('8901234567890')}>mock-scan-trigger</div> : null,
-}));
 
 // The real modal is a full multi-field form (category, dosage form, GST%,
 // opening stock...) already covered by its own tests elsewhere — here we
@@ -48,7 +34,7 @@ const PRODUCT = {
   strength: '500mg', gst_percent: 12,
 };
 
-describe('PurchaseItemsTable — search, barcode scan, add-new-medicine', () => {
+describe('PurchaseItemsTable — search, add-new-medicine', () => {
   beforeEach(() => jest.clearAllMocks());
 
   const baseProps = {
@@ -75,30 +61,6 @@ describe('PurchaseItemsTable — search, barcode scan, add-new-medicine', () => 
 
     expect(onAddItem).toHaveBeenCalledWith(PRODUCT);
     expect(screen.getByTestId('product-search')).toHaveValue('');
-  });
-
-  it('adds a product found by barcode scan, even with no stock yet', async () => {
-    mockedGet.mockResolvedValueOnce({ data: { found: true, has_stock: false, product: PRODUCT } });
-    const onAddItem = jest.fn();
-    render(<PurchaseItemsTable {...baseProps} onAddItem={onAddItem} />);
-
-    await userEvent.click(screen.getByTestId('purchase-scan-btn'));
-    fireEvent.click(await screen.findByText('mock-scan-trigger'));
-
-    await waitFor(() => expect(onAddItem).toHaveBeenCalledWith(PRODUCT));
-    expect(mockedGet).toHaveBeenCalledWith(expect.stringContaining('products/barcode/8901234567890'));
-  });
-
-  it('shows an error toast when the scanned barcode matches nothing, without adding an item', async () => {
-    mockedGet.mockResolvedValueOnce({ data: { found: false, message: 'No product found with barcode: 000' } });
-    const onAddItem = jest.fn();
-    render(<PurchaseItemsTable {...baseProps} onAddItem={onAddItem} />);
-
-    await userEvent.click(screen.getByTestId('purchase-scan-btn'));
-    fireEvent.click(await screen.findByText('mock-scan-trigger'));
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('No product found with barcode: 000'));
-    expect(onAddItem).not.toHaveBeenCalled();
   });
 
   it('offers "add as new medicine" when the search finds nothing, prefilled with the typed name and opening stock hidden', async () => {

@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.15 | Last updated: September 16, 2026
+# Version: 1.16 | Last updated: September 17, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -268,8 +268,8 @@ No reversal, no adjustment, no correction path of any kind exists. "Don't allow 
 ### UC-P10: Add medicine by search — ✅ Built (Aug 26, 2026)
 Was client-side name/SKU-only filtering over a 500-product preload (broke past 500 products, and `GET /products` already searched brand/manufacturer/generic/strength server-side — the purchase page just never used it). Switched to the real server-side search; result rows now show strength when present. Still not searched: dosage form, supplier product code (neither field is tracked per-supplier anywhere in the schema — a real gap, not a UI oversight, out of scope here). Current stock/last purchase rate/MRP in the result row were never requested as part of this pass — noted as a possible follow-up, not built.
 
-### UC-P11: Add medicine by barcode — ✅ Built (Aug 26, 2026)
-Reused Billing's exact `BarcodeScannerModal`/`useUSBBarcodeScanner` (camera + manual entry + passive USB listener) and `GET /products/barcode/{code}`, wired to a purchase-specific handler — the one real difference from Billing: never rejects a zero-stock match, since receiving stock for something not yet on hand is the normal purchase case, not an error. Live-verified: search "para" surfaces both a stocked and an out-of-stock product by brand/strength; manual barcode entry with an out-of-stock product's SKU adds it to the line-items table with ₹0 stock and no batches, exactly as expected pre-confirm; an unmatched code shows "No product found for barcode: …" without adding anything.
+### UC-P11: Add medicine by barcode — ❌ Removed (Sep 17, 2026)
+Built Aug 26, 2026 (reused Billing's `BarcodeScannerModal`/`useUSBBarcodeScanner` + `GET /products/barcode/{code}`), removed by direct request along with Billing's equivalent scan feature — see `docs/15_ROADMAP.md`'s matching entry. Typed search still matches an exact `barcode` field value (`ProductORM.barcode == q`), so pasting/typing a barcode number into the search box still finds the product; only the camera/USB scan-to-add workflow and its backend lookup endpoint are gone.
 
 ### UC-P12: Add a new medicine during purchase — ✅ Built (Aug 26, 2026)
 Same shape as UC-P02's inline add-distributor: when a search finds nothing, a "+ Add '<typed text>' as new medicine" row opens the real Add Medicine form (`AddMedicineModal`, moved from `pages/InventorySearch/components/` to `components/shared/` — now used by both Inventory and Purchases, same precedent as `SupplierFormModal`) prefilled with the typed name. On save the newly created product is added straight to the purchase's line items — no separate trip to Inventory, no retyping. Deliberately reuses the full standalone form (category/dosage form/GST%/opening stock) rather than a stripped-down version — a medicine carries real compliance data (Schedule, HSN, GST) a supplier record doesn't, so the "same shape, fewer required fields" simplification that fit UC-P02 doesn't apply here. Live-verified: typed a never-seen medicine name, form opened prefilled, filled category/dosage form, submitted, "Medicine added successfully" toast, item appeared in the purchase's line-items table ready for batch/pricing entry.

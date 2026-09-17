@@ -20,7 +20,6 @@ const BASE_PROPS = {
   doctorName: '', onDoctorChange: jest.fn(),
   paymentType: 'cash', onPaymentTypeChange: jest.fn(),
   paidNow: '', onPaidNowChange: jest.fn(),
-  onBarcodeScan: jest.fn(),
 };
 
 describe('BillingSubbar — Due payment option', () => {

@@ -42,7 +42,6 @@ export const API_ENDPOINTS = {
     BULK_UPDATE:        'products/bulk-update',
     SEARCH_WITH_BATCHES:'products/search-with-batches',
     TRANSACTIONS:       'products/:sku/transactions',
-    BARCODE:            'products/barcode/:barcode',
   },
 
   INVENTORY: {
@@ -216,7 +215,6 @@ export const apiUrl = {
   product:          (id)     => `products/${id}`,
   productBySku:     (sku)    => `products/${sku}`,
   productTransactions:(sku)  => `products/${sku}/transactions`,
-  productBarcode:   (barcode)=> `products/barcode/${barcode}`,
   productMeta:      ()       => API_ENDPOINTS.PRODUCTS.META,
   productsBulkUpdate:()      => API_ENDPOINTS.PRODUCTS.BULK_UPDATE,
   productsSearchWithBatches: (q, params) =>

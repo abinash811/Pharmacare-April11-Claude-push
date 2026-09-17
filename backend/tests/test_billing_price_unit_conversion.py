@@ -7,18 +7,17 @@ mrp_per_unit by the product's units_per_pack a second time. mrp_paise is
 already stored as a per-UNIT price (confirmed by batches.py's own batch
 response, which returns mrp_paise/100 with no conversion) — units_per_pack
 only converts a pack-based quantity into loose units, it never applies to
-price. The result: searching for a medicine during billing (or scanning its
-barcode) showed and actually charged MRP / units_per_pack instead of the
-real MRP — a 90% undercharge for a standard 10-tablet strip, on every sale,
-silently, because create_bill only rejects a submitted price that EXCEEDS
-the real batch MRP, never one that's suspiciously low.
+price. The result: searching for a medicine during billing showed and
+actually charged MRP / units_per_pack instead of the real MRP — a 90%
+undercharge for a standard 10-tablet strip, on every sale, silently,
+because create_bill only rejects a submitted price that EXCEEDS the real
+batch MRP, never one that's suspiciously low.
 
-Both endpoints that feed the billing medicine-search UI share the buggy
-helper (`_get_active_batches` -> `_batch_for_billing`), so both are covered
-here: GET /products/search-with-batches (typed search) and
-GET /products/barcode/{barcode} (barcode/SKU scan). A third test proves the
-whole chain end-to-end: the price the search endpoint returns is the exact
-price a real finalized bill charges.
+Covers GET /products/search-with-batches (typed search), which feeds the
+billing medicine-search UI via the buggy helper (`_get_active_batches` ->
+`_batch_for_billing`). A second test proves the whole chain end-to-end:
+the price the search endpoint returns is the exact price a real finalized
+bill charges.
 
 See docs/15_ROADMAP.md's RULE MISSES LOG for the full writeup.
 """
@@ -46,13 +45,11 @@ class _AuthedTestBase:
         else:
             pytest.skip("Authentication failed - skipping billing price conversion tests")
 
-    def _create_product(self, sku, name, units_per_pack, barcode=None):
+    def _create_product(self, sku, name, units_per_pack):
         payload = {
             "sku": sku, "name": name, "category": "medicine", "gst_percent": 5,
             "units_per_pack": units_per_pack,
         }
-        if barcode:
-            payload["barcode"] = barcode
         resp = self.session.post(f"{BASE_URL}/api/products", json=payload)
         assert resp.status_code == 200, resp.text
         return resp.json()
@@ -93,24 +90,6 @@ class TestBatchPriceNotDividedByPackSize(_AuthedTestBase):
         # qty_on_hand is stored in real units (migration a343c922f896) —
         # total_units is a plain alias, never multiplied by units_per_pack.
         assert batch["total_units"] == 100
-
-    def test_barcode_lookup_returns_real_per_unit_mrp(self):
-        barcode = f"BC{uuid.uuid4().hex[:10]}"
-        sku = f"PRICE-BC-{uuid.uuid4().hex[:8]}"
-        self._create_product(sku, f"PriceBarcodeTest_{uuid.uuid4().hex[:8]}",
-                              units_per_pack=15, barcode=barcode)
-        self._create_batch(sku, qty=50, mrp_per_unit=9.00, cost_per_unit=6.00)
-
-        resp = self.session.get(f"{BASE_URL}/api/products/barcode/{barcode}")
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert data["found"] and data["has_stock"]
-        batch = data["suggested_batch"]
-
-        # The bug would have returned 9.00 / 15 = 0.60 here.
-        assert batch["mrp_per_unit"] == pytest.approx(9.00), (
-            f"Barcode-scan mrp_per_unit was divided by units_per_pack — got "
-            f"{batch['mrp_per_unit']}, expected 9.00")
 
     def test_a_real_finalized_bill_charges_the_real_mrp_not_a_fraction_of_it(self):
         """End-to-end: the price the search endpoint hands the billing UI is

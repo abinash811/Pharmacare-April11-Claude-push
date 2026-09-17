@@ -10,21 +10,18 @@
  *   searchInputRef {React.Ref}
  */
 import React, { useState } from 'react';
-import { Search, Trash2, ScanLine } from 'lucide-react';
-import { toast } from 'sonner';
+import { Search, Trash2 } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import AppButton from '@/components/shared/AppButton';
 import AddMedicineModal from '@/components/shared/AddMedicineModal';
-import BarcodeScannerModal, { useUSBBarcodeScanner } from '@/components/BarcodeScannerModal';
 import { formatCurrency } from '@/utils/currency';
 
 export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, onAddItem, withGST, searchInputRef }) {
   const [searchQuery,       setSearchQuery]       = useState('');
   const [searchResults,     setSearchResults]     = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [showScanner,       setShowScanner]       = useState(false);
   const [showAddMedicine,   setShowAddMedicine]   = useState(false);
   // Captured at click time — the Popover/panel can clear searchQuery before
   // the modal mounts, the same pitfall already fixed once in SupplierDropdown.
@@ -51,29 +48,8 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
     setShowSearchResults(false);
   };
 
-  // Exact-match lookup (USB scanner or the on-screen scan modal). Unlike
-  // Billing's barcode scan, a purchase never rejects a zero-stock product —
-  // receiving stock for something not yet in hand is the normal case here.
-  const handleBarcodeScan = async (code) => {
-    const barcode = code?.trim();
-    if (!barcode) return;
-    try {
-      const res = await api.get(apiUrl.productBarcode(barcode));
-      if (!res.data.found) { toast.error(res.data.message || `No product found for barcode: ${barcode}`); return; }
-      handleAddProduct(res.data.product);
-    } catch { toast.error('Barcode lookup failed'); }
-  };
-
-  useUSBBarcodeScanner(handleBarcodeScan, true);
-
   return (
     <>
-      <BarcodeScannerModal
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={(code) => { setShowScanner(false); handleBarcodeScan(code); }}
-      />
-
       {showAddMedicine && (
         <AddMedicineModal
           initialName={newMedicineName}
@@ -111,10 +87,6 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                       className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-400"
                       data-testid="product-search"
                     />
-                    <AppButton variant="outline" size="sm" icon={<ScanLine className="h-4 w-4" strokeWidth={1.5} />}
-                      onClick={() => setShowScanner(true)} data-testid="purchase-scan-btn">
-                      Scan
-                    </AppButton>
                   </div>
                   {showSearchResults && (searchResults.length > 0 || searchQuery.trim().length >= 2) && (
                     <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">

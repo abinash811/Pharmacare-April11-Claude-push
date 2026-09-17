@@ -28,11 +28,10 @@
  *   paymentSplits       {Array<{method, amount}>} — split legs when paymentType === 'multiple'
  *   onPaymentSplitsChange {(Array) => void}
  *   grandTotal          {number}            — bill total in rupees, for split-sum validation display
- *   onBarcodeScan       {() => void}
  */
 
 import React, { useState } from 'react';
-import { ChevronDown, ScanLine } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -84,7 +83,6 @@ export default function BillingSubbar({
   paymentSplits = /** @type {Array<{method: string, amount: string}>} */ ([]),
   onPaymentSplitsChange = () => {},
   grandTotal = 0,
-  onBarcodeScan,
 }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const isView = viewMode === 'view';
@@ -159,22 +157,6 @@ export default function BillingSubbar({
 
         {/* ── Spacer ───────────────────────────────────────────────────── */}
         <div className="flex-grow" />
-
-        {/* ── Scan (new/edit only) ─────────────────────────────────────── */}
-        {!isView && onBarcodeScan && (
-          <>
-            <AppButton
-              variant="outline"
-              onClick={onBarcodeScan}
-              className="h-auto gap-1.5 px-3 py-1.5 text-sm hover:border-brand hover:text-brand hover:bg-blue-50 mr-3"
-              icon={<ScanLine className="w-4 h-4" />}
-              title="Scan barcode (Ctrl+B)"
-              data-testid="barcode-scan-btn"
-            >
-              Scan
-            </AppButton>
-          </>
-        )}
 
         {/* ── PAYMENT ─────────────────────────────────────────────────── */}
         <div className="pl-3 shrink-0">

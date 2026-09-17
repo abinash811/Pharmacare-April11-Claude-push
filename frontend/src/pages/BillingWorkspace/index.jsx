@@ -10,7 +10,6 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useBillItems }       from './hooks/useBillItems';
 import { useBillActions }     from './hooks/useBillActions';
-import { useBarcodeScan }     from './hooks/useBarcodeScan';
 import BillingHeader          from './components/BillingHeader';
 import BillingSubbar          from './components/BillingSubbar';
 import BillingTable           from './components/BillingTable';
@@ -19,7 +18,6 @@ import FinaliseModal          from './components/FinaliseModal';
 import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
-import BarcodeScannerModal from '@/components/BarcodeScannerModal';
 import CollectPaymentModal from '@/components/CollectPaymentModal';
 import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
@@ -188,10 +186,6 @@ export default function BillingWorkspace() {
   const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
     useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo, autoPrintInvoice);
 
-  // ── Barcode scanner ───────────────────────────────────────────────────────
-  const { showBarcodeScanner, setShowBarcodeScanner, handleBarcodeScan } =
-    useBarcodeScan(viewMode, addItem, saveDraft);
-
   // ── Render ────────────────────────────────────────────────────────────────
   if (isInitialising) return <PageSkeleton />;
 
@@ -225,7 +219,6 @@ export default function BillingWorkspace() {
           paidNow={paidNow} onPaidNowChange={setPaidNow}
           paymentSplits={paymentSplits} onPaymentSplitsChange={setPaymentSplits}
           grandTotal={grandTotal}
-          onBarcodeScan={() => setShowBarcodeScanner(true)}
         />
 
         <BillingTable
@@ -268,11 +261,6 @@ export default function BillingWorkspace() {
         onClose={() => setShowCollectPayment(false)} onSuccess={() => loadExistingBill(billId)}
       />
       <PrintReceipt billData={savedBillData} format={printFormat} />
-      <BarcodeScannerModal
-        isOpen={showBarcodeScanner}
-        onClose={() => setShowBarcodeScanner(false)}
-        onScan={(barcode) => { setShowBarcodeScanner(false); handleBarcodeScan(barcode); }}
-      />
     </div>
   );
 }

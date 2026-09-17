@@ -1,6 +1,6 @@
 """
 Backend Tests for P0 (Critical Optimizations) and P1 (Core Feature Completion)
-- P0: Barcode lookup API, Product search with barcode
+- P0: Product search
 - P1: Customers CRUD, Doctors CRUD, Reports (Low Stock, Expiry, Sales Summary)
 """
 import random
@@ -39,28 +39,12 @@ def auth_headers(auth_token):
     return {"Authorization": f"Bearer {auth_token}", "Content-Type": "application/json"}
 
 
-# ===================== P0: BARCODE LOOKUP TESTS =====================
-class TestBarcodeLookup:
-    """P0: Fast barcode lookup API tests"""
+# ===================== P0: PRODUCT SEARCH TESTS =====================
+class TestProductSearchWithBatches:
+    """P0: Fast product search API tests"""
 
-    def test_barcode_lookup_nonexistent(self, auth_headers):
-        """Test barcode lookup with non-existent barcode"""
-        response = requests.get(f"{API}/products/barcode/9999999999999", headers=auth_headers)
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("found") is False
-        assert "No product found" in data.get("message", "")
-
-    def test_barcode_lookup_endpoint_accessible(self, auth_headers):
-        """Verify barcode endpoint is accessible with auth"""
-        response = requests.get(f"{API}/products/barcode/TEST123", headers=auth_headers)
-        # Should return 200 even if not found (returns found: False)
-        assert response.status_code == 200
-        data = response.json()
-        assert "found" in data
-
-    def test_product_search_with_barcode_param(self, auth_headers):
-        """Test product search includes barcode in searchable fields"""
+    def test_product_search_with_batches(self, auth_headers):
+        """Test product search returns matching results with batch data"""
         response = requests.get(
             f"{API}/products/search-with-batches",
             params={

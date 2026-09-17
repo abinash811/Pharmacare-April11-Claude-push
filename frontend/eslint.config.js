@@ -82,9 +82,9 @@ module.exports = [
       // Logged in docs/15_ROADMAP.md RULE MISSES LOG; fix the 88 instances
       // in a dedicated pass, then flip this back to 'error'.
       'jsx-a11y/label-has-associated-control': 'warn',
-      // Real, pre-existing pattern: 3 modal/panel inputs use autoFocus so
-      // typing starts immediately on open (PatientCombobox, PatientSearchModal,
-      // BarcodeScannerModal). Intentional UX, but a real accessibility trade-off
+      // Real, pre-existing pattern: modal/panel inputs use autoFocus so
+      // typing starts immediately on open (PatientCombobox, PatientSearchModal).
+      // Intentional UX, but a real accessibility trade-off
       // (unexpected focus jump for screen-reader users) that was never reviewed
       // against that lens. Same precedent as above — warn, don't block, revisit
       // deliberately rather than silently keep or silently strip autoFocus.

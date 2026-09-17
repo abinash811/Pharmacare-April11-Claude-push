@@ -199,7 +199,6 @@ export default function BillingHeader({
                     { key: 'Ctrl+F', label: 'Focus medicine search' },
                     { key: 'F8',     label: 'Park / hold bill'       },
                     { key: 'F12',    label: 'Save & print'           },
-                    { key: 'Ctrl+B', label: 'Open barcode scanner'   },
                     { key: 'Esc',    label: 'Close modal'            },
                   ].map(({ key, label }) => (
                     <div key={key} className="flex items-center justify-between">

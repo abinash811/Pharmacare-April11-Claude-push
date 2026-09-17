@@ -280,45 +280,6 @@ async def bulk_update_products(data: dict, current_user: User = Depends(
     return {"message": f"Updated {count} products", "modified_count": count}
 
 
-@router.get("/products/barcode/{barcode}")
-async def lookup_by_barcode(
-        barcode: str,
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)):
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
-    result = await db.execute(
-        select(ProductORM).where(ProductORM.pharmacy_id == pharmacy_id, ProductORM.deleted_at.is_(None),
-                                 or_(ProductORM.barcode == barcode, ProductORM.sku == barcode))
-    )
-    product = result.scalar_one_or_none()
-    if not product:
-        return {"found": False, "message": f"No product found with barcode: {barcode}"}
-    batches = await _get_active_batches(product, db)
-    if not batches:
-        return {"found": True, "product": _product_response(
-            product), "has_stock": False, "message": "Product found but no stock available"}
-    total_qty = sum(b["qty_on_hand"] for b in batches)
-    return {
-        "found": True,
-        "has_stock": True,
-        "product": {
-            "product_id": str(
-                product.id),
-            "sku": product.sku,
-            "name": product.name,
-            "brand": product.brand,
-            "pack_size": product.pack_size,
-            "units_per_pack": product.units_per_pack,
-            "gst_percent": float(
-                product.gst_rate),
-            "barcode": product.barcode,
-            "total_stock": total_qty,
-            "total_units": total_qty},
-        "batches": batches,
-        "suggested_batch": batches[0],
-    }
-
-
 @router.get("/products/search-with-batches")
 async def search_products_with_batches(q: str,
                                        current_user: User = Depends(get_current_user),

@@ -101,7 +101,7 @@ export default function AuditLog() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h1>
           <p className="text-gray-600">Audit logs are accessible to admins only.</p>
         </div>
       </div>

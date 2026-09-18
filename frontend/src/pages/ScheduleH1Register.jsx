@@ -103,7 +103,7 @@ export default function ScheduleH1Register() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md">
           <AlertTriangle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h1>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">Access Restricted</h1>
           <p className="text-gray-600">
             The Schedule H1 Drug Register is only accessible to <strong>Admin</strong> and <strong>Manager</strong> roles.
           </p>

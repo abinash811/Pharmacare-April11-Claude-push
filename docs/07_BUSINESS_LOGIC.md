@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.8 | Last updated: September 16, 2026
+# Version: 2.9 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -699,7 +699,7 @@ match existing call sites' conventions rather than inventing new values.
 | Hard delete a bill | Legal document — must exist forever | Yes — no DELETE route on bills |
 | Hard delete a batch | Drug recall tracking requires batch history | Yes — soft delete only |
 | Reuse a bill number | Sequential numbering is a legal requirement | Yes — UNIQUE(pharmacy_id, bill_number) + atomic sequence |
-| Change a settled bill | Immutable once stock is deducted — create a return instead | Yes — `PUT /bills/{id}` explicitly 400s unless `status == "draft"` |
+| Change a settled bill after its edit window | GST law forbids silently altering an issued invoice; stock/audit trail must stay real | Yes — `PUT /bills/{id}` allows a same-day correction to a paid/due bill (items/pricing only; payment amount/method preserved, stock reversed+reapplied, audit-logged as `financial_edit`) but 400s once a Sales Return already exists against it, or once that day's Day-End Closing has run. Decided/built Sep 18, 2026 — see `docs/15_ROADMAP.md`'s Billing table |
 | Sell above MRP | Illegal under DPCO | Yes — fixed Aug 22, 2026 (FLOW 1), checked against `batch.mrp_paise` |
 | Bill H1 drug without doctor | Legal requirement | Yes — fixed Aug 22, 2026 (FLOW 6), checked for every item regardless of identifier |
 | Sell more than a batch has on hand | Data integrity | Yes — fixed Aug 22, 2026 (FLOW 1), matches the guard manual adjustments (FLOW 9) already had |

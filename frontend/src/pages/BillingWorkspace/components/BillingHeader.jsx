@@ -9,6 +9,10 @@
  *   viewMode         {'new'|'edit'|'view'}
  *   loadedBill       {object|null}          — populated in view mode
  *   draftNumber      {number|null}          — shown as DRAFT badge in new/edit
+ *   isCorrection     {boolean}              — editing an already-finalized
+ *     (paid/due) bill, same-day, per docs/15_ROADMAP.md's Billing table —
+ *     hides Park Bill (nothing to park, it's already a real invoice) and
+ *     relabels Finalise Bill as Save Changes
  *   isSaving         {boolean}
  *   onBack           {() => void}
  *   onParkBill       {() => void}           — new/edit only
@@ -20,14 +24,15 @@
  *   onHistory        {() => void}           — view only
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Printer, RotateCcw, History, CreditCard,
-  PauseCircle, ChevronDown, CheckCircle, HelpCircle, FileText,
+  PauseCircle, CheckCircle, HelpCircle,
 } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import SavePrintSplitButton from './SavePrintSplitButton';
 
 const FORMAT_OPTIONS = [
   { value: '80mm', label: 'Thermal' },
@@ -38,6 +43,7 @@ export default function BillingHeader({
   viewMode,
   loadedBill,
   draftNumber,
+  isCorrection = false,
   isSaving,
   printFormat = '80mm',
   onPrintFormatChange,
@@ -50,23 +56,13 @@ export default function BillingHeader({
   onReturn,
   onHistory,
 }) {
-  const [showSavePrintMenu, setShowSavePrintMenu] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowSavePrintMenu(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const isNew  = viewMode === 'new';
   const isEdit = viewMode === 'edit';
   const isView = viewMode === 'view';
 
   const title =
-    isNew  ? 'New Bill'      :
+    isNew  ? 'New Bill' :
+    isEdit && isCorrection ? `Edit #${loadedBill?.bill_number || ''}` :
     isEdit ? 'Continue Bill' :
     `#${loadedBill?.bill_number || ''}`;
 
@@ -109,69 +105,33 @@ export default function BillingHeader({
         {(isNew || isEdit) && (
           <div className="flex items-center gap-2">
 
-            {/* Park Bill */}
-            <AppButton
-              variant="outline"
-              size="sm"
-              onClick={onParkBill}
-              disabled={isSaving}
-              shortcut="F8"
-              icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
-              data-testid="park-bill-btn"
-            >
-              Park Bill
-            </AppButton>
+            {/* Park Bill — not offered when correcting an already-finalized
+                bill: it's a real invoice, there's nothing to "park" back
+                into a draft. */}
+            {!isCorrection && (
+              <AppButton
+                variant="outline"
+                size="sm"
+                onClick={onParkBill}
+                disabled={isSaving}
+                shortcut="F8"
+                icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
+                data-testid="park-bill-btn"
+              >
+                Park Bill
+              </AppButton>
+            )}
 
             {/* Save & Print (split button) */}
-            <div className="relative flex" ref={menuRef}>
-              <AppButton
-                variant="outline"
-                size="sm"
-                onClick={onSavePrint}
-                disabled={isSaving}
-                shortcut="F12"
-                icon={<Printer className="w-4 h-4" />}
-                className="rounded-r-none"
-                data-testid="save-print-btn"
-              >
-                Save &amp; Print
-              </AppButton>
-              <AppButton
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSavePrintMenu((v) => !v)}
-                disabled={isSaving}
-                className="px-1.5 rounded-l-none border-l-0"
-                icon={<ChevronDown className={`w-3.5 h-3.5 transition-transform ${showSavePrintMenu ? 'rotate-180' : ''}`} />}
-                data-testid="save-print-menu-btn"
-                aria-label="More options"
-              />
+            <SavePrintSplitButton
+              onSavePrint={onSavePrint}
+              onParkBill={onParkBill}
+              isSaving={isSaving}
+              isCorrection={isCorrection}
+            />
 
-              {showSavePrintMenu && (
-                <div className="absolute top-full right-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
-                  <AppButton
-                    variant="ghost"
-                    onClick={() => { setShowSavePrintMenu(false); onSavePrint(); }}
-                    className="w-full justify-start px-4 py-2.5 text-sm text-gray-700"
-                    icon={<Printer className="w-4 h-4 text-gray-400" />}
-                    data-testid="save-print-option"
-                  >
-                    Save &amp; Print
-                  </AppButton>
-                  <AppButton
-                    variant="ghost"
-                    onClick={() => { setShowSavePrintMenu(false); onParkBill(); }}
-                    className="w-full justify-start px-4 py-2.5 text-sm text-gray-700 border-t border-gray-100 rounded-t-none"
-                    icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
-                    data-testid="park-bill-option"
-                  >
-                    Park bill
-                  </AppButton>
-                </div>
-              )}
-            </div>
-
-            {/* Finalise Bill — primary CTA */}
+            {/* Finalise Bill — primary CTA (relabeled Save Changes when
+                correcting an already-finalized bill, not finalizing a new one) */}
             <AppButton
               onClick={onFinalise}
               disabled={isSaving}
@@ -179,7 +139,7 @@ export default function BillingHeader({
               icon={!isSaving ? <CheckCircle className="w-4 h-4" /> : undefined}
               data-testid="finalise-btn"
             >
-              {isSaving ? 'Saving…' : 'Finalise Bill'}
+              {isSaving ? 'Saving…' : isCorrection ? 'Save Changes' : 'Finalise Bill'}
             </AppButton>
 
             {/* Keyboard shortcut legend */}

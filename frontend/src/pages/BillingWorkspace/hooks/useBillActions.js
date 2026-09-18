@@ -9,13 +9,15 @@
  *
  * The hook does NOT own bill state — it only reads the snapshot values
  * passed in via `billSnapshot` and fires callbacks on success/failure.
+ * Payload-building and pre-save guards live in ../utils/buildBillPayload.js
+ * (split out Sep 18, 2026 to keep this file under the 300-line rule).
  */
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import { getPaymentSplitsError } from '../utils/validatePaymentSplits';
+import { isDuePayment, buildBillBase, guardBillForSave } from '../utils/buildBillPayload';
 
 /**
  * @param {object} billSnapshot  — read-only snapshot of current bill state
@@ -39,100 +41,26 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   const navigate  = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  const buildItemPayload = (items) => items.map((item) => ({
-    product_sku:      item.product_sku,
-    product_name:     item.product_name,
-    batch_no:         item.batch_no,
-    quantity:         item.qty,
-    unit_price:       item.unit_price,
-    discount_percent: item.discount_percent,
-    gst_percent:      item.gst_percent,
-    cess_percent:     item.cess_percent || 0,
-    line_total:       item.net_amount,
-    cost_price:       item.cost_price || item.unit_price * 0.7,
-  }));
-
-  // A "Due" bill's payment_method reflects how any paid-now portion was
-  // actually collected (always cash for v1 — see BillingSubbar's Paid Now
-  // field), not the "due" chip itself; a zero-paid-now due bill has no
-  // real payment method yet. This keeps Day-End Closing's cash
-  // reconciliation (reports.py _day_end_breakdown) accurate: it sums
-  // amount_paid_paise per payment_method, so a partially-paid due bill
-  // must be tagged by what was actually collected, not by "due".
-  const isDuePayment = () => billSnapshot.paymentType === 'due';
-  const paidNowPaise = () => Math.round((Number(billSnapshot.paidNow) || 0) * 100);
-
-  // A "Multi" bill is only sent to the backend as payment_method: "multiple"
-  // when its splits are actually complete (2+ rows, real method + amount
-  // each) — an incomplete split (e.g. while parking mid-entry) falls back
-  // to plain "cash" rather than sending payment_method: "multiple" with no
-  // real breakdown, which the backend would reject anyway (_resolve_payment_
-  // splits in billing.py validates eagerly regardless of draft status).
-  const isMultiPayment = () => billSnapshot.paymentType === 'multiple';
-  const validMultiSplits = () => {
-    const splits = billSnapshot.paymentSplits || [];
-    return splits.length >= 2 && splits.every((s) => s.method && Number(s.amount) > 0);
+  const guard = (opts) => {
+    const err = guardBillForSave(billSnapshot, opts);
+    if (err) toast.error(err);
+    return !err;
   };
 
-  const buildBillBase = (status) => {
-    const {
-      billItems, customerName, customerPhone, customerId, doctorName, paymentType, totalDiscount,
-      patientAddress, patientAge, paymentSplits,
-    } = billSnapshot;
-    const due = isDuePayment();
-    const paidNowAmount = due ? paidNowPaise() / 100 : undefined;
-    const multi = isMultiPayment() && validMultiSplits();
-    return {
-      customer_name:   customerName || 'Walk-in Customer',
-      customer_mobile: customerPhone,
-      customer_id:     customerId || undefined,
-      doctor_name:     doctorName,
-      patient_address: patientAddress || undefined,
-      patient_age:     patientAge ? Number(patientAge) : undefined,
-      payment_method:  due ? (paidNowAmount > 0 ? 'cash' : 'due')
-        : multi ? 'multiple'
-        : (paymentType === 'multiple' ? 'cash' : (paymentType || 'cash')),
-      payments:        due && paidNowAmount > 0
-        ? [{ amount: paidNowAmount }]
-        : multi
-          ? paymentSplits.map((s) => ({ method: s.method, amount: Number(s.amount) }))
-          : undefined,
-      items:           buildItemPayload(billItems),
-      discount:        totalDiscount,
-      tax_rate:        billItems.length > 0 ? billItems[0].gst_percent : 5,
-      status,
-    };
-  };
-
-  const guardItems = () => {
-    if (billSnapshot.billItems.length === 0) {
-      toast.error('Add items to bill first');
-      return false;
-    }
-    return true;
-  };
-
-  const guardDuePayment = () => {
-    if (!isDuePayment()) return true;
-    const paidNowRupees = Number(billSnapshot.paidNow) || 0;
-    if (paidNowRupees < 0) {
-      toast.error('Paid now cannot be negative.');
-      return false;
-    }
-    if (paidNowRupees > billSnapshot.grandTotal) {
-      toast.error('Paid now cannot be more than the bill total — the rest stays due.');
-      return false;
-    }
-    return true;
-  };
-
-  const guardMultiPayment = () => {
-    if (!isMultiPayment()) return true;
-    const splitError = getPaymentSplitsError(billSnapshot.paymentSplits || [], billSnapshot.grandTotal);
-    if (splitError) { toast.error(splitError); return false; }
-    return true;
-  };
+  // Editing an existing bill (a resumed draft, or a same-day correction to
+  // an already-finalized bill — docs/15_ROADMAP.md's Billing table, Sep 18
+  // 2026) must PUT to the real row, not POST a brand-new one. Found while
+  // wiring this: every save path here always POSTed, even in edit mode —
+  // resuming and finalizing a parked draft silently left the original
+  // DRAFT-xxxx row behind as an orphan instead of updating it. Routing
+  // through PUT when editingDraftId is set fixes that same-shaped bug too.
+  const isEditingExisting = () => !!billSnapshot.editingDraftId;
+  const submitBill = (payload) => isEditingExisting()
+    ? api.put(apiUrl.bill(billSnapshot.editingDraftId), payload)
+    : api.post(apiUrl.bills(), payload);
+  const savedMsg = (res, created) => isEditingExisting()
+    ? `Bill #${res.data.bill_number} updated!`
+    : `Bill #${res.data.bill_number} ${created}!`;
 
   const afterSuccess = () => {
     localStorage.removeItem('billing_draft');
@@ -142,11 +70,11 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBill ─────────────────────────────────────────────────────────────
   const saveBill = useCallback(async () => {
-    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
-    const status = isDuePayment() ? 'due' : 'paid';
+    if (!guard()) return;
+    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     try {
-      const res = await api.post(apiUrl.bills(), buildBillBase(status));
-      toast.success(`Bill #${res.data.bill_number} created successfully!`);
+      const res = await submitBill(buildBillBase(billSnapshot, status));
+      toast.success(savedMsg(res, 'created successfully'));
       afterSuccess();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save bill');
@@ -155,12 +83,12 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── saveBillAndPrint ──────────────────────────────────────────────────────
   const saveBillAndPrint = useCallback(async () => {
-    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
+    if (!guard()) return;
     const { paymentType, billItems, customerName, customerPhone, doctorName, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
-    const status = isDuePayment() ? 'due' : 'paid';
+    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     try {
-      const res = await api.post(apiUrl.bills(), buildBillBase(status));
-      toast.success(`Bill #${res.data.bill_number} created!`);
+      const res = await submitBill(buildBillBase(billSnapshot, status));
+      toast.success(savedMsg(res, 'created'));
       onPrintReady?.({
         ...printPharmacyInfo,
         bill_number:    res.data.bill_number,
@@ -187,9 +115,9 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── parkBill ─────────────────────────────────────────────────────────────
   const parkBill = useCallback(async () => {
-    if (!guardItems()) return;
+    if (!guard({ requirePayment: false })) return;
     try {
-      await api.post(apiUrl.bills(), buildBillBase('draft'));
+      await submitBill(buildBillBase(billSnapshot, 'draft'));
       toast.success('Bill parked! Can be resumed later.');
       afterSuccess();
     } catch (err) {
@@ -199,7 +127,7 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
 
   // ── confirmAndSaveBill (finalise) ─────────────────────────────────────────
   const confirmAndSaveBill = useCallback(async ({ internalNote }) => {
-    if (!guardItems() || !guardDuePayment() || !guardMultiPayment()) return;
+    if (!guard()) return;
     setIsSaving(true);
     const {
       paymentType, mrpTotal, totalDiscount, totalGst, totalCess,
@@ -214,9 +142,9 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         : billDiscount;
     }
 
-    const status = isDuePayment() ? 'due' : 'paid';
+    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     const payload = {
-      ...buildBillBase(status),
+      ...buildBillBase(billSnapshot, status),
       mrp_total:      mrpTotal,
       item_discount:  totalDiscount - billDiscAmt,
       bill_discount:  billDiscAmt,
@@ -234,8 +162,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
     };
 
     try {
-      const res = await api.post(apiUrl.bills(), payload);
-      toast.success(`Bill #${res.data.bill_number} created successfully!`);
+      const res = await submitBill(payload);
+      toast.success(savedMsg(res, 'created successfully'));
       if (autoPrintInvoice) {
         // Settings → Billing "Auto-print invoice after checkout" — found
         // Sep 13, 2026 (Settings product-review): this toggle saved but

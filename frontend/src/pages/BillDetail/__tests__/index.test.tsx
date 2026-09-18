@@ -5,10 +5,14 @@ import BillDetail from '../index';
 import api from '@/lib/axios';
 
 // Regression tests for the Sep 15, 2026 product-review finding: a
-// finalized (paid/due) bill had no return entry point at all — "Edit
-// Bill" was correctly hidden here already (a GST invoice can't be
-// silently altered post-issue), but that also silently removed the only
-// click path to file a return. "Return Items" is the real, direct fix.
+// finalized (paid/due) bill had no return entry point at all — "Return
+// Items" is the real, direct fix.
+//
+// "Edit Bill" was hidden for paid/due bills until Sep 18, 2026, when the
+// same-day bill-edit policy (docs/15_ROADMAP.md's Billing table) shipped:
+// a paid/due bill can now be corrected until that day's Day-End Closing
+// runs, so the button always shows — the backend is the real gate and
+// returns a clear reason (return exists / day closed) if it's too late.
 
 jest.mock('@/lib/axios', () => ({
   __esModule: true,
@@ -65,9 +69,20 @@ describe('BillDetail — Return Items entry point', () => {
     expect(screen.queryByTestId('return-items-btn')).not.toBeInTheDocument();
   });
 
-  it('never shows "Edit Bill" for a due or paid bill (the dead end this replaces)', async () => {
+  it('shows "Edit Bill" for a due bill (same-day correction, per the Sep 18 2026 policy)', async () => {
     renderPage(mockBill({ status: 'due' }));
     await screen.findByTestId('return-items-btn');
-    expect(screen.queryByText('Edit Bill')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit Bill')).toBeInTheDocument();
+  });
+
+  it('shows "Edit Bill" for a paid bill too', async () => {
+    renderPage(mockBill({ status: 'paid', due_amount: 0 }));
+    await screen.findByTestId('return-items-btn');
+    expect(screen.queryByText('Edit Bill')).toBeInTheDocument();
+  });
+
+  it('shows "Edit Bill" for a parked/draft bill (unaffected — always could be edited)', async () => {
+    renderPage(mockBill({ status: 'draft', bill_number: 'DRAFT-001' }));
+    expect(await screen.findByText('Edit Bill')).toBeInTheDocument();
   });
 });

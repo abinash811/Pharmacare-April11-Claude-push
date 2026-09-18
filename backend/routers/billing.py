@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from deps import get_db
 from models.billing import (
     Bill as BillORM, BillItem as BillItemORM, BillPaymentSplit as BillPaymentSplitORM,
-    ScheduleH1Register,
+    DayEndClosing as DayEndClosingORM, SalesReturn as SalesReturnORM, ScheduleH1Register,
 )
 from models.customers import Customer as CustomerORM, Doctor as DoctorORM
 from models.pharmacy import Pharmacy, PharmacySettings
@@ -816,12 +816,67 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
 
     bill = await get_owned_or_404(db, BillORM, bill_id, pharmacy_id, not_found_detail="Bill not found")
     bid = bill.id
-    if bill.status != "draft":
-        raise HTTPException(status_code=400, detail="Only draft bills can be edited")
+    if bill.status not in ("draft", "paid", "due"):
+        raise HTTPException(status_code=400, detail=f"Bills with status '{bill.status}' cannot be edited")
 
-    # Delete old items
+    # Same-day edit window for a finalized bill (direct product decision,
+    # Sep 18 2026 — see docs/15_ROADMAP.md's Billing table). Locked forever
+    # once either condition below holds — from there, only a Sales Return
+    # can correct it, never a silent rewrite: (1) a Sales Return already
+    # exists against this bill (editing now would fight the return over the
+    # same line items/stock); (2) that day's Day-End Closing has already
+    # run (books are closed for the day).
+    was_finalized = bill.status in ("paid", "due")
+    if was_finalized:
+        return_exists = (await db.execute(
+            select(SalesReturnORM.id).where(SalesReturnORM.original_bill_id == bid).limit(1)
+        )).scalar_one_or_none()
+        if return_exists:
+            raise HTTPException(
+                status_code=400,
+                detail="This bill has a return recorded against it and can no longer be edited.")
+        already_closed = (await db.execute(
+            select(DayEndClosingORM.id).where(
+                DayEndClosingORM.pharmacy_id == pharmacy_id,
+                DayEndClosingORM.closing_date == bill.bill_date,
+            ).limit(1)
+        )).scalar_one_or_none()
+        if already_closed:
+            raise HTTPException(
+                status_code=400,
+                detail="This bill's day has already been closed and can no longer be edited.")
+
+    old_bill_snapshot = {
+        "grand_total": bill.grand_total_paise / 100, "status": bill.status,
+        "customer_name": bill.customer_name, "payment_method": bill.payment_method,
+    } if was_finalized else None
+    old_paid_paise = bill.amount_paid_paise
+    old_payment_method = bill.payment_method
+
+    # Delete old items — reversing their stock effect first if the bill was
+    # already finalized (a draft never touched stock, nothing to reverse).
     old_items_result = await db.execute(select(BillItemORM).where(BillItemORM.bill_id == bid))
-    for old_item in old_items_result.scalars().all():
+    old_items = old_items_result.scalars().all()
+    if was_finalized:
+        # old_item is a child row of the already-scoped bill (tenant-safe below)
+        for old_item in old_items:
+            batch_q = select(BatchORM).where(BatchORM.id == old_item.batch_id)  # tenant-safe: see above
+            batch = (await db.execute(batch_q)).scalar_one_or_none()
+            prod_q = select(ProductORM).where(ProductORM.id == old_item.product_id)  # tenant-safe: see above
+            product = (await db.execute(prod_q)).scalar_one_or_none()
+            if batch and product:
+                old_was_sale = bill.invoice_type == "SALE"
+                await _deduct_stock_and_record(
+                    batch, product, old_item.quantity, not old_was_sale, bid, pharmacy_id, user_id, db)
+        # H1 register rows are a legal dispensing record (Rule 65) — detach
+        # rather than delete, so the original entry survives permanently
+        # even though the bill_item it pointed at is about to be removed.
+        # A fresh entry is created below for the rebuilt items.
+        h1_result = await db.execute(
+            select(ScheduleH1Register).where(ScheduleH1Register.bill_id == bid))
+        for h1_entry in h1_result.scalars().all():
+            h1_entry.bill_item_id = None
+    for old_item in old_items:
         await db.delete(old_item)
     await db.flush()
 
@@ -834,7 +889,11 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
     item_orms: list[tuple[BillItemORM, BatchORM, ProductORM]] = []
 
     new_status_preview = bill_data.status or "draft"
-    is_finalizing_preview = new_status_preview == "paid" and bill.status == "draft"
+    # A same-day edit to an already-finalized bill (was_finalized) produces
+    # another real, binding sale record just as much as finalizing a draft
+    # does — the legal/safety guards below (H1 prescriber, MRP cap, expired/
+    # near-expiry stock) must re-apply to it, not just to the draft path.
+    is_finalizing_preview = (new_status_preview == "paid" and bill.status == "draft") or was_finalized
     is_sale_preview = bill_data.invoice_type == "SALE"
 
     # See the identical block in create_bill for why this is safe to
@@ -977,9 +1036,16 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
             paid_paise = sum(int(p.get("amount", 0) * 100) for p in bill_data.payments)
         elif bill_data.payment_method:
             paid_paise = grand_total_paise
+    elif was_finalized:
+        # This is a correction to items/pricing on an already-settled bill,
+        # not a new payment collection (that's Collect Payment, a separate
+        # flow) — preserve exactly what cash was actually taken, and only
+        # let the corrected total change how much is still owed.
+        paid_paise = old_paid_paise
+        bill_data.payment_method = old_payment_method
 
     balance_paise = max(0, grand_total_paise - paid_paise)
-    if is_finalizing:
+    if is_finalizing or was_finalized:
         new_status = "paid" if balance_paise <= 0 else "due"
 
     # Sep 15, 2026: due/partial-payment bills are allowed again (reversing
@@ -1032,8 +1098,10 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
 
     await db.flush()
 
-    # Deduct stock if finalizing
-    if is_finalizing:
+    # Deduct stock if finalizing (draft -> paid) or if this is a same-day
+    # correction to an already-finalized bill — was_finalized's old stock
+    # effect was already reversed above, before the items were rebuilt.
+    if is_finalizing or was_finalized:
         for bill_item, batch, product in item_orms:
             is_sale = bill_data.invoice_type == "SALE"
             await _deduct_stock_and_record(
@@ -1044,6 +1112,7 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
                     bill_data.doctor_name, bill_data.customer_name, pharmacy_id, user_id, db,
                     bill_data.patient_address, bill_data.patient_age)
 
+    if is_finalizing:
         # Real, separate pre-existing gap closed here (necessary for this
         # feature to work correctly, not a gratuitous side fix): finalizing
         # a draft into a paid bill never wrote ANY audit_logs row at all —
@@ -1062,6 +1131,24 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
              "payment_method": bill.payment_method,
              "payment_splits": [{"method": s["method"], "amount": s["amount_paise"] / 100}
                                 for s in payment_splits] if payment_splits else None},
+            db, ip_address=_client_ip(request),
+        )
+    elif was_finalized:
+        # Deliberately a different action name from "create"/"payment" —
+        # Day-End Closing's cash breakdown (reports.py _day_end_breakdown)
+        # only reads those two, so this edit is correctly invisible to it.
+        # That's intentional, not a gap: paid_paise above is unchanged from
+        # before the edit (nothing new was collected), so the real cash
+        # attribution for the day is still accurate without this event —
+        # only the corrected total/balance (read live off the Bill row)
+        # needs to show up, which it already does.
+        await _record_audit(
+            pharmacy_id, user_id, "financial_edit", "invoice", bill.id,
+            old_bill_snapshot,
+            {"bill_number": bill.bill_number, "status": new_status,
+             "customer_name": bill.customer_name, "total_amount": grand_total_paise / 100,
+             "paid_amount": paid_paise / 100, "due_amount": balance_paise / 100,
+             "payment_method": bill.payment_method},
             db, ip_address=_client_ip(request),
         )
 

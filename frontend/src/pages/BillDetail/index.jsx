@@ -149,13 +149,13 @@ export default function BillDetail() {
               Return Items
             </AppButton>
           )}
-          {/* Editing is only real for a parked/draft bill (BillingWorkspace
-              opens a finalized one read-only — a GST invoice can't be
-              silently altered). Showing "Edit Bill" on a paid/due bill was a
-              dead end: it opened the workspace with every field locked. */}
-          {isParked && (
-            <AppButton icon={<Edit className="w-4 h-4" strokeWidth={1.5} />} onClick={() => navigate(`/billing/edit/${bill.id}`)}>Edit Bill</AppButton>
-          )}
+          {/* Same-day edit policy (decided Sep 18, 2026, docs/15_ROADMAP.md):
+              a paid/due bill can still be corrected until that day's
+              Day-End Closing runs, unless a return already exists against
+              it. Always show the button — the backend is the real gate and
+              returns a clear reason (return exists / day closed) if it's
+              too late; BillingWorkspace surfaces that as a toast. */}
+          <AppButton icon={<Edit className="w-4 h-4" strokeWidth={1.5} />} onClick={() => navigate(`/billing/edit/${bill.id}`)}>Edit Bill</AppButton>
         </div>
       </div>
 

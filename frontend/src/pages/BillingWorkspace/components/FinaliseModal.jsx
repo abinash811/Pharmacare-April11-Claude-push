@@ -16,6 +16,10 @@
  *   grandTotal        {number}
  *   margin            {{ amount: number, percent: number }}
  *   isSaving          {boolean}
+ *   isCorrection      {boolean} — editing an already-finalized bill; the
+ *     actual payment amount/method is preserved server-side and can't be
+ *     changed here (see docs/15_ROADMAP.md's Billing table) — only items/
+ *     pricing shown below are what's actually being saved
  *   onConfirm         {(notes: { internalNote }) => void}
  */
 import React, { useState } from 'react';
@@ -39,6 +43,7 @@ export default function FinaliseModal({
   grandTotal     = 0,
   margin         = { amount: 0, percent: 0 },
   isSaving       = false,
+  isCorrection   = false,
   onConfirm,
 }) {
   const [internalNote, setInternalNote] = useState('');
@@ -71,7 +76,7 @@ export default function FinaliseModal({
         <DialogHeader className="px-6 py-4 border-b border-gray-200 shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="text-lg">Finalise Bill</DialogTitle>
+              <DialogTitle className="text-lg">{isCorrection ? 'Save Bill Changes' : 'Finalise Bill'}</DialogTitle>
               <p className="text-sm text-gray-500 mt-0.5">{customerName || 'Counter Sale'}</p>
             </div>
           </div>
@@ -128,14 +133,24 @@ export default function FinaliseModal({
                 />
               </div>
 
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <span className="text-xs text-gray-400 block mb-1">Payment Method</span>
-                <span className="font-semibold text-gray-700 capitalize">
-                  {paymentType === 'multiple' ? 'Multi' : (paymentType || 'Not selected')}
-                </span>
-              </div>
+              {isCorrection ? (
+                <div className="p-3 bg-blue-50 rounded-lg" data-testid="correction-payment-note">
+                  <p className="text-sm text-blue-800">
+                    This saves your item/pricing correction only. The payment
+                    already collected stays as-is — use Collect Payment on the
+                    bill to change what's been paid.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <span className="text-xs text-gray-400 block mb-1">Payment Method</span>
+                  <span className="font-semibold text-gray-700 capitalize">
+                    {paymentType === 'multiple' ? 'Multi' : (paymentType || 'Not selected')}
+                  </span>
+                </div>
+              )}
 
-              {paymentType === 'multiple' && paymentSplits.length > 0 && (
+              {!isCorrection && paymentType === 'multiple' && paymentSplits.length > 0 && (
                 <div className="p-3 bg-gray-50 rounded-lg space-y-1" data-testid="multi-split-summary">
                   {paymentSplits.map((s, i) => (
                     <div key={i} className="flex justify-between text-sm">
@@ -146,7 +161,7 @@ export default function FinaliseModal({
                 </div>
               )}
 
-              {paymentType === 'due' && (
+              {!isCorrection && paymentType === 'due' && (
                 <div className="p-3 bg-amber-50 rounded-lg space-y-1" data-testid="due-summary">
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-700">Paid now</span>
@@ -167,7 +182,7 @@ export default function FinaliseModal({
                 icon={<span className="material-symbols-outlined">check_circle</span>}
                 data-testid="confirm-save-btn"
               >
-                Confirm &amp; Save Bill
+                {isCorrection ? 'Save Changes' : 'Confirm & Save Bill'}
               </AppButton>
             </div>
           </div>

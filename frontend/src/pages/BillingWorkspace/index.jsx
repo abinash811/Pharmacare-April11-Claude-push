@@ -102,8 +102,13 @@ export default function BillingWorkspace() {
       const bill = (await api.get(apiUrl.bill(id))).data;
       setLoadedBill(bill);
       const status = bill.status?.toLowerCase();
-      if (status === 'parked' || status === 'draft') { setViewMode('edit'); setEditingDraftId(bill.id); }
-      else setViewMode('view');
+      // Same-day correction (paid/due) reuses edit mode too — see
+      // docs/15_ROADMAP.md's Billing table, Sep 18 2026. The backend is the
+      // real gate (return already exists / day already closed); this just
+      // opens the fields for editing exactly like a draft would.
+      if (status === 'parked' || status === 'draft' || status === 'paid' || status === 'due') {
+        setViewMode('edit'); setEditingDraftId(bill.id);
+      } else setViewMode('view');
       setCustomerName(bill.customer_name || 'Walk-in Customer');
       setCustomerPhone(bill.customer_mobile || bill.customer_phone || '');
       setCustomerId(bill.customer_id || null);
@@ -186,6 +191,12 @@ export default function BillingWorkspace() {
   const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
     useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo, autoPrintInvoice);
 
+  // Editing an already-finalized (paid/due) bill, not finalizing a new one —
+  // changes header labels/actions (no Park Bill, "Save Changes" instead of
+  // "Finalise Bill") per docs/15_ROADMAP.md's Billing table, Sep 18 2026.
+  const isCorrection = viewMode === 'edit' && loadedBill
+    && loadedBill.status !== 'draft' && loadedBill.status !== 'parked';
+
   // ── Render ────────────────────────────────────────────────────────────────
   if (isInitialising) return <PageSkeleton />;
 
@@ -197,6 +208,7 @@ export default function BillingWorkspace() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <BillingHeader
         viewMode={viewMode} loadedBill={loadedBill} draftNumber={draftNumber}
+        isCorrection={isCorrection}
         isSaving={isSaving}
         printFormat={printFormat} onPrintFormatChange={setPrintFormat}
         onBack={() => navigate('/billing')}
@@ -254,6 +266,7 @@ export default function BillingWorkspace() {
         billDiscount={billDiscount} billDiscountType={billDiscountType}
         totalGst={totalGst} totalCess={totalCess} grandTotal={grandTotal} margin={margin}
         isSaving={isSaving}
+        isCorrection={isCorrection}
         onConfirm={(notes) => confirmAndSaveBill(notes).then(() => setShowFinalise(false))}
       />
       <CollectPaymentModal

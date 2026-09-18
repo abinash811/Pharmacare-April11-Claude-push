@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.18 | Last updated: September 18, 2026
+# Version: 2.19 | Last updated: September 18, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -28,23 +28,12 @@
 
 ## DESIGN SYSTEM — VISUAL AUTHORITY
 
-**Location:** `PharmaCare Design System/` folder in the project root.
-
-> Before building any new page, component, or UI pattern — **check this folder first.**
-> The HTML previews are the ground truth for visual output. Code must match them.
-
-| File | What it governs |
-|------|----------------|
-| `colors_and_type.css`                   | All brand color + typography + spacing + motion tokens — single file, not split into `tokens/colors.css`/`tokens/typography.css` (those don't exist; this table listed them for a while, a live example of the doc-drift problem) |
-| `preview/design-auth.html`              | Auth page — split layout, both breakpoints |
-| `preview/design-billing-shortcuts.html` | Billing header — shortcut badges, legend popover |
-| `preview/design-dashboard-zero.html`    | Dashboard — zero state for new pharmacies |
-| `preview/motion.html`                   | Duration/easing scale — same tokens as `colors_and_type.css`, rendered as chips |
-| ...35 more `preview/*.html` files        | One per pattern (buttons, modals, forms, tables, empty states, dark mode, etc.) — this table is a sample, not the full index; browse the folder |
-
-**Rule:** If a design preview exists for what you're building, match it exactly. If none exists, follow CLAUDE.md patterns and create a preview after shipping.
-
-> ⛔ HARD STOP: Before writing ANY component, page, or UI pattern — open this folder and check. No exceptions. No skipping. Code first = rework guaranteed.
+**Location:** `PharmaCare Design System/` folder in the project root — HTML
+previews are the ground truth for visual output; code must match them.
+⛔ Before writing ANY component, page, or UI pattern, open this folder
+and check — no exceptions. Full table of what each preview governs now
+lives in `.claude/rules/design-system.md` (auto-loads when you touch
+frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 
 ---
 
@@ -62,21 +51,12 @@
 
 ## DOCS INDEX
 
-> Restructured September 5, 2026. All rules, patterns, and decisions live
-> here. One topic per file, no overlap. File numbers/paths are unchanged —
-> only how they're grouped below changed, so every existing link still
-> works. Every doc now carries a `# Type:` line in its own header matching
-> one of the 4 groups below — check that line if a file's category is ever
-> unclear from this list.
->
-> **Read by what you need, not top to bottom:**
-> - Need a **fact or rule** to check against? → **Reference**
-> - Need **steps to do a task**? → **How-To**
-> - Need to understand **why** something is the way it is (so you don't
->   relitigate a decided question)? → **Explanation**
-> - Need **current state** (what's built, what's broken, what's next)? →
->   **Living Status** — the only group that changes constantly; always
->   re-read fresh, never trust memory of it from an old session.
+> All rules, patterns, and decisions live here — one topic per file. Each
+> doc's `# Type:` header line says which group it's in; read by what you
+> need, not top to bottom: **Reference** (a fact/rule to check), **How-To**
+> (steps for a task), **Explanation** (why, so you don't relitigate a
+> decided question), or **Living Status** (current state — always re-read
+> fresh, never trust memory of it).
 
 ### Reference — facts and rules to check against
 
@@ -126,303 +106,44 @@
 
 ## HOW CLAUDE WORKS WITH ABINASH — WORKFLOW AGREEMENT
 
-> Added April 26, 2026, after a session working through local setup, a pre-commit
-> enforcement system, and an Inventory design-consistency fix together.
+> Full history and rationale for every rule below (why it was added, what
+> broke without it, what changed) moved to `docs/15_ROADMAP.md`'s "HOW
+> CLAUDE WORKS WITH ABINASH — FULL HISTORY" section, Sep 18, 2026, per
+> Anthropic's documented 200-line CLAUDE.md target. Read it before
+> assuming a one-line rule below is the whole story.
 
-- **Branch, not main.** Claude works on the session's feature branch (see
-  `docs/04_GIT_WORKFLOW.md`), never commits straight to `main`.
-- **Commit + push automatically as checkpoints.** After each finished, verified
-  change, Claude commits and pushes to that branch without waiting to be asked —
-  these are cheap, reversible checkpoints, not a final decision.
-- **The confirmation moment is the PR merge into `main`.** Abinash reviews and
-  decides there. That's the one point that actually matters — everything before
-  it is safe to move fast on.
-- **Enforcement is real, not aspirational.** `.githooks/pre-commit` (set up once
-  per machine via `git config core.hooksPath .githooks`) blocks a commit that
-  breaks a rule in this file, and says which rule and why. `scripts/design-guard.sh`
-  runs the same checks across the whole repo in CI.
-- **Doc-worthy decisions get written down.** A rule, preference, or workflow
-  change stated in conversation only exists in that conversation — it does NOT
-  persist to a new session or a teammate's Claude unless it's written into this
-  file or the relevant `docs/*.md`. When something said in chat should become a
-  standing rule, Claude flags it and asks before/after updating the doc — silence
-  is not consent to skip it, but Claude also doesn't rewrite policy on a guess.
-- **A bug that slips past a written rule gets named, not just fixed.** When a
-  real bug is found that a CLAUDE.md/docs rule should have prevented, Claude
-  says which rule, in the chat response itself, and whether it wasn't
-  enforced (a tooling gap) or wasn't followed (an execution gap) — then
-  closes the gap, automated gate first, doc wording only if no automated
-  check is realistic — and logs it in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
-  Abinash shouldn't have to ask "which rule broke" after the fact — see that
-  section for the full process and the first logged example.
-- **Docs and commit messages: bullets, not paragraphs.** Added August 23,
-  2026 — long prose entries in `docs/15_ROADMAP.md` and commit messages
-  were burning tokens for no real benefit. Roadmap findings, fixes, and
-  commit messages use short bullet points (what broke, why, what changed) —
-  not multi-paragraph explanations. The RULE MISSES LOG's 5-step structure
-  (name the rule, why it wasn't caught, fix, gate closed, log it) still
-  applies — just written as bullets, not prose.
-- **Batch fixes before spinning up servers to verify.** Added August 23,
-  2026 — a live-verify pass (start backend+frontend, drive it, tear down)
-  costs tokens; doing one per individual fix instead of one per batch was
-  wasteful. Default:
-  - If more than one fix is already known/queued for the same page or
-    feature (e.g. an audit surfaces several bugs), list them all, get
-    them approved, fix all of them, then do ONE verification pass.
-  - Still verify immediately, without waiting to batch, when: it's a
-    single isolated fix with nothing else pending, Abinash says it's
-    urgent, or the fix is high-risk (money/stock/compliance logic) and
-    needs its own check before moving on.
-  - When in doubt, ask "want me to batch this with anything else you
-    have queued, or verify now?" rather than guessing.
-- **Run the FULL backend test suite before pushing any backend change —
-  never a topic-filtered subset as the last check.** Added September 12,
-  2026, direct question ("why was this missed, how do we not repeat it")
-  after a fix to `billing.py` (rejecting bills with zero items) was
-  committed and pushed on the strength of a `-k "billing or bill_"`
-  filtered run alone. That filtered run passed, but it excluded
-  `test_multi_tenancy_isolation.py` — the fix had put a new check in the
-  wrong order relative to an existing one, breaking two tenant-isolation
-  tests outside the filter. The real, full-suite run (kicked off
-  afterward, in the background) caught it, but only after the broken
-  version was already pushed.
-  - A scoped/filtered test run is fine as a fast first check while
-    iterating. It is never sufficient as the last check before a push —
-    kick off the real, full `pytest tests/` (backend) / full `craco test`
-    (frontend) run and wait for it before pushing, every time a backend
-    router or shared frontend hook/util changes, not just when a change
-    "feels" cross-cutting.
-  - This is the same root shape as Manifesto rule 11's cross-cutting
-    map — a change can be locally correct and still break something a
-    narrower check can't see — applied to test selection instead of code
-    review.
-- **Chat replies stay under 100 words.** Added August 23, 2026, direct
-  request. Applies to conversational answers, not code/docs/commit
-  content — those keep whatever length the task genuinely needs.
-- **Default to the standard, simpler fix over the flexible one.** Added
-  August 24, 2026. When a bug fix has a design choice (e.g. reject
-  outright vs. allow-with-a-flag), pick the simpler, more conventional
-  option by default — reconsider only if real usage after launch shows
-  a genuine need for the more flexible behavior. Don't build the
-  flexible option speculatively.
-- **Abinash is non-technical — keep every technical instruction dead
-  simple.** Added August 26, 2026, direct request. No jargon, no
-  assuming familiarity with terminals/git/servers. When something
-  technical must be explained (running a command, reading an error,
-  understanding why a fix works), spell it out in plain words, one
-  step at a time, and say what to click/type exactly — don't assume he
-  already knows what a step means. This applies everywhere, not just
-  chat replies.
-- **Explain the use case in plain terms before building anything, and
-  never assume — ask.** Added Sep 16, 2026, direct instruction, after a
-  session found and fixed 6+ real permission/audit-log gaps in one pass
-  without checking which ones Abinash wanted fixed now vs. asked about
-  first (e.g. broadening who can bulk-update products, deciding on its
-  own that Billing should stay ungated, picking which modules got real
-  fixes vs. a deferred comment). None of those were hidden, but none were
-  run past him individually either — the gap this rule closes.
-  Concretely, every time, not just for large changes:
-  - Before writing code (not just before a big feature), say in plain,
-    non-technical language why this is being built or changed — what
-    real problem it solves or what breaks without it — the same "why"
-    already required by the product-manager-first rule below, just
-    stated up front instead of only in a later report.
-  - Where a decision could reasonably go more than one way (which module
-    to prioritize, whether a gap is safe to auto-fix vs. needs a human
-    call, what a fix should be named, how strict a new check should be),
-    stop and ask with `AskUserQuestion` instead of picking a default and
-    moving forward. A reasonable-sounding judgment call made silently is
-    still an assumption — the standard is "asked," not "defensible after
-    the fact."
-  - This does not undo "commit + push automatically as checkpoints"
-    above — a checkpoint after a change Abinash already scoped and
-    approved doesn't need re-asking. It applies to the scoping/decision
-    itself: what to build, what to fix now vs. defer, and any behavior
-    change (who can do what, what gets logged, what a gate allows) —
-    decide those with him, not for him.
-- **Product manager first, project manager second.** Added August 25,
-  2026, direct correction after Claude called Purchases "solid" from a
-  docs/code audit alone — never having walked it as a real pharmacist's
-  actual use case (new distributor, new medicine, zero starting data),
-  which is exactly where it broke. A project manager organizes what
-  already exists into a priority list. A product manager asks *why* the
-  business/user needs something and what breaks without it — that
-  reasoning comes first, before any list of what to build. Concretely:
-  - Before proposing or building anything, state the business/user
-    reasoning first — not a feature list.
-  - A section isn't "done" because its screens pass review or a
-    seeded-fixture test passes. It's done when someone (Claude) has
-    walked it as ONE continuous use case starting from zero prior data
-    for that flow — not a fixture that already has the distributor/
-    medicine/whatever pre-created. See Manifesto item 15.
-  - This is a standing rule specifically *because* conversation doesn't
-    persist across sessions — this file does, read at the start of
-    every session (see the top of this file). If it's not written
-    here, it didn't happen, as far as the next session is concerned.
-- **CI runs automatically on every push to a feature branch — not just on
-  a PR.** Added August 25, 2026, direct request, after discovering a full
-  day of commits on the session's branch had zero CI signal (the last of
-  20 CI runs on that branch was 2 days old and manually triggered).
-  `.github/workflows/ci.yml`'s `push` trigger now covers `claude/**` and
-  `fix/**`, not just `main` — see `docs/11_TESTING.md`'s CI STATUS section
-  for the full history. Never rely on "I ran the equivalent checks
-  locally" as a substitute for this — local `eslint`/`tsc`/`pytest` runs
-  and the real CI pipeline (fresh install, real seeded backend, real
-  browser E2E) have caught different bugs from each other before.
-- **Docs are grouped by what you need, not read top to bottom.** Added
-  September 5, 2026, direct request, as the first of a small set of
-  "enforcement-layer" setup items (docs structure, session-reliability
-  hook, CI gate, `design-guard.sh` expansion) meant to remove repeat setup
-  work so future sessions focus only on product research + features.
-  - Root cause: 23 doc files grew ad-hoc for 6 months with no consistent
-    structure — this is why the skeleton rule (Manifesto #16) got missed
-    for months before anyone noticed.
-  - Fix: every doc now carries a `# Type:` line (Reference / How-To /
-    Explanation / Living Status) in its header, and the DOCS INDEX below
-    is grouped by that same type instead of by number. No files moved, no
-    links broken — this only changes how docs are *found*, not where they
-    live.
-  - This is a low-risk, mechanical fix (headers only, no body content
-    rewritten) — chosen deliberately over physically moving 23 files into
-    subfolders, which would have required fixing 60+ cross-references for
-    no functional gain at our team size (one AI reader, searchable either
-    way).
-- **Every session self-heals its environment — no manual restart dance.**
-  Added September 5, 2026, second of the enforcement-layer setup items.
-  Root cause: the dev container periodically resets and kills Postgres,
-  the backend, and/or the frontend (and sometimes wipes node_modules),
-  which had cost real time across multiple sessions to notice and
-  manually recover from.
-  - Fix: `.claude/hooks/session-start.sh`, registered in
-    `.claude/settings.json` as a `SessionStart` hook, checks Postgres,
-    pending Alembic migrations, the backend (`:8000`), frontend packages,
-    and the frontend dev server (`:3000`) — in that order — and only
-    takes action where something is actually stopped/missing. Prints a
-    plain-language summary each time.
-  - Verified live: Postgres was genuinely down when this was built: the
-    hook brought it and both servers up from cold, then a second run
-    confirmed it correctly no-ops when everything is already healthy.
-  - This is real enforcement, not a convention — it runs automatically at
-    the start of every session, not something a session has to remember
-    to do.
-- **7 task-specific skills replace "remember to check the docs."** Added
-  September 5, 2026, following Anthropic's own official Skill-authoring
-  guidance (platform.claude.com/docs/agents-and-tools/agent-skills) —
-  not freehanded. Root cause: CLAUDE.md's "HOW TO BUILD" section named
-  the right order but never actually pointed at the doc for each step,
-  so following it depended on remembering, the same gap the docs
-  restructure fixed for *finding* a doc but not for being *routed* to
-  one mid-task.
-  - Fix: `.claude/skills/pharmacare-design`,
-    `pharmacare-frontend-build`, `pharmacare-backend-build`,
-    `pharmacare-database`, `pharmacare-testing`, `pharmacare-deployment`,
-    `pharmacare-ship-checklist` — each auto-triggers when its matching
-    task comes up (per Skills' own "description-matching" mechanism, not
-    a hardcoded router) and carries a short, copy-into-response
-    checklist naming the exact doc file for each step, so the long
-    reference docs stay the source of truth instead of sitting unread.
-  - Named `pharmacare-*`, not `design`/`testing`/etc., because a
-    same-named generic skill can already exist in the environment
-    (found: a global `design` canvas skill would have collided).
-  - MCP tools installed to back the skills with real capability, not
-    just instructions: `playwright` + `chrome-devtools` (project-shared,
-    `.mcp.json`) for `pharmacare-testing`'s live browser verification;
-    `postgres` (local machine config only, restricted/read-only mode,
-    local dev DB — never committed since it holds a connection string)
-    for `pharmacare-database`'s query/index analysis.
-  - `claude-code-action` (the CI-gate piece) is blocked on an
-    `ANTHROPIC_API_KEY` repo secret only Abinash can add — asked, not
-    assumed or worked around. **Decision, Sep 6, 2026: skipped for
-    now** — Abinash asked if the key needs a paid plan; once told yes,
-    he chose not to add it, since this CI-gate piece is redundant with
-    checks this session already runs manually (design-guard.sh, tsc,
-    pytest/jest) — not a launch blocker. Revisit only if he brings it
-    up again; don't re-ask each session.
-- **`npx tsc --noEmit` is now an automated gate, not a manual checklist
-  item.** Added September 5, 2026, closing the last item of the
-  enforcement-layer setup pass. This exact gap was already named in this
-  file's own Component audit checklist ("manual — not yet wired into
-  design-guard.sh") — closed it instead of leaving it named.
-  - `design-guard.sh` Rule 10 + a matching `.githooks/pre-commit` check
-    (gated on frontend files being staged, same as the ESLint check).
-  - Fixed 7 pre-existing type errors in
-    `SupplierDropdown.test.tsx` first (untyped test helper params, an
-    untyped jest mock, and a prop-shape mismatch from the component's
-    plain-JS default parameter) — same order as the skeleton rule: fix
-    what's already broken before turning on a new blocking gate.
-- **`main` is now a protected branch — every gate is enforced, not just
-  informational.** Added September 6, 2026, the capstone of the
-  enforcement-layer setup pass, direct request. Found while rating the
-  overall setup: `main` had zero branch protection, meaning every CI
-  check and every `design-guard.sh` rule built this session could fail
-  and it would never actually block a merge — a red check was purely
-  visible, not a stop-sign. This is almost certainly why the pre-existing
-  BillingWorkspace/Dashboard button violations (Rule 1/Rule 5, written
-  before AppButton existed, April 2026) sat failing in CI for months
-  with nobody forced to look.
-  - Fix: GitHub branch protection on `main` — require a PR before
-    merging, require 1 approval, require `Frontend — lint + test`,
-    `Backend — lint + test`, and `E2E — Playwright` to pass before merge.
-  - `design-guard.sh`'s own CI job deliberately left out of the required
-    list for now — it currently fails on those 2 pre-existing violations,
-    so requiring it would block every merge until they're fixed. Add it
-    as required once they're cleaned up.
-  - Verified live via the GitHub API, not just the settings screen:
-    `main` now returns `"protected": true`.
-  - Caveat worth knowing: GitHub doesn't count a PR author's own approval
-    toward the required-approvals number — not a problem today, but the
-    reason if a future PR ever can't be self-approved.
-- **Every new feature ships through one fixed loop: Research → Build →
-  Test → Review → Feedback → Loop.** Added September 11, 2026, direct
-  request. Not a new invention — this names and locks in a sequence the
-  skills already implied piece by piece, so it stops depending on memory:
-  - **Research** — business/user reasoning first (Manifesto #15 + the
-    "product manager first" rule above): why does this feature matter,
-    what breaks without it, how do real competitors (eVitalRx, Marg,
-    Pharmasoft) handle it. Use the `product-review` skill for a section,
-    or the same reasoning inline for a smaller feature.
-  - **Build** — `pharmacare-frontend-build`/`pharmacare-backend-build`'s
-    DB → router → constants → UI order, following existing patterns.
-  - **Test** — `pharmacare-testing`: pytest/jest at the right P0/P1/P2
-    priority, plus a live walkthrough from zero data, not a fixture.
-  - **Review** — `pharmacare-ship-checklist`: cross-cutting consumers
-    checked, docs/roadmap updated, nothing hand-waved as "done."
-  - **Feedback** — stop here and report back in plain language before
-    starting the next feature. Don't chain straight into the next item
-    on a list on the assumption that silence means approval.
-  - **Loop** — the next feature (or a revision this one's feedback
-    surfaced) re-enters at Research, not at Build — a fix based on
-    feedback still gets sized against the real reasoning, not bolted on.
-  - This governs feature-sized work. A one-line bug fix doesn't need a
-    full Research pass — use judgment, but don't skip Test/Review/Feedback
-    even on a small change.
+- Branch, not main — work on the session's feature branch, never commit to `main`.
+- Commit + push automatically as verified checkpoints; the PR merge into `main` is the real confirmation moment.
+- `.githooks/pre-commit` + `scripts/design-guard.sh` enforce these rules for real, not just as suggestions.
+- A rule/preference stated only in chat doesn't persist — write it into this file or `docs/*.md`, asking before/after if it should become a standing rule.
+- A bug that slips past a written rule gets named (which rule, tooling vs. execution gap) in the chat response, fixed, gated automatically where possible, and logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
+- Docs and commit messages: bullets, not paragraphs.
+- Batch fixes before a live-verify pass when several are already queued for the same page; verify immediately only for an isolated, urgent, or high-risk (money/stock/compliance) fix.
+- Run the FULL backend/frontend test suite before pushing — never a filtered subset as the last check.
+- Chat replies stay under 100 words; code/docs/commit content keeps whatever length the task needs.
+- Default to the simpler, standard fix over a flexible one — don't build speculative flexibility.
+- Abinash is non-technical — every technical explanation is spelled out step by step, no jargon, no assumed familiarity.
+- Explain the "why" in plain terms before building anything, and stop to ask (`AskUserQuestion`) whenever a decision could reasonably go more than one way — a silent judgment call is still an assumption.
+- Product manager first, project manager second — state business reasoning before proposing a build list; "done" means walked as one real use case from zero data, not a passing fixture test.
+- CI runs on every push to a feature branch, not just PRs — never substitute local checks for it.
+- Docs are grouped by type (Reference/How-To/Explanation/Living Status — see each doc's own `# Type:` line), not read top to bottom.
+- Every session self-heals its environment via the `SessionStart` hook (`.claude/hooks/session-start.sh`) — no manual restart dance.
+- Task-specific skills (`.claude/skills/*`) replace "remember to check the docs" — each auto-triggers on its matching task and points to the exact doc file for that step.
+- `npx tsc --noEmit` and `design-guard.sh` are real automated gates (CI + pre-commit), not manual checklist items.
+- `main` is a protected branch — every required CI check actually blocks merge, not just informational.
+- Every feature ships through one fixed loop: **Research → Build → Test → Review → Feedback → Loop** — a one-line bug fix can skip a full Research pass, but never Test/Review/Feedback.
 
 ---
 
 ## DEPENDENCY & ENV SAFETY RULES — NEVER BREAK THE APP
 
-These rules exist because adding uninstalled packages and wrong env values have crashed the app multiple times.
-
-### Adding a new package (frontend)
-1. Run `npm install <package>` first — confirm "added X packages" in terminal
-2. Only then add `import` statements in code
-3. Never add a package to `package.json` manually without running `npm install`
-
-### Adding a new package (backend)
-1. Run `pip install <package>` inside venv first — confirm "Successfully installed"
-2. Add to `requirements.txt` after install succeeds
-3. Only then add `import` statements in `main.py` or any module
-
-### Env files — strictly forbidden
-- NEVER add a URL to `.env.production` unless it is a real, live production URL
-- NEVER add placeholder values — an empty key is safer than a fake value
-- `REACT_APP_BACKEND_URL` is set via CI secret only — never hardcode it in any env file
-- Always state explicitly when touching any `.env*` file — treat it as a breaking change
-
-### Verify after every infrastructure change
-- After any change to `main.py` imports or `requirements.txt` → restart backend and confirm `Application startup complete`
-- After any change to `package.json` or env files → restart frontend and confirm no compile errors
-- One change at a time. Verify. Then next change.
+Adding uninstalled packages and wrong env values have crashed the app multiple times.
+Full steps (install-before-import order, env-file rules) live in
+`.claude/rules/dependencies-env.md` (auto-loads when you touch
+`package.json`/`requirements.txt`/`.env*`). The two that matter most even
+without opening that file: never hand-edit a manifest without running the
+real install command first, and never put a placeholder or fake value in
+an env file — an empty key is safer than a fake one.
 
 ---
 
@@ -450,92 +171,25 @@ known — don't trust a stale memory of this section from an old session.
 
 ## QUICK-REFERENCE RULES
 
-### Page structure (every page, no exceptions)
-```jsx
-<div className="px-8 py-6 min-h-screen bg-page">
-  <PageHeader title="..." actions={...} />
-  <PageTabs tabs={TABS} activeTab="..." onChange={...} />
-  <div className="bg-white rounded-xl border border-gray-200">
-    {/* content */}
-  </div>
-</div>
-```
-
-### Tab routes
-| Tab bar | Route A | Route B |
-|---------|---------|---------|
-| Billing | `/billing` | `/billing/returns` |
-| Purchases | `/purchases` | `/purchases/returns` |
-| Inventory | `/inventory` | `/inventory/stock-movements` |
-| Reports | `/reports` | `/reports/gst` |
-
 ### HOW TO BUILD — mandatory order, every single feature
 
 > Skipping this order is what caused every filter bug, every 404, every patched fix.
-> Added September 5, 2026: this order is now enforced by dedicated skills
-> instead of only being written down here — see `.claude/skills/`:
-> `pharmacare-design` (visual/component compliance), `pharmacare-frontend-build`
-> (DB model → router → domainConstants → frontend, in that order),
-> `pharmacare-backend-build` (money/business-logic/cross-cutting rules),
-> `pharmacare-database` (schema/migrations/query performance),
-> `pharmacare-testing` (what needs a test and how to verify live),
-> `pharmacare-deployment` (env/CI gates), `pharmacare-ship-checklist` (the
-> final gate before calling anything done). Each one triggers automatically
-> when the matching task comes up and points to the specific doc file for
-> that step — this list is the quick summary, the skills are where the
-> actual workflow checklist lives.
+> Enforced by dedicated skills, not just this list — see `.claude/skills/`:
+> `pharmacare-design`, `pharmacare-frontend-build`, `pharmacare-backend-build`,
+> `pharmacare-database`, `pharmacare-testing`, `pharmacare-deployment`,
+> `pharmacare-ship-checklist`. Each auto-triggers on its matching task and
+> points to the exact doc for that step — this is the summary only.
 
-1. **Read the DB model first.** What columns exist? What values are actually stored? (`backend/models/` or `docs/09_DATABASE.md`)
-2. **Read the backend router.** Does the route exist? What params does it accept? What does it return? (`docs/10_API.md`)
-3. **Read domainConstants.js.** Are the status values you need already defined? If not, add them there first.
+1. **Read the DB model first.** (`backend/models/` or `docs/09_DATABASE.md`)
+2. **Read the backend router.** Does the route exist, what does it accept/return? (`docs/10_API.md`)
+3. **Read domainConstants.js.** Add the status value there first if it's missing.
 4. **Then write the frontend.** Connected to reality — not assumptions.
 
 Never write a frontend filter, API call, or status check before completing steps 1–3.
 
----
-
-### Component audit (check before every PR)
-> **(auto)** = a real `scripts/design-guard.sh` rule blocks this — checked on
-> every commit/PR whether or not anyone remembers to look. **(manual)** = no
-> guardrail exists yet; depends on someone actually checking. This distinction
-> matters — `MoreMenu` drifted for months specifically because it used to be
-> manual with nothing watching. Prefer adding an (auto) check over trusting
-> a new (manual) one.
-
-- [ ] Zero raw `<button>` tags **(auto — Rule 1)**
-- [ ] Zero hardcoded hex in className **(auto — Rule 2)**
-- [ ] Zero `hover:bg-[#...]` patterns **(auto — Rule 3)**
-- [ ] No file over 300 lines **(auto — Rule 4)**
-- [ ] Zero direct `@/components/ui/button` imports in pages **(auto — Rule 5)**
-- [ ] New files use `.tsx` extension, not `.jsx` **(auto — Rule 6)**
-- [ ] Zero hand-rolled "More options" dropdowns — always `<MoreMenu>` from shared **(auto — Rule 7)**
-- [ ] `tailwind.config.js` and `colors_and_type.css` design tokens agree **(auto — Rule 8)**
-- [ ] Zero hand-rolled `animate-pulse` skeletons — always `TableSkeleton`/`PageSkeleton`/`CardSkeleton`/`InlineLoader`, or the raw `Skeleton` primitive composed for a one-off shape **(auto — Rule 9)**
-- [ ] Every loading state actually has a skeleton — no `return null`/blank screen while data fetches **(manual — a missing skeleton isn't grep-able like a hand-rolled one)**
-- [ ] Every page uses `<PageHeader>` — no inline `<h1>`, no subtitle **(manual)**
-- [ ] Every multi-view page uses `<PageTabs>` **(manual)**
-- [ ] Every LIST page root = `px-8 py-6 min-h-screen bg-page` — never `flex flex-col h-full` **(manual)**
-- [ ] `flex flex-col h-full` is ONLY for workspace pages: BillingWorkspace, PurchaseNew — nowhere else **(manual)**
-- [ ] Zero inline pill `.map()` patterns — always `<FilterPills>` from shared **(manual)**
-- [ ] Zero `import` statements after `const` declarations **(manual — ESLint may catch some cases)**
-- [ ] `npx tsc --noEmit` passes with zero errors **(auto — script Rule 10)**
-- [ ] Every caught-error `toast.error(...)` shows the real reason, not a hardcoded generic (Manifesto rule 10) **(auto — script Rule 14, added Sep 12, 2026)**
-- [ ] Run `bash scripts/design-guard.sh` — must exit 0 before any PR
-
-### What's next
-> Moved to `docs/15_ROADMAP.md` (August 2026) — this list fully duplicated
-> two other lists (the launch-blocker list above it, and `docs/15`'s own
-> "MANIFESTO ITEMS NOT YET BUILT" section, which already covered Sheets/
-> Zod/Error retry/Command Palette in far more detail: What/Where/Why/Rule
-> per item, not a one-liner). See `docs/15_ROADMAP.md`'s Billing table and
-> "MANIFESTO ITEMS NOT YET BUILT" section for the current, single copy of
-> this list.
-
-### Dead files (already deleted)
-- `frontend/src/pages/InventorySearch/components/InventoryHeader.jsx`
-- `frontend/src/pages/Settings/components/SettingsTabs.jsx`
-- `frontend/src/pages/Reports/components/ReportTypeCards.jsx`
-- `frontend/src/components/ActivityTimeline.js`
+Page-structure snippet, tab-route table, and the full component-audit
+checklist now live in `.claude/rules/frontend-pages.md` (auto-loads when
+you touch a page or shared component).
 
 ### Stale docs (do not update, do not trust)
 `PHARMACARE_RULES.md` · `PHARMACARE_DESIGN_SKILL.md` · `PHARMACARE_DESIGN_BRIEF.md` · `CONTEXT.md` · `PROGRESS.md` · `DECISIONS.md` · `TECH_SPEC.md` · `PHARMACARE_DATABASE_SCHEMA.md`

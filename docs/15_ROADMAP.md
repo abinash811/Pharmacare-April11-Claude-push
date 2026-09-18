@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.02 | Last updated: September 18, 2026
+# Version: 3.03 | Last updated: September 18, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -16,6 +16,294 @@
 | 📋 | Planned — design agreed, not yet built |
 | 💡 | Idea — under consideration, not confirmed |
 | 🚫 | Out of scope for Phase 1 |
+
+---
+
+## HOW CLAUDE WORKS WITH ABINASH — FULL HISTORY
+
+> Moved here from `CLAUDE.md` Sep 18, 2026, per Anthropic's own documented
+> guidance (`code.claude.com/docs/en/memory.md`: "target under 200 lines
+> per CLAUDE.md file... longer files consume more context and reduce
+> adherence"). `CLAUDE.md` was 544 lines, more than double that target,
+> almost entirely from this section's dated narrative justification for
+> each rule. Nothing here was deleted — every rule below is still stated,
+> as a short operative bullet, in `CLAUDE.md`'s own "HOW CLAUDE WORKS WITH
+> ABINASH" section; this is the full "why," kept for the same reason the
+> RULE MISSES LOG is kept: so a future session (or Abinash) can see why a
+> rule exists without relitigating it, without paying that cost in every
+> single session's starting context regardless of whether it's relevant
+> to the task at hand.
+
+> Added April 26, 2026, after a session working through local setup, a pre-commit
+> enforcement system, and an Inventory design-consistency fix together.
+
+- **Branch, not main.** Claude works on the session's feature branch (see
+  `docs/04_GIT_WORKFLOW.md`), never commits straight to `main`.
+- **Commit + push automatically as checkpoints.** After each finished, verified
+  change, Claude commits and pushes to that branch without waiting to be asked —
+  these are cheap, reversible checkpoints, not a final decision.
+- **The confirmation moment is the PR merge into `main`.** Abinash reviews and
+  decides there. That's the one point that actually matters — everything before
+  it is safe to move fast on.
+- **Enforcement is real, not aspirational.** `.githooks/pre-commit` (set up once
+  per machine via `git config core.hooksPath .githooks`) blocks a commit that
+  breaks a rule in this file, and says which rule and why. `scripts/design-guard.sh`
+  runs the same checks across the whole repo in CI.
+- **Doc-worthy decisions get written down.** A rule, preference, or workflow
+  change stated in conversation only exists in that conversation — it does NOT
+  persist to a new session or a teammate's Claude unless it's written into this
+  file or the relevant `docs/*.md`. When something said in chat should become a
+  standing rule, Claude flags it and asks before/after updating the doc — silence
+  is not consent to skip it, but Claude also doesn't rewrite policy on a guess.
+- **A bug that slips past a written rule gets named, not just fixed.** When a
+  real bug is found that a CLAUDE.md/docs rule should have prevented, Claude
+  says which rule, in the chat response itself, and whether it wasn't
+  enforced (a tooling gap) or wasn't followed (an execution gap) — then
+  closes the gap, automated gate first, doc wording only if no automated
+  check is realistic — and logs it in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
+  Abinash shouldn't have to ask "which rule broke" after the fact — see that
+  section for the full process and the first logged example.
+- **Docs and commit messages: bullets, not paragraphs.** Added August 23,
+  2026 — long prose entries in `docs/15_ROADMAP.md` and commit messages
+  were burning tokens for no real benefit. Roadmap findings, fixes, and
+  commit messages use short bullet points (what broke, why, what changed) —
+  not multi-paragraph explanations. The RULE MISSES LOG's 5-step structure
+  (name the rule, why it wasn't caught, fix, gate closed, log it) still
+  applies — just written as bullets, not prose.
+- **Batch fixes before spinning up servers to verify.** Added August 23,
+  2026 — a live-verify pass (start backend+frontend, drive it, tear down)
+  costs tokens; doing one per individual fix instead of one per batch was
+  wasteful. Default:
+  - If more than one fix is already known/queued for the same page or
+    feature (e.g. an audit surfaces several bugs), list them all, get
+    them approved, fix all of them, then do ONE verification pass.
+  - Still verify immediately, without waiting to batch, when: it's a
+    single isolated fix with nothing else pending, Abinash says it's
+    urgent, or the fix is high-risk (money/stock/compliance logic) and
+    needs its own check before moving on.
+  - When in doubt, ask "want me to batch this with anything else you
+    have queued, or verify now?" rather than guessing.
+- **Run the FULL backend test suite before pushing any backend change —
+  never a topic-filtered subset as the last check.** Added September 12,
+  2026, direct question ("why was this missed, how do we not repeat it")
+  after a fix to `billing.py` (rejecting bills with zero items) was
+  committed and pushed on the strength of a `-k "billing or bill_"`
+  filtered run alone. That filtered run passed, but it excluded
+  `test_multi_tenancy_isolation.py` — the fix had put a new check in the
+  wrong order relative to an existing one, breaking two tenant-isolation
+  tests outside the filter. The real, full-suite run (kicked off
+  afterward, in the background) caught it, but only after the broken
+  version was already pushed.
+  - A scoped/filtered test run is fine as a fast first check while
+    iterating. It is never sufficient as the last check before a push —
+    kick off the real, full `pytest tests/` (backend) / full `craco test`
+    (frontend) run and wait for it before pushing, every time a backend
+    router or shared frontend hook/util changes, not just when a change
+    "feels" cross-cutting.
+  - This is the same root shape as Manifesto rule 11's cross-cutting
+    map — a change can be locally correct and still break something a
+    narrower check can't see — applied to test selection instead of code
+    review.
+- **Chat replies stay under 100 words.** Added August 23, 2026, direct
+  request. Applies to conversational answers, not code/docs/commit
+  content — those keep whatever length the task genuinely needs.
+- **Default to the standard, simpler fix over the flexible one.** Added
+  August 24, 2026. When a bug fix has a design choice (e.g. reject
+  outright vs. allow-with-a-flag), pick the simpler, more conventional
+  option by default — reconsider only if real usage after launch shows
+  a genuine need for the more flexible behavior. Don't build the
+  flexible option speculatively.
+- **Abinash is non-technical — keep every technical instruction dead
+  simple.** Added August 26, 2026, direct request. No jargon, no
+  assuming familiarity with terminals/git/servers. When something
+  technical must be explained (running a command, reading an error,
+  understanding why a fix works), spell it out in plain words, one
+  step at a time, and say what to click/type exactly — don't assume he
+  already knows what a step means. This applies everywhere, not just
+  chat replies.
+- **Explain the use case in plain terms before building anything, and
+  never assume — ask.** Added Sep 16, 2026, direct instruction, after a
+  session found and fixed 6+ real permission/audit-log gaps in one pass
+  without checking which ones Abinash wanted fixed now vs. asked about
+  first (e.g. broadening who can bulk-update products, deciding on its
+  own that Billing should stay ungated, picking which modules got real
+  fixes vs. a deferred comment). None of those were hidden, but none were
+  run past him individually either — the gap this rule closes.
+  Concretely, every time, not just for large changes:
+  - Before writing code (not just before a big feature), say in plain,
+    non-technical language why this is being built or changed — what
+    real problem it solves or what breaks without it — the same "why"
+    already required by the product-manager-first rule below, just
+    stated up front instead of only in a later report.
+  - Where a decision could reasonably go more than one way (which module
+    to prioritize, whether a gap is safe to auto-fix vs. needs a human
+    call, what a fix should be named, how strict a new check should be),
+    stop and ask with `AskUserQuestion` instead of picking a default and
+    moving forward. A reasonable-sounding judgment call made silently is
+    still an assumption — the standard is "asked," not "defensible after
+    the fact."
+  - This does not undo "commit + push automatically as checkpoints"
+    above — a checkpoint after a change Abinash already scoped and
+    approved doesn't need re-asking. It applies to the scoping/decision
+    itself: what to build, what to fix now vs. defer, and any behavior
+    change (who can do what, what gets logged, what a gate allows) —
+    decide those with him, not for him.
+- **Product manager first, project manager second.** Added August 25,
+  2026, direct correction after Claude called Purchases "solid" from a
+  docs/code audit alone — never having walked it as a real pharmacist's
+  actual use case (new distributor, new medicine, zero starting data),
+  which is exactly where it broke. A project manager organizes what
+  already exists into a priority list. A product manager asks *why* the
+  business/user needs something and what breaks without it — that
+  reasoning comes first, before any list of what to build. Concretely:
+  - Before proposing or building anything, state the business/user
+    reasoning first — not a feature list.
+  - A section isn't "done" because its screens pass review or a
+    seeded-fixture test passes. It's done when someone (Claude) has
+    walked it as ONE continuous use case starting from zero prior data
+    for that flow — not a fixture that already has the distributor/
+    medicine/whatever pre-created. See Manifesto item 15.
+  - This is a standing rule specifically *because* conversation doesn't
+    persist across sessions — this file does, read at the start of
+    every session (see the top of this file). If it's not written
+    here, it didn't happen, as far as the next session is concerned.
+- **CI runs automatically on every push to a feature branch — not just on
+  a PR.** Added August 25, 2026, direct request, after discovering a full
+  day of commits on the session's branch had zero CI signal (the last of
+  20 CI runs on that branch was 2 days old and manually triggered).
+  `.github/workflows/ci.yml`'s `push` trigger now covers `claude/**` and
+  `fix/**`, not just `main` — see `docs/11_TESTING.md`'s CI STATUS section
+  for the full history. Never rely on "I ran the equivalent checks
+  locally" as a substitute for this — local `eslint`/`tsc`/`pytest` runs
+  and the real CI pipeline (fresh install, real seeded backend, real
+  browser E2E) have caught different bugs from each other before.
+- **Docs are grouped by what you need, not read top to bottom.** Added
+  September 5, 2026, direct request, as the first of a small set of
+  "enforcement-layer" setup items (docs structure, session-reliability
+  hook, CI gate, `design-guard.sh` expansion) meant to remove repeat setup
+  work so future sessions focus only on product research + features.
+  - Root cause: 23 doc files grew ad-hoc for 6 months with no consistent
+    structure — this is why the skeleton rule (Manifesto #16) got missed
+    for months before anyone noticed.
+  - Fix: every doc now carries a `# Type:` line (Reference / How-To /
+    Explanation / Living Status) in its header, and the DOCS INDEX below
+    is grouped by that same type instead of by number. No files moved, no
+    links broken — this only changes how docs are *found*, not where they
+    live.
+  - This is a low-risk, mechanical fix (headers only, no body content
+    rewritten) — chosen deliberately over physically moving 23 files into
+    subfolders, which would have required fixing 60+ cross-references for
+    no functional gain at our team size (one AI reader, searchable either
+    way).
+- **Every session self-heals its environment — no manual restart dance.**
+  Added September 5, 2026, second of the enforcement-layer setup items.
+  Root cause: the dev container periodically resets and kills Postgres,
+  the backend, and/or the frontend (and sometimes wipes node_modules),
+  which had cost real time across multiple sessions to notice and
+  manually recover from.
+  - Fix: `.claude/hooks/session-start.sh`, registered in
+    `.claude/settings.json` as a `SessionStart` hook, checks Postgres,
+    pending Alembic migrations, the backend (`:8000`), frontend packages,
+    and the frontend dev server (`:3000`) — in that order — and only
+    takes action where something is actually stopped/missing. Prints a
+    plain-language summary each time.
+  - Verified live: Postgres was genuinely down when this was built: the
+    hook brought it and both servers up from cold, then a second run
+    confirmed it correctly no-ops when everything is already healthy.
+  - This is real enforcement, not a convention — it runs automatically at
+    the start of every session, not something a session has to remember
+    to do.
+- **7 task-specific skills replace "remember to check the docs."** Added
+  September 5, 2026, following Anthropic's own official Skill-authoring
+  guidance (platform.claude.com/docs/agents-and-tools/agent-skills) —
+  not freehanded. Root cause: CLAUDE.md's "HOW TO BUILD" section named
+  the right order but never actually pointed at the doc for each step,
+  so following it depended on remembering, the same gap the docs
+  restructure fixed for *finding* a doc but not for being *routed* to
+  one mid-task.
+  - Fix: `.claude/skills/pharmacare-design`,
+    `pharmacare-frontend-build`, `pharmacare-backend-build`,
+    `pharmacare-database`, `pharmacare-testing`, `pharmacare-deployment`,
+    `pharmacare-ship-checklist` — each auto-triggers when its matching
+    task comes up (per Skills' own "description-matching" mechanism, not
+    a hardcoded router) and carries a short, copy-into-response
+    checklist naming the exact doc file for each step, so the long
+    reference docs stay the source of truth instead of sitting unread.
+  - Named `pharmacare-*`, not `design`/`testing`/etc., because a
+    same-named generic skill can already exist in the environment
+    (found: a global `design` canvas skill would have collided).
+  - MCP tools installed to back the skills with real capability, not
+    just instructions: `playwright` + `chrome-devtools` (project-shared,
+    `.mcp.json`) for `pharmacare-testing`'s live browser verification;
+    `postgres` (local machine config only, restricted/read-only mode,
+    local dev DB — never committed since it holds a connection string)
+    for `pharmacare-database`'s query/index analysis.
+  - `claude-code-action` (the CI-gate piece) is blocked on an
+    `ANTHROPIC_API_KEY` repo secret only Abinash can add — asked, not
+    assumed or worked around. **Decision, Sep 6, 2026: skipped for
+    now** — Abinash asked if the key needs a paid plan; once told yes,
+    he chose not to add it, since this CI-gate piece is redundant with
+    checks this session already runs manually (design-guard.sh, tsc,
+    pytest/jest) — not a launch blocker. Revisit only if he brings it
+    up again; don't re-ask each session.
+- **`npx tsc --noEmit` is now an automated gate, not a manual checklist
+  item.** Added September 5, 2026, closing the last item of the
+  enforcement-layer setup pass. This exact gap was already named in this
+  file's own Component audit checklist ("manual — not yet wired into
+  design-guard.sh") — closed it instead of leaving it named.
+  - `design-guard.sh` Rule 10 + a matching `.githooks/pre-commit` check
+    (gated on frontend files being staged, same as the ESLint check).
+  - Fixed 7 pre-existing type errors in
+    `SupplierDropdown.test.tsx` first (untyped test helper params, an
+    untyped jest mock, and a prop-shape mismatch from the component's
+    plain-JS default parameter) — same order as the skeleton rule: fix
+    what's already broken before turning on a new blocking gate.
+- **`main` is now a protected branch — every gate is enforced, not just
+  informational.** Added September 6, 2026, the capstone of the
+  enforcement-layer setup pass, direct request. Found while rating the
+  overall setup: `main` had zero branch protection, meaning every CI
+  check and every `design-guard.sh` rule built this session could fail
+  and it would never actually block a merge — a red check was purely
+  visible, not a stop-sign. This is almost certainly why the pre-existing
+  BillingWorkspace/Dashboard button violations (Rule 1/Rule 5, written
+  before AppButton existed, April 2026) sat failing in CI for months
+  with nobody forced to look.
+  - Fix: GitHub branch protection on `main` — require a PR before
+    merging, require 1 approval, require `Frontend — lint + test`,
+    `Backend — lint + test`, and `E2E — Playwright` to pass before merge.
+  - `design-guard.sh`'s own CI job deliberately left out of the required
+    list for now — it currently fails on those 2 pre-existing violations,
+    so requiring it would block every merge until they're fixed. Add it
+    as required once they're cleaned up.
+  - Verified live via the GitHub API, not just the settings screen:
+    `main` now returns `"protected": true`.
+  - Caveat worth knowing: GitHub doesn't count a PR author's own approval
+    toward the required-approvals number — not a problem today, but the
+    reason if a future PR ever can't be self-approved.
+- **Every new feature ships through one fixed loop: Research → Build →
+  Test → Review → Feedback → Loop.** Added September 11, 2026, direct
+  request. Not a new invention — this names and locks in a sequence the
+  skills already implied piece by piece, so it stops depending on memory:
+  - **Research** — business/user reasoning first (Manifesto #15 + the
+    "product manager first" rule above): why does this feature matter,
+    what breaks without it, how do real competitors (eVitalRx, Marg,
+    Pharmasoft) handle it. Use the `product-review` skill for a section,
+    or the same reasoning inline for a smaller feature.
+  - **Build** — `pharmacare-frontend-build`/`pharmacare-backend-build`'s
+    DB → router → constants → UI order, following existing patterns.
+  - **Test** — `pharmacare-testing`: pytest/jest at the right P0/P1/P2
+    priority, plus a live walkthrough from zero data, not a fixture.
+  - **Review** — `pharmacare-ship-checklist`: cross-cutting consumers
+    checked, docs/roadmap updated, nothing hand-waved as "done."
+  - **Feedback** — stop here and report back in plain language before
+    starting the next feature. Don't chain straight into the next item
+    on a list on the assumption that silence means approval.
+  - **Loop** — the next feature (or a revision this one's feedback
+    surfaced) re-enters at Research, not at Build — a fix based on
+    feedback still gets sized against the real reasoning, not bolted on.
+  - This governs feature-sized work. A one-line bug fix doesn't need a
+    full Research pass — use judgment, but don't skip Test/Review/Feedback
+    even on a small change.
 
 ---
 

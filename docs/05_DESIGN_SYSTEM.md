@@ -1,5 +1,5 @@
 # PharmaCare — Design System
-# Version: 1.3 | Last updated: September 5, 2026
+# Version: 1.4 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, developers, designers
 # Rule: Every visual decision in PharmaCare is defined here.
@@ -13,6 +13,14 @@
 Every screen in PharmaCare must feel like it belongs to the same product.
 A pharmacist switching from Billing to Settings to Reports should feel zero visual friction.
 The standard is Linear, Notion, Stripe — clean, fast, purposeful.
+
+**No dark mode.** Removed Sep 18, 2026 — `tailwind.config.js`'s
+`darkMode` key, the one stray `dark:` class in `ui/alert.jsx`, and the
+`next-themes` package (pulled in only to feed a `theme` prop nobody set)
+are all gone. It was a Shadcn-boilerplate stub, never a real feature —
+one usage in the whole app. This is a direct decision, not a gap: don't
+reintroduce a `dark:` class, `darkMode` config, or a theme-switching
+package without a real product decision to build dark mode for real.
 
 ---
 

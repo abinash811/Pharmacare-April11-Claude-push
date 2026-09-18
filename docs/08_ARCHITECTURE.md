@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.9 | Last updated: September 16, 2026
+# Version: 1.10 | Last updated: September 18, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -34,7 +34,7 @@ Keep it simple until scale demands complexity.
 
 | Technology | Version | Why |
 |-----------|---------|-----|
-| React | 18 | Component model, ecosystem, team familiarity |
+| React | 19 | Component model, ecosystem, React Compiler stable as of 19 — corrected Sep 18, 2026, this said "18" while `frontend/package.json` has been on `^19.0.0` and `docs/22_TECH_RADAR.md` already correctly said 19 |
 | Tailwind CSS | 3 | Utility-first, design tokens via config, no runtime overhead |
 | Shadcn/UI | latest | Accessible primitives, unstyled base, owns the code |
 | Lucide React | latest | Consistent icon set, tree-shakeable |
@@ -641,31 +641,28 @@ alembic downgrade -1
 
 ## SECURITY RULES
 
-### Authentication
-- JWT tokens expire after 8 hours (`ACCESS_TOKEN_EXPIRE_MINUTES = 480`)
-- Tokens stored in `localStorage` (acceptable for this use case — pharmacy is a trusted device)
-- On 401 → token cleared, user redirected to login
-- Passwords hashed with bcrypt via passlib
+> **`docs/14_SECURITY.md` is the source of truth for security rules and
+> known gaps — corrected Sep 18, 2026.** This section used to restate
+> (and, on JWT storage, understate) the same facts independently; the two
+> had drifted to actively disagree — this doc called `localStorage`
+> "acceptable... pharmacy is a trusted device" while `docs/14_SECURITY.md`
+> correctly flags it as a real known gap (an XSS bug anywhere becomes a
+> full account-takeover). Read that doc for the real, current rules and
+> gaps; the summary below is a pointer, not a duplicate to keep in sync.
 
-### Multi-tenancy Safety
-- **Every backend query must include `pharmacy_id` filter**
-- Never query without `pharmacy_id` on any pharmacy-specific table
-- `get_current_user` injects `pharmacy_id` — use it, never trust client-sent `pharmacy_id`
-
-### What Never Goes in Code
-```
-❌ SECRET_KEY hardcoded
-❌ DATABASE_URL hardcoded
-❌ Any password or token in source code
-✅ All secrets in .env file (never committed)
-```
-
-### CORS
-```python
-# Development: allow all origins (*)
-# Production: set CORS_ORIGINS env var to exact frontend domain
-CORS_ORIGINS = "https://app.pharmacare.in"
-```
+- **Authentication**: JWT, 8-hour expiry, bcrypt password hashing — see
+  `docs/14_SECURITY.md` AUTHENTICATION for the real rules and its
+  JWT-storage trade-off note.
+- **Multi-tenancy**: every backend query filters by `pharmacy_id`, taken
+  from `get_current_user`, never trusted from the client — see
+  `docs/14_SECURITY.md` MULTI-TENANCY.
+- **Secrets**: never hardcoded, all via environment variables — currently
+  violated in one place (`SECRET_KEY`'s insecure fallback); see
+  `docs/14_SECURITY.md` KNOWN GAPS for the live list.
+- **CORS**: `backend/main.py` reads `CORS_ORIGINS` directly from
+  `os.environ` (not part of `config.py`'s `Settings` class) — already
+  correctly configured, just needs the env var set per environment; see
+  `docs/13_DEPLOYMENT.md`.
 
 ---
 

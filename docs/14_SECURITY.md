@@ -1,5 +1,5 @@
 # PharmaCare — Security
-# Version: 1.4 | Last updated: September 18, 2026
+# Version: 1.5 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
@@ -76,8 +76,12 @@
    whether to remove it or replace it with real SSO before launch.
 7. **No rate limiting** on login/register or any other endpoint — tracked
    in `docs/13_DEPLOYMENT.md` pre-launch blockers, not repeated here.
-8. **CORS** is already correctly configured (`allow_origins` from
-   `ALLOWED_ORIGINS` env var, not `["*"]`) — `docs/13_DEPLOYMENT.md`'s
+8. **CORS** is already correctly configured (`allow_origins` from the
+   `CORS_ORIGINS` env var — corrected Sep 18, 2026, this said
+   `ALLOWED_ORIGINS`, a `config.py` `Settings` field that is dead code,
+   never read anywhere; `main.py` reads `CORS_ORIGINS` straight from
+   `os.environ`, a separate path — `docs/13_DEPLOYMENT.md` already had
+   this right. Not `["*"]`) — `docs/13_DEPLOYMENT.md`'s
    blocker list is accurate that this one just needs the env var set per
    environment, nothing left to fix in code.
 

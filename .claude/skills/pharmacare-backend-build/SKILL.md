@@ -26,6 +26,11 @@ skill pointing to it at all before, unlike every other domain doc, and
 it holds real, current findings (e.g. `SECRET_KEY`'s insecure fallback,
 no backend password minimum) worth knowing before writing adjacent code.
 
+`docs/20_CODE_QUALITY.md` (also unreferenced by any skill until Sep 18,
+2026) formally defines the root-cause-fix rule and SOLID/DRY principles
+this skill's own non-negotiables apply — worth a read if a fix feels
+like a patch rather than closing the actual gap.
+
 ## Non-negotiables
 
 1. **Money is integer paise, always.** ₹1 = 100 paise. Never a float for

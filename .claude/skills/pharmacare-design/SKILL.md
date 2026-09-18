@@ -53,26 +53,34 @@ database migration, not a suggestion:
 
 ```
 - [ ] Step 1: Checked `PharmaCare Design System/` for a matching preview
-- [ ] Step 2: Checked docs/06_COMPONENTS.md for this component's props/usage
-- [ ] Step 3: Checked docs/17_ACCESSIBILITY.md for this pattern's a11y requirements
-- [ ] Step 4: If large list/table — checked docs/19_PERFORMANCE.md + applied relevant picks below
-- [ ] Step 5: Wrote the code
-- [ ] Step 6: Ran `bash scripts/design-guard.sh` — must exit 0
+- [ ] Step 2: Checked docs/05_DESIGN_SYSTEM.md for the real token/type/spacing/breakpoint/voice-tone rules
+- [ ] Step 3: Checked docs/06_COMPONENTS.md for this component's props/usage
+- [ ] Step 4: Checked docs/17_ACCESSIBILITY.md for this pattern's a11y requirements
+- [ ] Step 5: If large list/table — checked docs/19_PERFORMANCE.md + applied relevant picks below
+- [ ] Step 6: Wrote the code
+- [ ] Step 7: Ran `bash scripts/design-guard.sh` — must exit 0
 ```
 
 **Step 1 — Design System folder.** Browse `PharmaCare Design System/preview/*.html`
 before inventing a new pattern. Matching an existing preview beats a
 "better" idea nobody agreed to.
 
-**Step 2 — `docs/06_COMPONENTS.md`.** This is the full component reference
+**Step 2 — `docs/05_DESIGN_SYSTEM.md`.** Added Sep 18, 2026 — this is the
+real reference for color/type/spacing tokens, responsive breakpoints, and
+voice/tone copy rules; nothing pointed here before despite it being this
+skill's own subject matter. Check it before inventing a font size,
+spacing value, or button-label wording that already has a documented
+answer.
+
+**Step 3 — `docs/06_COMPONENTS.md`.** This is the full component reference
 (props, usage, anti-patterns) — read the specific component's section,
 don't guess its API from memory.
 
-**Step 3 — `docs/17_ACCESSIBILITY.md`.** WCAG AA, ARIA, focus, contrast,
+**Step 4 — `docs/17_ACCESSIBILITY.md`.** WCAG AA, ARIA, focus, contrast,
 keyboard nav — read the section for the pattern you're building (modal,
 form, table, etc.).
 
-**Step 4 — `docs/19_PERFORMANCE.md`, plus 4 vetted patterns.** For any
+**Step 5 — `docs/19_PERFORMANCE.md`, plus 4 vetted patterns.** For any
 large list or table, also apply whichever of these already-vetted
 patterns fit (picked deliberately for this project, low-risk, Baseline
 widely-available CSS/HTML — not experimental):
@@ -85,9 +93,9 @@ widely-available CSS/HTML — not experimental):
 - Sign-in/sign-up forms: correct `autocomplete="email"` /
   `autocomplete="new-password"` etc. attributes
 
-**Step 5 — write the code.**
+**Step 6 — write the code.**
 
-**Step 6 — verify.** `bash scripts/design-guard.sh` must exit 0 before
+**Step 7 — verify.** `bash scripts/design-guard.sh` must exit 0 before
 you call the work done. It automatically catches raw buttons, hardcoded
 hex, hand-rolled skeletons, and hand-rolled More-menu dropdowns — but it
 can't catch a missing skeleton or a copy-pasted-but-wrong component prop,

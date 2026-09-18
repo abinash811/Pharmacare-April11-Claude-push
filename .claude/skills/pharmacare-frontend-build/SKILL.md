@@ -18,6 +18,9 @@ what the backend actually accepts and returns.
 
 Read `CLAUDE.md`'s Manifesto rule 9 (no magic strings, no unverified
 routes) and rule 10 (errors must say why) if you haven't this session.
+`docs/20_CODE_QUALITY.md` is where the domain-constants rule (Step 3
+below) and the SOLID/DRY/root-cause-fix principles are formally defined
+— added Sep 18, 2026, no skill pointed to that doc at all before.
 
 ## Mandatory order — do not skip ahead
 

@@ -72,7 +72,12 @@ change as fast as the code does.
 was already written down, say which rule, whether it wasn't enforced (a
 tooling gap — close it with an automated check first) or wasn't followed
 (an execution gap), and log it. The point is Abinash never has to ask
-"which rule broke" after the fact.
+"which rule broke" after the fact. **Before logging, scan the existing
+log for this same rule/root-cause already appearing 2+ times with no
+gate closed yet** (added Sep 18, 2026) — individual entries kept getting
+fixed on their own without anyone stepping back to notice the pattern
+across them. On a 2nd+ occurrence of the same class, building the
+automated gate is mandatory in this same change, not a future task.
 
 **Step 8 — don't confuse "screens work" with "done."** A section that
 passes design review and a fixture-based test can still be unusable for

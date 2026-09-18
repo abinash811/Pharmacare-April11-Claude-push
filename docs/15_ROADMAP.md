@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.00 | Last updated: September 18, 2026
+# Version: 3.01 | Last updated: September 18, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1205,6 +1205,18 @@ Replace all centered modals for data-entry forms.
 **The habit, every time a real bug is found that a written CLAUDE.md/docs
 rule should have prevented** (not a typo, a genuine gap between documented
 behavior and real behavior):
+0. **Before doing anything else, scan the table below for this same rule
+   (or the same root-cause class) already logged 2+ times with no
+   automated gate closed yet.** Added Sep 18, 2026, direct instruction —
+   individual entries were each closed on their own merits, but nothing
+   forced a step back to notice a *pattern* across entries (rule 14 alone
+   recurs 10+ times below; rule 9 and the tenant-isolation class each
+   recurred 3-4 times before getting a gate). If this is the 2nd+
+   occurrence of the same class, building the automated gate is mandatory
+   in this same change — not optional, and not "once it proves itself a
+   3rd time." A rule that keeps recurring and still has no gate after two
+   misses is a process failure on its own, separate from whatever bug
+   triggered this pass.
 1. Name the exact rule (number + one line) **in the chat response**, not
    just in a commit message — you shouldn't have to go looking for it.
 2. State plainly why it didn't catch the bug: was the rule not

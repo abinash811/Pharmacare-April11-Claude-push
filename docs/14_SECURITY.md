@@ -1,5 +1,5 @@
 # PharmaCare — Security
-# Version: 1.3 | Last updated: September 16, 2026
+# Version: 1.4 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
@@ -41,10 +41,29 @@
 2. **Backend does not enforce a password minimum.** See PASSWORD RULES
    above — `UserCreate.password` has no length constraint; only the
    frontend Zod schema (6 chars) stops a weak password.
-3. **`GET /audit-logs` has no role restriction.** See Audit log above —
-   any authenticated user can read it, not just `admin`.
+3. ~~`GET /audit-logs` has no role restriction.~~ **Fixed Sep 12, 2026**
+   — both `GET /audit-logs` and `GET /audit-logs/entity/{type}/{id}`
+   (`backend/routers/billing.py`) now require `reports:view` via
+   `has_permission()`. This entry sat here stale for 6 days after the
+   fix shipped elsewhere — found Sep 18, 2026 while checking this doc
+   against real code, not from a new bug.
 4. **Schedule H1 register views are not audit-logged.** See Schedule H1
    register above.
+5. **No dependency vulnerability scanning.** Found Sep 18, 2026: `npm
+   audit --omit=dev` showed 61 real vulnerabilities in production
+   dependencies (2 critical, 33 high) with no CI step or habit checking
+   for this. The worst — `axios` (every API call in the app goes through
+   it) carrying multiple HIGH-severity CVEs (SSRF, prototype pollution,
+   auth bypass, header injection) in the installed 1.13.2 — fixed same
+   day, bumped to 1.20.0 (same major, no breaking change). Still open:
+   `xlsx` (SheetJS, used for Excel import/export) has a prototype-pollution
+   + ReDoS advisory with **no fix available upstream** — no immediate
+   action possible beyond knowing the risk; `ws`/`websocket-driver` are
+   dev-server transitive dependencies (webpack-dev-server), not shipped
+   to production. **No automated gate yet** — `npm audit --omit=dev`
+   should run in CI (or at minimum, before any dependency-touching PR)
+   so this doesn't silently reach 61 again; not added in this pass, real
+   follow-up work.
 5. **JWT is stored in `localStorage`** (`frontend/src/lib/axios.js`), not
    an httpOnly cookie, for the normal login flow — readable by any script
    that runs on the page, so an XSS bug anywhere in the frontend is also a
@@ -427,13 +446,12 @@ The audit log must be append-only:
 
 - No `UPDATE` on `audit_logs` table
 - No `DELETE` on `audit_logs` table — confirmed, no such route exists in `backend/routers/`
-- **Not currently role-restricted.** `GET /audit-logs` and
+- **Role-restricted since Sep 12, 2026.** `GET /audit-logs` and
   `GET /audit-logs/entity/{type}/{id}` (`backend/routers/billing.py`)
-  require *a* valid login but do not check `current_user.role` — any
-  authenticated user in the pharmacy, not just `admin`, can read the full
-  audit trail today. Decide if that's intended before assuming "Admin UI"
-  is also an enforced backend restriction — right now it's only a
-  frontend choice of who gets a link to it.
+  both require `reports:view` via `has_permission()`, not just a valid
+  login — the same admin/manager-only shape as Schedule H1's own gate.
+  Corrected Sep 18, 2026 — this section previously said "not currently
+  role-restricted," 6 days stale relative to the real fix.
 
 ### Soft delete enforcement
 

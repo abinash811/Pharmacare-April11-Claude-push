@@ -19,6 +19,13 @@ Read `CLAUDE.md`'s Manifesto rule 5 (money is integer paise, always),
 rule 6 (soft deletes only), and rule 11 (cross-cutting changes ship as
 one change) if you haven't this session.
 
+**Touching auth, passwords, sessions, sensitive data, or anything that
+parses external input (file upload, webhook, third-party callback)?**
+Read `docs/14_SECURITY.md` first — added Sep 18, 2026, this doc had no
+skill pointing to it at all before, unlike every other domain doc, and
+it holds real, current findings (e.g. `SECRET_KEY`'s insecure fallback,
+no backend password minimum) worth knowing before writing adjacent code.
+
 ## Non-negotiables
 
 1. **Money is integer paise, always.** ₹1 = 100 paise. Never a float for

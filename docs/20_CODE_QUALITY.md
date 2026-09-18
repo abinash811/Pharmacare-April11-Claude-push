@@ -1,5 +1,5 @@
 # PharmaCare — Code Quality
-# Version: 1.2 | Last updated: September 5, 2026
+# Version: 1.3 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Linting and formatting are not optional. CI blocks merges on violations.
@@ -118,31 +118,22 @@ Leave every file cleaner than you found it. If you touch a file and see a lint w
 
 ## ESLINT CONFIG
 
-Create `frontend/.eslintrc.json`:
+> **Corrected Sep 18, 2026** — this section previously showed a legacy
+> `.eslintrc.json` sample (`extends: react-app`) that no file in the repo
+> ever matched. Found while checking whether our real tooling matches
+> what's documented here. The real, current config is the source of
+> truth — don't copy a snapshot into this doc, it will drift again the
+> next time a rule changes.
 
-```json
-{
-  "extends": [
-    "react-app",
-    "react-app/jest"
-  ],
-  "rules": {
-    "no-console": ["warn", { "allow": ["error", "warn"] }],
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "prefer-const": "error",
-    "no-var": "error",
-    "eqeqeq": ["error", "always"],
-    "react/prop-types": "off",
-    "react/jsx-no-target-blank": "error",
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
-    "jsx-a11y/alt-text": "error",
-    "jsx-a11y/aria-props": "error",
-    "jsx-a11y/label-has-associated-control": "error",
-    "jsx-a11y/no-noninteractive-element-interactions": "warn"
-  }
-}
-```
+**Real file:** `frontend/eslint.config.js` — ESLint v9 flat config, not
+`.eslintrc.json`. TypeScript-aware (`@typescript-eslint/parser` handles
+`.js`/`.jsx`/`.ts`/`.tsx` in one pass), includes `react`, `react-hooks`,
+and `jsx-a11y` plugins. `react-hooks/exhaustive-deps` and two newer
+React-Compiler-era rules (`react-hooks/set-state-in-effect` and its
+sibling) are deliberately downgraded to `warn` — real, unaudited
+pre-existing findings, not something CI should block on until they're
+worked through (see `docs/11_TESTING.md`). Run `npm run lint` to see the
+current rule set in effect; read the file directly for exact rules.
 
 ---
 
@@ -163,79 +154,42 @@ Create `frontend/.prettierrc`:
 }
 ```
 
-Create `backend/.flake8` (Python linting):
-
-```ini
-[flake8]
-max-line-length = 100
-exclude = venv, alembic/versions, __pycache__
-ignore = E501, W503
-```
+**Python linting (flake8):** no `backend/.flake8` file exists — the real
+enforced limit is `max-line-length=120` (not 100), passed as a CLI flag
+directly in `.github/workflows/ci.yml` and `scripts/flake8_changed_lines.py`
+(also the pre-commit hook's source). `E501` (line too long) is exactly
+what this checks — it is never ignored, unlike an earlier version of this
+doc claimed.
 
 ---
 
 ## GITHUB ACTIONS CI
 
-Create `.github/workflows/ci.yml`:
+> **Corrected Sep 18, 2026** — the sample previously here (2 jobs,
+> `branches: [main]` only) hadn't matched the real pipeline for months.
+> `.github/workflows/ci.yml` is the source of truth; this is a summary,
+> not a copy, so it can't drift the same way again.
 
-```yaml
-name: CI
+**Triggers:** push to `main`, `claude/**`, or `fix/**` (every feature-branch
+commit gets real CI signal, not just a PR); `pull_request` into `main`;
+manual `workflow_dispatch`.
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  frontend:
-    name: Frontend lint + test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test -- --watchAll=false --passWithNoTests
-
-  backend:
-    name: Backend lint + test
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install -r requirements.txt
-      - run: flake8 .
-      - run: pytest --tb=short -q
-        env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-          SECRET_KEY: test-secret-key-for-ci-only
-```
-
-Add `lint` script to `frontend/package.json`:
-
-```json
-{
-  "scripts": {
-    "lint": "eslint src --ext .js,.jsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .js,.jsx --fix",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src"
-  }
-}
-```
+**5 jobs:**
+- **Frontend — lint + test**: `npm run lint -- --max-warnings 175` (a real,
+  shrinking backlog number — see `docs/11_TESTING.md` — not an aspirational
+  0; any error-severity finding still fails regardless), then `npm test`.
+- **Backend — lint + test**: real Postgres service container, real Alembic
+  migrations, `flake8 . --max-line-length=120`, then `pytest` against a
+  live-started backend (every backend test is an HTTP integration test).
+- **E2E — Playwright**: full real stack (Postgres + backend + built
+  frontend + headless Chromium) — the class of check that caught bugs a
+  passing unit test alone missed (see the job's own comment in the file).
+- **Lighthouse**: audits a real production build of `/login` for
+  performance/a11y/best-practices/SEO.
+- **Definition of Done** (PR-time only): fails a PR that changes
+  `backend/routers|models|utils` or `frontend/src/pages|components|hooks`
+  with no matching test file change, unless the PR body states
+  `Test-exempt: <reason>` — the automated gate behind Manifesto rule 12.
 
 ---
 

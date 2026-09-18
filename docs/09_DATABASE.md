@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.9 | Last updated: September 16, 2026
+# Version: 1.10 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -14,14 +14,14 @@
 **Migrations:** Alembic
 **Driver:** asyncpg
 
-**Total tables: 23**
+**Total tables: 24** — corrected Sep 18, 2026 (was 23, missing `day_end_closings`)
 
 | Domain | Tables |
 |--------|--------|
 | Pharmacy | `pharmacies`, `pharmacy_settings` |
 | Users | `users`, `roles`, `audit_logs`, `password_reset_tokens` |
 | Products | `products`, `stock_batches`, `stock_movements` |
-| Billing | `bills`, `bill_items`, `bill_payment_splits`, `sales_returns`, `sales_return_items`, `schedule_h1_register` |
+| Billing | `bills`, `bill_items`, `bill_payment_splits`, `sales_returns`, `sales_return_items`, `schedule_h1_register`, `day_end_closings` |
 | Purchases | `purchases`, `purchase_items`, `purchase_payments`, `purchase_returns`, `purchase_return_items` |
 | Customers | `customers`, `doctors` |
 | Suppliers | `suppliers` |
@@ -501,6 +501,26 @@ Legal compliance register. Every H1 drug sale creates a row here.
 | `dispensed_by` | UUID FK → users | Pharmacist who dispensed |
 
 **Never delete rows from this table.** Drug inspector can audit at any time.
+
+---
+
+### `day_end_closings`
+Added Sep 18, 2026 — this table existed since Sep 15, 2026 (the Day-End
+Closing feature) but was missing from this doc entirely; found while
+checking the real table count against `backend/models/`. One row per
+pharmacy per calendar day: the cash a cashier physically counted vs.
+what the system expected from that day's real cash-method bills.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `pharmacy_id` | UUID FK → pharmacies | — |
+| `closing_date` | Date | Unique with `pharmacy_id` — one closing per pharmacy per day |
+| `expected_cash_paise` | Integer | Computed from that day's real cash bills |
+| `counted_cash_paise` | Integer | What the cashier physically counted |
+| `variance_paise` | Integer | `counted - expected` — persisted, not recomputed on read |
+| `notes` | Text, nullable | — |
+| `closed_by` | UUID FK → users | Who ran the close |
+| `closed_at` | Timestamptz | — |
 
 ---
 

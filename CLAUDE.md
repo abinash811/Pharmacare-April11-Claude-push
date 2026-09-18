@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.19 | Last updated: September 18, 2026
+# Version: 2.20 | Last updated: September 18, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -66,7 +66,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 | 05 | `docs/05_DESIGN_SYSTEM.md` | All design tokens, typography, spacing, banned patterns |
 | 06 | `docs/06_COMPONENTS.md` | Every shared component — props, usage, anti-patterns |
 | 07 | `docs/07_BUSINESS_LOGIC.md` | Billing, stock, GST, H1 register — exact formulas and flows |
-| 09 | `docs/09_DATABASE.md` | All 21 tables, columns, indexes, migration rules |
+| 09 | `docs/09_DATABASE.md` | All 24 tables, columns, indexes, migration rules |
 | 10 | `docs/10_API.md` | All endpoints, request/response shapes, error codes |
 | 12 | `docs/12_ERROR_HANDLING.md` | All error states, toast rules, retry patterns |
 | 14 | `docs/14_SECURITY.md` | Auth patterns, multi-tenancy rules, sensitive data |

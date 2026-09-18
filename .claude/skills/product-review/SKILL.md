@@ -18,7 +18,12 @@ MISSES LOG, Aug 25, 2026 entry.
 
 A section that reads correct in code and looks right on screen can still be
 unusable. This skill exists to catch that class of miss, every time, for
-any section — not just Purchases.
+any section — not just Purchases, and not just once: a section already
+marked ✅ in `docs/15_ROADMAP.md` is not exempt from checks 3-4 the next
+time it's touched for any reason (a bug fix, a small feature, an
+unrelated change nearby) — re-confirm the zero-data walkthrough and field
+verification still hold for whatever part you touched, since "was solid
+once" is exactly the claim that broke for Purchases.
 
 ## Before you start
 
@@ -93,14 +98,15 @@ everything else gets measured against.
 
 **2b. Named competitor specifics.** Check `docs/01_PRODUCT.md` §10
 (COMPETITIVE LANDSCAPE) for what's already researched about **eVitalRx,
-Marg ERP, Pharmasoft** for this section. That doc says outright: "refresh
-before relying on these, they age fast."
+Marg ERP, Pharmasoft** for this section, and check the date on it — over
+60 days old counts as stale by definition, not a judgment call ("feels
+current" isn't a check).
 
-- If research for this section exists and is recent, use it.
-- If it's missing or stale for this specific section, do a fresh web
-  search for how these three named competitors handle the equivalent
-  flow, and add what you find back into `docs/01_PRODUCT.md` §10 so the
-  next review doesn't redo this work.
+- If research for this section exists and is under 60 days old, use it.
+- If it's missing or over 60 days old, do a fresh web search for how
+  these three named competitors handle the equivalent flow, and add what
+  you find back into `docs/01_PRODUCT.md` §10, dated, so the next review
+  doesn't redo this work.
 
 Per Manifesto rule 15: a named, researched competitor feature PharmaCare
 lacks is a real gap, not a nice-to-have — but weigh it against the scope

@@ -1,5 +1,5 @@
 # PharmaCare — Design System
-# Version: 1.4 | Last updated: September 18, 2026
+# Version: 1.5 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, developers, designers
 # Rule: Every visual decision in PharmaCare is defined here.
@@ -762,6 +762,33 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 </Sheet>
 ```
 
+---
+
+### 5.5 Responsive Breakpoints
+
+> Added Sep 18, 2026 — 83 real `sm:`/`md:`/`lg:` usages already existed
+> across the app before this section did, built ad hoc with no documented
+> system to check against. This formalizes what's already real, it
+> doesn't invent something new — see `docs/15_ROADMAP.md`'s pending
+> "Real responsive/mobile breakpoint pass" (Batch 3) for the follow-up
+> work of actually auditing every page against these rules.
+
+Tailwind's default breakpoints, used exactly as shipped — no custom values:
+
+| Breakpoint | Width | PharmaCare use |
+|------------|-------|----------------|
+| (none) | 0px+ | Mobile-first base styles — the default, unprefixed classes |
+| `sm:` | ≥640px | Most-used breakpoint (50 real usages) — stacking → row layouts, showing/hiding secondary columns |
+| `md:` | ≥768px | Second most common (28 usages) — sidebar/modal width changes, multi-column forms |
+| `lg:` | ≥1024px | Least common (18 usages) — wide-table layouts, side-by-side panels |
+| `xl:` / `2xl:` | ≥1280px / ≥1536px | **Not used anywhere in the app today** — don't introduce one without a real reason; PharmaCare targets a pharmacy counter desktop/tablet, not ultra-wide monitors |
+
+**Rules:**
+- Design mobile-first: unprefixed classes are the base (smallest) layout, breakpoint prefixes add complexity going up — never the reverse.
+- `BillingWorkspace` and `PurchaseNew` (the two `flex flex-col h-full` workspace pages) are desktop-first by design — a pharmacy billing counter is not used on a phone; don't force a mobile layout onto them speculatively.
+- Every other page (any list/detail page using the standard `px-8 py-6 min-h-screen bg-page` root) must remain usable down to `sm:` (640px) — a tablet in a small pharmacy is a real, expected device.
+- Prefer hiding a secondary table column at a breakpoint (`hidden md:table-cell`) over horizontal scroll — a scrolling table hides data a pharmacist doesn't know is missing.
+
 **Rule:** All new data-entry forms must use Sheet, not centered Dialog.
 Centered dialogs are only for confirmations and alerts.
 
@@ -910,6 +937,42 @@ import { ConfirmDialog, DeleteConfirmDialog, DiscardConfirmDialog } from '@/comp
   onCancel={() => setShowDiscard(false)}
 />
 ```
+
+---
+
+### 7.3 Voice & Tone
+
+> Added Sep 18, 2026 — 7.1's toast rules already covered error/success
+> copy; this extends the same voice to every other piece of text the app
+> writes (button labels, empty states, form hints, page titles), grounded
+> in copy already shipped, not invented from scratch.
+
+**Who we're writing for:** the same non-technical pharmacist persona
+CLAUDE.md holds Claude to when explaining anything technical to Abinash —
+someone running a shop, not a developer. No jargon, no internal names.
+
+**Rules:**
+- **Plain English over technical terms.** Say "Bill" not "Invoice record",
+  "Stock" not "Inventory quantity delta". Real examples already in the
+  app: `'Pick a customer first — a due bill needs someone to collect from
+  later.'`, `'Bill parked! Can be resumed later.'`
+- **Active voice, sentence case.** `'Add items to bill first'`, not `'Items
+  should be added to the bill'` or `'ADD ITEMS TO BILL FIRST'`.
+- **Say what happened, not just that something happened.** A success toast
+  names the thing: `'Bill parked!'`, not `'Success!'`. An error names the
+  real reason (Manifesto rule 10) — `'Paid now cannot be more than the
+  bill total — the rest stays due.'`, never a bare `'Error'` or `'Failed'`.
+- **A button label is a verb, not a noun.** `'Save Bill'`, `'Park Bill'`,
+  `'Collect Payment'` — not `'Bill'`, `'Save'` alone when the object
+  matters, or `'Submit'`.
+- **No exclamation marks except a genuine one-time success** (`'Bill
+  parked!'`) — never on errors, warnings, or routine confirmations.
+- **Empty states explain what to do next, not just that nothing exists.**
+  `'No bills yet — create your first bill to get started'`, not a bare
+  `'No data'` or `'Nothing here'`.
+- **Numbers and money are never spelled out or rounded in copy** — show
+  the real figure (`'₹1,240 still due'`), not a vague `'a balance is
+  due'`.
 
 ---
 

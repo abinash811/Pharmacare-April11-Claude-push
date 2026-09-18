@@ -68,7 +68,11 @@ like a patch rather than closing the actual gap.
 - [ ] Step 6: New/edited endpoint is tenant-scoped, permission-checked, and audit-logged
       (docs/08_ARCHITECTURE.md's "Standing endpoint invariants" table) — or has a reviewed
       # tenant-safe: / # permission-exempt: / # audit-exempt: comment if deliberately not
-- [ ] Step 7: Write the pytest that proves it (see pharmacare-testing skill)
+- [ ] Step 7: New endpoint, or changed request/response/behavior on an existing one, is
+      documented in docs/10_API.md in this same change — that doc's own rule, and nothing
+      currently gates it (added Sep 18, 2026 after PUT /bills's same-day-edit behavior
+      shipped without it, caught only by a docs review, not by any check)
+- [ ] Step 8: Write the pytest that proves it (see pharmacare-testing skill)
 ```
 
 **Step 3 is the one most often skipped.** `docs/08_ARCHITECTURE.md`'s

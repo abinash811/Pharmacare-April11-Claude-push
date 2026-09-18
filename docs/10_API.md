@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.3 | Last updated: September 16, 2026
+# Version: 1.4 | Last updated: September 18, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -282,7 +282,26 @@ Get full bill with all line items.
 ---
 
 ### `PUT /bills/{bill_id}`
-Update a bill. Only works on `draft` status bills.
+Update a bill. Works on `draft`, `paid`, or `due` status — corrected
+Sep 18, 2026, this doc previously said "draft only" and drifted the same
+day the real behavior changed underneath it (`docs/10_API.md`'s own rule
+says new/changed endpoint behavior is documented in the same PR — this
+one wasn't, until this pass caught it).
+
+**On a `draft` bill:** ordinary edit, same rules as `POST /bills`.
+
+**On an already-finalized (`paid`/`due`) bill:** a same-day correction
+window — items/pricing only, payment amount/method preserved, old stock
+movements reversed and new ones applied, logged as a `financial_edit`
+audit entry. Returns `400` once either holds: a Sales Return already
+exists against this bill, or that day's Day-End Closing has already run.
+See `docs/07_BUSINESS_LOGIC.md` (search "same-day correction") for the
+full rule and `docs/15_ROADMAP.md`'s Billing table for why it was built.
+
+**Errors:**
+- `400` — Bill status isn't `draft`/`paid`/`due`
+- `400` — "This bill has a return recorded against it and can no longer be edited."
+- `400` — "This bill's day has already been closed and can no longer be edited."
 
 ---
 
@@ -923,10 +942,10 @@ comparisons.
 Purchase totals + purchase-return totals for a date range. **Query params:**
 `from_date`, `to_date`.
 
-> ⚠️ **This route is defined twice** — in `backend/routers/reports.py:523`
-> and again in `backend/routers/sales_returns.py:659`. FastAPI matches the
-> first registration, and `main.py` includes `reports.router` (line 43)
-> before `sales_returns.router` (line 47), so the `reports.py` version
+> ⚠️ **This route is defined twice** — in `backend/routers/reports.py:1274`
+> and again in `backend/routers/sales_returns.py:938`. FastAPI matches the
+> first registration, and `main.py` includes `reports.router` (line 63)
+> before `sales_returns.router` (line 67), so the `reports.py` version
 > always wins — the copy in `sales_returns.py` is dead code, unreachable.
 > Not fixed as part of this doc pass (code change, not a doc one); worth a
 > follow-up to delete the dead copy from `sales_returns.py` so a future

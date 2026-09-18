@@ -22,9 +22,6 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
 
-    # CORS
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
-
 
 @lru_cache
 def get_settings() -> Settings:

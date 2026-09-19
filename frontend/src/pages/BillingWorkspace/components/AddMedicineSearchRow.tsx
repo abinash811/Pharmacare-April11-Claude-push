@@ -24,6 +24,14 @@ interface SearchProduct {
   name: string;
   has_stock: boolean;
   batches: ProductBatch[];
+  // Already returned by GET /products/search-with-batches, just never
+  // shown here — found Sep 19, 2026 (Abinash): the result only showed
+  // batch/expiry/stock/MRP, not enough to tell two similarly-named
+  // medicines apart or spot a prescription-only one before adding it.
+  manufacturer?: string;
+  schedule?: string | null;
+  scheduleH?: boolean;
+  gst_percent?: number;
 }
 
 export interface AddMedicineSearchRowProps {
@@ -91,9 +99,17 @@ export default function AddMedicineSearchRow({
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-72 overflow-y-auto">
             {searchResults.map((product) => (
               <div key={product.sku} className="border-b border-gray-100 last:border-0">
-                <div className="px-3 py-1.5 bg-gray-50 flex items-center justify-between">
-                  <span className="font-semibold text-sm text-gray-900">{product.name}</span>
-                  <span className="text-[10px] text-gray-500 font-mono">SKU: {product.sku}</span>
+                <div className="px-3 py-1.5 bg-gray-50 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-semibold text-sm text-gray-900 truncate">{product.name}</span>
+                    {product.manufacturer && (
+                      <span className="text-xs text-gray-400 truncate">· {product.manufacturer}</span>
+                    )}
+                    {product.scheduleH && (
+                      <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded shrink-0">Rx</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-500 font-mono shrink-0">SKU: {product.sku}</span>
                 </div>
                 {product.has_stock ? product.batches.map((batch) => (
                   <div
@@ -114,6 +130,9 @@ export default function AddMedicineSearchRow({
                         Exp {formatExpiry(batch.expiry_iso || batch.expiry_date)}
                       </span>
                       <span className="text-xs text-gray-400">Stock: <span className={`font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-red-500'}`}>{batch.qty_on_hand}</span></span>
+                      {product.gst_percent != null && (
+                        <span className="text-xs text-gray-400">GST {product.gst_percent}%</span>
+                      )}
                     </div>
                     <span className="font-semibold text-sm text-gray-900">{formatCurrency(batch.mrp_per_unit)}</span>
                   </div>

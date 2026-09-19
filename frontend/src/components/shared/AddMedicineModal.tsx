@@ -58,7 +58,7 @@ function buildFormInit() {
   return {
     name: '', category: '', dosageForm: '', gstPercent: 5,
     manufacturer: '', brand: '', genericName: '', strength: '', unitsPerPack: 1,
-    schedule: 'OTC', lowStockThreshold: 10, requiresRefrigeration: false, isReturnable: true, storageLocation: '',
+    schedule: 'OTC', lowStockThreshold: 10, reorderQuantity: 100, requiresRefrigeration: false, isReturnable: true, storageLocation: '',
     batchNo: '', expiryDate: '', initialQty: '', mrpPerUnit: '', costPrice: '',
   };
 }
@@ -108,6 +108,7 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName, hide
         units_per_pack: parseInt(String(form.unitsPerPack), 10) || 1,
         schedule: form.schedule,
         low_stock_threshold_units: parseInt(String(form.lowStockThreshold), 10) || 10,
+        reorder_quantity_units: parseInt(String(form.reorderQuantity), 10) || 100,
         requires_refrigeration: form.requiresRefrigeration,
         is_returnable: form.isReturnable,
         storage_location: form.storageLocation || null,
@@ -201,6 +202,7 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName, hide
             <Field label="Strength" hint="e.g. 500mg, 5ml"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="medicine-strength-input" /></Field>
             <SuggestField label="Storage Location" value={form.storageLocation} onChange={(v: string) => set('storageLocation', v)} options={LOCATION_SUGGESTIONS} placeholder="e.g. Store A, Shelf 3" testId="medicine-location-input" />
             <Field label="Low Stock Threshold"><input type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} className={INPUT_CLS} /></Field>
+            <Field label="Reorder Quantity" hint="Suggested quantity to order when restocking"><input type="number" value={form.reorderQuantity} onChange={(e) => set('reorderQuantity', e.target.value)} className={INPUT_CLS} /></Field>
             <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
               <span className="text-sm font-medium text-gray-700">Requires Refrigeration</span>
               <Switch checked={form.requiresRefrigeration} onCheckedChange={(v: boolean) => set('requiresRefrigeration', v)} data-testid="medicine-refrigeration-switch" />

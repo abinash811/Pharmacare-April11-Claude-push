@@ -1,5 +1,5 @@
 # PharmaCare — Shared Components
-# Version: 1.5 | Last updated: September 11, 2026
+# Version: 1.6 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before building any UI, check if a shared component already handles it.
@@ -255,7 +255,7 @@ to work around a touch-target complaint, fix the shared scale instead.
 
 ## 2. PageHeader
 
-**File:** `frontend/src/components/shared/PageHeader.jsx`
+**File:** `frontend/src/components/shared/PageHeader.tsx`
 
 Every page's top header. Bleeds edge-to-edge inside the `px-8 py-6` page wrapper.
 
@@ -316,11 +316,16 @@ Every page's top header. Bleeds edge-to-edge inside the `px-8 py-6` page wrapper
 // → actions must contain only AppButton components
 ```
 
+**Detail pages use `PageBreadcrumb` + a plain `<h1>` instead of `PageHeader`**
+— a deliberate, real, intentional pattern (e.g. `PurchaseDetail/index.jsx`),
+not a rule violation. See `PageBreadcrumb` below, added to this doc Sep 19,
+2026 after being found real, exported, and used but never documented here.
+
 ---
 
 ## 3. PageTabs
 
-**File:** `frontend/src/components/shared/PageTabs.jsx`
+**File:** `frontend/src/components/shared/PageTabs.tsx`
 
 Standard underline tab bar. Used for all multi-view pages.
 
@@ -521,7 +526,7 @@ Colored pill badges for status values. All status-to-color mappings live here.
 
 ### Adding a new status
 
-Add to `STATUS_STYLES` in `StatusBadge.jsx`. Use only semantic color pairs:
+Add to `STATUS_STYLES` in `StatusBadge.tsx`. Use only semantic color pairs:
 ```jsx
 // In STATUS_STYLES object:
 my_new_status: 'bg-green-50 text-green-700',  // success
@@ -540,14 +545,14 @@ my_new_status: 'bg-gray-100 text-gray-700',   // neutral
 // → bg-green-100 is too bright. Use StatusBadge with status="paid"
 
 // ❌ Building a new badge component
-// → Always extend StatusBadge.jsx
+// → Always extend StatusBadge.tsx
 ```
 
 ---
 
 ## 6. Loading Components
 
-**File:** `frontend/src/components/shared/TableSkeleton.jsx`
+**File:** `frontend/src/components/shared/TableSkeleton.tsx`
 
 ### TableSkeleton — While table data is loading
 
@@ -632,7 +637,7 @@ skeleton in the app overrides it the same way.
 
 ## 7. EmptyState Components
 
-**File:** `frontend/src/components/shared/EmptyState.jsx`
+**File:** `frontend/src/components/shared/EmptyState.tsx`
 
 ### Domain-specific (always prefer these)
 
@@ -661,11 +666,23 @@ skeleton in the app overrides it the same way.
 
 ### Error empty state — always with retry
 
+Corrected Sep 19, 2026 — this doc previously showed an `onRetry` prop that
+`ErrorEmptyState` has never actually had; the real prop is `action`
+(same as base `EmptyState`), and nothing enforces "pass it every time"
+(no PropTypes/required-prop check) despite the comment implying one:
+
 ```jsx
-<ErrorEmptyState onRetry={fetchData} />
-// Shows: error icon + message + "Try Again" button
-// onRetry is required — never show error state without retry
+<ErrorEmptyState action={<AppButton onClick={fetchData}>Try Again</AppButton>} />
+// Shows: error icon + "Something went wrong" + your action element
 ```
+
+**There's also an undocumented near-duplicate:** `ErrorState`
+(`frontend/src/components/shared/ErrorState.tsx`) — a standalone component
+with a different API (`message`, `onRetry?`, `title?`) that happens to
+render almost the same thing. As of this writing neither `ErrorState` nor
+`ErrorEmptyState` is actually used anywhere in `frontend/src/pages/` — if
+you need an error state, prefer `ErrorEmptyState` (it matches the rest of
+this domain-specific `EmptyState` family); don't add a third one.
 
 ### Generic with custom content
 
@@ -693,16 +710,16 @@ import { Package } from 'lucide-react';
 </td>
 // → Use domain-specific EmptyState
 
-// ❌ Error without retry
+// ❌ Error without a retry action
 <ErrorEmptyState />
-// → Always pass onRetry
+// → Pass action={<AppButton onClick={retry}>Try Again</AppButton>}
 ```
 
 ---
 
 ## 8. ConfirmDialog / DeleteConfirmDialog / DiscardConfirmDialog
 
-**File:** `frontend/src/components/shared/ConfirmDialog.jsx`
+**File:** `frontend/src/components/shared/ConfirmDialog.tsx`
 
 ### ConfirmDialog — Generic confirmation
 
@@ -769,7 +786,7 @@ if (window.confirm('Are you sure?')) { handleDelete(); }
 
 ## 9. PaginationBar
 
-**File:** `frontend/src/components/shared/PaginationBar.jsx`
+**File:** `frontend/src/components/shared/PaginationBar.tsx`
 
 Pagination footer for all list pages. Designed to receive `usePagination()` return values directly.
 
@@ -807,7 +824,7 @@ const pg = usePagination({ pageSize: 20, totalItems: totalCount });
 
 ## 10. DataCard
 
-**File:** `frontend/src/components/shared/DataCard.jsx`
+**File:** `frontend/src/components/shared/DataCard.tsx`
 
 White card wrapper. Use for KPI metrics, stat summaries.
 
@@ -837,7 +854,7 @@ White card wrapper. Use for KPI metrics, stat summaries.
 
 ## 11. DateRangePicker
 
-**File:** `frontend/src/components/shared/DateRangePicker.jsx`
+**File:** `frontend/src/components/shared/DateRangePicker.tsx`
 
 Date range selector with quick presets: Today, This Month, Last Month, Financial Year.
 Defaults to showing current Indian Financial Year (April 1 – March 31).
@@ -873,7 +890,7 @@ const { start, end } = getFinancialYearRange();
 
 ## 12. TableActions
 
-**File:** `frontend/src/components/shared/TableActions.jsx`
+**File:** `frontend/src/components/shared/TableActions.tsx`
 
 Standard row action buttons (view, edit, delete). Always right-aligned in the last column.
 
@@ -916,7 +933,7 @@ Standard row action buttons (view, edit, delete). Always right-aligned in the la
 
 When a UI pattern appears in 2+ pages, extract it to shared. Steps:
 
-1. Create file in `frontend/src/components/shared/YourComponent.jsx`
+1. Create file in `frontend/src/components/shared/YourComponent.tsx` (shared/ components are TypeScript now, not `.jsx`)
 2. Export it from `frontend/src/components/shared/index.js`
 3. Document it in this file (`docs/06_COMPONENTS.md`) — same PR
 4. Add JSDoc comment at top of the component file
@@ -942,6 +959,38 @@ export function YourComponent({ propA, propB }) {
 ```
 
 ---
+
+## PageBreadcrumb
+
+**File:** `frontend/src/components/shared/PageBreadcrumb.tsx`
+
+Added to this doc Sep 19, 2026 — real, exported, used on 7 pages
+(`BillDetail`, `PurchaseDetail`, `PurchaseReturnDetail`, `SalesReturnDetail`,
+`SalesReturnCreate`, `PurchaseNew/PurchaseHeader`, `MedicineDetail/
+MedicineDetailHeader`) but never documented here until now. Renders above a
+plain `<h1>` on detail pages — the deliberate alternative to `PageHeader`
+for that page type (see PageHeader's note above), not a raw `<h1>` used
+without one.
+
+```jsx
+import { PageBreadcrumb } from '@/components/shared';
+
+<PageBreadcrumb crumbs={[
+  { label: 'Purchases', to: '/purchases' },
+  { label: purchase.purchase_number },   // current page — no `to`, renders as plain text
+]} />
+<div className="flex items-center gap-3">
+  <h1 className="text-xl font-bold text-gray-900">{purchase.purchase_number}</h1>
+  <StatusBadge status={purchase.status} />
+</div>
+```
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `crumbs` | `Array<{ label: string, to?: string }>` | ✅ | Ordered from root to current page. The last crumb should omit `to` — it renders as the current, non-clickable page |
+
+Renders nothing (`return null`) if `crumbs` is empty — safe to pass
+before data has loaded.
 
 ---
 
@@ -1032,6 +1081,54 @@ const [showMoreMenu, setShowMoreMenu] = useState(false);
 // ✅ Correct
 <MoreMenu items={[...]} />
 ```
+
+---
+
+## SuggestField
+
+**File:** `frontend/src/components/shared/SuggestField.tsx`
+
+Added to this doc Sep 19, 2026 — real, exported, used across Add Medicine
+and Edit Product for Medicine Name/Manufacturer/Storage Location, never
+documented until now. A free-text input with a filtered suggestion
+dropdown — **not a validation constraint**: whatever's typed is used as-is
+on blur/submit, the suggestions are only a shortcut so the same picking
+interaction shows up everywhere one of these fields appears, instead of
+each modal reinventing it.
+
+```jsx
+import { SuggestField } from '@/components/shared';
+
+<SuggestField
+  label="Manufacturer"
+  required
+  value={manufacturer}
+  onChange={setManufacturer}
+  options={knownManufacturers}
+  placeholder="e.g. Cipla"
+/>
+```
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `label` | `string` | ✅ | Field label |
+| `value` | `string` | ✅ | Controlled value |
+| `onChange` | `(value: string) => void` | ✅ | Called with the string directly, same convention as `SearchInput` |
+| `options` | `string[]` | ✅ | Suggestions shown in the dropdown — not an allowlist |
+| `required` | `boolean` | — | Shows a required-field marker |
+| `placeholder` | `string` | — | Placeholder text |
+| `testId` | `string` | — | `data-testid` on the input |
+
+---
+
+**Two more real, exported components this doc doesn't cover:**
+`SupplierFormModal` and `AddMedicineModal` (both `frontend/src/components/
+shared/`, both default exports). Unlike everything above, these are
+feature-specific modals (a full supplier form; a full add-medicine form),
+not generic UI primitives — they live in `shared/` because more than one
+page reuses the same modal, not because they're part of the design
+system's component vocabulary. Read their own source before reusing
+rather than expecting a generic contract here.
 
 ---
 

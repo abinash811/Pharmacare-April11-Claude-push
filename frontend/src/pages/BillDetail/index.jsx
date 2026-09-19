@@ -39,6 +39,7 @@ export default function BillDetail() {
   const navigate = useNavigate();
   const [bill, setBill]       = useState(null);
   const [pharmacy, setPharmacy] = useState(null);
+  const [printSettings, setPrintSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [showCollectPayment, setShowCollectPayment] = useState(false);
@@ -64,10 +65,16 @@ export default function BillDetail() {
     try {
       const [billRes, settingsRes] = await Promise.all([
         api.get(apiUrl.bill(id)),
-        api.get(apiUrl.settings()).catch(() => ({ data: { general: {} } })),
+        api.get(apiUrl.settings()).catch(() => ({ data: { general: {}, print: {} } })),
       ]);
       setBill(billRes.data);
       setPharmacy(settingsRes.data?.general || {});
+      // Print settings (header/footer text + Show-on-Bill toggles) — found
+      // Sep 19, 2026 (Abinash, testing): this on-screen invoice preview
+      // (also what window.print() actually prints) never fetched these at
+      // all, so it silently ignored the same settings the backend PDF
+      // (GET /bills/{id}/pdf) already honours. Same source, same shape.
+      setPrintSettings(settingsRes.data?.print || {});
     } catch {
       toast.error('Failed to load bill');
       navigate('/billing');
@@ -106,8 +113,19 @@ export default function BillDetail() {
   }, {});
   const gstRows = Object.entries(gstGroups).filter(([, v]) => v.total > 0);
 
+  // Show-on-Bill toggles (Settings → Printing) — same fields the backend
+  // PDF (GET /bills/{id}/pdf) already reads; this on-screen preview is
+  // also what window.print() prints, so it must honour the same toggles
+  // instead of always showing everything.
+  const showGstin      = printSettings ? printSettings.print_gstin        : true;
+  const showDrugLic    = printSettings ? printSettings.print_drug_license : true;
+  const showFssai      = printSettings ? printSettings.print_fssai        : false;
+  const showPan        = printSettings ? printSettings.print_pan          : false;
+  const showPatientName = printSettings ? printSettings.print_patient_name : true;
+  const showSignature   = printSettings ? printSettings.print_signature   : false;
+
   return (
-    <div className="px-8 py-6 print:p-0" data-testid="bill-detail-page">
+    <div className="px-8 py-6 print:p-0 print-area" data-testid="bill-detail-page">
       {/* Breadcrumb + Toolbar */}
       <div className="max-w-4xl mx-auto mb-4 print:hidden">
         <PageBreadcrumb crumbs={[
@@ -169,8 +187,11 @@ export default function BillDetail() {
               {pharmacy?.address  && <p className="text-sm text-gray-500 mt-1">{pharmacy.address}</p>}
               {pharmacy?.city     && <p className="text-sm text-gray-500">{[pharmacy.city, pharmacy.state, pharmacy.pincode].filter(Boolean).join(', ')}</p>}
               {pharmacy?.phone    && <p className="text-sm text-gray-500">📞 {pharmacy.phone}</p>}
-              {pharmacy?.gstin    && <p className="text-sm font-medium text-gray-700 mt-1">GSTIN: {pharmacy.gstin}</p>}
-              {pharmacy?.drug_license && <p className="text-xs text-gray-500">Drug Lic: {pharmacy.drug_license}</p>}
+              {showGstin   && pharmacy?.gstin        && <p className="text-sm font-medium text-gray-700 mt-1">GSTIN: {pharmacy.gstin}</p>}
+              {showDrugLic && pharmacy?.drug_license && <p className="text-xs text-gray-500">Drug Lic: {pharmacy.drug_license}</p>}
+              {showFssai   && pharmacy?.fssai_number && <p className="text-xs text-gray-500">FSSAI: {pharmacy.fssai_number}</p>}
+              {showPan     && pharmacy?.pan_number   && <p className="text-xs text-gray-500">PAN: {pharmacy.pan_number}</p>}
+              {printSettings?.bill_header && <p className="text-xs text-gray-500 mt-1">{printSettings.bill_header}</p>}
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-500 uppercase tracking-wide font-semibold mb-1">
@@ -189,8 +210,14 @@ export default function BillDetail() {
         <div className="px-8 py-4 border-b border-gray-100 grid grid-cols-2 gap-8">
           <div>
             <div className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2">Bill To</div>
-            <div className="font-semibold text-gray-800 text-lg">{bill.customer_name || 'Counter Sale'}</div>
-            {bill.customer_mobile && <div className="text-sm text-gray-600 mt-0.5">📞 {bill.customer_mobile}</div>}
+            {showPatientName ? (
+              <>
+                <div className="font-semibold text-gray-800 text-lg">{bill.customer_name || 'Counter Sale'}</div>
+                {bill.customer_mobile && <div className="text-sm text-gray-600 mt-0.5">📞 {bill.customer_mobile}</div>}
+              </>
+            ) : (
+              <div className="text-sm text-gray-400 italic">Patient name hidden</div>
+            )}
           </div>
           {bill.doctor_name && (
             <div>
@@ -203,10 +230,21 @@ export default function BillDetail() {
         <BillItemsTable items={bill.items} />
         <BillTotals bill={bill} gstRows={gstRows} isParked={isParked} />
 
+        {showSignature && (
+          <div className="px-8 pt-6 flex justify-end">
+            <div className="text-center text-xs text-gray-600">
+              <div className="border-t border-gray-400 w-40 pt-1">Authorised Signatory</div>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="px-8 py-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
-          <span>Generated by PharmaCare · {new Date().toLocaleString('en-IN')}</span>
-          {bill.cashier_name && <span>Billed by: {bill.cashier_name}</span>}
+        <div className="px-8 py-4 border-t border-gray-100 text-xs text-gray-400">
+          {printSettings?.bill_footer && <p className="text-center text-gray-500 mb-1">{printSettings.bill_footer}</p>}
+          <div className="flex justify-between items-center">
+            <span>Generated by PharmaCare · {new Date().toLocaleString('en-IN')}</span>
+            {bill.cashier_name && <span>Billed by: {bill.cashier_name}</span>}
+          </div>
         </div>
       </div>
 

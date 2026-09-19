@@ -22,6 +22,11 @@ export function useBillRowActions() {
     try {
       const res = await api.get(apiUrl.billPdf(bill.id), { responseType: 'blob' });
       downloadBlob(res.data, `${bill.bill_number}.pdf`, 'application/pdf');
+      // A silent successful download looked identical to a silently-failed
+      // one — Abinash, Sep 19, 2026, testing: "print button is not
+      // producing anything". The download itself worked; nothing on screen
+      // ever confirmed it did.
+      toast.success(`${bill.bill_number}.pdf downloaded`);
     } catch (err) {
       toast.error(await extractBlobErrorMessage(err, 'Failed to download PDF'));
     } finally {

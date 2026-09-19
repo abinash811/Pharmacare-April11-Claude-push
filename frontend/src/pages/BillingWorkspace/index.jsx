@@ -140,11 +140,22 @@ export default function BillingWorkspace() {
         const d = JSON.parse(saved);
         setCustomerName(d.customerName || ''); setCustomerPhone(d.customerPhone || '');
         setDoctorName(d.doctorName || ''); setItems(d.items || []);
-        setPaymentType(d.paymentType || 'cash');
+        // Payment type is intentionally NOT restored from a leftover draft —
+        // Abinash, Sep 19, 2026: "Create Bill" must always default to Cash,
+        // even if an abandoned draft last had UPI/Due/Multi selected.
         setDraftNumber(d.draftNumber || Math.floor(1000 + Math.random() * 9000));
       } catch { /* corrupt draft */ }
     }
   }, [billId]);
+
+  // Auto-focus the item search bar on a fresh "Create Bill" — Abinash, Sep
+  // 19, 2026: nothing was focused before, forcing an extra click before the
+  // user could start typing a medicine name.
+  useEffect(() => {
+    if (!isInitialising && viewMode === 'new' && !billId) {
+      searchInputRef.current?.focus();
+    }
+  }, [isInitialising, viewMode, billId]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -241,12 +252,10 @@ export default function BillingWorkspace() {
         />
 
         <BillingFooter
-          viewMode={viewMode} billItems={billItems}
+          billItems={billItems}
           mrpTotal={mrpTotal} totalDiscount={totalDiscount}
           totalGst={totalGst} totalCess={totalCess}
           grandTotal={grandTotal} margin={margin}
-          billDiscount={billDiscount} billDiscountType={billDiscountType}
-          onBillDiscountChange={setBillDiscount} onBillDiscountTypeChange={setBillDiscountType}
         />
       </main>
 

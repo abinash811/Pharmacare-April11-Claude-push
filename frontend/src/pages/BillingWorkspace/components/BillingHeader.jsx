@@ -28,10 +28,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, Printer, RotateCcw, History, CreditCard,
-  PauseCircle, CheckCircle, HelpCircle,
+  PauseCircle, CheckCircle,
 } from 'lucide-react';
 import { AppButton } from '@/components/shared';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import SavePrintSplitButton from './SavePrintSplitButton';
 
 const FORMAT_OPTIONS = [
@@ -141,34 +140,6 @@ export default function BillingHeader({
             >
               {isSaving ? 'Saving…' : isCorrection ? 'Save Changes' : 'Finalise Bill'}
             </AppButton>
-
-            {/* Keyboard shortcut legend */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <AppButton
-                  variant="ghost"
-                  iconOnly
-                  icon={<HelpCircle className="w-4 h-4 text-gray-400" />}
-                  aria-label="Keyboard shortcuts"
-                />
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-3" align="end">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Keyboard Shortcuts</p>
-                <div className="space-y-1.5">
-                  {[
-                    { key: 'Ctrl+F', label: 'Focus medicine search' },
-                    { key: 'F8',     label: 'Park / hold bill'       },
-                    { key: 'F12',    label: 'Save & print'           },
-                    { key: 'Esc',    label: 'Close modal'            },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="text-xs text-gray-600">{label}</span>
-                      <kbd className="inline-flex h-5 items-center rounded border border-gray-200 bg-gray-50 px-1.5 font-mono text-[10px] text-gray-500">{key}</kbd>
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
           </div>
         )}
 

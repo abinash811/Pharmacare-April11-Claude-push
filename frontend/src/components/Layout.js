@@ -9,6 +9,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { AuthContext } from '@/App';
+import { AppButton } from '@/components/shared';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -113,13 +114,14 @@ export default function Layout() {
           <p className="text-[10px] text-gray-400 leading-tight">v1.0</p>
         </div>
         {/* Mobile close */}
-        <button
-          className="md:hidden text-gray-400 hover:text-white transition-colors"
+        <AppButton
+          variant="ghost"
+          iconOnly
+          className="md:hidden h-auto p-0 text-gray-400 hover:text-white hover:bg-transparent"
           onClick={() => setSidebarOpen(false)}
           aria-label="Close menu"
-        >
-          <X className="w-4 h-4" />
-        </button>
+          icon={<X className="w-4 h-4" />}
+        />
       </div>
 
       {/* Nav groups */}
@@ -171,20 +173,21 @@ export default function Layout() {
             </span>
           </div>
         </div>
-        <button
+        <AppButton
+          variant="ghost"
           onClick={logout}
           data-testid="logout-btn"
-          className="w-full flex items-center gap-2 px-3 h-8 [@media(pointer:coarse)]:h-11 rounded-lg text-[13px] font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+          className="w-full justify-start gap-2 px-3 h-8 [@media(pointer:coarse)]:h-11 rounded-lg text-[13px] font-medium text-gray-400 hover:text-white hover:bg-white/5"
+          icon={<LogOut className="w-4 h-4 flex-shrink-0" />}
         >
-          <LogOut className="w-4 h-4 flex-shrink-0" />
           Logout
-        </button>
+        </AppButton>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-page overflow-hidden">
+    <div className="app-shell flex h-screen bg-page overflow-hidden">
 
       {/* ── Desktop sidebar ────────────────────────────────────────────── */}
       <aside
@@ -221,14 +224,15 @@ export default function Layout() {
 
         {/* Mobile top bar */}
         <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-sidebar border-b border-white/10 flex-shrink-0">
-          <button
+          <AppButton
+            variant="ghost"
+            iconOnly
             onClick={() => setSidebarOpen(true)}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="h-auto p-0 text-gray-400 hover:text-white hover:bg-transparent"
             aria-label="Open menu"
             data-testid="hamburger-btn"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+            icon={<Menu className="w-5 h-5" />}
+          />
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-brand rounded flex items-center justify-center">
               <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,7 +246,7 @@ export default function Layout() {
           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${roleBadge}`}>{roleLabel}</span>
         </header>
 
-        <main className="flex-1 overflow-auto" data-testid="main-content">
+        <main className="app-main flex-1 overflow-auto" data-testid="main-content">
           <Outlet />
         </main>
       </div>

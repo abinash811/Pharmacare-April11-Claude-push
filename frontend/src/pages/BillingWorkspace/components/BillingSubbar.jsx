@@ -126,7 +126,7 @@ export default function BillingSubbar({
         <ColDivider />
 
         {/* ── PATIENT ─────────────────────────────────────────────────── */}
-        <div className="px-5 shrink-0 min-w-[120px] max-w-[180px]">
+        <div className="px-5 shrink-0">
           <span className={LABEL}>Patient</span>
           {isView ? (
             <span className="text-sm font-medium text-gray-900 truncate block" title={customerName || 'Walk-in'}>
@@ -145,13 +145,12 @@ export default function BillingSubbar({
         <ColDivider />
 
         {/* ── DOCTOR ──────────────────────────────────────────────────── */}
-        <div className="px-5 shrink-0 min-w-[120px]">
+        <div className="px-5 shrink-0">
           <span className={LABEL}>Doctor</span>
           <DoctorDropdown
             value={doctorName}
             onChange={onDoctorChange}
             readOnly={isView}
-            compact
           />
         </div>
 

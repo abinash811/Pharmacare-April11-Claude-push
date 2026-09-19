@@ -71,19 +71,32 @@ body {
   body * {
     visibility: hidden;
   }
-  
+
   .print-area,
   .print-area * {
     visibility: visible;
   }
-  
+
   .print-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
   }
-  
+
+  /* The app shell (Layout.js) fixes html/body/#root to a single
+     `h-screen overflow-hidden` viewport with an `overflow-auto` <main> —
+     needed on screen, but it clips a `.print-area` taller than one
+     viewport to whatever was scrolled into view, so anything past the
+     first screen silently printed blank. Found Sep 19, 2026 (Abinash,
+     testing): Bill Detail's print/PDF preview "produced nothing" — this
+     is why. Reset height/overflow app-wide only under @media print, so
+     the browser can lay out the full printed page. */
+  html, body, #root, .app-shell, .app-main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   @page {
     margin: 0.5cm;
   }

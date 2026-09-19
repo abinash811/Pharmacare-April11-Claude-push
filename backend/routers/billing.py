@@ -1235,6 +1235,7 @@ async def get_bill(bill_id: str, current_user: User = Depends(
 async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import red, black
     from reportlab.pdfgen import canvas
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -1423,12 +1424,22 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
     if show_gst_summary:
         summary_lines.append(("GST", gst))
     for label, val in summary_lines:
+        # Discount prints in red, matching every on-screen total strip in
+        # the app (BillingFooter, BillDetail's BillTotals) — Abinash, Sep
+        # 19, 2026: everything printed flat black here, losing the same
+        # at-a-glance distinction the app relies on everywhere else.
+        if label == "Discount" and val != 0:
+            pdf.setFillColor(red)
         pdf.drawRightString(470, y, label)
         pdf.drawRightString(col_amount, y, f"₹{val:.2f}")
+        pdf.setFillColor(black)
         y -= 14
     pdf.setFont("Helvetica-Bold", 12)
+    if bill.status == "due":
+        pdf.setFillColor(red)
     pdf.drawRightString(470, y, "TOTAL")
     pdf.drawRightString(col_amount, y, f"₹{bill.grand_total_paise / 100:.2f}")
+    pdf.setFillColor(black)
 
     if not ps or ps.print_signature:
         pdf.setFont("Helvetica", 9)

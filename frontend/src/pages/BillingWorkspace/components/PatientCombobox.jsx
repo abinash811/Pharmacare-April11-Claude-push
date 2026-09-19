@@ -144,7 +144,7 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
             <AppButton
               variant="chip"
               onClick={openDropdown}
-              className="gap-1 text-sm truncate max-w-full"
+              className="w-40 h-9 px-2.5 justify-between gap-1 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
               title={creditInfo
                 ? `${displayValue} — owes ${formatCurrency(creditInfo.outstanding)} of ${formatCurrency(creditInfo.creditLimit)} credit limit`
                 : displayValue}
@@ -170,7 +170,7 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKey}
               placeholder={value || 'Search patient...'}
-              className="w-44 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
+              className="w-40 h-9 px-2.5 text-sm font-medium text-gray-900 border border-brand rounded-lg outline-none bg-white focus:ring-2 focus:ring-brand placeholder:text-gray-400 placeholder:font-normal"
               data-testid="patient-search-input"
             />
           )}

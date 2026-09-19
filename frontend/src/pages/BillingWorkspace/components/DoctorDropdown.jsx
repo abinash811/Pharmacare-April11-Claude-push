@@ -144,10 +144,10 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
             <AppButton
               variant="chip"
               onClick={openField}
-              className="gap-1 text-sm"
+              className="w-40 h-9 px-2.5 justify-between gap-1 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
               data-testid="doctor-chip"
             >
-              <span className={!value ? 'text-gray-400' : ''}>{value || 'Doctor'}</span>
+              <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{value || 'Doctor'}</span>
               <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
@@ -159,7 +159,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
               onChange={e => { setQuery(e.target.value); onChange(e.target.value); }}
               onKeyDown={handleKey}
               placeholder={value || 'Doctor name...'}
-              className="w-36 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
+              className="w-40 h-9 px-2.5 text-sm font-medium text-gray-900 border border-brand rounded-lg outline-none bg-white focus:ring-2 focus:ring-brand placeholder:text-gray-400 placeholder:font-normal"
               data-testid="doctor-search-input"
             />
           )}

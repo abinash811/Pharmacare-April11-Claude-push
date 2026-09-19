@@ -41,6 +41,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
     generic_name:        product.generic_name      || '',
     strength:            product.strength          || '',
     requires_refrigeration: product.requires_refrigeration || false,
+    is_returnable:       product.is_returnable !== false,
     storage_location:    product.storage_location  || '',
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
   });
@@ -89,6 +90,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
         generic_name:             form.generic_name || null,
         strength:                 form.strength     || null,
         requires_refrigeration:   form.requires_refrigeration,
+        is_returnable:            form.is_returnable,
         storage_location:        form.storage_location  || null,
         low_stock_threshold_units:parseInt(form.low_stock_threshold) || 10,
       });
@@ -137,10 +139,14 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
             <F label="Low Stock Threshold"><input type="number" value={form.low_stock_threshold} onChange={(e) => set('low_stock_threshold', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Strength (e.g. 500mg, 5ml)"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="edit-product-strength" /></F>
             <F label="Storage Location"><input value={form.storage_location} onChange={(e) => set('storage_location', e.target.value)} className={INPUT_CLS} placeholder="e.g. Store A, Shelf 3" data-testid="edit-product-location" /></F>
-            <div className="flex items-end pb-2">
+            <div className="flex items-end pb-2 gap-4">
               <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <input type="checkbox" checked={form.requires_refrigeration} onChange={(e) => set('requires_refrigeration', e.target.checked)} className="w-4 h-4" data-testid="edit-product-refrigeration" />
                 Requires Refrigeration
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" checked={form.is_returnable} onChange={(e) => set('is_returnable', e.target.checked)} className="w-4 h-4" data-testid="edit-product-returnable" />
+                Returnable
               </label>
             </div>
             <F label="Generic Name / Composition" span2>

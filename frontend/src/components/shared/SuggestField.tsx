@@ -1,10 +1,17 @@
 /**
  * SuggestField — free-text input with a filtered suggestion dropdown.
- * Not a validation constraint: whatever's typed is used as-is on blur/submit,
- * the suggestions are just a shortcut. Used for Medicine Name, Manufacturer,
- * and Storage Location across Add Medicine and Edit Product so the same
- * suggestion list and interaction pattern shows up everywhere a pharmacist
- * can pick or type one of these values, instead of each modal reinventing it.
+ * By default, not a validation constraint: whatever's typed is used as-is
+ * on blur/submit, the suggestions are just a shortcut. Used for
+ * Manufacturer and Storage Location across Add Medicine and Edit Product
+ * so the same suggestion list and interaction pattern shows up everywhere.
+ *
+ * `strict` (opt-in, default off — every existing caller keeps free text)
+ * restricts the field to an exact match from `options`: a value that
+ * doesn't match on blur is cleared, and `onInvalidEntry` (if given) fires
+ * so the caller can show its own contextual message. Added Sep 19, 2026
+ * (Abinash, direct instruction) for Medicine Name — the real product
+ * catalog doesn't exist yet, so this locks entry to the seed list rather
+ * than letting an arbitrary typed name get saved as a new product.
  */
 import React, { useState } from 'react';
 import AppButton from './AppButton';
@@ -19,13 +26,22 @@ interface SuggestFieldProps {
   options: string[];
   placeholder?: string;
   testId?: string;
+  strict?: boolean;
+  onInvalidEntry?: (typed: string) => void;
 }
 
-export function SuggestField({ label, required, value, onChange, options, placeholder, testId }: SuggestFieldProps) {
+export function SuggestField({ label, required, value, onChange, options, placeholder, testId, strict = false, onInvalidEntry }: SuggestFieldProps) {
   const [open, setOpen] = useState(false);
   const matches = value.trim().length > 0
     ? options.filter((o) => o.toLowerCase().includes(value.trim().toLowerCase())).slice(0, 8)
     : [];
+  const handleBlur = () => {
+    setTimeout(() => setOpen(false), 150);
+    if (strict && value.trim() && !options.some((o) => o.toLowerCase() === value.trim().toLowerCase())) {
+      onInvalidEntry?.(value.trim());
+      onChange('');
+    }
+  };
   return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -35,7 +51,7 @@ export function SuggestField({ label, required, value, onChange, options, placeh
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={handleBlur}
         className={INPUT_CLS}
         placeholder={placeholder}
         required={required}

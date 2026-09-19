@@ -46,6 +46,12 @@ class Product(Base):
     reorder_quantity: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     storage_location: Mapped[Optional[str]] = mapped_column(String(100))
     requires_refrigeration: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Whether this medicine can be taken back in a Sales Return — e.g. a
+    # narcotic (Schedule X) or an opened/loose-sold item typically can't
+    # be. Defaults to True (most medicines are returnable); a pharmacist
+    # marks the real exceptions. Added Sep 19, 2026, Abinash direct
+    # instruction.
+    is_returnable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[str] = mapped_column(

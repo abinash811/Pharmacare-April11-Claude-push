@@ -65,6 +65,7 @@ class ProductCreate(BaseModel):
     strength: Optional[str] = None
     requires_refrigeration: bool = False
     storage_location: Optional[str] = None
+    is_returnable: bool = True
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -88,6 +89,7 @@ class ProductUpdate(BaseModel):
     strength: Optional[str] = None
     requires_refrigeration: Optional[bool] = None
     storage_location: Optional[str] = None
+    is_returnable: Optional[bool] = None
 
     _v_category = field_validator("category")(_validate_category)
     _v_gst = field_validator("gst_percent")(_validate_gst)
@@ -120,6 +122,7 @@ def _product_response(p: ProductORM) -> dict:
         "schedule": p.drug_schedule, "generic_name": p.generic_name,
         "dosage_form": p.dosage_form, "strength": p.strength,
         "requires_refrigeration": p.requires_refrigeration,
+        "is_returnable": p.is_returnable,
         "storage_location": p.storage_location,
         "low_stock_threshold_units": p.reorder_level,
         "reorder_quantity_units": p.reorder_quantity,
@@ -194,7 +197,7 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
         drug_schedule=data.schedule or "OTC", reorder_level=data.low_stock_threshold_units or 10,
         reorder_quantity=data.reorder_quantity_units or 100,
         strength=data.strength, requires_refrigeration=data.requires_refrigeration,
-        storage_location=data.storage_location,
+        storage_location=data.storage_location, is_returnable=data.is_returnable,
     )
     db.add(product)
     await db.flush()

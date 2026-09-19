@@ -1,7 +1,10 @@
 /**
- * InventorySearchBar — search + every inventory filter, baked directly into
- * the page header row (no side drawer). Dropdowns apply together on
- * "Apply Filters" so a multi-field change doesn't refetch on every click.
+ * InventorySearchBar — search + the most-used inventory filters, inline in
+ * the page header row. Category, Schedule, and Cold Chain moved into
+ * MoreFiltersDrawer (Sep 19, 2026, Abinash) — this row had grown to 6
+ * filter fields and felt cluttered; those three are less frequently
+ * changed day-to-day than Dosage Type/GST/Location/Stock Status, which
+ * stay here.
  * Props:
  *   searchQuery    {string}
  *   onSearchChange {(string) => void}
@@ -13,8 +16,9 @@
  *   searchInputRef {React.Ref}
  */
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, SlidersHorizontal } from 'lucide-react';
 import { AppButton, SearchInput } from '@/components/shared';
+import MoreFiltersDrawer from './MoreFiltersDrawer';
 
 const FIELD_CLS = 'h-9 px-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand';
 const LABEL_CLS = 'block text-xs font-medium text-gray-500 mb-1';
@@ -30,6 +34,7 @@ export default function InventorySearchBar({
   searchInputRef,
 }) {
   const [local, setLocal] = useState(activeFilters);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   // Active filters can arrive from outside (URL-seeded drill-down) — keep
   // the header row's own draft in sync when that happens.
   useEffect(() => { setLocal(activeFilters); }, [activeFilters]);
@@ -43,6 +48,8 @@ export default function InventorySearchBar({
 
   const filterCount = Object.keys(activeFilters).length;
   const isDirty = JSON.stringify(local) !== JSON.stringify(activeFilters);
+  const moreFiltersCount = ['category', 'schedule', 'requires_refrigeration']
+    .filter((k) => activeFilters[k]).length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -59,18 +66,6 @@ export default function InventorySearchBar({
           />
         </div>
 
-        <div className="w-36">
-          <label className={LABEL_CLS} htmlFor="inv-filter-category">Category</label>
-          <select id="inv-filter-category" value={local.category || ''} onChange={(e) => set('category', e.target.value)} className={`${FIELD_CLS} w-full`} data-testid="filter-category">
-            <option value="">All Categories</option>
-            {categories.map(c => {
-              const value = typeof c === 'string' ? c : c.value;
-              const label = typeof c === 'string' ? c : c.label;
-              return <option key={value} value={value}>{label}</option>;
-            })}
-          </select>
-        </div>
-
         <div className="w-32">
           <label className={LABEL_CLS} htmlFor="inv-filter-dosage">Dosage Type</label>
           <select id="inv-filter-dosage" value={local.dosage_type || ''} onChange={(e) => set('dosage_type', e.target.value)} className={`${FIELD_CLS} w-full`} data-testid="filter-dosage">
@@ -78,18 +73,6 @@ export default function InventorySearchBar({
             {dosage_types.map(t => {
               const value = typeof t === 'string' ? t : t.value;
               const label = typeof t === 'string' ? t : t.label;
-              return <option key={value} value={value}>{label}</option>;
-            })}
-          </select>
-        </div>
-
-        <div className="w-32">
-          <label className={LABEL_CLS} htmlFor="inv-filter-schedule">Schedule</label>
-          <select id="inv-filter-schedule" value={local.schedule || ''} onChange={(e) => set('schedule', e.target.value)} className={`${FIELD_CLS} w-full`} data-testid="filter-schedule">
-            <option value="">All Schedules</option>
-            {schedule_types.map(s => {
-              const value = typeof s === 'string' ? s : s.value;
-              const label = typeof s === 'string' ? s : s.label;
               return <option key={value} value={value}>{label}</option>;
             })}
           </select>
@@ -123,21 +106,28 @@ export default function InventorySearchBar({
           </select>
         </div>
 
-        <label className="flex items-center gap-1.5 h-9 text-xs font-medium text-gray-600 whitespace-nowrap">
-          <input
-            type="checkbox"
-            checked={!!local.requires_refrigeration}
-            onChange={(e) => set('requires_refrigeration', e.target.checked)}
-            className="w-4 h-4"
-            data-testid="filter-cold-chain"
-          />
-          Cold chain only
-        </label>
+        <AppButton
+          variant="outline"
+          icon={<SlidersHorizontal className="w-4 h-4" />}
+          onClick={() => setShowMoreFilters(true)}
+          data-testid="more-filters-btn"
+        >
+          More Filters{moreFiltersCount > 0 && ` (${moreFiltersCount})`}
+        </AppButton>
 
         <AppButton onClick={() => onApplyFilters(local)} disabled={!isDirty} data-testid="apply-filters-btn">
           Apply Filters
         </AppButton>
       </div>
+
+      <MoreFiltersDrawer
+        open={showMoreFilters}
+        onOpenChange={setShowMoreFilters}
+        categories={categories}
+        scheduleTypes={schedule_types}
+        activeFilters={activeFilters}
+        onApplyFilters={onApplyFilters}
+      />
 
       {/* Active filter tags */}
       {filterCount > 0 && (

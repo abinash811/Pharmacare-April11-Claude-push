@@ -14,10 +14,15 @@ export default function InventoryEmptyState({ onAddMedicine }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-dashed">
       {/* Hero */}
       <div className="flex flex-col items-center justify-center py-16 px-4">
+        {/* Non-colored icon — found Sep 19, 2026 (Abinash): this was the
+            only empty state in the app using a colored (brand green)
+            icon; every other module's empty state (Billing, Purchases,
+            Customers, Suppliers — see EmptyState.tsx) uses a plain gray
+            icon. Matched here instead of inventing a third look. */}
         <div className="relative mb-6">
-          <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center">
-            <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center">
-              <Package className="w-12 h-12 text-brand" />
+          <div className="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center">
+              <Package className="w-12 h-12 text-gray-400" />
             </div>
           </div>
         </div>

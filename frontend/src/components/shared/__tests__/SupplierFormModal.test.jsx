@@ -31,6 +31,33 @@ describe('SupplierFormModal', () => {
     expect(baseProps.onSave).not.toHaveBeenCalled();
   });
 
+  it('associates every label with its input via htmlFor/id (docs/17_ACCESSIBILITY.md)', () => {
+    // Regression test for the Sep 19, 2026 docs review finding: labels here
+    // used to be unconnected siblings of their inputs (no htmlFor/id), so a
+    // screen reader announced nothing when an input received focus and
+    // clicking a label didn't focus its input. getByLabelText only finds a
+    // field through that real association, so this fails if it regresses.
+    render(<SupplierFormModal {...baseProps} />);
+    expect(screen.getByLabelText('Supplier Name *')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contact Person')).toBeInTheDocument();
+    expect(screen.getByLabelText('Phone')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('GSTIN')).toBeInTheDocument();
+    expect(screen.getByLabelText('Credit Days')).toBeInTheDocument();
+    expect(screen.getByLabelText('Address')).toBeInTheDocument();
+    expect(screen.getByLabelText('Notes')).toBeInTheDocument();
+  });
+
+  it('links an invalid field to its error message via aria-describedby and role=alert', async () => {
+    render(<SupplierFormModal {...baseProps} />);
+    fireEvent.click(screen.getByTestId('submit-supplier-btn'));
+    const nameInput = screen.getByTestId('supplier-name-input');
+    await waitFor(() => expect(nameInput).toHaveAttribute('aria-describedby', 'name-error'));
+    const message = screen.getByText('Supplier name is required');
+    expect(message).toHaveAttribute('id', 'name-error');
+    expect(message).toHaveAttribute('role', 'alert');
+  });
+
   it('marks the invalid field itself, not just the message below it', async () => {
     // Regression test for the component-state-matrix fix (Sep 11, 2026):
     // this form used to show a red error message with no visual change on

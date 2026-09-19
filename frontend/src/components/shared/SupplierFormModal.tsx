@@ -65,12 +65,14 @@ export default function SupplierFormModal({ open, editingSupplier, initialName, 
   };
 
   const err = (field: keyof SupplierFormValues) => errors[field]?.message
-    ? <p className="text-xs text-red-500 mt-1">{errors[field]?.message}</p>
+    ? <p id={`${field}-error`} role="alert" className="text-xs text-red-500 mt-1">{errors[field]?.message}</p>
     : null;
 
-  const label = (text: string) => (
-    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{text}</label>
+  const label = (text: string, forId: string) => (
+    <label htmlFor={forId} className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{text}</label>
   );
+
+  const describedBy = (field: keyof SupplierFormValues) => errors[field] ? `${field}-error` : undefined;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -82,41 +84,41 @@ export default function SupplierFormModal({ open, editingSupplier, initialName, 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              {label('Supplier Name *')}
-              <input {...register('name')} aria-invalid={!!errors.name} className={cls} data-testid="supplier-name-input" />
+              {label('Supplier Name *', 'supplier-name')}
+              <input id="supplier-name" {...register('name')} aria-invalid={!!errors.name} aria-describedby={describedBy('name')} className={cls} data-testid="supplier-name-input" />
               {err('name')}
             </div>
             <div>
-              {label('Contact Person')}
-              <input {...register('contact_person')} className={cls} />
+              {label('Contact Person', 'supplier-contact-person')}
+              <input id="supplier-contact-person" {...register('contact_person')} className={cls} />
             </div>
             <div>
-              {label('Phone')}
-              <input {...register('phone')} placeholder="9876543210" aria-invalid={!!errors.phone} className={cls} />
+              {label('Phone', 'supplier-phone')}
+              <input id="supplier-phone" {...register('phone')} placeholder="9876543210" aria-invalid={!!errors.phone} aria-describedby={describedBy('phone')} className={cls} />
               {err('phone')}
             </div>
             <div>
-              {label('Email')}
-              <input type="email" {...register('email')} placeholder="supplier@example.com" aria-invalid={!!errors.email} className={cls} />
+              {label('Email', 'supplier-email')}
+              <input id="supplier-email" type="email" {...register('email')} placeholder="supplier@example.com" aria-invalid={!!errors.email} aria-describedby={describedBy('email')} className={cls} />
               {err('email')}
             </div>
             <div>
-              {label('GSTIN')}
-              <input {...register('gstin')} placeholder="22AAAAA0000A1Z5" aria-invalid={!!errors.gstin} className={`${cls} font-mono uppercase`} />
+              {label('GSTIN', 'supplier-gstin')}
+              <input id="supplier-gstin" {...register('gstin')} placeholder="22AAAAA0000A1Z5" aria-invalid={!!errors.gstin} aria-describedby={describedBy('gstin')} className={`${cls} font-mono uppercase`} />
               {err('gstin')}
             </div>
             <div>
-              {label('Credit Days')}
-              <input type="number" {...register('credit_days')} aria-invalid={!!errors.credit_days} className={cls} />
+              {label('Credit Days', 'supplier-credit-days')}
+              <input id="supplier-credit-days" type="number" {...register('credit_days')} aria-invalid={!!errors.credit_days} aria-describedby={describedBy('credit_days')} className={cls} />
               {err('credit_days')}
             </div>
             <div className="col-span-2">
-              {label('Address')}
-              <textarea {...register('address')} rows={2} className={`${cls} resize-none`} />
+              {label('Address', 'supplier-address')}
+              <textarea id="supplier-address" {...register('address')} rows={2} className={`${cls} resize-none`} />
             </div>
             <div className="col-span-2">
-              {label('Notes')}
-              <textarea {...register('notes')} rows={2} className={`${cls} resize-none`} />
+              {label('Notes', 'supplier-notes')}
+              <textarea id="supplier-notes" {...register('notes')} rows={2} className={`${cls} resize-none`} />
             </div>
           </div>
 

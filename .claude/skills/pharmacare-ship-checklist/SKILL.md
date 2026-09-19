@@ -25,7 +25,7 @@ this one governs what happens right before you say it's finished.
 ```
 - [ ] Step 1: Every code path touched has a passing test (pharmacare-testing skill)
 - [ ] Step 2: Cross-cutting consumers checked and verified — docs/08_ARCHITECTURE.md's map first, then an active search beyond it (see below); not just the entry point
-- [ ] Step 3: bash scripts/design-guard.sh exits 0 (if frontend touched)
+- [ ] Step 3: bash scripts/design-guard.sh exits 0 (if frontend touched); if a page/form/table changed, also walk docs/17_ACCESSIBILITY.md's own CHECKLIST — design-guard.sh has no automated a11y rule, so this is the one place it's actually a gate, not just a build-time read
 - [ ] Step 4: Pushed, CI confirmed green — not just "should pass"
 - [ ] Step 5: docs/15_ROADMAP.md updated if this changes feature status or closes a known issue
 - [ ] Step 6: docs/21_FEATURES.md updated if this ships or changes a feature's behavior

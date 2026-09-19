@@ -1,5 +1,5 @@
 # PharmaCare — Accessibility
-# Version: 1.1 | Last updated: September 5, 2026
+# Version: 1.2 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: WCAG AA compliance is non-negotiable. Pharmacy staff use this 8+ hours a day.
@@ -37,10 +37,29 @@ Minimum contrast ratios:
 
 // ❌ Fails contrast
 <p className="text-gray-400">Label text</p>              // 3.5:1 — FAIL for normal text
-<p className="text-white" style="bg-brand">Button</p>    // verify brand color passes 4.5:1
+<p className="text-white" style="bg-brand">Button</p>    // 4.11:1 — confirmed FAIL (needs 4.5:1)
 ```
 
+**Known, open gap — `AppButton` primary variant (white text on `bg-brand`) measures
+4.11:1, below the 4.5:1 text minimum.** Found via a real Lighthouse/axe audit
+(Sep 7, 2026), deliberately left as-is — fixing it means darkening the brand
+color's resting state app-wide, a visual decision, not a one-line fix. See
+`docs/15_ROADMAP.md` KNOWN ISSUES / TECH DEBT. Do not re-flag this as
+"unverified" — it's measured and tracked, just not yet fixed.
+
 **Banned for body text:** `text-gray-300`, `text-gray-400` — too low contrast on white.
+
+**Real, currently shipped violation of this rule — `AppButton`'s
+`variant="chip" tone="danger"` renders `text-gray-300` on white (~1.5:1,
+far under both the 4.5:1 text minimum and the 3:1 UI-component minimum
+above) in its resting state**, live today in `BillingWorkspace/components/
+BillingTable.jsx`'s per-line "×" remove-item button and `SplitPaymentPanel.tsx`
+(`AppButton.tsx`'s `CHIP_TONE_CLASSES.danger`). Found by this doc's own
+Sep 19, 2026 accuracy review — not caught by the Sep 7 audit above, which
+only covers the pages that audit actually walked. Not fixed here: picking
+a replacement resting-state color is a design call, same class as the
+primary-button gap above — logged in `docs/15_ROADMAP.md` KNOWN ISSUES
+pending that decision, not silently changed.
 
 ---
 
@@ -232,6 +251,25 @@ useEffect(() => {
   </p>
 )}
 ```
+
+**Real reference — `components/shared/SupplierFormModal.tsx`.** This is
+the react-hook-form + Zod pattern every field-heavy modal should follow:
+`aria-invalid={!!errors.field}` (wired into `aria-invalid:border-red-500`
+already built into `ui/input.tsx`/`textarea.jsx`/`select.jsx`, so an
+invalid field visibly changes, not just the message below it — added
+Sep 11, 2026), plus `id`/`htmlFor` on every label and `aria-describedby`
++ `role="alert"` on every error message, matching this section's example
+above exactly. **That last part was missing until this doc's Sep 19, 2026
+accuracy review** — the Sep 11 fix wired `aria-invalid` correctly but left
+every label as an unconnected sibling of its input (no `htmlFor`/`id` at
+all) and every error message with no `role`/`id`/`aria-describedby`,
+silently failing this exact section's own rule for months. Caught because
+the file's own test suite queried every field by `getByTestId`, never
+`getByLabelText` — which is exactly the kind of gap only a label-based
+query would have caught. Fixed in the same review pass (both the
+component and its test, which now asserts `getByLabelText` resolves every
+field and that the error message carries `role="alert"` +
+`aria-describedby`).
 
 ---
 

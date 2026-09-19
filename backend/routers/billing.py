@@ -1317,8 +1317,12 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
     if license_bits:
         pdf.drawString(50, detail_y, "   |   ".join(license_bits))
         detail_y -= 13
-    if ps and ps.bill_header:
-        pdf.drawString(50, detail_y, ps.bill_header)
+    # Same default as GET /settings' "print.bill_header" — the PDF must not
+    # silently print without one just because it reads PharmacySettings
+    # directly instead of going through that endpoint.
+    header_text = (ps.bill_header if ps else None) or "This is a computer-generated invoice."
+    if header_text:
+        pdf.drawString(50, detail_y, header_text)
         detail_y -= 13
 
     # Invoice meta — right-aligned block, drawn independently so it lines up

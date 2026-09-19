@@ -322,8 +322,14 @@ async def get_settings(current_user: User = Depends(get_current_user),
             "print_fssai": ps.print_fssai if ps else False,
             "print_signature": ps.print_signature if ps else False,
             "print_pan": ps.print_pan if ps else False,
-            "bill_header": ps.bill_header if ps else "",
-            "bill_footer": ps.bill_footer if ps else "Thank you for your purchase!",
+            # Both fall back to a real default whenever the pharmacy hasn't
+            # set its own text yet — not just when the settings row itself
+            # doesn't exist. bill_header previously defaulted to "" even
+            # once a settings row existed with the field still unset, so
+            # every invoice/receipt/PDF silently printed no header at all
+            # until a pharmacy discovered and filled in this field.
+            "bill_header": (ps.bill_header if ps else None) or "This is a computer-generated invoice.",
+            "bill_footer": (ps.bill_footer if ps else None) or "Thank you for your purchase!",
         },
         "digital": {
             "use_default_header": ps.digital_use_default_header if ps else True,

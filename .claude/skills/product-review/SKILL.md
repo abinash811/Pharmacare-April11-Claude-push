@@ -157,6 +157,22 @@ assume a fix in the entry point reached it.
 
 ## Output format — use-case driven, not a feature list
 
+**Reference implementations** — added Sep 19, 2026, found while reviewing
+`docs/24_REPORTS_ACCEPTANCE_SPEC.md` and realizing this skill never
+pointed at it or its sibling despite both existing specifically as this
+skill's own worked output: `docs/23_PURCHASES_ACCEPTANCE_SPEC.md` (the
+original, and `docs/15_ROADMAP.md`'s own DOCS INDEX names it "the
+template for future module acceptance specs") and
+`docs/24_REPORTS_ACCEPTANCE_SPEC.md` (same template, applied to Reports &
+Compliance). Read one before writing a new acceptance spec from scratch —
+numbered UCs per subsection, a Built/Partial/Missing/🐛 legend, an
+Executive Summary up top, a Recommended Build Order at the end. If this
+skill produces a new spec for a module that doesn't have one yet (e.g.
+Day-End Closing, Outstanding Dues — real, shipped Reports tabs with zero
+UC coverage as of Sep 19, 2026), give it its own numbered file next in the
+docs sequence and add it to `CLAUDE.md`'s DOCS INDEX under Living Status,
+matching how 23/24 are listed there today.
+
 Added Sep 12, 2026, direct request: a feature-by-feature gap list reads
 like an engineering checklist, not a product review, and buries whether a
 real person can actually get their job done. Structure the report around

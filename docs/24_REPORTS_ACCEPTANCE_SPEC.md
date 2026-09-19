@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.5 | Last updated: September 12, 2026
+# Version: 2.6 | Last updated: September 19, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -162,12 +162,22 @@ broader Schedule H concept).
 
 ## 1. REPORTS LANDING PAGE (Sales / Low Stock / Expiry / Stock tabs)
 
-> Note: the real tabs are **Sales / Low Stock / Expiry / Stock**
-> (`Reports/index.jsx:20-25`) — there is no "Purchases" tab on this page.
-> Purchase reporting lives entirely on the Purchases list page itself
-> (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md` P33), a real structural fact
-> `docs/21_FEATURES.md` doesn't document at all (that doc only covers GST
-> Report / Schedule H1 / Audit Log under "Reports & Compliance").
+> **Corrected Sep 19, 2026 — was stale.** This used to say the real tabs
+> are Sales/Low Stock/Expiry/Stock. That was true Sep 12, 2026 but the
+> app has moved since: the "Stock" tab was removed the same day this note
+> was written (see UC-R04), and the top-level Reports tab bar
+> (`Reports/index.jsx:15-19`) now reads **Reports | GST Report | Day-End
+> Closing | Outstanding Dues**, with "Reports" itself holding a secondary
+> report-type selector (`Reports/index.jsx:27-35`) of **Sales / Low Stock
+> / Expiry / Margin / Sales Returns / Purchase Returns / Price Variation /
+> Doctor-wise Sales**. Day-End Closing and Outstanding Dues are real,
+> shipped, top-level modules with **zero UC coverage anywhere in this
+> spec** — see the new "NOT YET COVERED" note before §J below. There is
+> still no "Purchases" tab on this page; purchase reporting lives entirely
+> on the Purchases list page itself (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
+> P33), a real structural fact `docs/21_FEATURES.md` doesn't document at
+> all (that doc only covers GST Report / Schedule H1 / Audit Log under
+> "Reports & Compliance").
 
 ### UC-R01: Sales report — ✅ Built
 Correct fields both ways (`bill_number/date/customer_name/items_count/payment_method/total_amount`, `reports.py:76-83` ↔ `ReportTables.jsx:31-38`), correct `pharmacy_id`/`status IN (paid,due)`/`deleted_at` scoping, indexed date filter. Live-verified zero-data → clean empty state → real bill appears after refresh with correct total. CSV and Excel export both correct.
@@ -220,10 +230,10 @@ No role check anywhere in `get_gst_report` — live-confirmed a plain `cashier` 
 ## 3. SCHEDULE H1 REGISTER
 
 ### UC-R11: View/filter the register — ✅ Built
-Every field the frontend reads matches the real backend response exactly (`product_name, quantity, batch_number, prescriber_name, prescriber_registration_number, patient_name, patient_address, patient_age, supply_date, id` — `reports.py:397-408` ↔ `ScheduleH1Register.jsx:67-71,87-91,198-219`, zero mismatches). Live-verified: loads cleanly from zero data with a correct "no entries yet" empty state and a working date-range picker (defaulted to the Indian FY, 01 Apr–31 Mar).
+Every field the frontend reads matches the real backend response exactly (`product_name, quantity, batch_number, prescriber_name, prescriber_registration_number, patient_name, patient_address, patient_age, supply_date, id` — `reports.py:873-884` ↔ `ScheduleH1Register.jsx:67-71,87-91,198-219`, zero mismatches). Live-verified: loads cleanly from zero data with a correct "no entries yet" empty state and a working date-range picker (defaulted to the Indian FY, 01 Apr–31 Mar).
 
-### UC-R12: Permission gate — 🔄 Partial (gated, but not via the real permission system)
-`role not in ["admin","manager"]` is a hardcoded string check (`reports.py:386-389`), not `has_permission()`/`ALL_PERMISSIONS` — live-confirmed correctly blocking a `cashier` account (403). Works today, but can't be customized per-pharmacy the way Suppliers/Products permissions now can, and is the same "hardcoded role string instead of the real catalog" pattern already found and fixed once before in this codebase (`update_product`/`delete_product`, Sep 12, 2026).
+### UC-R12: Permission gate — ✅ Built (corrected Sep 19, 2026 — was stale)
+`get_schedule_h1_register` (`reports.py:865`) now calls `_require_reports_permission`, the same real `has_permission(current_user, "reports:view", db)` catalog check every other endpoint in this router uses — not the hardcoded `role not in ["admin","manager"]` string this row described. **This section's own Batch 1 item 3 already recorded this migration as done Sep 12, 2026** ("Schedule H1" is explicitly named in that list); this row was simply never updated to match when that batch landed, and sat wrong for a week. See H106 (same stale-row class, same real fix) and the Sep 19, 2026 RULE MISSES LOG entry.
 
 ### UC-R13: Export/print — ✅ Built
 CSV export builds directly from the correct, matched fields; Print (`window.print()`) also present. No Excel export offered (not flagged as a gap — CSV is the format an inspector/CA actually needs here, unlike GST which is spreadsheet-shaped by nature).
@@ -343,12 +353,13 @@ components already documented in `docs/06_COMPONENTS.md`:
 - **`DateRangePicker`** — Today/This Month/Last Month/Financial Year
   presets, defaults to the current Indian FY. **`ScheduleH1Register.jsx`
   already uses this correctly** (confirmed live: "01 Apr 2026 — 31 Mar
-  2027" button). **Both the Reports landing page and `GSTReport.js` use
-  raw native `<input type="date">` pairs instead** — a real "one
-  component, one way" violation (Manifesto #1), and worse UX for the
-  exact accountant use case this module exists for: Meena files monthly/
-  quarterly, so "This Month"/"Last Month" presets save her from
-  hand-picking two dates every time she visits.
+  2027" button). **Corrected Sep 19, 2026 — was stale**: this used to say
+  the Reports landing page and `GSTReport.js` used raw native
+  `<input type="date">` pairs instead. Both were fixed Sep 12, 2026
+  (Batch 1 item 1, already recorded in the Executive Summary) — real code
+  confirms `ReportFilters.jsx:12` and `GSTReport.js:87` both render
+  `<DateRangePicker>` today. This note and GST18 below just weren't
+  updated to match when that fix landed.
 - **`DataCard`** — already used correctly for GST's 3-tile summary and
   should back any new summary tiles (margin report's Gross Margin tile,
   a returns report's Total Refunded tile, etc.).
@@ -378,11 +389,11 @@ just annoy her, it risks a real penalty for a real small business.
 | GST11 | Composition-scheme pharmacy handling | ✅ Resolved — toggle removed Sep 12, 2026 | Was a real, saveable toggle (`PharmacySettings.is_composition_scheme`) that never did anything — no report or bill logic ever read it, so a composition dealer got the exact same CGST/SGST/ITC report as a regular dealer, a real compliance risk. Asked Abinash directly: build it properly, or remove the non-functional toggle. **Decision: remove** — no confirmed composition-scheme pharmacy today, and a switch that looks like it works but doesn't is worse than no switch. UI toggle + its read/write wiring in `settings.py`/`useSettings.js`/`GSTTab.tsx` removed. The underlying DB column is left in place (harmless, unused, no migration needed) — cheap to revive if a real composition-scheme pharmacy signs up later. |
 | GST12 | Export to CSV/Excel | ❌ Unreachable | Code exists (`GSTReport.js:36-60`) but the page crashes before the button can appear |
 | GST13 | Export in a filing-ready format (GSTR-1 JSON/Excel template) | ❌ Missing | Today's export (once reachable) is a plain dump of internal numbers, not shaped for the GST portal or a CA's working file — Marg ERP/Pharmasoft both name this explicitly |
-| GST14 | Permission gate | ❌ Missing | Live-confirmed a cashier gets 200 OK |
+| GST14 | Permission gate | ✅ Built (corrected Sep 19, 2026 — was stale) | `get_gst_report` calls `_require_reports_permission` (`reports.py:750`) — Batch 1 item 3 already recorded this as done Sep 12, 2026; this row wasn't updated to match |
 | GST15 | Drill down from a rate/HSN bucket to the underlying bills | ❌ Missing | No linkage from a summary row to source transactions anywhere in the UI |
 | GST16 | Draft/cancelled transactions excluded | ✅ Built | Sales side already filters non-draft implicitly via status; purchase side filters `status=="confirmed"` and `deleted_at IS NULL` |
 | GST17 | Print/PDF view | ❌ Missing | No print button anywhere on this page (unlike Schedule H1) |
-| GST18 | Date-range presets matching filing cadence (month/quarter/FY) | ❌ Missing | Raw date inputs, not `DateRangePicker` — see Design-system constraint above |
+| GST18 | Date-range presets matching filing cadence (month/quarter/FY) | ✅ Built (corrected Sep 19, 2026 — was stale) | `GSTReport.js:87` renders `<DateRangePicker>`, not raw date inputs — the Executive Summary's Batch 1 item 1 already recorded "swapped both raw date-input pairs... for the existing DateRangePicker component" as done Sep 12, 2026; this row (and the Design-system constraint note above it) wasn't updated to match |
 | GST19 | Rounding/reconciliation display (does the report tie to the bills that generated it) | ❌ Missing | No reconciliation view; a discrepancy would be invisible |
 | GST20 | Cess handling | 🔄 Partial | Purchase-side `cess_paise` is a real, captured field (per `docs/23`'s UC-P21) but never appears anywhere in the GST report response at all — silently dropped from the one place it would matter most |
 
@@ -530,7 +541,7 @@ already cover it in detail.
 | H103 | Auto-population from billing | ✅ Built | `_create_h1_entry` (`billing.py`), confirmed in `docs/07_BUSINESS_LOGIC.md` |
 | H104 | Export CSV | ✅ Built | UC-R13 |
 | H105 | Print for inspector | ✅ Built | UC-R13 |
-| H106 | Permission gate | 🔄 Partial | Gated, but hardcoded role string not the real catalog — UC-R12 |
+| H106 | Permission gate | ✅ Built (corrected Sep 19, 2026 — was stale) | Migrated to `has_permission()` — see UC-R12 |
 | H107 | Prescriber registration number captured | ✅ Built | Real field, `reports.py:401`, matches `docs/21_FEATURES.md`'s description |
 | H108 | Excel export | ❌ Missing | Not flagged as a gap — CSV/print are the formats this use case actually needs |
 
@@ -552,7 +563,7 @@ worse than no log.
 | AL04 | ~~`old_values` populated (before/after diff)~~ | ✅ Fixed Sep 12, 2026 | `billing.py`/`purchases.py`/`purchase_returns.py`'s 3 independent `_record_audit` helpers now receive real prior-state values at every meaningful mutation site (payment, refund, purchase update, mark-paid, purchase-return edits) — create actions correctly keep `old_value: null`. Regression tests: `test_audit_log_old_values_and_ip_address.py`, `git stash`-proven to fail pre-fix |
 | AL05 | ~~`ip_address` populated~~ | ✅ Fixed Sep 12, 2026 | Same 3 helpers gained a local `_client_ip(request)` helper; both `GET /audit-logs` and `GET /audit-logs/entity/{type}/{id}` responses now also carry an `ip_address` key — previously the column existed but no endpoint returned it, so even a correctly-populated value was unobservable to any real API consumer |
 | AL06 | Export/print | ❌ Missing | No export button exists on the Audit Log page for this data at all |
-| AL07 | Permission gate (who can view the audit log) | ❌ Missing | No role check anywhere on `GET /audit-logs` — confirmed via code read, not yet live-tested with a cashier account; matches the same "no gate" pattern found on 10 of `reports.py`'s 12 endpoints |
+| AL07 | Permission gate (who can view the audit log) | ✅ Built (corrected Sep 19, 2026 — was stale) | `get_audit_logs`/`get_entity_audit_trail` (`billing.py:1638`) both call `has_permission(current_user, "reports:view", db)` — Batch 5 item 12 already recorded this as done Sep 12, 2026; this row wasn't updated to match |
 
 **Recommendation:** AL07 bundles naturally into the same Batch 1
 permission-gate work as GST14/H106. AL04/AL05 (`old_values`/`ip_address`)
@@ -577,19 +588,52 @@ listed here only for completeness of the numbered scheme.
 
 No gaps found. Not proposed for any batch.
 
+### NOT YET COVERED — added Sep 19, 2026
+
+Two real, live, top-level Reports tabs shipped after this spec's last full
+pass (Sep 12, 2026) and have **zero UC coverage anywhere in this
+document**: **Day-End Closing** (`/reports/day-end`, `DayEndClosing/
+index.tsx`, backend `GET /reports/day-end` + `POST /reports/day-end/close`
+— `reports.py:1498-1600`) and **Outstanding Dues** (`/reports/outstanding-
+dues`, backend `GET /reports/outstanding-dues` — `reports.py:1601+`). Both
+are permission-gated (`_require_reports_permission`) and both are real
+enough to have their own tab-bar entries alongside GST Report, not buried
+in the report-type selector. Also newly shipped and undocumented here:
+**Doctor-wise Sales** as an eighth entry in the report-type selector
+(`GET /reports/doctor-wise-sales`, `reports.py:524`).
+
+This doc's own template (numbered UCs, Built/Partial/Missing verdict, live
+zero-data walkthrough, competitor benchmark) is the right way to cover
+these — not invented here as a quick pass, since that would mean guessing
+at use cases instead of walking the real feature the way UC-GST/UC-MAR/
+UC-RET were built. **Recommend a dedicated `product-review` pass on
+Day-End Closing + Outstanding Dues** (same rigor this spec already used
+for Margin/Return Reports), added as its own section here once done,
+rather than this accuracy review inventing shallow rows for modules it
+didn't walk live.
+
 ### J. CROSS-CUTTING PERMISSIONS MATRIX
 
-Consolidating GST14/AL07/H106 and the earlier finding that 10 of
-`reports.py`'s 12 endpoints have no gate at all:
+**Corrected Sep 19, 2026 — this whole table was stale.** GST14/AL07/H106
+were each already recorded as fixed elsewhere in this same document
+(Executive Summary item 5, Batch 1 item 3, Batch 5 item 12) — this table
+just never got the matching update, so it kept showing gaps that were
+already closed the same day (Sep 12, 2026) it describes:
 
 | Surface | Gated today? | Real gate needed |
 |---|---|---|
-| GST Report | ❌ No | `reports:gst` or similar, via `has_permission()` |
-| Sales/Low-Stock/Expiry reports | ❌ No | Same catalog |
+| GST Report | ✅ `reports:view` | — |
+| Sales/Low-Stock/Expiry reports | ✅ `reports:view` | — |
 | Dashboard analytics | ❌ No | Arguably fine ungated (every role needs Dashboard) — a product decision, not assumed here |
-| Schedule H1 Register | 🔄 Hardcoded `role in [admin,manager]` | Migrate to `has_permission()` |
-| Audit Log (list + entity trail) | ❌ No | A real gap — a cashier can currently read the full action history of every user in the pharmacy |
+| Schedule H1 Register | ✅ `reports:view` | Migrated off the old hardcoded `role in [admin,manager]` check |
+| Audit Log (list + entity trail) | ✅ `reports:view` | — |
 | Backup export (`/backup/export`) | ✅ `role == "admin"` (hardcoded) | Lower priority — already the most-restricted endpoint in the router |
+
+Every reports.py endpoint now calls the shared `_require_reports_permission`
+helper (`reports.py:61`) except the two deliberately-ungated dashboard
+endpoints and `/backup/export`'s own separate admin-only check — verified
+by grepping every `@router.get`/`@router.post` in the file against its
+call sites, not by trusting this table's previous claims.
 
 ### K. OPERATIONAL EDGE CASES
 

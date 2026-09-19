@@ -189,7 +189,7 @@ export default function BillingWorkspace() {
     billItems, customerName, customerPhone, customerId, doctorName, paymentType, paymentSplits,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
-    patientAddress, patientAge,
+    patientAddress, patientAge, billDate,
   };
 
   // Real pharmacy identity for the printed receipt — previously fetched but

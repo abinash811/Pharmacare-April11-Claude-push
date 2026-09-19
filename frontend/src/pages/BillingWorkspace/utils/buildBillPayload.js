@@ -6,6 +6,7 @@
  * was added there.
  */
 import { getPaymentSplitsError } from './validatePaymentSplits';
+import { toISODate } from '@/utils/dates';
 
 const buildItemPayload = (items) => items.map((item) => ({
   product_sku:      item.product_sku,
@@ -35,7 +36,7 @@ const validMultiSplits = (billSnapshot) => {
 export const buildBillBase = (billSnapshot, status) => {
   const {
     billItems, customerName, customerPhone, customerId, doctorName, paymentType, totalDiscount,
-    patientAddress, patientAge, paymentSplits,
+    patientAddress, patientAge, paymentSplits, billDate,
   } = billSnapshot;
   const multi = isMultiPayment(billSnapshot) && validMultiSplits(billSnapshot);
   return {
@@ -43,6 +44,12 @@ export const buildBillBase = (billSnapshot, status) => {
     customer_mobile: customerPhone,
     customer_id:     customerId || undefined,
     doctor_name:     doctorName,
+    // The Date field in BillingSubbar was never actually sent here before
+    // — found Sep 19, 2026 (Abinash, testing a backdated bill): the
+    // backend always stamped today's date regardless of what was picked,
+    // so a deliberately backdated bill looked identical to a normal one
+    // everywhere (bill list, GST report, Day-End Closing).
+    bill_date:       billDate ? toISODate(billDate) : undefined,
     patient_address: patientAddress || undefined,
     patient_age:     patientAge ? Number(patientAge) : undefined,
     payment_method:  multi ? 'multiple' : (paymentType === 'multiple' ? 'cash' : (paymentType || 'cash')),

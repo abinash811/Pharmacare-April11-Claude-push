@@ -43,6 +43,11 @@ class BillCreate(BaseModel):
     # requirement, kept optional.
     patient_address: Optional[str] = None
     patient_age: Optional[int] = None
+    # The bill's picked date (BillingSubbar's Date field) — was never sent
+    # at all before Sep 19, 2026 (Abinash, direct instruction), so every
+    # bill silently got today's date regardless of what was picked here.
+    # ISO date string ("YYYY-MM-DD"); falls back to today if omitted.
+    bill_date: Optional[str] = None
     items: List[Dict[str, Any]]
     discount: float = 0
     tax_rate: float
@@ -84,6 +89,20 @@ class RefundCreate(BaseModel):
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+def _resolve_bill_date(bill_date_str: Optional[str]) -> date:
+    """Parses the picked bill date, defaulting to today when omitted (an
+    older client, or a caller that never sends it). Rejects a future date —
+    same constraint BillingSubbar's own calendar already enforces
+    client-side (`disabled={(date) => date > new Date()}`), enforced again
+    here since the frontend guard alone can't stop a direct API call."""
+    if not bill_date_str:
+        return date.today()
+    parsed = date.fromisoformat(bill_date_str[:10])
+    if parsed > date.today():
+        raise HTTPException(status_code=400, detail="Bill date cannot be in the future.")
+    return parsed
+
 
 async def _generate_bill_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
     # This generates Sales Invoice numbers only. Sales Returns (credit notes)
@@ -695,7 +714,7 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
         pharmacy_id=pharmacy_id,
         bill_number=bill_number,
         invoice_type=bill_data.invoice_type or "SALE",
-        bill_date=date.today(),
+        bill_date=_resolve_bill_date(bill_data.bill_date),
         customer_id=uuid.UUID(bill_data.customer_id) if bill_data.customer_id else None,
         customer_name=bill_data.customer_name,
         customer_phone=bill_data.customer_mobile,
@@ -1052,6 +1071,12 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
     bill.doctor_name = bill_data.doctor_name
     bill.payment_method = bill_data.payment_method
     bill.status = new_status
+    # Only touched when the client actually sends one — preserves the
+    # original picked date on a save that doesn't touch it (e.g. an
+    # auto-save while still typing), same guard pattern as every other
+    # optional field here.
+    if bill_data.bill_date:
+        bill.bill_date = _resolve_bill_date(bill_data.bill_date)
 
     if payment_splits:
         await _save_payment_splits(bill.id, payment_splits, db)

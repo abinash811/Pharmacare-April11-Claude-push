@@ -12,7 +12,6 @@ const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
   { key: 'gst',     label: 'GST Report' },
   { key: 'day-end', label: 'Day-End Closing' },
-  { key: 'dues',    label: 'Outstanding Dues' },
 ];
 
 // Found Sep 19, 2026: was `d.toISOString().split('T')[0]`, which converts
@@ -84,7 +83,7 @@ export default function GSTReport() {
       <PageTabs
         tabs={REPORTS_TABS}
         activeTab="gst"
-        onChange={(key) => navigate(key === 'day-end' ? '/reports/day-end' : key === 'dues' ? '/reports/outstanding-dues' : '/reports')}
+        onChange={(key) => navigate(key === 'day-end' ? '/reports/day-end' : '/reports')}
       />
 
       {/* Filters */}

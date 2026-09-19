@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
-import { isDuePayment, buildBillBase, guardBillForSave } from '../utils/buildBillPayload';
+import { buildBillBase, guardBillForSave } from '../utils/buildBillPayload';
 
 /**
  * @param {object} billSnapshot  — read-only snapshot of current bill state
@@ -71,9 +71,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   // ── saveBill ─────────────────────────────────────────────────────────────
   const saveBill = useCallback(async () => {
     if (!guard()) return;
-    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     try {
-      const res = await submitBill(buildBillBase(billSnapshot, status));
+      const res = await submitBill(buildBillBase(billSnapshot, 'paid'));
       toast.success(savedMsg(res, 'created successfully'));
       afterSuccess();
     } catch (err) {
@@ -85,9 +84,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
   const saveBillAndPrint = useCallback(async () => {
     if (!guard()) return;
     const { paymentType, billItems, customerName, customerPhone, doctorName, subtotal, totalDiscount, totalGst, grandTotal } = billSnapshot;
-    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     try {
-      const res = await submitBill(buildBillBase(billSnapshot, status));
+      const res = await submitBill(buildBillBase(billSnapshot, 'paid'));
       toast.success(savedMsg(res, 'created'));
       onPrintReady?.({
         ...printPharmacyInfo,
@@ -142,9 +140,8 @@ export function useBillActions(billSnapshot, onSaveSuccess, onPrintReady, printP
         : billDiscount;
     }
 
-    const status = isDuePayment(billSnapshot) ? 'due' : 'paid';
     const payload = {
-      ...buildBillBase(billSnapshot, status),
+      ...buildBillBase(billSnapshot, 'paid'),
       mrp_total:      mrpTotal,
       item_discount:  totalDiscount - billDiscAmt,
       bill_discount:  billDiscAmt,

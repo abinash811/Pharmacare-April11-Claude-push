@@ -369,46 +369,11 @@ async def _create_h1_entry(
     ))
 
 
-async def _check_credit_limit(
-    customer_id: Optional[uuid.UUID], this_bill_balance_paise: int,
-    pharmacy_id: uuid.UUID, db: AsyncSession,
-) -> None:
-    """A due/credit bill must not push a customer over their configured
-    credit limit. `credit_limit_paise == 0` means no limit is configured
-    (matches CustomersTable.jsx's own "—" display for an unset limit), so
-    only customers with a real, positive limit are checked — otherwise
-    every ordinary walk-in customer with no limit set would be blocked.
-
-    Reinstated Sep 15, 2026 alongside re-allowing due-bill creation (Sep
-    14's block made this fully dead code; removed then, restored now).
-    Shared between create_bill and update_bill (the two real entry points
-    that can produce a "due" bill) rather than duplicated."""
-    if not customer_id or this_bill_balance_paise <= 0:
-        return
-    customer_result = await db.execute(
-        select(CustomerORM).where(
-            CustomerORM.id == customer_id, CustomerORM.pharmacy_id == pharmacy_id))
-    customer = customer_result.scalar_one_or_none()
-    if not customer or customer.credit_limit_paise <= 0:
-        return
-
-    outstanding_result = await db.execute(
-        select(func.coalesce(func.sum(BillORM.balance_paise), 0))
-        .where(BillORM.customer_id == customer_id, BillORM.status == "due",
-               BillORM.deleted_at.is_(None)))
-    current_outstanding_paise = outstanding_result.scalar() or 0
-    projected_paise = current_outstanding_paise + this_bill_balance_paise
-
-    if projected_paise > customer.credit_limit_paise:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"This bill would take {customer.name}'s outstanding balance to "
-                f"₹{projected_paise / 100:.2f}, over their ₹{customer.credit_limit_paise / 100:.2f} "
-                f"credit limit (currently owes ₹{current_outstanding_paise / 100:.2f})."
-            ),
-        )
-
+# Due bills (and the credit-limit check that gated them) were removed Sep
+# 19, 2026 (Abinash, direct instruction) — a bill must be paid in full to
+# finalize, so there is no more "outstanding balance" to check against a
+# limit. `_check_credit_limit` and its caller in create_bill/update_bill
+# were deleted rather than left as dead code.
 
 # "Multi" is only for a fully-paid bill split across real payment
 # instruments — "due" as a split leg would mean "not paid," which is
@@ -681,20 +646,21 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
     elif balance_paise <= 0:
         status = "paid"
     else:
-        # Sep 15, 2026 product decision: due/partial-payment bills are
-        # allowed again (reversing the Sep 14 block) — but only when there
-        # is a real customer on the bill, so there's someone to collect
-        # from later. A walk-in with no customer info can never be
-        # followed up on.
-        if not bill_data.customer_id:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "A customer is required to create a due bill — "
-                    "pick a customer so this can be collected later."
-                ),
-            )
-        status = "due"
+        # Sep 19, 2026 product decision (Abinash, direct instruction):
+        # "Due"/partial-payment bills are removed — a bill must be paid in
+        # full to finalize, full stop. This is the real enforcement point;
+        # blocking only in the frontend would leave a direct API call able
+        # to still create one. Parking a bill as a draft (unpaid, not yet
+        # finalized) is unaffected — only a finalized bill must be paid in
+        # full.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"This bill is short by ₹{balance_paise / 100:.2f} — "
+                "a bill must be paid in full to finalize. Park it as a "
+                "draft instead if payment isn't ready yet."
+            ),
+        )
 
     margin_paise = grand_total_paise - cost_total_paise
     margin_percent = (margin_paise / grand_total_paise * 100) if grand_total_paise > 0 else 0
@@ -724,11 +690,6 @@ async def create_bill(bill_data: BillCreate, request: Request, current_user: Use
         raise HTTPException(
             status_code=400,
             detail="Add at least one medicine to create a bill.")
-
-    if status == "due":
-        await _check_credit_limit(
-            uuid.UUID(bill_data.customer_id) if bill_data.customer_id else None,
-            balance_paise, pharmacy_id, db)
 
     bill = BillORM(
         pharmacy_id=pharmacy_id,
@@ -1045,28 +1006,27 @@ async def update_bill(bill_id: str, bill_data: BillCreate, request: Request, cur
         bill_data.payment_method = old_payment_method
 
     balance_paise = max(0, grand_total_paise - paid_paise)
-    if is_finalizing or was_finalized:
-        new_status = "paid" if balance_paise <= 0 else "due"
 
-    # Sep 15, 2026: due/partial-payment bills are allowed again (reversing
-    # the Sep 14 block) — see the identical fix in create_bill. Catches
-    # both ways this could happen: finalizing a draft that ends up
-    # underpaid (is_finalizing above), and a caller directly requesting
-    # status="due" without ever going through is_finalizing at all (that
-    # branch leaves new_status exactly as requested, since is_finalizing
-    # requires the *requested* status to be "paid"). Same "must have a
-    # customer" rule as create_bill — a draft's customer_id can't be
-    # changed here, so this checks the bill's existing one.
+    # Sep 19, 2026 (Abinash, direct instruction): "Due"/partial-payment
+    # bills are removed — same enforcement as create_bill. Catches both
+    # ways this could happen: finalizing a draft that ends up underpaid, and
+    # a same-day correction to an already-paid bill whose new total the
+    # preserved paid amount no longer covers. A caller directly requesting
+    # status="due" is rejected too, below.
+    if (is_finalizing or was_finalized) and balance_paise > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"This bill is short by ₹{balance_paise / 100:.2f} — "
+                "a bill must be paid in full to finalize or correct."
+            ),
+        )
+    if is_finalizing or was_finalized:
+        new_status = "paid"
     if new_status == "due":
-        if not bill.customer_id:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "A customer is required to finalize a due bill — "
-                    "pick a customer so this can be collected later."
-                ),
-            )
-        await _check_credit_limit(bill.customer_id, balance_paise, pharmacy_id, db)
+        raise HTTPException(
+            status_code=400,
+            detail="Due bills are no longer supported — a bill must be paid in full.")
 
     bill.subtotal_paise = subtotal_paise
     bill.mrp_total_paise = mrp_total_paise

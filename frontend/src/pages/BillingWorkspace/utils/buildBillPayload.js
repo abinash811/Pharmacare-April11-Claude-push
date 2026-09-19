@@ -20,16 +20,6 @@ const buildItemPayload = (items) => items.map((item) => ({
   cost_price:       item.cost_price || item.unit_price * 0.7,
 }));
 
-// A "Due" bill's payment_method reflects how any paid-now portion was
-// actually collected (always cash for v1 — see BillingSubbar's Paid Now
-// field), not the "due" chip itself; a zero-paid-now due bill has no
-// real payment method yet. This keeps Day-End Closing's cash
-// reconciliation (reports.py _day_end_breakdown) accurate: it sums
-// amount_paid_paise per payment_method, so a partially-paid due bill
-// must be tagged by what was actually collected, not by "due".
-export const isDuePayment = (billSnapshot) => billSnapshot.paymentType === 'due';
-const paidNowPaise = (billSnapshot) => Math.round((Number(billSnapshot.paidNow) || 0) * 100);
-
 // A "Multi" bill is only sent to the backend as payment_method: "multiple"
 // when its splits are actually complete (2+ rows, real method + amount
 // each) — an incomplete split (e.g. while parking mid-entry) falls back
@@ -47,8 +37,6 @@ export const buildBillBase = (billSnapshot, status) => {
     billItems, customerName, customerPhone, customerId, doctorName, paymentType, totalDiscount,
     patientAddress, patientAge, paymentSplits,
   } = billSnapshot;
-  const due = isDuePayment(billSnapshot);
-  const paidNowAmount = due ? paidNowPaise(billSnapshot) / 100 : undefined;
   const multi = isMultiPayment(billSnapshot) && validMultiSplits(billSnapshot);
   return {
     customer_name:   customerName || 'Walk-in Customer',
@@ -57,14 +45,10 @@ export const buildBillBase = (billSnapshot, status) => {
     doctor_name:     doctorName,
     patient_address: patientAddress || undefined,
     patient_age:     patientAge ? Number(patientAge) : undefined,
-    payment_method:  due ? (paidNowAmount > 0 ? 'cash' : 'due')
-      : multi ? 'multiple'
-      : (paymentType === 'multiple' ? 'cash' : (paymentType || 'cash')),
-    payments:        due && paidNowAmount > 0
-      ? [{ amount: paidNowAmount }]
-      : multi
-        ? paymentSplits.map((s) => ({ method: s.method, amount: Number(s.amount) }))
-        : undefined,
+    payment_method:  multi ? 'multiple' : (paymentType === 'multiple' ? 'cash' : (paymentType || 'cash')),
+    payments:        multi
+      ? paymentSplits.map((s) => ({ method: s.method, amount: Number(s.amount) }))
+      : undefined,
     items:           buildItemPayload(billItems),
     discount:        totalDiscount,
     tax_rate:        billItems.length > 0 ? billItems[0].gst_percent : 5,
@@ -76,13 +60,6 @@ export const buildBillBase = (billSnapshot, status) => {
 export const guardBillForSave = (billSnapshot, { requirePayment = true } = {}) => {
   if (billSnapshot.billItems.length === 0) {
     return 'Add items to bill first';
-  }
-  if (requirePayment && isDuePayment(billSnapshot)) {
-    const paidNowRupees = Number(billSnapshot.paidNow) || 0;
-    if (paidNowRupees < 0) return 'Paid now cannot be negative.';
-    if (paidNowRupees > billSnapshot.grandTotal) {
-      return 'Paid now cannot be more than the bill total — the rest stays due.';
-    }
   }
   if (requirePayment && isMultiPayment(billSnapshot)) {
     const splitError = getPaymentSplitsError(billSnapshot.paymentSplits || [], billSnapshot.grandTotal);

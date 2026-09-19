@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Plus, Printer, Eye, Wallet } from 'lucide-react';
+import { Plus, Printer, Eye } from 'lucide-react';
 import { BILL_STATUS, PAYMENT_METHOD } from '@/constants/domainConstants';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
-  FilterPills, AppButton,
+  FilterPills, AppButton, BackdatedBadge,
 } from '../components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -14,7 +14,6 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useBillRowActions } from '@/hooks/useBillRowActions';
 import { formatDateShort, formatTime, toISODate } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
-import CollectPaymentModal from '@/components/CollectPaymentModal';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
 
 const BILLING_TABS = [
@@ -27,14 +26,13 @@ export default function BillingOperations() {
   const [searchParams] = useSearchParams();
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [collectingBill, setCollectingBill] = useState(null);
   const { downloadingId, handlePrint, handleWhatsApp } = useBillRowActions();
 
   // Search & filters — activeFilter/dateRange/searchQuery can arrive
-  // pre-set via URL (?filter=due|parked|cash|upi, ?from_date=&to_date=,
-  // ?search=) so a Dashboard card or the Outstanding Dues report can drill
-  // straight into the same bills it counted, instead of landing here and
-  // making the user re-apply the filter by hand.
+  // pre-set via URL (?filter=parked|cash|upi, ?from_date=&to_date=,
+  // ?search=) so a Dashboard card can drill straight into the same bills
+  // it counted, instead of landing here and making the user re-apply the
+  // filter by hand.
   const [searchQuery, setSearchQuery]   = useState(() => searchParams.get('search') || '');
   const debouncedSearch                 = useDebounce(searchQuery, 300);
   const [activeFilter, setActiveFilter] = useState(() => searchParams.get('filter') || 'all');
@@ -57,7 +55,6 @@ export default function BillingOperations() {
         page_size:    pg.pageSize,
       };
       if (debouncedSearch)               params.search         = debouncedSearch;
-      if (activeFilter === 'due')        params.status         = BILL_STATUS.DUE;
       if (activeFilter === 'parked')     params.status         = 'parked'; // backend maps to ['draft','parked']
       if (activeFilter === 'cash')       params.payment_method = PAYMENT_METHOD.CASH;
       if (activeFilter === 'upi')        params.payment_method = PAYMENT_METHOD.UPI;
@@ -123,7 +120,6 @@ export default function BillingOperations() {
               { key: 'all',    label: 'All'    },
               { key: 'cash',   label: 'Cash'   },
               { key: 'upi',    label: 'UPI'    },
-              { key: 'due',    label: 'Due'    },
               { key: 'parked', label: 'Parked' },
             ]}
             active={activeFilter}
@@ -175,7 +171,20 @@ export default function BillingOperations() {
                     bill.status === BILL_STATUS.DRAFT ||
                     bill.status === 'parked' ||
                     bill.bill_number?.toLowerCase().includes('draft');
+                  // Legacy "due" bills (created before Sep 19, 2026, when
+                  // Due/partial-payment was removed) can still exist in old
+                  // data — shown here for what they are, but with no more
+                  // action to collect against them.
                   const isDue = bill.status === BILL_STATUS.DUE;
+                  // A bill's picked Bill Date can differ from when it was
+                  // actually entered (Billing allows backdating) — found
+                  // Sep 19, 2026 (Abinash): both columns showed the same
+                  // created_at, so a backdated bill was indistinguishable
+                  // from a normal one. Compare by day only (created_at is a
+                  // full timestamp, bill_date is a plain date).
+                  const billDateStr   = bill.bill_date || bill.created_at;
+                  const isBackdated   = billDateStr && bill.created_at &&
+                    formatDateShort(billDateStr) !== formatDateShort(bill.created_at);
 
                   return (
                     <tr
@@ -212,7 +221,17 @@ export default function BillingOperations() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-700">{formatDateShort(bill.created_at)}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-gray-700">{formatDateShort(billDateStr)}</span>
+                          {isBackdated && (
+                            <BackdatedBadge
+                              enteredOn={bill.created_at}
+                              datedOn={billDateStr}
+                              formatDate={formatDateShort}
+                              testId={`backdated-badge-${bill.id}`}
+                            />
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-4 py-3">
@@ -237,17 +256,6 @@ export default function BillingOperations() {
 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {isDue && (
-                            <AppButton
-                              variant="ghost"
-                              iconOnly
-                              icon={<Wallet className="w-4 h-4 text-amber-600" />}
-                              aria-label="Collect Payment"
-                              className="p-1.5 h-auto hover:bg-amber-50"
-                              onClick={(e) => { e.stopPropagation(); setCollectingBill(bill); }}
-                              data-testid={`collect-payment-row-${bill.id}`}
-                            />
-                          )}
                           <AppButton
                             variant="ghost"
                             iconOnly
@@ -286,13 +294,6 @@ export default function BillingOperations() {
         {/* Pagination footer */}
         <PaginationBar {...pg} />
       </DataCard>
-
-      <CollectPaymentModal
-        bill={collectingBill}
-        open={!!collectingBill}
-        onClose={() => setCollectingBill(null)}
-        onSuccess={() => fetchData()}
-      />
     </div>
   );
 }

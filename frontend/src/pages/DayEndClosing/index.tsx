@@ -48,7 +48,6 @@ const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
   { key: 'gst',     label: 'GST Report' },
   { key: 'day-end', label: 'Day-End Closing' },
-  { key: 'dues',    label: 'Outstanding Dues' },
 ];
 
 // Found Sep 19, 2026: `d.toISOString().split('T')[0]` converts to UTC first —
@@ -106,7 +105,7 @@ export default function DayEndClosing() {
       <PageTabs
         tabs={REPORTS_TABS}
         activeTab="day-end"
-        onChange={(key) => navigate(key === 'reports' ? '/reports' : key === 'dues' ? '/reports/outstanding-dues' : `/reports/${key}`)}
+        onChange={(key) => navigate(key === 'reports' ? '/reports' : `/reports/${key}`)}
       />
 
       <DataCard className="mb-6">

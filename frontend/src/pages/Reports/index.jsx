@@ -17,7 +17,6 @@ const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
   { key: 'gst',     label: 'GST Report' },
   { key: 'day-end', label: 'Day-End Closing' },
-  { key: 'dues',    label: 'Outstanding Dues' },
 ];
 
 // A "Stock" tab used to live here — removed Sep 12, 2026: it had no real
@@ -100,7 +99,7 @@ export default function Reports() {
       <PageTabs
         tabs={REPORTS_TABS}
         activeTab="reports"
-        onChange={(key) => navigate(key === 'gst' ? '/reports/gst' : key === 'day-end' ? '/reports/day-end' : key === 'dues' ? '/reports/outstanding-dues' : '/reports')}
+        onChange={(key) => navigate(key === 'gst' ? '/reports/gst' : key === 'day-end' ? '/reports/day-end' : '/reports')}
       />
 
       <div className="bg-white rounded-xl border border-gray-200">

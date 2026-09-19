@@ -23,7 +23,6 @@ function renderHeader(props = {}) {
         onFinalise={jest.fn()}
         onPrintFormatChange={jest.fn()}
         onPrint={jest.fn()}
-        onCollectPayment={jest.fn()}
         onReturn={jest.fn()}
         onHistory={jest.fn()}
         {...props}

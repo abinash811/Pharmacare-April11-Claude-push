@@ -216,8 +216,13 @@ export default function SalesReturnsList() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-700">{formatDateShort(item.entry_date)}</div>
-                      <div className="text-xs text-gray-500">{formatTime(item.entry_date)}</div>
+                      {/* Entry Date column showed nothing — the backend
+                          response has no "entry_date" field at all (only
+                          "created_at" and "return_date"); the header
+                          existed but the data behind it never did. Found
+                          Sep 19, 2026 (Abinash). */}
+                      <div className="text-sm text-gray-700">{formatDateShort(item.created_at)}</div>
+                      <div className="text-xs text-gray-500">{formatTime(item.created_at)}</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-700">{formatDateShort(item.return_date)}</div>

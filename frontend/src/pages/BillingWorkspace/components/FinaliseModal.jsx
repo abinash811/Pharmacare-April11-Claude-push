@@ -5,7 +5,6 @@
  *   onClose           {() => void}
  *   customerName      {string}
  *   paymentType       {string}
- *   paidNow           {string}  — partial cash amount when paymentType === 'due'
  *   paymentSplits     {Array<{method, amount}>} — split legs when paymentType === 'multiple'
  *   mrpTotal          {number}
  *   totalDiscount     {number}
@@ -32,7 +31,6 @@ export default function FinaliseModal({
   onClose,
   customerName   = '',
   paymentType    = '',
-  paidNow        = '',
   paymentSplits  = /** @type {Array<{method: string, amount: string}>} */ ([]),
   mrpTotal       = 0,
   totalDiscount  = 0,
@@ -158,19 +156,6 @@ export default function FinaliseModal({
                       <span className="font-semibold text-gray-800">{formatCurrency(Number(s.amount) || 0)}</span>
                     </div>
                   ))}
-                </div>
-              )}
-
-              {!isCorrection && paymentType === 'due' && (
-                <div className="p-3 bg-amber-50 rounded-lg space-y-1" data-testid="due-summary">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-amber-700">Paid now</span>
-                    <span className="font-semibold text-amber-800">{formatCurrency(Number(paidNow) || 0)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-amber-700">Stays due</span>
-                    <span className="font-semibold text-amber-800">{formatCurrency(Math.max(0, grandTotal - (Number(paidNow) || 0)))}</span>
-                  </div>
                 </div>
               )}
 

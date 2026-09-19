@@ -85,7 +85,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
         <table className="w-full text-left border-collapse table-fixed min-w-[1000px]">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
-              {['#','Medicine','Batch','Expiry','MRP','Qty','Disc%/₹','GST','Amount'].map((h, i) => (
+              {['#','Medicine','Batch','Expiry','MRP','Qty','Disc%/₹','GST %','Amount'].map((h, i) => (
                 <th key={h} className={`px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider ${i === 0 ? 'w-12' : i === 1 ? 'w-[28%]' : i === 4||i===6 ? 'w-24 text-right' : i===5||i===7 ? 'w-16 text-right' : i===8 ? 'w-28 text-right' : i===2 ? 'w-24' : 'w-20'}`}>{h}</th>
               ))}
               {!isView && <th className="w-10 px-2 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center"><span className="sr-only">Remove</span></th>}

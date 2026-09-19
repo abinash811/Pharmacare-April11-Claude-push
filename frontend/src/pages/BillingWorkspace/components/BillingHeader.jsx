@@ -2,8 +2,8 @@
  * BillingHeader
  *
  * Page-level header for the billing workspace.
- * - new/edit mode: shows [Park Bill] [Save & Print ▼] [✓ Finalise Bill] [?]
- * - view mode: shows status badges + [Collect Payment] [Return] [Print] [History]
+ * - new/edit mode: shows [Park Bill] [Save & Print] [✓ Finalise Bill]
+ * - view mode: shows status badges + [Return] [Print] [History]
  *
  * Props:
  *   viewMode         {'new'|'edit'|'view'}
@@ -19,7 +19,6 @@
  *   onSavePrint      {() => void}           — new/edit only
  *   onFinalise       {() => void}           — new/edit only → opens FinaliseModal
  *   onPrint          {() => void}           — view only
- *   onCollectPayment {() => void}           — view only
  *   onReturn         {() => void}           — view only
  *   onHistory        {() => void}           — view only
  */
@@ -27,11 +26,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, Printer, RotateCcw, History, CreditCard,
+  ArrowLeft, Printer, RotateCcw, History,
   PauseCircle, CheckCircle,
 } from 'lucide-react';
 import { AppButton } from '@/components/shared';
-import SavePrintSplitButton from './SavePrintSplitButton';
 
 const FORMAT_OPTIONS = [
   { value: '80mm', label: 'Thermal' },
@@ -51,7 +49,6 @@ export default function BillingHeader({
   onSavePrint,
   onFinalise,
   onPrint,
-  onCollectPayment,
   onReturn,
   onHistory,
 }) {
@@ -82,25 +79,28 @@ export default function BillingHeader({
             aria-label="Back to bills"
           />
 
-          <div>
-            <div className="flex items-center gap-2 text-xs text-gray-400 mb-0.5">
-              <Link to="/billing" className="hover:text-brand transition-colors">
-                Bills
-              </Link>
-              <span>/</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-gray-900">{title}</h1>
-              {(isNew || isEdit) && draftNumber && (
-                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded tracking-wider uppercase">
-                  Draft #{draftNumber}
-                </span>
-              )}
-            </div>
+          {/* Breadcrumb + title on one line — was stacked on two, found Sep
+              19, 2026 (Abinash): took up more vertical space than a single
+              "Bills / New Bill" trail needs. */}
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <Link to="/billing" className="text-sm text-gray-400 hover:text-brand transition-colors">
+              Bills
+            </Link>
+            <span className="text-sm text-gray-300">/</span>
+            <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+            {(isNew || isEdit) && draftNumber && (
+              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded tracking-wider uppercase">
+                Draft #{draftNumber}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* ── Right: new/edit mode action buttons ─────────────────────── */}
+        {/* ── Right: new/edit mode action buttons ───────────────────────
+            Exactly 3 flat buttons — Park Bill used to also duplicate
+            itself as a dropdown option inside a "Save & Print ▼" split
+            button; found Sep 19, 2026 (Abinash): the same action offered
+            two different ways in the same header. Collapsed to one. */}
         {(isNew || isEdit) && (
           <div className="flex items-center gap-2">
 
@@ -121,13 +121,17 @@ export default function BillingHeader({
               </AppButton>
             )}
 
-            {/* Save & Print (split button) */}
-            <SavePrintSplitButton
-              onSavePrint={onSavePrint}
-              onParkBill={onParkBill}
-              isSaving={isSaving}
-              isCorrection={isCorrection}
-            />
+            <AppButton
+              variant="outline"
+              size="sm"
+              onClick={onSavePrint}
+              disabled={isSaving}
+              shortcut="F12"
+              icon={<Printer className="w-4 h-4" />}
+              data-testid="save-print-btn"
+            >
+              Save &amp; Print
+            </AppButton>
 
             {/* Finalise Bill — primary CTA (relabeled Save Changes when
                 correcting an already-finalized bill, not finalizing a new one) */}
@@ -156,16 +160,6 @@ export default function BillingHeader({
             )}
             {hasReturns && (
               <span className="px-2 py-1 bg-orange-50 text-orange-700 text-xs font-semibold rounded">Returned</span>
-            )}
-
-            {loadedBill.status === 'due' && (
-              <AppButton
-                onClick={onCollectPayment}
-                icon={<CreditCard className="w-4 h-4" />}
-                data-testid="collect-payment-btn"
-              >
-                Collect Payment
-              </AppButton>
             )}
 
             {loadedBill.status === 'paid' && !hasReturns && (

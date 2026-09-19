@@ -15,11 +15,10 @@ const customerFormSchema = z.object({
   address:       z.string().optional().default(''),
   customer_type: z.enum(['regular', 'wholesale', 'institution']).default('regular'),
   gstin:         z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Enter a valid GSTIN').or(z.literal('')),
-  credit_limit:  z.coerce.number().min(0).default(0),
   notes:         z.string().optional().default(''),
 });
 
-const DEFAULTS = { name: '', phone: '', email: '', address: '', customer_type: 'regular', gstin: '', credit_limit: 0, notes: '' };
+const DEFAULTS = { name: '', phone: '', email: '', address: '', customer_type: 'regular', gstin: '', notes: '' };
 
 export default function CustomerFormDialog({ open, editingCustomer, onClose, onSave }) {
   const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm({
@@ -37,7 +36,6 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
       address:       editingCustomer.address       || '',
       customer_type: editingCustomer.customer_type || 'regular',
       gstin:         editingCustomer.gstin         || '',
-      credit_limit:  editingCustomer.credit_limit  || 0,
       notes:         editingCustomer.notes         || '',
     } : DEFAULTS);
   }, [editingCustomer, open, reset]);
@@ -96,10 +94,6 @@ export default function CustomerFormDialog({ open, editingCustomer, onClose, onS
                 {err('gstin')}
               </div>
             )}
-            <div>
-              <Label>Credit Limit (₹)</Label>
-              <Input type="number" {...register('credit_limit')} min="0" />
-            </div>
             <div className="col-span-2">
               <Label>Notes</Label>
               <Textarea {...register('notes')} rows={3} placeholder="Allergies, delivery preference, family context…" />

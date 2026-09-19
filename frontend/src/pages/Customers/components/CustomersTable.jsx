@@ -35,11 +35,10 @@ export default function CustomersTable({ customers, loading, searchQuery, onAdd,
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {[
-                { label: 'Customer',     align: 'text-left'   },
-                { label: 'Contact',      align: 'text-left'   },
-                { label: 'Type',         align: 'text-center' },
-                { label: 'Credit Limit', align: 'text-right'  },
-                { label: 'Actions',      align: 'text-right'  },
+                { label: 'Customer', align: 'text-left'   },
+                { label: 'Contact',  align: 'text-left'   },
+                { label: 'Type',     align: 'text-center' },
+                { label: 'Actions',  align: 'text-right'  },
               ].map(({ label, align }) => (
                 <th key={label} className={`px-4 py-3 text-[11px] font-medium text-gray-500 uppercase tracking-wider ${align}`}>
                   {label}
@@ -49,10 +48,10 @@ export default function CustomersTable({ customers, loading, searchQuery, onAdd,
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
-              <tr><td colSpan={6} className="p-0"><TableSkeleton rows={6} columns={5} /></td></tr>
+              <tr><td colSpan={4} className="p-0"><TableSkeleton rows={6} columns={4} /></td></tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-0">
+                <td colSpan={4} className="p-0">
                   <CustomersEmptyState filtered={!!searchQuery} action={null} />
                 </td>
               </tr>
@@ -76,12 +75,6 @@ export default function CustomersTable({ customers, loading, searchQuery, onAdd,
                 </td>
                 <td className="px-4 py-2.5 text-center">
                   <CustomerTypeBadge type={customer.customer_type} />
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  {customer.credit_limit > 0
-                    ? <span className="font-semibold tabular-nums text-gray-900">₹{customer.credit_limit.toLocaleString()}</span>
-                    : <span className="text-gray-400">—</span>
-                  }
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

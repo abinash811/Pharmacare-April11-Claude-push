@@ -5,13 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Printer, Download, Edit, RotateCcw, CheckCircle, Clock, AlertCircle, Wallet } from 'lucide-react';
+import { ArrowLeft, Printer, Download, Edit, RotateCcw, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { AppButton, PageSkeleton, PageBreadcrumb } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatDateShort, formatTime } from '@/utils/dates';
 import { downloadBlob, extractBlobErrorMessage } from '@/utils/fileDownload';
-import CollectPaymentModal from '@/components/CollectPaymentModal';
 import BillItemsTable from './components/BillItemsTable';
 import BillTotals from './components/BillTotals';
 
@@ -42,7 +41,6 @@ export default function BillDetail() {
   const [printSettings, setPrintSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [showCollectPayment, setShowCollectPayment] = useState(false);
 
   // GET /bills/{id}/pdf (reportlab-generated, real, working) had zero UI
   // caller anywhere in the app until now — found while checking Billing's
@@ -84,15 +82,6 @@ export default function BillDetail() {
   useEffect(() => {
     loadData();
   }, [id]); // eslint-disable-line
-
-  const refetchBill = async () => {
-    try {
-      const res = await api.get(apiUrl.bill(id));
-      setBill(res.data);
-    } catch {
-      toast.error('Failed to refresh bill');
-    }
-  };
 
   if (loading) return <PageSkeleton />;
   if (!bill)   return null;
@@ -145,11 +134,6 @@ export default function BillDetail() {
                 {downloadingPdf ? 'Downloading…' : 'Download PDF'}
               </AppButton>
             </>
-          )}
-          {bill.status === 'due' && (
-            <AppButton icon={<Wallet className="w-4 h-4" strokeWidth={1.5} />} onClick={() => setShowCollectPayment(true)} data-testid="collect-payment-btn">
-              Collect Payment
-            </AppButton>
           )}
           {/* Sep 15, 2026 product-review: a finalized bill had no return
               entry point at all — "Edit Bill" was correctly hidden here
@@ -257,13 +241,6 @@ export default function BillDetail() {
           body { -webkit-print-color-adjust: exact; }
         }
       `}</style>
-
-      <CollectPaymentModal
-        bill={bill}
-        open={showCollectPayment}
-        onClose={() => setShowCollectPayment(false)}
-        onSuccess={refetchBill}
-      />
     </div>
   );
 }

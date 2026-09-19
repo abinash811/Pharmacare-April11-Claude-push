@@ -23,8 +23,6 @@
  *   onDoctorChange      {(string) => void}
  *   paymentType         {string}
  *   onPaymentTypeChange {(string) => void}
- *   paidNow             {string}            — partial cash amount when paymentType === 'due'
- *   onPaidNowChange     {(string) => void}
  *   paymentSplits       {Array<{method, amount}>} — split legs when paymentType === 'multiple'
  *   onPaymentSplitsChange {(Array) => void}
  *   grandTotal          {number}            — bill total in rupees, for split-sum validation display
@@ -33,7 +31,6 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { FilterPills, AppButton } from '@/components/shared';
@@ -48,17 +45,14 @@ const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wi
 // zero trace of the real split, worse than not offering it. Re-added Sep 16,
 // 2026 alongside the real split-entry panel below (SPLIT_METHODS + the
 // "Split Payment" row) — only for a fully-paid bill split across real
-// instruments; combining with "Due" is out of scope (see backend's
-// _VALID_SPLIT_METHODS comment in billing.py).
-// "Due" removed Sep 14, 2026, reinstated Sep 15, 2026 (see docs/15_ROADMAP.md
-// Billing table) — needs a real customer selected (BillingSubbar blocks the
-// pill otherwise) so there's someone to collect from later; credit-limit
-// enforcement lives server-side in _check_credit_limit (billing.py).
+// instruments.
+// "Due" removed for good Sep 19, 2026 (Abinash, direct instruction) — a
+// bill must be paid in full to finalize; the backend now rejects any
+// partial payment outright (see billing.py's create_bill/update_bill).
 const PAYMENT_TYPES = [
   { key: 'cash',     label: 'Cash'   },
   { key: 'upi',      label: 'UPI'    },
   { key: 'card',     label: 'Card'   },
-  { key: 'due',      label: 'Due'    },
   { key: 'multiple', label: 'Multi'  },
 ];
 
@@ -72,14 +66,11 @@ export default function BillingSubbar({
   onBillDateChange,
   customerName,
   customerPhone,
-  customerId,
   onPatientSelect,
   doctorName,
   onDoctorChange,
   paymentType,
   onPaymentTypeChange,
-  paidNow,
-  onPaidNowChange,
   paymentSplits = /** @type {Array<{method: string, amount: string}>} */ ([]),
   onPaymentSplitsChange = () => {},
   grandTotal = 0,
@@ -180,10 +171,6 @@ export default function BillingSubbar({
               options={PAYMENT_TYPES}
               active={paymentType}
               onChange={(key) => {
-                if (key === 'due' && !customerId) {
-                  toast.error('Pick a customer first — a due bill needs someone to collect from later.');
-                  return;
-                }
                 if (key === 'multiple' && paymentSplits.length < 2) {
                   onPaymentSplitsChange([{ method: '', amount: '' }, { method: '', amount: '' }]);
                 }
@@ -192,23 +179,6 @@ export default function BillingSubbar({
             />
           )}
         </div>
-
-        {/* ── PAID NOW (only for Due) ───────────────────────────────────── */}
-        {!isView && paymentType === 'due' && (
-          <div className="pl-4 shrink-0">
-            <span className={LABEL}>Paid Now (Cash)</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={paidNow}
-              onChange={(e) => onPaidNowChange(e.target.value)}
-              placeholder="0.00"
-              className="w-24 text-sm font-medium text-gray-900 border-b border-brand outline-none bg-transparent pb-0.5 placeholder:text-gray-400"
-              data-testid="paid-now-input"
-            />
-          </div>
-        )}
 
       </div>
 

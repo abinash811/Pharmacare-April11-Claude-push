@@ -6,7 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DollarSign, TrendingUp, BarChart3, ShoppingCart,
-  CreditCard, Clock, RefreshCw, Package, Truck, Undo2, Wallet,
+  Clock, RefreshCw, Package, Truck, Undo2, Wallet,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
 import { toISODate } from '@/utils/dates';
@@ -138,8 +138,7 @@ export default function Dashboard() {
           />
 
           {/* Row 5: Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <QuickStatCard title="Pending Payments" value={formatCompact(quick_stats?.pending_payments)} icon={<CreditCard className="w-4 h-4" />} color="yellow" onClick={() => navigate('/billing?filter=due')} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing?filter=parked')} />
             <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red"    onClick={() => navigate(`/billing/returns?${dateRangeQuery(monthStart, today)}`)} />
             <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory')} />

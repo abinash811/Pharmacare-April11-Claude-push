@@ -18,7 +18,6 @@ import FinaliseModal          from './components/FinaliseModal';
 import ScheduleHWarning       from './components/ScheduleHWarning';
 import PatientSearchModal     from './components/PatientSearchModal';
 import PrintReceipt           from './components/PrintReceipt';
-import CollectPaymentModal from '@/components/CollectPaymentModal';
 import { PageSkeleton } from '@/components/shared';
 import DrugLicenseRequiredState from './components/DrugLicenseRequiredState';
 import { isDrugLicenseValid, isDrugLicenseExpired } from '@/utils/drugLicense';
@@ -50,10 +49,9 @@ export default function BillingWorkspace() {
   const [patientAddress, setPatientAddress] = useState('');
   const [patientAge,     setPatientAge]     = useState('');
   const [paymentType,   setPaymentType]   = useState('cash');
-  const [paidNow,       setPaidNow]       = useState('');
   // Split legs for a "Multi" payment (e.g. ₹300 cash + ₹200 UPI) — only
   // populated when paymentType === 'multiple'. Cleared whenever the payment
-  // type changes away from 'multiple', same pattern as paidNow/'due' below.
+  // type changes away from 'multiple'.
   const [paymentSplits, setPaymentSplits] = useState([]);
   const [billDate,      setBillDate]      = useState(new Date());
   const [draftNumber,   setDraftNumber]   = useState(null);
@@ -66,7 +64,6 @@ export default function BillingWorkspace() {
   const [showFinalise,      setShowFinalise]      = useState(false);
   const [showScheduleH,     setShowScheduleH]     = useState(false);
   const [showPatientModal,  setShowPatientModal]  = useState(false);
-  const [showCollectPayment, setShowCollectPayment] = useState(false);
 
   // ── Print ────────────────────────────────────────────────────────────────
   const [savedBillData,  setSavedBillData]  = useState(null);
@@ -91,7 +88,7 @@ export default function BillingWorkspace() {
 
   const clearBill = useCallback(() => {
     setItems([]); setCustomerName(''); setCustomerPhone(''); setCustomerId(null);
-    setDoctorName(''); setPaymentType('cash'); setPaidNow(''); setPaymentSplits([]);
+    setDoctorName(''); setPaymentType('cash'); setPaymentSplits([]);
     setPatientAddress(''); setPatientAge('');
     localStorage.removeItem('billing_draft'); setDraftNumber(null);
   }, [setItems]);
@@ -189,7 +186,7 @@ export default function BillingWorkspace() {
 
   // ── Bill actions ──────────────────────────────────────────────────────────
   const billSnapshot = {
-    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paidNow, paymentSplits,
+    billItems, customerName, customerPhone, customerId, doctorName, paymentType, paymentSplits,
     billDiscount, billDiscountType, mrpTotal, totalDiscount, totalGst, totalCess,
     grandTotal, subtotal, margin, draftNumber, editingDraftId,
     patientAddress, patientAge,
@@ -227,7 +224,6 @@ export default function BillingWorkspace() {
         onSavePrint={saveBillAndPrint}
         onFinalise={openFinaliseModal}
         onPrint={() => window.print()}
-        onCollectPayment={() => setShowCollectPayment(true)}
         onReturn={() => navigate(`/billing/returns/new?billId=${loadedBill?.id}`)}
         onHistory={() => toast.info('History coming soon')}
       />
@@ -235,11 +231,10 @@ export default function BillingWorkspace() {
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         <BillingSubbar
           viewMode={viewMode} billDate={billDate} onBillDateChange={setBillDate}
-          customerName={customerName} customerPhone={customerPhone} customerId={customerId}
+          customerName={customerName} customerPhone={customerPhone}
           onPatientSelect={({ name, phone, id }) => { setCustomerName(name); setCustomerPhone(phone || ''); setCustomerId(id || null); saveDraft(); }}
           doctorName={doctorName} onDoctorChange={setDoctorName}
-          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'due') setPaidNow(''); if (v !== 'multiple') setPaymentSplits([]); saveDraft(); }}
-          paidNow={paidNow} onPaidNowChange={setPaidNow}
+          paymentType={paymentType} onPaymentTypeChange={(v) => { setPaymentType(v); if (v !== 'multiple') setPaymentSplits([]); saveDraft(); }}
           paymentSplits={paymentSplits} onPaymentSplitsChange={setPaymentSplits}
           grandTotal={grandTotal}
         />
@@ -270,17 +265,13 @@ export default function BillingWorkspace() {
       />
       <FinaliseModal
         open={showFinalise} onClose={() => setShowFinalise(false)}
-        customerName={customerName} paymentType={paymentType} paidNow={paidNow} paymentSplits={paymentSplits}
+        customerName={customerName} paymentType={paymentType} paymentSplits={paymentSplits}
         mrpTotal={mrpTotal} totalDiscount={totalDiscount}
         billDiscount={billDiscount} billDiscountType={billDiscountType}
         totalGst={totalGst} totalCess={totalCess} grandTotal={grandTotal} margin={margin}
         isSaving={isSaving}
         isCorrection={isCorrection}
         onConfirm={(notes) => confirmAndSaveBill(notes).then(() => setShowFinalise(false))}
-      />
-      <CollectPaymentModal
-        bill={loadedBill} open={showCollectPayment}
-        onClose={() => setShowCollectPayment(false)} onSuccess={() => loadExistingBill(billId)}
       />
       <PrintReceipt billData={savedBillData} format={printFormat} />
     </div>

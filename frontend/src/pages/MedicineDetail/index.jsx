@@ -13,7 +13,7 @@ import MedicineDetailTabs          from './components/MedicineDetailTabs';
 import BatchesTab                  from './components/BatchesTab';
 import TransactionTab              from './components/TransactionTab';
 import LedgerTab                   from './components/LedgerTab';
-import MedicineEditModal           from './components/MedicineEditModal';
+import EditProductModal            from '../InventorySearch/components/EditProductModal';
 
 const TRANSACTION_TABS = new Set(['purchases', 'pur_return', 'sales', 'sales_return']);
 
@@ -137,7 +137,7 @@ export default function MedicineDetail() {
       </div>
 
       {showEditModal && product && (
-        <MedicineEditModal
+        <EditProductModal
           product={product}
           onClose={() => setShowEditModal(false)}
           onSuccess={() => { setShowEditModal(false); fetchProductDetails(); }}

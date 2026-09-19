@@ -51,7 +51,14 @@ const REPORTS_TABS = [
   { key: 'dues',    label: 'Outstanding Dues' },
 ];
 
-const toApiDate = (d: Date) => d.toISOString().split('T')[0];
+// Found Sep 19, 2026: `d.toISOString().split('T')[0]` converts to UTC first —
+// for any browser timezone ahead of UTC (India, this product's whole market,
+// is UTC+5:30), picking a date at local midnight always shifts to the
+// PREVIOUS day once converted to UTC, sending the wrong closing_date to the
+// backend on every single close, not just near a day boundary. date-fns'
+// format() reads the Date object's local year/month/day instead, so it
+// can't drift with timezone the way toISOString() does.
+const toApiDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function DayEndClosing() {
   const navigate = useNavigate();

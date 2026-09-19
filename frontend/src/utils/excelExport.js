@@ -4,6 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { toISODate } from './dates';
 
 /**
  * Export data to Excel file
@@ -39,7 +40,7 @@ export const exportToExcel = (data, filename, options = {}) => {
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
   // Generate file and trigger download
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = toISODate(new Date());
   XLSX.writeFile(wb, `${filename}_${timestamp}.xlsx`);
 };
 
@@ -65,7 +66,7 @@ export const exportMultiSheetExcel = (sheets, filename) => {
     }
   });
 
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = toISODate(new Date());
   XLSX.writeFile(wb, `${filename}_${timestamp}.xlsx`);
 };
 

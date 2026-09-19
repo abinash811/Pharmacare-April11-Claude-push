@@ -7,6 +7,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import usePagination from '@/hooks/usePagination';
+import { toISODate, today } from '@/utils/dates';
 import PurchasesTable from './components/PurchasesTable';
 import PurchasePayModal from '../PurchaseDetail/components/PurchasePayModal';
 import SupplierDropdown from '../PurchaseNew/components/SupplierDropdown';
@@ -46,7 +47,7 @@ export default function PurchasesList() {
   const [showPayModal, setShowPayModal]     = useState(false);
   const [payingPurchase, setPayingPurchase] = useState(null);
   const [paymentData, setPaymentData]       = useState({
-    amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
+    amount: 0, payment_method: 'cash', payment_date: today(), reference_no: '', notes: '',
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [delPurchase, setDelPurchase] = useState({ open: false, item: null, loading: false });
@@ -59,8 +60,8 @@ export default function PurchasesList() {
       if (activeFilter === 'cash')   params.purchase_on    = 'cash';
       if (activeFilter === 'credit') params.purchase_on    = 'credit';
       if (activeFilter === 'due')    params.payment_status = 'unpaid';
-      if (dateRange.start) params.from_date = dateRange.start.toISOString().split('T')[0];
-      if (dateRange.end)   params.to_date   = dateRange.end.toISOString().split('T')[0];
+      if (dateRange.start) params.from_date = toISODate(dateRange.start);
+      if (dateRange.end)   params.to_date   = toISODate(dateRange.end);
       if (supplierFilter)  params.supplier_id = supplierFilter.id;
       const res = await api.get(apiUrl.purchases(params));
       setPurchases(res.data.data || []);
@@ -82,7 +83,7 @@ export default function PurchasesList() {
     setPayingPurchase(purchase);
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
     setPaymentData({
-      amount: outstanding, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0],
+      amount: outstanding, payment_method: 'cash', payment_date: today(),
       reference_no: '', notes: '',
     });
     setShowPayModal(true);

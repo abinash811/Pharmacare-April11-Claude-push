@@ -6,6 +6,7 @@ import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton, DateRangePicke
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatCurrency } from '@/utils/currency';
+import { toISODate } from '@/utils/dates';
 
 const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
@@ -14,7 +15,13 @@ const REPORTS_TABS = [
   { key: 'dues',    label: 'Outstanding Dues' },
 ];
 
-const toApiDate = (d) => d.toISOString().split('T')[0];
+// Found Sep 19, 2026: was `d.toISOString().split('T')[0]`, which converts
+// to UTC first and silently shifts the picked date back a day for any
+// timezone ahead of UTC (India, this product's whole market, is UTC+5:30)
+// — the one report this whole module exists for (Meena's GST filing) was
+// generating numbers for the wrong date range, every time, for every
+// pharmacy in the country.
+const toApiDate = (d) => toISODate(d);
 
 export default function GSTReport() {
   const navigate = useNavigate();

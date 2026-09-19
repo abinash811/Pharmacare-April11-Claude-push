@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { TrendingUp, AlertCircle, Clock, PieChart, Undo2, Truck, LineChart, Stethoscope } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
+import { toISODate } from '@/utils/dates';
 
 import { useReports }  from './hooks/useReports';
 import ReportFilters   from './components/ReportFilters';
@@ -59,8 +60,12 @@ const REPORT_ICONS = {
 };
 
 // dateRange holds Date objects (DateRangePicker's own contract) — convert
-// at the API boundary, same local pattern GSTReport.js already uses.
-const toApiDate = (d) => d.toISOString().split('T')[0];
+// at the API boundary using the canonical, timezone-safe helper. Found
+// Sep 19, 2026: this used to be a local `d.toISOString().split('T')[0]`,
+// which converts to UTC first and silently shifts to the wrong day for
+// any timezone ahead of UTC (India, this product's whole market, is
+// UTC+5:30) — every report date-range filter was off by a day.
+const toApiDate = (d) => toISODate(d);
 
 export default function Reports() {
   const navigate = useNavigate();

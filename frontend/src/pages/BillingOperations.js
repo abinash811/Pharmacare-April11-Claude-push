@@ -12,7 +12,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useBillRowActions } from '@/hooks/useBillRowActions';
-import { formatDateShort, formatTime } from '@/utils/dates';
+import { formatDateShort, formatTime, toISODate } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
 import CollectPaymentModal from '@/components/CollectPaymentModal';
 import WhatsAppIcon from '@/components/icons/WhatsAppIcon';
@@ -61,8 +61,8 @@ export default function BillingOperations() {
       if (activeFilter === 'parked')     params.status         = 'parked'; // backend maps to ['draft','parked']
       if (activeFilter === 'cash')       params.payment_method = PAYMENT_METHOD.CASH;
       if (activeFilter === 'upi')        params.payment_method = PAYMENT_METHOD.UPI;
-      if (dateRange.start)          params.from_date = dateRange.start.toISOString().split('T')[0];
-      if (dateRange.end)            params.to_date   = dateRange.end.toISOString().split('T')[0];
+      if (dateRange.start)          params.from_date = toISODate(dateRange.start);
+      if (dateRange.end)            params.to_date   = toISODate(dateRange.end);
 
       const res = await api.get(apiUrl.bills(params));
       setBills(res.data.data || []);

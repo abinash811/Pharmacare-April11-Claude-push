@@ -9,6 +9,7 @@ import {
   CreditCard, Clock, RefreshCw, Package, Truck, Undo2, Wallet,
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
+import { toISODate } from '@/utils/dates';
 import { PageHeader, AppButton, DateRangePicker } from '@/components/shared';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -25,7 +26,12 @@ import LicenseExpiryBanner   from './components/LicenseExpiryBanner';
 // the backend's fixed metric cards already use (week starts Monday, see
 // reports.py's week_start = today - timedelta(days=today.weekday())), so
 // clicking a card lands on exactly the bills/purchases that card counted.
-export const toISODate = (d) => d.toISOString().split('T')[0];
+// toISODate re-exported from @/utils/dates (not redefined here) — found
+// Sep 19, 2026: this used to be a local `d.toISOString().split('T')[0]`,
+// which converts to UTC first and silently shifts to the wrong day for
+// any timezone ahead of UTC (India, this product's whole market, is
+// UTC+5:30) — clicking a stat card could drill into the wrong day's bills.
+export { toISODate };
 export const getWeekStart = (d) => {
   const day = d.getDay(); // 0 = Sunday ... 6 = Saturday
   const diffToMonday = day === 0 ? 6 : day - 1;

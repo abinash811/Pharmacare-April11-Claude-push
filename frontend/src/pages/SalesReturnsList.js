@@ -11,7 +11,7 @@ import {
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDateShort, formatTime } from '@/utils/dates';
+import { formatDateShort, formatTime, toISODate } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
 
 const BILLING_TABS = [
@@ -54,8 +54,8 @@ export default function SalesReturnsList() {
       };
       if (debouncedSearch)          params.search       = debouncedSearch;
       if (activeFilter !== 'all')   params.payment_type = activeFilter;
-      if (dateRange.start)          params.from_date    = dateRange.start.toISOString().split('T')[0];
-      if (dateRange.end)            params.to_date      = dateRange.end.toISOString().split('T')[0];
+      if (dateRange.start)          params.from_date    = toISODate(dateRange.start);
+      if (dateRange.end)            params.to_date      = toISODate(dateRange.end);
 
       const res = await api.get(apiUrl.salesReturns(params));
       setReturns(res.data.data || []);

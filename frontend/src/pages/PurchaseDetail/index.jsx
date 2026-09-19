@@ -6,7 +6,7 @@ import { ArrowLeft, Printer, RotateCcw, FileText, Paperclip, PenLine } from 'luc
 import { AuthContext } from '@/App';
 import { InlineLoader, AppButton, PageBreadcrumb, MoreMenu, StatusBadge } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
-import { formatDate as formatDateShort } from '@/utils/dates';
+import { formatDate as formatDateShort, today } from '@/utils/dates';
 import PurchaseItemsTable from './components/PurchaseItemsTable';
 import PurchasePayModal from './components/PurchasePayModal';
 import PaymentHistorySection from './components/PaymentHistorySection';
@@ -21,7 +21,7 @@ export default function PurchaseDetail() {
   const [loading, setLoading]     = useState(true);
   const [showPayModal, setShowPayModal] = useState(false);
   const [paymentData, setPaymentData]   = useState({
-    amount: 0, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '',
+    amount: 0, payment_method: 'cash', payment_date: today(), reference_no: '', notes: '',
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showCorrectModal, setShowCorrectModal] = useState(false);
@@ -55,7 +55,7 @@ export default function PurchaseDetail() {
 
   const openPayModal = () => {
     const outstanding = (purchase.total_value || 0) - (purchase.amount_paid || 0);
-    setPaymentData({ amount: outstanding, payment_method: 'cash', payment_date: new Date().toISOString().split('T')[0], reference_no: '', notes: '' });
+    setPaymentData({ amount: outstanding, payment_method: 'cash', payment_date: today(), reference_no: '', notes: '' });
     setShowPayModal(true);
   };
 

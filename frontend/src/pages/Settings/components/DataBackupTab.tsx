@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { today } from '@/utils/dates';
 
 export default function DataBackupTab() {
   const [downloading, setDownloading] = useState(false);
@@ -20,7 +21,7 @@ export default function DataBackupTab() {
       const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const a = Object.assign(document.createElement('a'), {
-        href: url, download: `pharmacare-backup-${new Date().toISOString().split('T')[0]}.json`,
+        href: url, download: `pharmacare-backup-${today()}.json`,
       });
       document.body.appendChild(a);
       a.click();

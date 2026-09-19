@@ -327,6 +327,34 @@ else
   green "Rule 18 PASS: No .js/.ts or .jsx/.tsx twin-name duplicates"
 fi
 
+# ── Rule 19: No `.toISOString().split('T')[0]` date-to-string conversion ──
+# Found Sep 19, 2026: toISOString() converts to UTC before formatting, so
+# for any timezone AHEAD of UTC — India, UTC+5:30, this product's entire
+# market — a locally-picked date silently shifts back a day (a date-picker
+# selection is always local midnight, which is always the previous day
+# once converted to UTC when the local zone is ahead of it). This was
+# copy-pasted into ~20 real call sites across the app — GST Report's own
+# date range, every report/list date filter, Day-End Closing (wrong day
+# closed every time), Schedule H1 Register (a legal register), and real
+# stored data (Purchase's purchase_date/due_date, which drives GST period
+# attribution) — before being fixed the same day. utils/dates.js's
+# toISODate()/today() already existed as the correct, canonical helper
+# (reads the Date object's local year/month/day via date-fns' format(),
+# never converts timezone) — almost nothing used it.
+ISO_SPLIT_HITS=$(grep -rn "toISOString().split('T')\[0\]\|toISOString().slice(0, *10)" "$FRONTEND" "$SHARED" frontend/src/utils frontend/src/hooks \
+  --include="*.jsx" --include="*.js" --include="*.tsx" --include="*.ts" 2>/dev/null \
+  | grep -v "^frontend/src/utils/dates.js" \
+  | grep -vE ':\s*(//|\*|/\*)' || true)
+
+if [ -n "$ISO_SPLIT_HITS" ]; then
+  COUNT=$(echo "$ISO_SPLIT_HITS" | wc -l | tr -d ' ')
+  red "Rule 19 FAIL: $COUNT use(s) of toISOString() to build a date-only string — use toISODate()/today() from @/utils/dates instead (UTC conversion silently shifts the date for any timezone ahead of UTC, incl. India)"
+  echo "$ISO_SPLIT_HITS" | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+else
+  green "Rule 19 PASS: No toISOString()-based date-only conversions outside utils/dates.js"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

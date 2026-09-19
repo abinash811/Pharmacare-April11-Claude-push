@@ -15,7 +15,7 @@ import {
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDateShort } from '@/utils/dates';
+import { formatDateShort, toISODate } from '@/utils/dates';
 import usePagination from '@/hooks/usePagination';
 
 export default function ScheduleH1Register() {
@@ -37,8 +37,8 @@ export default function ScheduleH1Register() {
     setLoading(true);
     try {
       const params = {};
-      if (dateRange.start) params.from_date = dateRange.start.toISOString().split('T')[0];
-      if (dateRange.end)   params.to_date   = dateRange.end.toISOString().split('T')[0];
+      if (dateRange.start) params.from_date = toISODate(dateRange.start);
+      if (dateRange.end)   params.to_date   = toISODate(dateRange.end);
 
       const res = await api.get(apiUrl.scheduleH1(params));
       setEntries(res.data.entries || []);

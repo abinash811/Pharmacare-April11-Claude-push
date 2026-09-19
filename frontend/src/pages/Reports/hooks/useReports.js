@@ -7,8 +7,16 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { fetchWithCache, invalidateCache } from '@/utils/cache';
 import { exportToExcel, formatReportForExcel } from '@/utils/excelExport';
+import { today } from '@/utils/dates';
 
-const TODAY = new Date().toISOString().split('T')[0];
+// Found Sep 19, 2026: was `new Date().toISOString().split('T')[0]`, which
+// converts to UTC first and can silently return yesterday's date for any
+// timezone ahead of UTC (India, this product's whole market, is UTC+5:30)
+// during the early-morning window before UTC catches up — the default
+// report range (and this const being module-level, computed once at
+// import time, not just at that instant) could stay wrong for the rest
+// of that session. today() reads local date parts instead.
+const TODAY = today();
 
 export function useReports() {
   const [loading,    setLoading]    = useState(false);

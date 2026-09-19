@@ -3,6 +3,7 @@
  * from PurchaseNew's form state. Extracted from the orchestrator so
  * index.jsx stays under the 300-line cap.
  */
+import { toISODate } from '@/utils/dates';
 
 // Convert MM/YY string to ISO date (last day of that month)
 export const expiryToISO = (mmyy) => {
@@ -20,8 +21,13 @@ export const buildPurchasePayload = ({
   orderType, withGST, purchaseOn, internalNote, invoiceBreakdown, items, batchPriority,
 }) => ({
   supplier_id:        selectedSupplier.id,
-  purchase_date:      billDate.toISOString().split('T')[0],
-  due_date:           dueDate ? dueDate.toISOString().split('T')[0] : null,
+  // Found Sep 19, 2026: toISOString() converts to UTC first, silently
+  // shifting the picked date back a day for any timezone ahead of UTC
+  // (India, this product's whole market, is UTC+5:30) — every purchase's
+  // real purchase_date/due_date was wrong by a day, every time, affecting
+  // which GST period it's attributed to. toISODate reads local date parts.
+  purchase_date:      toISODate(billDate),
+  due_date:           dueDate ? toISODate(dueDate) : null,
   supplier_invoice_no: supplierInvoiceNo || null,
   invoice_attachment_data: invoiceAttachment?.data || null,
   invoice_attachment_name: invoiceAttachment?.name || null,

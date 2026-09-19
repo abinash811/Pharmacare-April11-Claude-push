@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { toISODate } from '@/utils/dates';
 
 export function useDashboard() {
   const [data,             setData]             = useState(null);
@@ -16,14 +17,14 @@ export function useDashboard() {
     if (isRefresh) setRefreshing(true);
     try {
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      const today = now.toISOString().split('T')[0];
+      const monthStart = toISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+      const today = toISODate(now);
 
       // trendRange only affects the Sales Trend chart + Top Products/
       // Categories on the dashboard endpoint — the Purchases summary card
       // stays on its own fixed "this month" window, unrelated to it.
       const dashboardParams = trendRange?.start && trendRange?.end
-        ? { from_date: trendRange.start.toISOString().split('T')[0], to_date: trendRange.end.toISOString().split('T')[0] }
+        ? { from_date: toISODate(trendRange.start), to_date: toISODate(trendRange.end) }
         : {};
 
       const [dashboardRes, purchasesRes] = await Promise.all([

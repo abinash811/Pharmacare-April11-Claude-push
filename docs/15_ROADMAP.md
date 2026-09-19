@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.09 | Last updated: September 19, 2026
+# Version: 3.10 | Last updated: September 19, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -16,6 +16,53 @@
 | 📋 | Planned — design agreed, not yet built |
 | 💡 | Idea — under consideration, not confirmed |
 | 🚫 | Out of scope for Phase 1 |
+
+---
+
+## DOCS REVIEW STATUS
+
+> Added Sep 19, 2026 — a doc-by-doc review is in progress across all of
+> `docs/*.md`, working through the DOCS INDEX table in `CLAUDE.md` one file
+> at a time. Written here (not left in chat) specifically so a session
+> picking this up — including from a different account/branch handoff —
+> doesn't need this conversation's memory to continue correctly; reading
+> this section plus the methodology below is the whole handoff.
+
+**The methodology — apply all 3 checks together on every doc, in one pass,
+every time** (a real correction happened once this session when only 2 of
+3 were applied on the first two docs — see this log's own entries for
+that date):
+1. **Standards** — does it match real international-company practice for
+   this kind of doc, not just "does it sound reasonable"?
+2. **Accuracy** — verify every real claim (file paths, prop names, counts,
+   response shapes, line numbers) against the actual current code, never
+   trust the doc's own word for it.
+3. **Routing** — check which `.claude/skills/*.md` actually reference this
+   doc, and fix it if the skill that should load it at the right moment
+   doesn't.
+
+A real, fixed finding from each of these 3 checks goes in the RULE MISSES
+LOG below, same as any other bug.
+
+**Reviewed (all 3 checks applied), most recent first:**
+`06_COMPONENTS.md` · `11_TESTING.md` · `10_API.md` · `09_DATABASE.md` ·
+`08_ARCHITECTURE.md` · `14_SECURITY.md` · `05_DESIGN_SYSTEM.md` ·
+`20_CODE_QUALITY.md` · `22_TECH_RADAR.md`
+
+**Not yet reviewed:**
+`17_ACCESSIBILITY.md` · `18_ICONOGRAPHY_MOTION.md` · `19_PERFORMANCE.md` ·
+`01_PRODUCT.md` · `02_GLOSSARY.md` · `03_ONBOARDING.md` ·
+`04_GIT_WORKFLOW.md` · `07_BUSINESS_LOGIC.md` · `12_ERROR_HANDLING.md` ·
+`13_DEPLOYMENT.md` · `16_NAMING_CONVENTIONS.md` · `21_FEATURES.md` ·
+`23_PURCHASES_ACCEPTANCE_SPEC.md` · `24_REPORTS_ACCEPTANCE_SPEC.md`
+
+**Explicitly declined, don't rebuild:** a dedicated `pharmacare-doc-review`
+skill was proposed (to make this methodology auto-trigger) and directly
+declined — "No then move to next doc." Don't re-propose it unless the
+user raises it again himself.
+
+**Next up:** `17_ACCESSIBILITY.md` (or whichever the user names instead —
+this list is the default order, not a fixed requirement).
 
 ---
 

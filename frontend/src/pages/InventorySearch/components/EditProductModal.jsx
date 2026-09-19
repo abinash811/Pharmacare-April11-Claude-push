@@ -44,6 +44,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
     is_returnable:       product.is_returnable !== false,
     storage_location:    product.storage_location  || '',
     low_stock_threshold: product.low_stock_threshold_units || product.low_stock_threshold || 10,
+    reorder_quantity:    product.reorder_quantity_units || 100,
   });
   const [loading, setLoading] = useState(false);
   const set = (key, val) => setForm(p => ({ ...p, [key]: val }));
@@ -93,6 +94,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
         is_returnable:            form.is_returnable,
         storage_location:        form.storage_location  || null,
         low_stock_threshold_units:parseInt(form.low_stock_threshold) || 10,
+        reorder_quantity_units:    parseInt(form.reorder_quantity) || 100,
       });
       toast.success('Product updated successfully');
       onSuccess();
@@ -137,6 +139,7 @@ export default function EditProductModal({ product, onClose, onSuccess }) {
               </select>
             </F>
             <F label="Low Stock Threshold"><input type="number" value={form.low_stock_threshold} onChange={(e) => set('low_stock_threshold', e.target.value)} className={INPUT_CLS} /></F>
+            <F label="Reorder Quantity" hint="Suggested quantity to order when restocking"><input type="number" value={form.reorder_quantity} onChange={(e) => set('reorder_quantity', e.target.value)} className={INPUT_CLS} /></F>
             <F label="Strength (e.g. 500mg, 5ml)"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="edit-product-strength" /></F>
             <F label="Storage Location"><input value={form.storage_location} onChange={(e) => set('storage_location', e.target.value)} className={INPUT_CLS} placeholder="e.g. Store A, Shelf 3" data-testid="edit-product-location" /></F>
             <div className="flex items-end pb-2 gap-4">

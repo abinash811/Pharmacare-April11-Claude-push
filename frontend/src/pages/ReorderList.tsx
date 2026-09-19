@@ -3,12 +3,13 @@
  * Route: /inventory/reorder
  *
  * Every medicine whose current stock has fallen to or below its own
- * reorder level, sorted most-urgent first, with an editable Reorder Level
- * and Reorder Qty per row so a pharmacist can tune both without leaving
- * this screen. Backed by GET /inventory/reorder-list, which reuses the
- * exact same stock<=reorder_level comparison as the main Inventory health
- * screen — see that endpoint's docstring for why a new comparison wasn't
- * invented here.
+ * reorder level, sorted most-urgent first. Reorder Level and Reorder Qty
+ * are read-only here — edit them from Edit Product instead (Sep 19, 2026,
+ * direct instruction: this screen is for triage, not editing). Backed by
+ * GET /inventory/reorder-list, which reuses the exact same
+ * stock<=reorder_level comparison as the main Inventory health screen —
+ * see that endpoint's docstring for why a new comparison wasn't invented
+ * here.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -38,52 +39,6 @@ interface ReorderItem {
   shortfall: number;
 }
 
-interface InlineQtyFieldProps {
-  value: number;
-  onCommit: (next: number) => Promise<void>;
-  testId: string;
-}
-
-// A small, local inline-editable count field — not promoted to
-// @/components/shared since this is its only use so far (see the
-// "don't design for hypothetical future requirements" rule); promote it
-// if a second screen needs the same pattern.
-function InlineQtyField({ value, onCommit, testId }: InlineQtyFieldProps) {
-  const [draft, setDraft] = useState(String(value));
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setDraft(String(value)); }, [value]);
-
-  const commit = async () => {
-    const next = parseInt(draft, 10);
-    if (!Number.isFinite(next) || next < 0) { setDraft(String(value)); return; }
-    if (next === value) return;
-    setSaving(true);
-    try {
-      await onCommit(next);
-    } catch {
-      setDraft(String(value)); // real error already toasted by the caller
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <input
-      type="number"
-      min="0"
-      inputMode="numeric"
-      value={draft}
-      disabled={saving}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }}
-      className="w-20 px-2 py-1.5 text-sm text-right border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand disabled:bg-gray-50 disabled:text-gray-400"
-      data-testid={testId}
-    />
-  );
-}
-
 export default function ReorderList() {
   const navigate = useNavigate();
   const [items, setItems]     = useState<ReorderItem[]>([]);
@@ -111,17 +66,6 @@ export default function ReorderList() {
   }, [pg.page, pg.pageSize]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  const updateProductField = async (product: ReorderProduct, field: string, nextValue: number) => {
-    try {
-      await api.put(apiUrl.product(product.id), { [field]: nextValue });
-      toast.success(`${product.name} updated`);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update');
-      throw err; // lets InlineQtyField roll its draft back
-    }
-  };
 
   return (
     <div className="px-8 py-6 min-h-screen bg-page" data-testid="reorder-list-page">
@@ -180,20 +124,8 @@ export default function ReorderList() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center font-mono text-gray-700">{current_stock}</td>
-                    <td className="px-4 py-3 text-center">
-                      <InlineQtyField
-                        value={reorder_level}
-                        testId={`reorder-level-${product.sku}`}
-                        onCommit={(next) => updateProductField(product, 'low_stock_threshold_units', next)}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <InlineQtyField
-                        value={reorder_quantity}
-                        testId={`reorder-qty-${product.sku}`}
-                        onCommit={(next) => updateProductField(product, 'reorder_quantity_units', next)}
-                      />
-                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-gray-700" data-testid={`reorder-level-${product.sku}`}>{reorder_level}</td>
+                    <td className="px-4 py-3 text-center font-mono text-gray-700" data-testid={`reorder-qty-${product.sku}`}>{reorder_quantity}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="font-bold font-mono text-red-600">{shortfall}</span>
                     </td>

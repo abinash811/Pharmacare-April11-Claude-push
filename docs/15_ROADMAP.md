@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.12 | Last updated: September 19, 2026
+# Version: 3.13 | Last updated: September 19, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -59,11 +59,11 @@ LOG below, same as any other bug.
 `13_DEPLOYMENT.md` · `16_NAMING_CONVENTIONS.md` · `21_FEATURES.md` ·
 `23_PURCHASES_ACCEPTANCE_SPEC.md`
 
-**Follow-up noted, not yet done:** `09_DATABASE.md` (already reviewed
-Sep 2026) doesn't list `schedule_h1_register`'s real `patient_address`/
-`patient_age` columns either (found while reviewing `07_BUSINESS_LOGIC.md`
-Sep 19, 2026) — worth a small targeted fix next time that doc is touched,
-not a full re-review.
+**Follow-up done Sep 19, 2026:** `09_DATABASE.md`'s `schedule_h1_register`
+table was missing `pharmacy_id`/`prescriber_address`/`patient_address`/
+`patient_age` (found while reviewing `07_BUSINESS_LOGIC.md`) — added, per
+direct instruction that the database doc matters and shouldn't be left
+stale. A small targeted fix, not a full re-review of that doc.
 
 **Explicitly declined, don't rebuild:** a dedicated `pharmacare-doc-review`
 skill was proposed (to make this methodology auto-trigger) and directly

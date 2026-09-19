@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.10 | Last updated: September 18, 2026
+# Version: 1.11 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -490,13 +490,17 @@ Legal compliance register. Every H1 drug sale creates a row here.
 
 | Column | Type | Notes |
 |--------|------|-------|
+| `pharmacy_id` | UUID FK → pharmacies | — |
 | `bill_id` | UUID FK → bills | Source bill |
 | `product_name` | String(300) | Snapshot |
 | `batch_number` | String(100) | Snapshot |
 | `quantity` | Integer | — |
 | `prescriber_name` | String(200) | Doctor name — required |
-| `prescriber_registration_number` | String(100) | Optional but important |
+| `prescriber_registration_number` | String(100), nullable | Optional but important |
+| `prescriber_address` | Text, nullable | Added here Sep 19, 2026, was missing from this doc — populated from the matched `Doctor` record, blank if the doctor name doesn't match one |
 | `patient_name` | String(200) | Patient name — required |
+| `patient_address` | Text, nullable | Added here Sep 19, 2026, was missing from this doc — required at billing time (Schedule H1 Rule 65, `docs/07_BUSINESS_LOGIC.md` FLOW 6), not optional despite the nullable column |
+| `patient_age` | Integer, nullable | Added here Sep 19, 2026, was missing from this doc — optional, no billing-time check requires it |
 | `supply_date` | Date | Date dispensed |
 | `dispensed_by` | UUID FK → users | Pharmacist who dispensed |
 

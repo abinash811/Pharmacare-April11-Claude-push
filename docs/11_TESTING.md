@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.9 | Last updated: September 19, 2026
+# Version: 2.0 | Last updated: September 19, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
@@ -160,24 +160,22 @@ numbers that rule was written to protect):
 - **Backend:** `flake8` — **3 violations** (`routers/purchases.py` E302,
   `tests/test_bill_sequence.py` E305, `tests/test_billing_price_unit_conversion.py`
   E127) — small, real, unfixed as part of this docs-only pass. `pytest`
-  against a live seeded backend, 77 files — **a full run no longer
-  completes in reasonable time; found genuinely hung (~4+ min on one test)
-  while re-verifying this doc, not a flake.** Root cause, isolated by
+  via `./run_isolated_tests.sh` (see RUNNING TESTS below), 78 files —
+  **602 passed, 3 skipped, 0 failed, in 3m18s.** A raw `pytest` against the
+  shared dev database was found genuinely hung (~4+ min on one test) while
+  first re-verifying this doc, not a flake — root cause, isolated by
   running `tests/test_reorder_list.py` alone: `GET /inventory/reorder-list`
-  against this local dev DB currently returns **10,202 items across 103
-  pages** — every backend test file ever run against it creates real
-  products and never deletes them (this doc's own TEST DATA RULES below
-  say to clean up test data; nothing enforces it, and 77 files' worth of
-  accumulation makes that the reality). `_find_in_reorder_list()`'s
-  paginate-until-`has_next=false` helper does 103 sequential HTTP round
-  trips to find one SKU, and >10 tests in that one file each call it —
-  technically not an infinite hang, just slow enough (multi-minute) to
-  look like one. Not fixed in this pass (a real fix — a disposable
-  per-test-run tenant, or filtering the helper by SKU server-side instead
-  of paginating everything — is test infrastructure work, not a doc
-  change); logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG and KNOWN
-  ISSUES instead. The last trustworthy full-suite number remains the Aug
-  26, 2026 one below (273 passing) — treat it as stale, not current.
+  against that shared dev DB had accumulated **10,202 items across 103
+  pages** from every prior test run ever pointed at it, and
+  `_find_in_reorder_list()`'s paginate-until-`has_next=false` helper did
+  103 sequential HTTP round trips to find one SKU — slow enough
+  (multi-minute) to look like a hang, not technically infinite. **Fixed
+  Sep 19, 2026**, not by changing that helper — `run_isolated_tests.sh`
+  gives every run a dedicated `pharmacare_test` database wiped clean and
+  re-migrated before it starts, so nothing can ever accumulate; re-running
+  the exact same suite this way went from "genuinely hangs" to fully green
+  in 3m18s with zero code changes to the tests themselves. Root-caused,
+  fixed, and logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG.
 - **Frontend:** `npm run lint -- --max-warnings 999` — **0 errors, 118
   warnings** (down from 175 — the backlog got worked down since Sep 8 but
   the CI ceiling (`ci.yml` `--max-warnings 175`) was never lowered to
@@ -285,34 +283,48 @@ A test should break when the product breaks — not when you refactor internals.
 
 ### Backend (Python/pytest)
 
+**Use `backend/run_isolated_tests.sh` — added Sep 19, 2026, this is now the
+standard way to run these tests, not the raw `pytest` commands below.**
+`backend/tests/` are HTTP integration tests that create real rows (products,
+purchases, etc.) — running them against the same database used for
+day-to-day manual development meant nothing ever cleaned that data up.
+By Sep 19, 2026 that had reached 10,202 fake products, made
+`GET /inventory/reorder-list` too slow to use, and once caused a real
+duplicate-key collision in a live endpoint (`docs/15_ROADMAP.md`'s Sep 19,
+2026 RULE MISSES LOG entry). The script gives every run a dedicated
+`pharmacare_test` database, wiped clean and re-migrated before it starts,
+and a throwaway backend on port 8001 — the dev backend on :8000 and the
+`pharmacare` database are never touched. This mirrors what
+`.github/workflows/ci.yml`'s `backend` job already does with a fresh
+Postgres container per CI run, adapted for this persistent local
+environment (no Docker here) via a database that gets reset instead of a
+brand-new container:
+
 ```bash
 cd backend
 
-# Run all tests
-pytest
+# Run all tests, isolated
+./run_isolated_tests.sh
 
-# Run specific test file
-pytest tests/test_bill_sequence.py
+# Run a specific file, isolated
+./run_isolated_tests.sh tests/test_bill_sequence.py
 
-# Run with output (see print statements)
-pytest -s
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run only tests matching a name pattern
-pytest -k "test_bill"
-
-# Run and stop on first failure
-pytest -x
+# Any pytest flag works — passed straight through
+./run_isolated_tests.sh -k "test_bill" -v
+./run_isolated_tests.sh -x
 ```
 
-**Prerequisites:**
+**Raw `pytest` (only when you deliberately want to hit the real dev
+database** — e.g. checking something against data you seeded by hand
+through the UI):
 ```bash
-# Backend must be running
+cd backend
+pytest                              # or any of the flags above
+```
+**Prerequisites** (only for the raw-`pytest` path — the script above
+handles all of this itself):
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-# Set backend URL (or use default http://localhost:8000)
 export REACT_APP_BACKEND_URL=http://localhost:8000
 ```
 
@@ -364,7 +376,7 @@ build artifact for debugging.
 
 `backend/tests/` — one file per feature/bug, named for what it covers
 (e.g. `test_h1_patient_details.py`, `test_day_end_closing.py`,
-`test_manual_sales_returns.py`). **77 files as of Sep 18, 2026** — this
+`test_manual_sales_returns.py`). **78 files as of Sep 19, 2026** — this
 section used to hand-list 10 filenames; that list drifted to naming under
 a seventh of the real files within two weeks (Sep 5 → Sep 18) and nobody
 noticed, since nothing re-generates it. Run `ls backend/tests/` for the

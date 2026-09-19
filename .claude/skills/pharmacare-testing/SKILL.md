@@ -34,7 +34,12 @@ with examples per tier.
 ```
 - [ ] Step 1: Decide the priority tier (P0/P1/P2) for the code path touched
 - [ ] Step 2: Write the pytest (backend) or jest (frontend) test first if the bug is already known and reproducible
-- [ ] Step 3: Run the test locally — it must fail before the fix, pass after
+- [ ] Step 3: Run the test locally — it must fail before the fix, pass after.
+      Backend: `backend/run_isolated_tests.sh` (a dedicated, always-reset
+      database — never raw `pytest` against the shared dev DB, which is how
+      10,202 fake products accumulated and masked a real bug; see
+      `docs/11_TESTING.md` RUNNING TESTS and `docs/15_ROADMAP.md`'s Sep 19,
+      2026 RULE MISSES LOG)
 - [ ] Step 4: For UI changes, verify live in a real browser (see below) — a passing unit test doesn't prove the page actually renders correctly
 - [ ] Step 5: Push and confirm CI is green (frontend, backend, E2E) — local passing isn't the same as CI passing
 ```

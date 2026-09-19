@@ -188,6 +188,10 @@ def _bill_response(
         "cashier_name": "",
         "created_at": b.created_at.isoformat() if b.created_at else None,
         "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+        # Same gap as _bill_list_response above — also read by
+        # BillingWorkspace's loadExistingBill (Continue Bill / same-day
+        # correction), which fell back to created_at here too.
+        "bill_date": b.bill_date.isoformat() if b.bill_date else None,
     }
 
 
@@ -232,6 +236,14 @@ def _bill_list_response(b: BillORM) -> dict:
         "due_amount": b.balance_paise / 100,
         "payment_method": b.payment_method,
         "created_at": b.created_at.isoformat() if b.created_at else None,
+        # Was missing entirely — found Sep 19, 2026 (Abinash, testing a
+        # backdated bill): the frontend's "Bill Date" column and
+        # "Backdated" badge both read bill.bill_date from this response
+        # and always fell back to created_at, so a genuinely backdated
+        # bill (correctly saved in the DB — bill_date itself was fixed in
+        # the previous commit) still looked identical to a normal one in
+        # the list, because this endpoint never sent the real value.
+        "bill_date": b.bill_date.isoformat() if b.bill_date else None,
     }
 
 

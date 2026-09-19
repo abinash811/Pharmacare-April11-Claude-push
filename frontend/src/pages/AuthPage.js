@@ -35,7 +35,7 @@ export default function AuthPage() {
       login(response.data.user, response.data.token);
       toast.success('Logged in successfully');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      toast.error(error.message || 'Login failed');
     }
     setLoading(false);
   };
@@ -70,7 +70,7 @@ export default function AuthPage() {
       login(response.data.user, response.data.token);
       toast.success('Account created successfully');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Registration failed');
+      toast.error(error.message || 'Registration failed');
     }
     setLoading(false);
   };

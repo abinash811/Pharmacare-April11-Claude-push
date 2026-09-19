@@ -55,9 +55,9 @@ import { useState, useCallback, useMemo } from 'react';
 
 
 /**
- * @param {object}  options
- * @param {number}  options.pageSize     Rows per page (default 20)
- * @param {number}  options.initialPage  Starting page (default 1)
+ * @param {object}  [options]
+ * @param {number}  [options.pageSize]     Rows per page (default 20)
+ * @param {number}  [options.initialPage]  Starting page (default 1)
  */
 const usePagination = ({ pageSize: defaultPageSize = 20, initialPage = 1 } = {}) => {
   const [page,       setPageRaw]   = useState(initialPage);

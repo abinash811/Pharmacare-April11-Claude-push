@@ -290,6 +290,43 @@ else
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Rule 18: No .js/.ts or .jsx/.tsx twin-name duplicates ───────────────
+# Found Sep 19, 2026 (2nd occurrence of the api.js/api.ts class already
+# fixed once, Sep 16, 2026 — see docs/15_ROADMAP.md RULE MISSES LOG):
+# react-scripts/webpack resolves an extensionless import to .js/.jsx
+# BEFORE .ts/.tsx (see paths.moduleFileExtensions), so whenever both
+# twins exist, the .ts/.tsx one is silently dead — never bundled, never
+# executed, no matter how correct or how recently edited. 9 such pairs
+# were found this way (lib/axios, hooks/useApiCall, hooks/useDebounce,
+# hooks/usePagination, constants/pharmacy, utils/gst, utils/validation,
+# utils/currency, utils/dates) — one of them (lib/axios.ts) had silently
+# regressed a real fix (the wrong-password-shouldn't-hard-redirect fix)
+# that only the live .js twin actually had. Per Manifesto rule 11's
+# meta-rule, a 2nd occurrence of the same class gets an automated gate
+# in the same change, not another one-off fix.
+DUPLICATE_TWINS=""
+while IFS= read -r ts_file; do
+  js_file="${ts_file%.ts}.js"
+  jsx_file="${ts_file%.ts}.jsx"
+  [ -f "$js_file" ] && DUPLICATE_TWINS="$DUPLICATE_TWINS$ts_file + $js_file"$'\n'
+  [ -f "$jsx_file" ] && DUPLICATE_TWINS="$DUPLICATE_TWINS$ts_file + $jsx_file"$'\n'
+done < <(find frontend/src -name "*.ts" -not -name "*.d.ts" -not -path "*/node_modules/*")
+while IFS= read -r tsx_file; do
+  js_file="${tsx_file%.tsx}.js"
+  jsx_file="${tsx_file%.tsx}.jsx"
+  [ -f "$js_file" ] && DUPLICATE_TWINS="$DUPLICATE_TWINS$tsx_file + $js_file"$'\n'
+  [ -f "$jsx_file" ] && DUPLICATE_TWINS="$DUPLICATE_TWINS$tsx_file + $jsx_file"$'\n'
+done < <(find frontend/src -name "*.tsx" -not -path "*/node_modules/*")
+
+if [ -n "$DUPLICATE_TWINS" ]; then
+  COUNT=$(echo -n "$DUPLICATE_TWINS" | grep -c "+" || true)
+  red "Rule 18 FAIL: $COUNT same-basename .js/.ts (or .jsx/.tsx) pair(s) found — the .ts/.tsx side is silently dead code"
+  echo "$DUPLICATE_TWINS" | while read -r line; do [ -n "$line" ] && warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+else
+  green "Rule 18 PASS: No .js/.ts or .jsx/.tsx twin-name duplicates"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

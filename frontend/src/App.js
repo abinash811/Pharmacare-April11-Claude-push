@@ -114,7 +114,7 @@ function AppRoutes({ user }) {
           window.location.href = '/dashboard';
         } catch (error) {
           console.error('OAuth callback error:', error);
-          toast.error(error.response?.data?.detail || error.message || 'Authentication failed');
+          toast.error(error.message || 'Authentication failed');
           window.location.href = '/';
         }
       }

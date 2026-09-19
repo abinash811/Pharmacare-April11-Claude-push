@@ -57,6 +57,24 @@ describe('BillingTable — out-of-stock search results', () => {
     expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('out of stock'));
   });
 
+  it('shows a "no medicine found" message instead of nothing when a search has zero matches', async () => {
+    // Same silent-failure class as the out-of-stock case above, found in the
+    // same file Sep 19, 2026: GET /products/search-with-batches returning an
+    // empty array rendered no dropdown at all, no message — a cashier typing
+    // a real medicine name into a genuinely fresh pharmacy's Billing screen
+    // (nothing purchased into stock yet) got dead silence with no next step.
+    (api.get as jest.Mock).mockResolvedValue({ data: [] });
+
+    render(<BillingTable {...baseProps} />);
+    await userEvent.type(screen.getByTestId('new-item-search'), 'Paracetamol');
+
+    await waitFor(() => expect(
+      screen.getByText(/No medicine found for "Paracetamol"/),
+    ).toBeInTheDocument());
+    expect(screen.getByText(/Purchases/)).toBeInTheDocument();
+    expect(screen.getByText(/Inventory/)).toBeInTheDocument();
+  });
+
   it('still allows billing an in-stock batch normally', async () => {
     (api.get as jest.Mock).mockResolvedValue({
       data: [{

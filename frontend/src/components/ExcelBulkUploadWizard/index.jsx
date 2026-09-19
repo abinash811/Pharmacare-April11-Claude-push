@@ -53,7 +53,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
       toast.success(`File parsed: ${response.data.total_rows} rows found`);
       setCurrentStep(1);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to parse file');
+      toast.error(error.message || 'Failed to parse file');
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +78,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
       toast.success('Validation complete');
       setCurrentStep(2);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Validation failed');
+      toast.error(error.message || 'Validation failed');
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +106,7 @@ export default function ExcelBulkUploadWizard({ isOpen, onClose, onImportComplet
         } catch { /* polling errors are non-fatal */ }
       }, 1000);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Import failed');
+      toast.error(error.message || 'Import failed');
       setImportStatus('error');
     } finally {
       setIsLoading(false);

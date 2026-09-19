@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.6 | Last updated: September 19, 2026
+# Version: 2.7 | Last updated: September 19, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -395,7 +395,7 @@ just annoy her, it risks a real penalty for a real small business.
 | GST17 | Print/PDF view | ❌ Missing | No print button anywhere on this page (unlike Schedule H1) |
 | GST18 | Date-range presets matching filing cadence (month/quarter/FY) | ✅ Built (corrected Sep 19, 2026 — was stale) | `GSTReport.js:87` renders `<DateRangePicker>`, not raw date inputs — the Executive Summary's Batch 1 item 1 already recorded "swapped both raw date-input pairs... for the existing DateRangePicker component" as done Sep 12, 2026; this row (and the Design-system constraint note above it) wasn't updated to match |
 | GST19 | Rounding/reconciliation display (does the report tie to the bills that generated it) | ❌ Missing | No reconciliation view; a discrepancy would be invisible |
-| GST20 | Cess handling | 🔄 Partial | Purchase-side `cess_paise` is a real, captured field (per `docs/23`'s UC-P21) but never appears anywhere in the GST report response at all — silently dropped from the one place it would matter most |
+| GST20 | Cess handling | ✅ Fixed Sep 19, 2026 | `purchases_summary.cess` now sums `Purchase.cess_paise` for confirmed purchases in the date range (`reports.py::get_gst_report`) and renders as a line under the Purchase GST table (`GSTReport.js`). A period total, not per-gst_rate — no per-item cess column exists to break it down further. 2 pytest regression tests (real value surfaces; zero reports as 0, not a missing key). |
 
 **Recommended flow once Batch 1 (GST01/GST07/GST14) lands:** replace both
 raw date-input pairs with `DateRangePicker`; add a "Group by: GST Rate |
@@ -608,9 +608,23 @@ these — not invented here as a quick pass, since that would mean guessing
 at use cases instead of walking the real feature the way UC-GST/UC-MAR/
 UC-RET were built. **Recommend a dedicated `product-review` pass on
 Day-End Closing + Outstanding Dues** (same rigor this spec already used
-for Margin/Return Reports), added as its own section here once done,
-rather than this accuracy review inventing shallow rows for modules it
-didn't walk live.
+for Margin/Return Reports) for the full business-reasoning/competitor-
+benchmark treatment — that pass hasn't happened yet, and this paragraph
+still stands as the real gap.
+
+**Partial audit done Sep 19, 2026** (real field/route verification +
+live zero-data walkthrough — checks 3-4 of the `product-review` skill,
+not checks 1-2/5): found and fixed a real, severe bug in Day-End Closing
+— its date picker used `toISOString().split('T')[0]`, which silently
+closes the WRONG day for any pharmacy in India (this product's entire
+market, see `docs/15_ROADMAP.md` RULE MISSES LOG, Sep 19, 2026 for the
+~20-site app-wide version of this bug). Every other field on both pages
+was verified to match the real backend response exactly (no drift found),
+and Outstanding Dues' "View Bills" drill-through into `/billing?filter=
+due&search=` was confirmed to be a real, already-wired integration, not a
+dead link. Business reasoning, competitor benchmark, and the full
+numbered-UC treatment are still not done — a real `product-review` pass
+remains the right next step before either module gets marked Built here.
 
 ### J. CROSS-CUTTING PERMISSIONS MATRIX
 

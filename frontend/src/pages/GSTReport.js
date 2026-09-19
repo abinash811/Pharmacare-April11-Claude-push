@@ -195,6 +195,19 @@ export default function GSTReport() {
                 </tbody>
               </table>
             </div>
+            {reportData.purchases_summary.cess > 0 && (
+              // Found Sep 19, 2026 (docs/24_REPORTS_ACCEPTANCE_SPEC.md
+              // UC-GST20): a real, captured field (invoice-level cess from
+              // Purchases' InvoiceBreakdownModal) that never appeared
+              // anywhere in this report — silently invisible in the one
+              // place it would matter most. Not itemized per GST rate
+              // above (no per-item cess exists to break down), so shown
+              // as a period total instead.
+              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm text-gray-600 flex items-center justify-between">
+                <span>Cess (from purchase invoices this period)</span>
+                <span className="font-semibold tabular-nums text-gray-900">{formatCurrency(reportData.purchases_summary.cess)}</span>
+              </div>
+            )}
           </DataCard>
 
           {/* Summary Card */}

@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.10 | Last updated: September 19, 2026
+# Version: 2.11 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -645,9 +645,11 @@ old/new status and old/new due amount.
 > `GET /reports/gst` in `routers/reports.py`.
 
 ### What it actually covers
-- **Both sides**: sales (`bill_items` for `status="paid"` bills) *and*
-  purchases (`purchase_items` for `status="confirmed"` purchases) in the date
-  range — not sales-only as v1.0 implied.
+- **Both sides**: sales (`bill_items` for `status IN ("paid", "due")` bills
+  — corrected here Sep 19, 2026, this line previously said `paid`-only,
+  stale since the credit-sale fix below landed) *and* purchases
+  (`purchase_items` for `status="confirmed"` purchases) in the date range
+  — not sales-only as v1.0 implied.
 - Grouped by **`gst_rate`** (0/5/12/18), not by HSN code — HSN isn't a
   grouping key anywhere in this endpoint.
 - Returns `sales`, `purchases`, `sales_summary`, `purchases_summary`, and
@@ -656,6 +658,11 @@ old/new status and old/new due amount.
 - `igst` fields exist in the response shape (ready for interstate sales) but
   are always 0 today — no interstate flow exists in Phase 1, matching the
   "all sales intra-state" assumption.
+- **Added Sep 19, 2026**: `purchases_summary.cess` — sums `Purchase.
+  cess_paise` (an invoice-level field entered via Purchases' Invoice
+  Breakdown, not itemized per GST rate — no per-item cess column exists)
+  for confirmed purchases in the date range. Previously captured and
+  stored but never appeared anywhere in this report at all.
 - **Fixed August 22, 2026**: also queries `sales_return_items` (by
   `SalesReturn.return_date` in range) and `purchase_return_items` (by
   `PurchaseReturn.return_date` in range), subtracting each return's

@@ -841,6 +841,24 @@ async def get_gst_report(
                 "total_gst": round(sum(v["total_gst"] for v in by_gst.values()), 2)}
 
     ss, ps = _summary(sales_by_gst), _summary(purchases_by_gst)
+
+    # Cess — found Sep 19, 2026 (docs/24_REPORTS_ACCEPTANCE_SPEC.md UC-GST20):
+    # a real, captured field (PurchaseORM.cess_paise, entered via
+    # InvoiceBreakdownModal at purchase time) that never appeared anywhere
+    # in this report at all — silently invisible in the one place it would
+    # matter most for reconciling actual GST liability. It's an
+    # invoice-level figure, not itemized per GST rate like the buckets
+    # above (no per-item cess column exists), so it's surfaced as a single
+    # period total rather than forced into a per-rate breakdown it was
+    # never tracked at.
+    cess_total_paise = (await db.execute(
+        select(func.coalesce(func.sum(PurchaseORM.cess_paise), 0)).where(
+            PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+            PurchaseORM.deleted_at.is_(None),
+            PurchaseORM.purchase_date >= start, PurchaseORM.purchase_date <= end)
+    )).scalar_one()
+    ps["cess"] = _p2r(cess_total_paise)
+
     return {"sales": list(sales_by_gst.values()), "purchases": list(purchases_by_gst.values()),
             "sales_summary": ss, "purchases_summary": ps,
             "net_liability": round(ss["total_gst"] - ps["total_gst"], 2),

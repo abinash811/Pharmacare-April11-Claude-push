@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.5 | Last updated: September 12, 2026
+# Version: 1.6 | Last updated: September 19, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
@@ -72,6 +72,30 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    "add new medicine" from the default path to a fallback for genuinely
    novel items — explicitly deferred until pre-launch, not blocking current
    build work. Until then, keep manual creation as the primary path.
+9. **Backend has no explicit timezone — must run with `TZ=Asia/Kolkata`,
+   or the server's "today" will drift from the pharmacist's real "today."**
+   Found Sep 19, 2026 fixing the same bug on the frontend (`docs/
+   15_ROADMAP.md` RULE MISSES LOG, Sep 19, 2026): 21 uses of Python's bare
+   `date.today()` across `backend/routers/*.py` (bill/purchase dates,
+   Day-End Closing, GST report ranges, Schedule H1 register) all resolve
+   against whatever OS timezone the server process runs in — there is zero
+   explicit timezone handling anywhere in the codebase (`config.py`,
+   `main.py`) today. This hasn't caused a real incident yet only because
+   nothing is deployed anywhere (blocker #5 above) — every cloud VM/
+   container image defaults to UTC, and India is UTC+5:30, so the moment
+   this *does* deploy without the fix, every "today" computed server-side
+   between roughly 00:00 and 05:30 IST would be one calendar day behind
+   what the pharmacist actually sees on their screen — bills, purchases,
+   and Day-End closings dated wrong for that ~5.5-hour window, every
+   single day. **Two valid fixes, not both needed**: (a) set
+   `TZ=Asia/Kolkata` in the server's real deployment environment (the
+   standard, minimal fix — no code change); (b) make the code
+   timezone-explicit (`datetime.now(ZoneInfo("Asia/Kolkata")).date()`
+   instead of bare `date.today()`) if the pharmacy base ever spans more
+   than one Indian timezone (it doesn't — India has one). Not fixed here
+   — this is a deployment-environment decision, not a code bug to
+   silently patch across 21 call sites for a server that doesn't exist
+   yet; flag before whichever session actually provisions hosting.
 
 See "CI/CD — WHAT ACTUALLY EXISTS" below for infra gaps (Sentry, staging
 hosting) — not repeated here to avoid two lists disagreeing about the same

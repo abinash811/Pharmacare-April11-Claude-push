@@ -133,16 +133,8 @@ export default function BatchesTab({
         </table>
       </div>
 
-      {/* Legend */}
-      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+      <div className="px-6 py-4 border-t border-gray-100">
         <span className="text-sm text-gray-500">Showing {batches.length} batch{batches.length !== 1 ? 'es' : ''}</span>
-        <div className="flex items-center gap-4 text-xs">
-          {[['bg-green-500','Active'],['bg-orange-500','Nearing Expiry (3m)'],['bg-red-500','Expired']].map(([dot,label]) => (
-            <span key={label} className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${dot}`} />{label}
-            </span>
-          ))}
-        </div>
       </div>
     </div>
   );

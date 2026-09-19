@@ -1235,8 +1235,13 @@ async def get_bill(bill_id: str, current_user: User = Depends(
 async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.colors import red, black
+    from reportlab.lib.colors import red, black, HexColor
     from reportlab.pdfgen import canvas
+
+    # Same brand blue as the app (text-brand / #4682B4) — used below for
+    # Bill No and the grand total, matching the on-screen invoice preview
+    # and BillDetail, which highlight both in this color.
+    BRAND_BLUE = HexColor("#4682B4")
 
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -1262,7 +1267,7 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         splits_result = await db.execute(
             select(BillPaymentSplitORM).where(BillPaymentSplitORM.bill_id == bill.id))
         payment_label = " + ".join(
-            f"{s.payment_method.title()} ₹{s.amount_paise / 100:.2f}"
+            f"{s.payment_method.title()} Rs. {s.amount_paise / 100:.2f}"
             for s in splits_result.scalars().all())
     else:
         payment_label = (bill.payment_method or "").title()
@@ -1332,7 +1337,9 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
     pdf.drawRightString(545, meta_y, (bill.invoice_type or "SALE").upper())
     pdf.setFont("Helvetica", 9)
     meta_y -= 15
+    pdf.setFillColor(BRAND_BLUE)
     pdf.drawRightString(545, meta_y, f"Bill No: {bill.bill_number}")
+    pdf.setFillColor(black)
     meta_y -= 13
     bill_date_str = bill.bill_date.isoformat() if bill.bill_date else ""
     pdf.drawRightString(545, meta_y, f"Date: {bill_date_str}")
@@ -1406,14 +1413,19 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         expiry_str = item.expiry_date.strftime("%m/%y") if item.expiry_date else ""
         pdf.drawString(col_batch, y - 9, expiry_str)
 
-        pdf.drawString(col_mrp, y, f"₹{item.mrp_paise / 100:.2f}")
+        # "Rs." not "₹" — Helvetica (a standard PDF font with no custom
+        # font file bundled) has no glyph for the Rupee sign, so every "₹"
+        # here rendered as a solid black square (.notdef box), not a
+        # missing/blank character. Found Sep 19, 2026 from a real
+        # downloaded PDF (Abinash) — every amount was unreadable.
+        pdf.drawString(col_mrp, y, f"Rs. {item.mrp_paise / 100:.2f}")
         pdf.drawString(col_qty, y, str(item.quantity))
         pdf.drawString(col_disc, y, f"{float(item.discount_percent):.0f}%")
-        pdf.drawString(col_dprice, y, f"₹{item.sale_price_paise / 100:.2f}")
+        pdf.drawString(col_dprice, y, f"Rs. {item.sale_price_paise / 100:.2f}")
         if show_gst_summary:
             pdf.drawString(col_gst, y, f"{float(item.gst_rate):.0f}%")
         pdf.setFont("Helvetica-Bold", 8)
-        pdf.drawRightString(col_amount, y, f"₹{item.line_total_paise / 100:.2f}")
+        pdf.drawRightString(col_amount, y, f"Rs. {item.line_total_paise / 100:.2f}")
 
         pdf.setFont("Helvetica", 8)
         y -= 24
@@ -1435,14 +1447,16 @@ async def generate_bill_pdf(bill_id: str, current_user: User = Depends(
         if label == "Discount" and val != 0:
             pdf.setFillColor(red)
         pdf.drawRightString(470, y, label)
-        pdf.drawRightString(col_amount, y, f"₹{val:.2f}")
+        pdf.drawRightString(col_amount, y, f"Rs. {val:.2f}")
         pdf.setFillColor(black)
         y -= 14
     pdf.setFont("Helvetica-Bold", 12)
-    if bill.status == "due":
-        pdf.setFillColor(red)
+    # Blue matches the grand total's brand-blue highlight in the on-screen
+    # invoice preview (BillPreview.tsx / BillDetail) — a due bill's total
+    # still overrides to red, same as everywhere else in the app.
+    pdf.setFillColor(red if bill.status == "due" else BRAND_BLUE)
     pdf.drawRightString(470, y, "TOTAL")
-    pdf.drawRightString(col_amount, y, f"₹{bill.grand_total_paise / 100:.2f}")
+    pdf.drawRightString(col_amount, y, f"Rs. {bill.grand_total_paise / 100:.2f}")
     pdf.setFillColor(black)
 
     if not ps or ps.print_signature:

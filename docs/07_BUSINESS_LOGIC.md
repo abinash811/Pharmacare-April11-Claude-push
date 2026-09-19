@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.9 | Last updated: September 18, 2026
+# Version: 2.10 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -114,8 +114,9 @@ Same as above except:
 - `status = "draft"` in request
 - Bill number = `DRAFT-{uuid}` (no sequence consumed)
 - Stock NOT deducted, no StockMovement, no H1 register entry
-- Drug License check, Schedule H1 check, MRP check, and stock check are all
-  skipped (drafts aren't finalized sales)
+- Drug License check, Schedule H1 checks (doctor name **and** patient
+  address — see FLOW 6), MRP check, and stock check are all skipped
+  (drafts aren't finalized sales)
 
 ### Multi payment (split across 2+ real methods)
 
@@ -170,7 +171,12 @@ mrp_paise        = int(unit_price_or_mrp_rupees * 100)   # now checked against b
 disc_percent     = item.get("disc_percent", item.get("discount_percent", 0))
 disc_paise       = int(mrp_paise * quantity * disc_percent / 100)
 taxable_paise    = mrp_paise * quantity - disc_paise
-gst_rate         = item.get("gst_percent", bill.tax_rate or 5)   # 0, 5, 12, or 18
+gst_rate         = item.get("gst_percent", bill.tax_rate or default_gst_rate)   # 0, 5, 12, or 18
+# default_gst_rate is NOT a hardcoded 5 — it's PharmacySettings.default_gst_rate
+# (Settings → Tax & GST, per-pharmacy configurable, model default 5.00), read
+# fresh at the top of create_bill/update_bill (billing.py:502). Corrected
+# Sep 19, 2026 — this line previously showed a literal `or 5`, which was only
+# true for a pharmacy that never touched that setting.
 line_gst_paise   = int(taxable_paise * gst_rate / 100)
 line_total_paise = taxable_paise + line_gst_paise
 
@@ -498,6 +504,25 @@ restricted to admin/manager roles). Errors have legal consequences.
 - One entry per H1 item per bill (`billing.py::_create_h1_entry`)
 - NOT created for drafts, and NOT created for `SALES_RETURN`-type bills
 
+### Patient address is also required — added here Sep 19, 2026, was undocumented
+
+**Real, currently-enforced check this doc never described.** Alongside the
+doctor-name check below, `create_bill` (`billing.py:572-576`) and
+`update_bill`'s finalize path (`billing.py:932-933`) both also reject a
+Schedule H1 sale with HTTP 400 ("Patient address required for Schedule H1
+drug: ...") if `patient_address` is blank — same standing as the doctor
+check (Schedule H1 Rule 65: patient name **and** address recorded at time
+of supply), same exemption for drafts, same parity between `create_bill`
+and `update_bill`'s finalize path. A saved `Customer` record's own address
+isn't used as a fallback — `customer_name` is frequently just "Walk-in
+Customer" with no linked record, exactly the one-off sale this rule
+exists for, so the caller must supply `patient_address` explicitly on the
+request. Frontend: `ScheduleHWarning.jsx` / `useBillActions.js` /
+`buildBillPayload.js` already wire this through — this is a real,
+complete, shipped feature, just never written up here until now. Added to
+the "What is recorded" field list, the "skipped for drafts" list, the
+frontend rule bullets, and the WHAT CANNOT BE DONE table in this same edit.
+
 ### Fixed August 22, 2026 — the H1 doctor-required check now covers every item
 
 Previously implemented as a separate pre-pass that only looked items up by
@@ -537,8 +562,15 @@ ScheduleH1Register(
     prescriber_registration_number  = doctor.registration_number or doctor.phone or "",
     prescriber_address              = doctor.address or "",
     patient_name                    = customer_name or "Walk-in Customer",
+    patient_address                 = patient_address,
+    patient_age                     = patient_age,
     dispensed_by                    = user_id,
 )
+# patient_address/patient_age were missing from this field list entirely —
+# corrected Sep 19, 2026. Both are real columns (backend/models/billing.py)
+# populated straight from create_bill's own params (see _create_h1_entry,
+# billing.py:329-368) — patient_address is the same value the required-check
+# above validates isn't blank, patient_age is optional (no check requires it).
 # prescriber_registration_number/address are only populated if doctor_name
 # matches a real Doctor record (case-insensitive name lookup) — a free-text
 # doctor name with no matching record still passes the H1 gate but leaves
@@ -548,7 +580,10 @@ ScheduleH1Register(
 ### Frontend rule
 When the billing form contains a Schedule H1 drug:
 - Show doctor name field as **required** (not optional)
-- Block settlement if doctor name is empty
+- Show patient address field as **required** (not optional) — added here
+  Sep 19, 2026, real and shipped (`ScheduleHWarning.jsx`), just previously
+  undocumented alongside the doctor-name rule
+- Block settlement if doctor name or patient address is empty
 - Show clear message naming the H1 product that needs it
 
 ---
@@ -701,7 +736,7 @@ match existing call sites' conventions rather than inventing new values.
 | Reuse a bill number | Sequential numbering is a legal requirement | Yes — UNIQUE(pharmacy_id, bill_number) + atomic sequence |
 | Change a settled bill after its edit window | GST law forbids silently altering an issued invoice; stock/audit trail must stay real | Yes — `PUT /bills/{id}` allows a same-day correction to a paid/due bill (items/pricing only; payment amount/method preserved, stock reversed+reapplied, audit-logged as `financial_edit`) but 400s once a Sales Return already exists against it, or once that day's Day-End Closing has run. Decided/built Sep 18, 2026 — see `docs/15_ROADMAP.md`'s Billing table |
 | Sell above MRP | Illegal under DPCO | Yes — fixed Aug 22, 2026 (FLOW 1), checked against `batch.mrp_paise` |
-| Bill H1 drug without doctor | Legal requirement | Yes — fixed Aug 22, 2026 (FLOW 6), checked for every item regardless of identifier |
+| Bill H1 drug without doctor name or patient address | Legal requirement (Schedule H1 Rule 65) | Yes — doctor-name check fixed Aug 22, 2026, checked for every item regardless of identifier; patient-address check also real and enforced identically (both `create_bill` and `update_bill`'s finalize path) but was undocumented here until Sep 19, 2026 — see FLOW 6 |
 | Sell more than a batch has on hand | Data integrity | Yes — fixed Aug 22, 2026 (FLOW 1), matches the guard manual adjustments (FLOW 9) already had |
 | Sell expired stock (when `block_expired_stock` is on) | Drug safety / compliance | Yes — fixed Aug 22, 2026 (FLOW 1). Previously a Settings toggle that did nothing — hardcoded `True` server-side, never checked at billing |
 | Sell near-expiry stock (when `allow_near_expiry_sale` is off) | Pharmacy policy choice, opt-in per pharmacy | Yes — fixed Aug 22, 2026 (FLOW 1), same fix as above. When allowed (the default), no warning is shown yet — real gap, not built |

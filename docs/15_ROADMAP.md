@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.16 | Last updated: September 19, 2026
+# Version: 3.17 | Last updated: September 19, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -691,6 +691,7 @@ the full ranked detail.
 | Supplier management (CRUD) | ✅ | |
 | Link purchase to supplier | ✅ | |
 | Purchase history per supplier | ✅ | |
+| Auto-reorder → Purchase Order automation | 📋 | Deferred to Phase 2 (Sep 19, 2026 — discussed with Abinash). Standard in this market — eVitalRx's Digital Shortbook, Marg's formal PO step, Pharmasoft's auto-PO via email/WhatsApp (see `docs/01_PRODUCT.md` §10 Purchases/Suppliers notes). Would auto-create a draft Purchase from Reorder List (product + `reorder_quantity` pre-filled) when stock hits `reorder_level`; batch/expiry/cost price still need the pharmacist, filled on confirm. Blocked on a "preferred supplier per product" field, which doesn't exist yet. Not started now — prioritizing the still-broken GST report and non-functional Supplier outstanding-balance tracking first. `Product.reorder_quantity` itself is real and editable (Edit Product's "Reorder Quantity" field, added same day) but unused by anything until this ships. |
 
 **Purchases — August 24, 2026 audit fixes.** User directive: fix every gap
 from the rigorous Purchases/Inventory audit one at a time, except

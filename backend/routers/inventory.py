@@ -596,7 +596,18 @@ async def get_inventory_with_health(
                       "nearest_expiry": nearest_expiry.isoformat() if nearest_expiry else None,
                       "severity": severity, "status": status, "batches_count": len(batches)})
 
-    if status_filter:
+    if status_filter == "low_stock":
+        # Deliberately NOT `i["status"] == "low_stock"` — that status label
+        # only applies when expiry hasn't already claimed the row (expiry
+        # outranks low_stock there, for the single badge shown per row).
+        # The filter itself uses the same plain stock<=reorder_level rule
+        # as Dashboard and Reorder List, so a medicine that's both low-stock
+        # and near-expiry/expired still shows up when a pharmacist asks for
+        # "what's low on stock" — it still needs restocking either way.
+        # Found Sep 19, 2026: Dashboard's Low Stock "View All" landed on an
+        # empty-looking Inventory page for exactly this reason.
+        items = [i for i in items if i["total_qty_units"] <= i["product"]["low_stock_threshold_units"]]
+    elif status_filter:
         items = [i for i in items if i["status"] == status_filter]
     if not no_filters_applied:
         items.sort(

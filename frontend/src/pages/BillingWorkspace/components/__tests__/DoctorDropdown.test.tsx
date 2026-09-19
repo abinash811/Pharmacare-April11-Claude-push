@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import api from '@/lib/axios';
 import DoctorDropdown from '../DoctorDropdown';
 
-jest.mock('@/lib/axios', () => ({ get: jest.fn() }));
+jest.mock('@/lib/axios', () => ({ get: jest.fn(), post: jest.fn() }));
+jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
 // Regression tests for the Sep 13, 2026 Billing product-review finding:
 // BillingSubbar's toolbar row has `overflow-x-auto`, which per the CSS
@@ -68,5 +69,24 @@ describe('DoctorDropdown', () => {
     await userEvent.click(screen.getByText('outside'));
 
     expect(onChange).toHaveBeenCalledWith('Dr Brand New');
+  });
+
+  it('shows an "Add Doctor" button in the empty state, before anything is typed (Sep 19, 2026)', async () => {
+    // Abinash, testing a genuinely fresh pharmacy: opening this dropdown
+    // with zero doctors and nothing typed showed no button at all — the
+    // popover didn't even render (was gated on results.length > 0).
+    (api.get as jest.Mock).mockResolvedValue({ data: { data: [] } });
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 'd2', name: 'Dr Zero Data' } });
+    const onChange = jest.fn();
+
+    render(<DoctorDropdown value="" onChange={onChange} />);
+    await userEvent.click(screen.getByTestId('doctor-chip'));
+    expect(screen.getByTestId('doctor-add-new-empty')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('doctor-add-new-empty'));
+    await userEvent.type(screen.getByPlaceholderText('Doctor name *'), 'Dr Zero Data');
+    await userEvent.click(screen.getByRole('button', { name: /Add & Select/i }));
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('Dr Zero Data'));
   });
 });

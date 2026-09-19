@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import AddPersonMiniForm from './AddPersonMiniForm';
 
 export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const [open,    setOpen]    = useState(false);
@@ -242,51 +243,42 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
               </AppButton>
             )}
 
-            {/* Empty state */}
+            {/* Empty state — found Sep 19, 2026 (Abinash, testing zero-data):
+                showed a "type to search" hint but no button, unlike other
+                empty states in the app (Billing/Purchases lists) which all
+                show a centered CTA. A genuinely new pharmacy with zero
+                customers had no visible way to add its first one here. */}
             {!loading && !query.trim() && (
-              <div className="px-3 py-3 text-xs text-gray-400 flex items-center gap-1.5">
-                <Search className="w-3 h-3" />
-                Type to search patients
+              <div className="px-3 py-4 flex flex-col items-center gap-2 text-center">
+                <Search className="w-4 h-4 text-gray-300" />
+                <p className="text-xs text-gray-400">Type to search, or add a new customer</p>
+                <AppButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowAdd(true); setAddForm({ name: '', phone: '' }); }}
+                  icon={<UserPlus className="w-3.5 h-3.5" />}
+                  data-testid="patient-add-new-empty"
+                >
+                  Add Customer
+                </AppButton>
               </div>
             )}
           </>
         ) : (
-          /* Mini add form */
-          <div className="p-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">New Customer</p>
-            <input
-              ref={addNameRef}
-              value={addForm.name}
-              onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Full name *"
-              className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-brand"
-            />
-            <input
-              value={addForm.phone}
-              onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))}
-              placeholder="Phone (optional)"
-              maxLength={10}
-              className="w-full text-sm border border-gray-200 rounded-md px-2.5 py-1.5 mb-3 focus:outline-none focus:ring-1 focus:ring-brand"
-            />
-            <div className="flex gap-2">
-              <AppButton
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdd(false)}
-                className="flex-1 h-auto py-1.5 text-xs rounded-md"
-              >
-                Back
-              </AppButton>
-              <AppButton
-                size="sm"
-                onClick={handleAddSave}
-                loading={saving}
-                className="flex-1 h-auto py-1.5 text-xs rounded-md"
-              >
-                Add &amp; Select
-              </AppButton>
-            </div>
-          </div>
+          <AddPersonMiniForm
+            title="New Customer"
+            namePlaceholder="Full name *"
+            nameRef={addNameRef}
+            name={addForm.name}
+            onNameChange={(v) => setAddForm(f => ({ ...f, name: v }))}
+            secondPlaceholder="Phone (optional)"
+            secondValue={addForm.phone}
+            onSecondChange={(v) => setAddForm(f => ({ ...f, phone: v }))}
+            secondMaxLength={10}
+            saving={saving}
+            onBack={() => setShowAdd(false)}
+            onSave={handleAddSave}
+          />
         )}
       </PopoverContent>
     </Popover>

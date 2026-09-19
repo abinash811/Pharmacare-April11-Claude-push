@@ -14,23 +14,37 @@
  *   readOnly  {boolean}
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { Stethoscope } from 'lucide-react';
+import { Stethoscope, UserPlus, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { AppButton } from '@/components/shared';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import AddPersonMiniForm from './AddPersonMiniForm';
 
 export default function DoctorDropdown({ value = '', onChange, readOnly = false }) {
   const [open,    setOpen]    = useState(false);
   const [query,   setQuery]   = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Found Sep 19, 2026 (Abinash, testing zero-data): no button anywhere to
+  // add a new doctor record, unlike PatientCombobox's matching "Add
+  // Customer" mini-form — a genuinely new pharmacy with zero doctors had
+  // no visible way to add its first one here, only the free-text fallback.
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ name: '', registration_number: '' });
+  const [saving,  setSaving]  = useState(false);
 
   const wrapperRef = useRef(null);
   const contentRef = useRef(null);
   const inputRef   = useRef(null);
+  const addNameRef = useRef(null);
   const debouncedQ = useDebounce(query, 250);
+
+  useEffect(() => {
+    if (showAdd) addNameRef.current?.focus();
+  }, [showAdd]);
 
   // Search doctors from DB as suggestions
   useEffect(() => {
@@ -58,6 +72,7 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
         if (open) onChange(query); // save freetext on blur
         setOpen(false);
         setResults([]);
+        setShowAdd(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -76,6 +91,27 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
     setOpen(false);
     setQuery('');
     setResults([]);
+    setShowAdd(false);
+  };
+
+  const handleAddSave = async () => {
+    if (!addForm.name.trim()) { toast.error('Doctor name is required'); return; }
+    setSaving(true);
+    try {
+      const res = await api.post(apiUrl.doctors(), {
+        name: addForm.name.trim(),
+        registration_number: addForm.registration_number.trim() || null,
+      });
+      // Doctor name is free text — some entries already include "Dr."
+      // (same concern already documented in excelExport.js's doctor-wise
+      // report formatter), so don't double-prefix it here.
+      toast.success(`${res.data.name} added`);
+      handleSelect(res.data);
+    } catch (error) {
+      toast.error(error.message || 'Failed to add doctor');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleKey = (e) => {
@@ -98,8 +134,10 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
   // hiding any plain-absolute dropdown nested inside it, no matter its
   // z-index. The Date field's Calendar already avoided this the same way —
   // matching that existing, proven pattern instead of inventing a new one.
+  const noResults = !loading && query.trim().length > 0 && results.length === 0;
+
   return (
-    <Popover open={open && results.length > 0}>
+    <Popover open={open}>
       <PopoverAnchor asChild>
         <div ref={wrapperRef} className="relative">
           {!open ? (
@@ -136,33 +174,80 @@ export default function DoctorDropdown({ value = '', onChange, readOnly = false 
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        {loading && (
-          <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
-            <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
-            Searching...
-          </div>
-        )}
-        {results.map(doctor => (
-          <div
-            key={doctor.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => handleSelect(doctor)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(doctor); } }}
-            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
-            data-testid={`doctor-option-${doctor.id}`}
-          >
-            <Stethoscope className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-            <div>
-              <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
-              {(doctor.specialization || doctor.registration_number) && (
-                <div className="text-xs text-gray-400">
-                  {doctor.specialization || doctor.registration_number}
+        {!showAdd ? (
+          <>
+            {loading && (
+              <div className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
+                <div className="w-3 h-3 border border-gray-300 border-t-brand rounded-full animate-spin" />
+                Searching...
+              </div>
+            )}
+            {results.map(doctor => (
+              <div
+                key={doctor.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleSelect(doctor)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(doctor); } }}
+                className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-brand/5 transition-colors border-b border-gray-100 last:border-0 cursor-pointer"
+                data-testid={`doctor-option-${doctor.id}`}
+              >
+                <Stethoscope className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
+                  {(doctor.specialization || doctor.registration_number) && (
+                    <div className="text-xs text-gray-400">
+                      {doctor.specialization || doctor.registration_number}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
+              </div>
+            ))}
+
+            {/* Add new — found Sep 19, 2026, same gap PatientCombobox already
+                closed: no button anywhere to add a doctor record. */}
+            {noResults && (
+              <AppButton
+                variant="ghost"
+                onClick={() => { setShowAdd(true); setAddForm({ name: query.trim(), registration_number: '' }); }}
+                className="w-full justify-start px-3 py-2.5 text-sm text-brand hover:bg-brand/5 hover:text-brand border-t border-gray-100 rounded-none"
+                icon={<UserPlus className="w-3.5 h-3.5" />}
+                data-testid="doctor-add-new"
+              >
+                Add "{query.trim()}" as new doctor
+              </AppButton>
+            )}
+            {!loading && !query.trim() && (
+              <div className="px-3 py-4 flex flex-col items-center gap-2 text-center">
+                <Search className="w-4 h-4 text-gray-300" />
+                <p className="text-xs text-gray-400">Type to search, or add a new doctor</p>
+                <AppButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowAdd(true); setAddForm({ name: '', registration_number: '' }); }}
+                  icon={<UserPlus className="w-3.5 h-3.5" />}
+                  data-testid="doctor-add-new-empty"
+                >
+                  Add Doctor
+                </AppButton>
+              </div>
+            )}
+          </>
+        ) : (
+          <AddPersonMiniForm
+            title="New Doctor"
+            namePlaceholder="Doctor name *"
+            nameRef={addNameRef}
+            name={addForm.name}
+            onNameChange={(v) => setAddForm(f => ({ ...f, name: v }))}
+            secondPlaceholder="Registration number (optional)"
+            secondValue={addForm.registration_number}
+            onSecondChange={(v) => setAddForm(f => ({ ...f, registration_number: v }))}
+            saving={saving}
+            onBack={() => setShowAdd(false)}
+            onSave={handleAddSave}
+          />
+        )}
       </PopoverContent>
     </Popover>
   );

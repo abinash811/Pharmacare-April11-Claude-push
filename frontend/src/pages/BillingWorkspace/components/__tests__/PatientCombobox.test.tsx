@@ -81,4 +81,24 @@ describe('PatientCombobox', () => {
 
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ id: 'p2', name: 'Brand New Customer', phone: '' }));
   });
+
+  it('shows an "Add Customer" button in the empty state, before anything is typed (Sep 19, 2026)', async () => {
+    // Abinash, testing a genuinely fresh pharmacy: opening this dropdown
+    // with zero customers and nothing typed showed only a "type to
+    // search" hint, no button — no visible way to add the first customer.
+    (api.get as jest.Mock).mockResolvedValue({ data: { data: [] } });
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 'p3', name: 'Zero Data Customer', phone: '' } });
+    const onSelect = jest.fn();
+
+    render(<PatientCombobox {...baseProps} onSelect={onSelect} />);
+    await userEvent.click(screen.getByTestId('patient-chip'));
+    expect(screen.getByTestId('patient-add-new-empty')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('patient-add-new-empty'));
+    const nameInput = screen.getByPlaceholderText('Full name *');
+    await userEvent.type(nameInput, 'Zero Data Customer');
+    await userEvent.click(screen.getByRole('button', { name: /Add & Select/i }));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ id: 'p3', name: 'Zero Data Customer', phone: '' }));
+  });
 });

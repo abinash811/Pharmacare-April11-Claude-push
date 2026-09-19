@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.4 | Last updated: September 18, 2026
+# Version: 1.5 | Last updated: September 19, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -178,10 +178,16 @@ above). Sets an httpOnly `session_token` cookie.
 ### `GET /auth/me`
 Get current authenticated user.
 
-**Response:**
+**Response:** corrected Sep 19, 2026 — this doc claimed a `pharmacy_id` field
+that has never actually been in the response (found while writing a
+backend test that tried to read it); `is_super_admin` is a computed flag
+(role is `"admin"`, or the user has the `*` wildcard permission), not a
+raw column:
 ```json
-{ "id": "uuid", "name": "Rajesh", "email": "...", "role": "admin", "pharmacy_id": "uuid" }
+{ "id": "uuid", "email": "...", "name": "Rajesh", "role": "admin", "is_active": true, "is_super_admin": false }
 ```
+Need the pharmacy_id for the current user? `GET /users/{id}` (with the
+`id` from this response) returns it.
 
 ---
 

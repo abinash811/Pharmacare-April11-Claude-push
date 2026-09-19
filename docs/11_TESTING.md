@@ -1,5 +1,5 @@
 # PharmaCare — Testing
-# Version: 1.8 | Last updated: September 5, 2026
+# Version: 1.9 | Last updated: September 19, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Every new feature ships with tests. No PR merges without tests for critical paths.
@@ -152,38 +152,41 @@ it's the build tool itself. Removing this flag for real means migrating
 off CRA (e.g. to Vite, already flagged as a gap in `docs/22_TECH_RADAR.md`)
 — genuinely separate, larger work, not part of this pass.
 
-**Current real state, not aspirational:**
-- **Backend:** `flake8` — clean (0 violations; also fixed 660+ pre-existing
-  E501/whitespace violations across the whole backend, mostly via
-  `autopep8`, see CHANGELOG). `pytest` against a live seeded backend —
-  **273 passing, 3 skipped, 0 failing** (`test_edit_supplier` fixed Aug 26,
-  2026 — see CI bug #12 below; the 3 skips —
-  `TestBillSequenceValidation`'s dead `/bill-sequence/preview` endpoint,
-  a Bill-model `SALES_RETURN` path that was never wired to the real
-  credit-note sequence, and Purchase's never-implemented
-  `landing_price_per_unit` rollup — are deliberately left as documented
-  gaps, not blindly closed; see each test file's docstring for why).
-- **Frontend:** `npm run lint` — 0 errors, 175 warnings (was 68 until Sep 8,
-  2026 — see RULE MISSES LOG in `docs/15_ROADMAP.md`: `eslint-plugin-jsx-a11y`
-  had been an installed devDependency since the project's start but was
-  never wired into `eslint.config.js`, so it caught nothing. Wiring it in
-  surfaced 108 real, previously-invisible findings in one pass — mostly
-  `jsx-a11y/label-has-associated-control` (88 `<label>`s not linked to their
-  input), plus 3 `jsx-a11y/no-autofocus` and a handful of
-  `click-events-have-key-events`/`no-static-element-interactions`. All new
-  findings downgraded to `warn`, same precedent as the react-hooks rules
-  below, rather than either hiding them or letting an unaudited backlog
-  block every unrelated PR. Two false positives also found and eliminated
-  outright, not downgraded: `jsx-a11y/heading-has-content` and
-  `anchor-has-content` both fired on Shadcn/UI wrapper primitives
-  (`alert.jsx`, `pagination.jsx`) that spread `{...props}` onto a native
-  element — real content arrives from the call site, but the static AST
-  check can't see through the spread; disabled both rules for
-  `src/components/ui/**` where every primitive follows that same pattern.)
-  Ratcheted as the CI ceiling (`--max-warnings 175`) rather than pretending
-  it's 0 — lower this number as the backlog is worked down. `npm test` —
-  **125/125 passing** (4 fixed Aug 26, 2026 — see CI bug #12 below),
-  verified both locally and live in CI. `tsc --noEmit` — 0 errors.
+**Current real state, not aspirational — re-verified Sep 18, 2026** (the
+figures below had sat unchanged since Sep 5 while ~67 new test files and
+two weeks of features landed; this doc's own opening rule says "don't let
+it go stale the way the rest of this doc did" — it had, on exactly the
+numbers that rule was written to protect):
+- **Backend:** `flake8` — **3 violations** (`routers/purchases.py` E302,
+  `tests/test_bill_sequence.py` E305, `tests/test_billing_price_unit_conversion.py`
+  E127) — small, real, unfixed as part of this docs-only pass. `pytest`
+  against a live seeded backend, 77 files — **a full run no longer
+  completes in reasonable time; found genuinely hung (~4+ min on one test)
+  while re-verifying this doc, not a flake.** Root cause, isolated by
+  running `tests/test_reorder_list.py` alone: `GET /inventory/reorder-list`
+  against this local dev DB currently returns **10,202 items across 103
+  pages** — every backend test file ever run against it creates real
+  products and never deletes them (this doc's own TEST DATA RULES below
+  say to clean up test data; nothing enforces it, and 77 files' worth of
+  accumulation makes that the reality). `_find_in_reorder_list()`'s
+  paginate-until-`has_next=false` helper does 103 sequential HTTP round
+  trips to find one SKU, and >10 tests in that one file each call it —
+  technically not an infinite hang, just slow enough (multi-minute) to
+  look like one. Not fixed in this pass (a real fix — a disposable
+  per-test-run tenant, or filtering the helper by SKU server-side instead
+  of paginating everything — is test infrastructure work, not a doc
+  change); logged in `docs/15_ROADMAP.md`'s RULE MISSES LOG and KNOWN
+  ISSUES instead. The last trustworthy full-suite number remains the Aug
+  26, 2026 one below (273 passing) — treat it as stale, not current.
+- **Frontend:** `npm run lint -- --max-warnings 999` — **0 errors, 118
+  warnings** (down from 175 — the backlog got worked down since Sep 8 but
+  the CI ceiling (`ci.yml` `--max-warnings 175`) was never lowered to
+  match, contrary to this doc's own "lower this number as the backlog is
+  worked down" instruction two lines below). `npm test` —
+  **301 passing, 1 failing, 302 total** — the 1 failure
+  (`DayEndClosing/__tests__/index.test.tsx`) is a pre-existing test-fixture
+  bug unrelated to this pass (hardcoded `'2026-09-15'` instead of reading
+  the real current date), not a regression; `tsc --noEmit` — 0 errors.
 - **3 real production bugs found and fixed earlier in this arc** (not test
   bugs — actual 500 errors in the running app):
   - `POST /purchases/{id}/pay`, `PUT /purchases/{id}`, `PUT /bills/{id}`,
@@ -331,23 +334,43 @@ npm test -- --testPathPattern=AppButton
 npm test -- --coverage --watchAll=false
 ```
 
+### E2E (Playwright) — added here Sep 18, 2026, missing until now
+
+`.github/workflows/ci.yml`'s `e2e` job runs `frontend/e2e/*.spec.ts`
+against a **real** backend + Postgres + built frontend + real Chromium —
+not mocked, unlike the Jest tests above. This is its own testing layer
+with its own CI job (`auth.spec.ts`, `billing.spec.ts`,
+`customers.spec.ts`, `inventory.spec.ts`, `purchases.spec.ts` as of this
+writing) that this doc never mentioned at all, despite existing to catch
+exactly the class of bug a passing unit test can't: the Aug 22, 2026
+`/reports/dashboard`/`/analytics/summary` bugs had passing pytest
+coverage, correct status codes, correct field types — and silently wrong
+data — caught only once the real app was driven end-to-end.
+
+```bash
+cd frontend
+npx playwright install --with-deps chromium   # once, or after a Playwright version bump
+npx playwright test                            # needs the backend AND frontend already running locally
+```
+
+Runs on every CI push/PR alongside the frontend/backend unit jobs — a
+flaky browser run is isolated to its own job so it never blocks the fast
+jobs from reporting. A failure uploads `frontend/playwright-report/` as a
+build artifact for debugging.
+
 ---
 
 ## BACKEND TEST STRUCTURE
 
-```
-backend/tests/
-├── test_bill_sequence.py      ← Bill number generation, sequential, concurrent
-├── test_dashboard_analytics.py
-├── test_excel_bulk_upload.py
-├── test_inventory_search.py
-├── test_p0_p1_features.py     ← Core P0/P1 feature coverage
-├── test_p2_features.py
-├── test_product_transactions.py
-├── test_purchases_module.py
-├── test_save_as_draft.py
-└── test_supplier_management.py
-```
+`backend/tests/` — one file per feature/bug, named for what it covers
+(e.g. `test_h1_patient_details.py`, `test_day_end_closing.py`,
+`test_manual_sales_returns.py`). **77 files as of Sep 18, 2026** — this
+section used to hand-list 10 filenames; that list drifted to naming under
+a seventh of the real files within two weeks (Sep 5 → Sep 18) and nobody
+noticed, since nothing re-generates it. Run `ls backend/tests/` for the
+real, current list instead of trusting a hand-maintained one here — same
+"point at the real file, don't duplicate a snapshot" fix already applied
+to this doc's own CI-config sections elsewhere in the project.
 
 **No `conftest.py` exists.** Each file above defines its own `TEST_EMAIL`/
 `TEST_PASSWORD`/`auth_token`/`auth_headers` fixtures independently (same

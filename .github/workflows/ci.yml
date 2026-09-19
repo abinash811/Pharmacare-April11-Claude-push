@@ -56,7 +56,9 @@ jobs:
         # Note: --max-warnings only gates warning-severity findings — any
         # error-severity finding fails the step regardless of this number,
         # so 0 real errors is a hard requirement, not a target.
-        run: npm run lint -- --max-warnings 175
+        # Ratcheted 175 -> 120 Sep 18, 2026: real count had fallen to 118
+        # without this ceiling ever following it down, per docs/11_TESTING.md.
+        run: npm run lint -- --max-warnings 120
 
       - name: Test
         run: npm test -- --watchAll=false --passWithNoTests

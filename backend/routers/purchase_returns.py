@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
@@ -108,16 +108,17 @@ async def _require_purchases_permission(current_user: User, action: str, db: Asy
 
 
 async def _generate_return_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+    # MAX() on the numeric suffix, cast in SQL — see the identical fix (and
+    # its reasoning) in purchases.py's _generate_purchase_number. Same
+    # broken ORDER BY-on-a-padded-string pattern, same fix, Sep 19, 2026.
     current_year = datetime.now(timezone.utc).year
     prefix = f"PRET-{current_year}-"
     result = await db.execute(
-        select(PurchaseReturnORM.return_number)
+        select(func.max(cast(func.split_part(PurchaseReturnORM.return_number, "-", 3), Integer)))
         .where(PurchaseReturnORM.pharmacy_id == pharmacy_id, PurchaseReturnORM.return_number.like(f"{prefix}%"))
-        .order_by(PurchaseReturnORM.return_number.desc())
-        .limit(1)
     )
-    last = result.scalar_one_or_none()
-    new_num = int(last.split("-")[-1]) + 1 if last else 1
+    last_num = result.scalar_one_or_none()
+    new_num = (last_num or 0) + 1
     return f"{prefix}{new_num:04d}"
 
 
@@ -129,13 +130,11 @@ async def _generate_debit_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> st
     current_year = datetime.now(timezone.utc).year
     prefix = f"SDN-{current_year}-"
     result = await db.execute(
-        select(PurchaseReturnORM.debit_note_number)
+        select(func.max(cast(func.split_part(PurchaseReturnORM.debit_note_number, "-", 3), Integer)))
         .where(PurchaseReturnORM.pharmacy_id == pharmacy_id, PurchaseReturnORM.debit_note_number.like(f"{prefix}%"))
-        .order_by(PurchaseReturnORM.debit_note_number.desc())
-        .limit(1)
     )
-    last = result.scalar_one_or_none()
-    new_num = int(last.split("-")[-1]) + 1 if last else 1
+    last_num = result.scalar_one_or_none()
+    new_num = (last_num or 0) + 1
     return f"{prefix}{new_num:04d}"
 
 

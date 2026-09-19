@@ -11,7 +11,7 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import Integer, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -239,17 +239,22 @@ def _parse_bill_import_row(row, col_map: dict, by_sku: dict, by_name: dict) -> t
     }
     return item, warnings
 
+
 async def _generate_purchase_number(pharmacy_id: uuid.UUID, db: AsyncSession) -> str:
+    # MAX() on the numeric suffix, cast in SQL — not ORDER BY ... DESC LIMIT 1
+    # on the padded string column. The string-sort version silently produced
+    # a duplicate the moment the suffix crossed a zero-padding width (e.g.
+    # "PUR-2026-9999" sorts AFTER "PUR-2026-10000" lexicographically), which
+    # 500'd every purchase creation for that pharmacy from then on — found
+    # Sep 19, 2026 via a live IntegrityError once a dev DB crossed 10,000.
     current_year = datetime.now(timezone.utc).year
     prefix = f"PUR-{current_year}-"
     result = await db.execute(
-        select(PurchaseORM.purchase_number)
+        select(func.max(cast(func.split_part(PurchaseORM.purchase_number, "-", 3), Integer)))
         .where(PurchaseORM.pharmacy_id == pharmacy_id, PurchaseORM.purchase_number.like(f"{prefix}%"))
-        .order_by(PurchaseORM.purchase_number.desc())
-        .limit(1)
     )
-    last = result.scalar_one_or_none()
-    new_num = int(last.split("-")[-1]) + 1 if last else 1
+    last_num = result.scalar_one_or_none()
+    new_num = (last_num or 0) + 1
     return f"{prefix}{new_num:04d}"
 
 

@@ -200,7 +200,7 @@ export default function AddMedicineModal({ onClose, onSuccess, initialName, hide
             <Field label="Generic Name / Composition"><input value={form.genericName} onChange={(e) => set('genericName', e.target.value)} className={INPUT_CLS} /></Field>
             <Field label="Strength" hint="e.g. 500mg, 5ml"><input value={form.strength} onChange={(e) => set('strength', e.target.value)} className={INPUT_CLS} data-testid="medicine-strength-input" /></Field>
             <SuggestField label="Storage Location" value={form.storageLocation} onChange={(v: string) => set('storageLocation', v)} options={LOCATION_SUGGESTIONS} placeholder="e.g. Store A, Shelf 3" testId="medicine-location-input" />
-            <Field label="Low Stock Alert"><input type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} className={INPUT_CLS} /></Field>
+            <Field label="Low Stock Threshold"><input type="number" value={form.lowStockThreshold} onChange={(e) => set('lowStockThreshold', e.target.value)} className={INPUT_CLS} /></Field>
             <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
               <span className="text-sm font-medium text-gray-700">Requires Refrigeration</span>
               <Switch checked={form.requiresRefrigeration} onCheckedChange={(v: boolean) => set('requiresRefrigeration', v)} data-testid="medicine-refrigeration-switch" />

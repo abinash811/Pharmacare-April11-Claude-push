@@ -422,6 +422,14 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
             raise HTTPException(status_code=404,
                                 detail=f"Product not found for {item_data.medicine_name}")
 
+        # Marked non-returnable in Inventory (e.g. a narcotic, or an
+        # opened/loose-sold item) — added Sep 19, 2026, Abinash direct
+        # instruction: a real block, not just a warning.
+        if not product.is_returnable:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{product.name} is marked as non-returnable and cannot be included in a sales return.")
+
         batch = await _find_batch(pharmacy_id, product_id, item_data.batch_id, item_data.batch_no, db)
         if not batch:
             raise HTTPException(status_code=404,
@@ -762,6 +770,14 @@ async def update_sales_return(
                     product = prod_result.scalar_one_or_none()
             if not product:
                 continue
+
+            # Same non-returnable block as create_sales_return above —
+            # a same-day edit to an existing return can't add a
+            # non-returnable item either.
+            if not product.is_returnable:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{product.name} is marked as non-returnable and cannot be included in a sales return.")
 
             batch = await _find_batch(pharmacy_id, product.id, item_data.batch_id, item_data.batch_no, db)
             if not batch:

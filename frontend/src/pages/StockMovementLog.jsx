@@ -137,8 +137,9 @@ export default function StockMovementLog() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicine</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch No.</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty Change</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Before</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">After</th>
@@ -149,13 +150,13 @@ export default function StockMovementLog() {
             <tbody className="divide-y">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-0">
-                    <TableSkeleton rows={8} columns={7} />
+                  <td colSpan="9" className="p-0">
+                    <TableSkeleton rows={8} columns={9} />
                   </td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-16 text-center text-gray-400">
+                  <td colSpan="9" className="py-16 text-center text-gray-400">
                     No stock movements found.
                     {typeFilter !== 'all' && ' Try clearing the type filter.'}
                   </td>
@@ -170,11 +171,15 @@ export default function StockMovementLog() {
                         <div className="text-xs text-gray-400">{formatTime(m.performed_at)}</div>
                       </td>
                       <td className="px-4 py-3">
+                        <div className="text-sm text-gray-800">{m.product_name || '—'}</div>
+                        {m.product_sku && <div className="text-xs text-gray-400">{m.product_sku}</div>}
+                      </td>
+                      <td className="px-4 py-3">
                         <MovementTypeBadge type={m.movement_type} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs font-mono text-gray-500">
-                          {m.batch_id ? m.batch_id.slice(0, 8) + '…' : '—'}
+                        <span className="text-xs font-mono text-gray-600">
+                          {m.batch_no || '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -189,13 +194,12 @@ export default function StockMovementLog() {
                         {m.quantity_after ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        {m.ref_type && (
-                          <div className="text-xs text-gray-500">
-                            <span className="font-medium capitalize">{m.ref_type?.replace(/_/g, ' ')}</span>
-                            {m.ref_id && (
-                              <span className="ml-1 font-mono text-gray-400">#{m.ref_id.slice(0, 6)}</span>
-                            )}
-                          </div>
+                        {m.ref_number ? (
+                          <AppButton variant="chip" onClick={() => navigate(m.ref_path)} data-testid={`ref-link-${m.id}`}>
+                            {m.ref_number}
+                          </AppButton>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate" title={m.reason}>

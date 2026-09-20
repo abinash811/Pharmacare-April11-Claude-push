@@ -12,10 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants import PRODUCT_CATEGORIES
 from deps import get_db
+from models.billing import Bill as BillORM, SalesReturn as SalesReturnORM
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
+from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
 )
+
+# Real, navigable references only — "adjustment"/"writeoff" store a
+# randomly generated reference_id (see _record_movement callers below)
+# that points to no real record, so they're deliberately excluded here
+# rather than resolved into a broken link. Maps reference_type -> (ORM
+# class, its human-readable number column, the frontend route to link to).
+_REFERENCE_LOOKUPS = {
+    "invoice":          (BillORM, "bill_number", "/billing/{id}"),
+    "purchase":         (PurchaseORM, "purchase_number", "/purchases/{id}"),
+    "sales_return":     (SalesReturnORM, "return_number", "/billing/returns/{id}"),
+    "purchase_return":  (PurchaseReturnORM, "return_number", "/purchases/returns/{id}"),
+}
 
 router = APIRouter(prefix="/api", tags=["batches"])
 
@@ -133,17 +147,27 @@ def _batch_response(b: BatchORM, product: ProductORM) -> dict:
     }
 
 
-def _movement_response(m: MovementORM) -> dict:
+def _movement_response(
+    m: MovementORM, product: Optional[ProductORM], batch: Optional[BatchORM],
+    ref_number: Optional[str],
+) -> dict:
+    ref_path = None
+    if ref_number and m.reference_type in _REFERENCE_LOOKUPS:
+        ref_path = _REFERENCE_LOOKUPS[m.reference_type][2].format(id=str(m.reference_id))
     return {
         "id": str(m.id),
         "product_id": str(m.product_id),
+        "product_name": product.name if product else None,
+        "product_sku": product.sku if product else None,
         "batch_id": str(m.batch_id),
+        "batch_no": batch.batch_number if batch else None,
         "movement_type": m.movement_type,
         "qty_delta_units": m.quantity,
         "quantity_before": m.quantity_before,
         "quantity_after": m.quantity_after,
         "ref_type": m.reference_type,
-        "ref_id": str(m.reference_id) if m.reference_id else None,
+        "ref_number": ref_number,
+        "ref_path": ref_path,
         "reason": m.notes,
         "performed_at": m.created_at.isoformat() if m.created_at else None,
     }
@@ -538,9 +562,39 @@ async def get_stock_movements(
     page = max(page, 1)
     offset = (page - 1) * page_size
     result = await db.execute(query.order_by(MovementORM.created_at.desc()).offset(offset).limit(page_size))
+    movements = result.scalars().all()
+
+    # Bulk-fetch product/batch names and real reference document numbers for
+    # this page only — avoids an N+1 query per row while still resolving
+    # real, human-readable labels instead of raw internal UUIDs.
+    products_by_id: dict = {}
+    if movements:
+        product_ids = {m.product_id for m in movements}
+        prods = (await db.execute(select(ProductORM).where(ProductORM.id.in_(product_ids)))).scalars().all()
+        products_by_id = {p.id: p for p in prods}
+
+    batches_by_id: dict = {}
+    if movements:
+        batch_ids = {m.batch_id for m in movements}
+        batches = (await db.execute(select(BatchORM).where(BatchORM.id.in_(batch_ids)))).scalars().all()
+        batches_by_id = {b.id: b for b in batches}
+
+    ref_numbers_by_id: dict = {}
+    for ref_type, (orm_cls, number_col, _path) in _REFERENCE_LOOKUPS.items():
+        ref_ids = {m.reference_id for m in movements if m.reference_type == ref_type and m.reference_id}
+        if not ref_ids:
+            continue
+        rows = (await db.execute(select(orm_cls).where(orm_cls.id.in_(ref_ids)))).scalars().all()
+        for row in rows:
+            ref_numbers_by_id[row.id] = getattr(row, number_col)
 
     return {
-        "data": [_movement_response(m) for m in result.scalars().all()],
+        "data": [
+            _movement_response(
+                m, products_by_id.get(m.product_id), batches_by_id.get(m.batch_id),
+                ref_numbers_by_id.get(m.reference_id))
+            for m in movements
+        ],
         "pagination": {
             "page": page, "page_size": page_size, "total": total,
             "total_pages": max(1, (total + page_size - 1) // page_size),

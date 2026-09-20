@@ -1,0 +1,64 @@
+# Render Blueprint — one-click deploy for a short beta (2-7 days).
+# See docs/13_DEPLOYMENT.md for the full manual-setup reference this mirrors.
+#
+# How to use: on render.com, New > Blueprint > connect this repo/branch.
+# Render reads this file and creates all 3 services below automatically.
+# Two values still need to be pasted in by hand after first deploy (Render
+# can't know a service's own public URL before it exists) — see the
+# walkthrough in chat for exact steps.
+
+databases:
+  - name: pharmacare-db
+    plan: free
+    databaseName: pharmacare
+    user: pharmacare
+
+services:
+  - type: web
+    name: pharmacare-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pharmacare-db
+          property: connectionString
+      - key: APP_NAME
+        value: PharmaCare
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      # TZ — pre-launch blocker #9 in docs/13_DEPLOYMENT.md: every server
+      # "today" is off by ~5.5 hours without this, since the code itself
+      # has no explicit timezone handling yet.
+      - key: TZ
+        value: Asia/Kolkata
+      # Placeholder — replace with the real frontend URL after it deploys
+      # (see walkthrough). The backend refuses to start if this is empty.
+      - key: CORS_ORIGINS
+        value: "http://localhost:3000"
+
+  - type: web
+    name: pharmacare-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Placeholder — replace with the real backend URL after it deploys
+      # (see walkthrough).
+      - key: REACT_APP_BACKEND_URL
+        value: "http://localhost:8000"

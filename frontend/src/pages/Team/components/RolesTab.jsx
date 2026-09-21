@@ -88,6 +88,11 @@ export default function RolesTab() {
     const allOn = ids.every((id) => formData.selectedPermissions.includes(id));
     setFormData((p) => ({ ...p, selectedPermissions: allOn ? p.selectedPermissions.filter((x) => !ids.includes(x)) : [...new Set([...p.selectedPermissions, ...ids])] }));
   };
+  const toggleAllPermissions = () => {
+    const allIds = Object.values(permissions).flatMap((mod) => mod.permissions.map((p) => p.id));
+    const allOn = allIds.length > 0 && allIds.every((id) => formData.selectedPermissions.includes(id));
+    setFormData((p) => ({ ...p, selectedPermissions: allOn ? [] : allIds }));
+  };
 
   return (
     <>
@@ -139,7 +144,7 @@ export default function RolesTab() {
 
       {/* Create Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Create Custom Role</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
@@ -147,8 +152,8 @@ export default function RolesTab() {
               <div><label className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} placeholder="e.g., Store Manager" required /></div>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-700 mb-2">Permissions * <span className="text-gray-400 font-normal">({formData.selectedPermissions.length} selected)</span></p>
-              <PermissionsMatrix permissions={permissions} selectedPermissions={formData.selectedPermissions} onTogglePermission={togglePermission} onToggleModule={toggleModule} />
+              <p className="text-xs font-medium text-gray-700 mb-2">Permissions *</p>
+              <PermissionsMatrix permissions={permissions} selectedPermissions={formData.selectedPermissions} onTogglePermission={togglePermission} onToggleModule={toggleModule} onToggleAll={toggleAllPermissions} />
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowCreateDialog(false)}>Cancel</AppButton>
@@ -160,13 +165,13 @@ export default function RolesTab() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Role</DialogTitle></DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 mt-2">
             <div><label className="block text-xs font-medium text-gray-700 mb-1">Display Name *</label><input type="text" value={formData.display_name} onChange={(e) => setFormData({ ...formData, display_name: e.target.value })} className={inputCls} required /></div>
             <div>
-              <p className="text-xs font-medium text-gray-700 mb-2">Permissions * <span className="text-gray-400 font-normal">({formData.selectedPermissions.length} selected)</span></p>
-              <PermissionsMatrix permissions={permissions} selectedPermissions={formData.selectedPermissions} onTogglePermission={togglePermission} onToggleModule={toggleModule} />
+              <p className="text-xs font-medium text-gray-700 mb-2">Permissions *</p>
+              <PermissionsMatrix permissions={permissions} selectedPermissions={formData.selectedPermissions} onTogglePermission={togglePermission} onToggleModule={toggleModule} onToggleAll={toggleAllPermissions} />
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <AppButton type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>Cancel</AppButton>

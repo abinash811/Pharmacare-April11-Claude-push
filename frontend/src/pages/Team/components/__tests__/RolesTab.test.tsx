@@ -44,7 +44,7 @@ describe('RolesTab — clone a role', () => {
 
     expect(await screen.findByDisplayValue('store_manager_copy')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Store Manager (Copy)')).toBeInTheDocument();
-    expect(screen.getByText('(2 selected)')).toBeInTheDocument();
+    expect(screen.getByText('2 of 3 permissions selected')).toBeInTheDocument();
   });
 
   it('also offers Clone on a protected default role', async () => {
@@ -53,7 +53,7 @@ describe('RolesTab — clone a role', () => {
 
     expect(await screen.findByDisplayValue('cashier_copy')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Cashier (Copy)')).toBeInTheDocument();
-    expect(screen.getByText('(2 selected)')).toBeInTheDocument();
+    expect(screen.getByText('2 of 3 permissions selected')).toBeInTheDocument();
   });
 
   it('submits the cloned role via the normal create-role endpoint', async () => {

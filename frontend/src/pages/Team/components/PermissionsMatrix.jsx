@@ -2,9 +2,19 @@ import React from 'react';
 import { CheckSquare, Square } from 'lucide-react';
 import { AppButton } from '@/components/shared';
 
-export default function PermissionsMatrix({ permissions, selectedPermissions, onTogglePermission, onToggleModule }) {
+export default function PermissionsMatrix({ permissions, selectedPermissions, onTogglePermission, onToggleModule, onToggleAll }) {
+  const allIds = Object.values(permissions).flatMap((mod) => mod.permissions.map((p) => p.id));
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedPermissions.includes(id));
+
   return (
-    <div className="border border-gray-200 rounded-lg p-3 max-h-80 overflow-y-auto bg-gray-50 space-y-2">
+    <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+      <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+        <span className="text-xs text-gray-500">{selectedPermissions.length} of {allIds.length} permissions selected</span>
+        <AppButton variant="ghost" size="sm" type="button" onClick={onToggleAll} data-testid="permissions-select-all">
+          {allSelected ? 'Deselect All' : 'Select All'}
+        </AppButton>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
       {Object.keys(permissions).map((moduleKey) => {
         const mod = permissions[moduleKey];
         const ids = mod.permissions.map((p) => p.id);
@@ -38,6 +48,7 @@ export default function PermissionsMatrix({ permissions, selectedPermissions, on
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

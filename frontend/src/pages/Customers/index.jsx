@@ -118,16 +118,16 @@ export default function Customers() {
 
       <PageTabs tabs={CUSTOMER_TABS} activeTab={activeSection} onChange={setActiveSection} />
 
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={isCustomers ? 'Search customers…' : 'Search doctors…'}
-            className="w-64"
-          />
-        </div>
+      <div className="flex items-center gap-4 mb-4">
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={isCustomers ? 'Search customers…' : 'Search doctors…'}
+          className="w-64"
+        />
+      </div>
 
+      <div className="bg-white rounded-xl border border-gray-200">
         {isCustomers ? (
           <>
             <CustomersTable

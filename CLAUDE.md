@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.20 | Last updated: September 18, 2026
+# Version: 2.21 | Last updated: September 21, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -45,7 +45,10 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 **Backend port:** 8000 (`uvicorn main:app --host 0.0.0.0 --port 8000 --reload`)
 **Frontend env:** No `REACT_APP_BACKEND_URL` needed locally — `craco.config.js` proxies `/api/*` to `localhost:8000` automatically (works whether the browser and backend share a machine or not). Set the env var only when pointing at a different backend (staging, a different port).
 
-> `backend/server.py` = original MongoDB backup. Keep it. Never run it on port 8000.
+> `backend/server.py` (original MongoDB backup) was deleted Sep 21, 2026 —
+> confirmed unused (nothing imported it; `ci.yml`'s flake8 step only
+> excluded it from linting) and the app has run on PostgreSQL via
+> `backend/main.py` since the migration. Do not recreate it.
 
 ---
 

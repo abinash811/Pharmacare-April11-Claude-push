@@ -43,7 +43,7 @@ def main(argv: list[str]) -> int:
 
     result = subprocess.run(
         ["flake8", *files, "--max-line-length=120",
-         "--exclude=venv,migrations/versions,__pycache__,server.py"],
+         "--exclude=venv,migrations/versions,__pycache__"],
         capture_output=True, text=True, check=False,
     )
     if result.returncode == 0:

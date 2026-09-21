@@ -101,7 +101,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pharmacare_test
 
       - name: Lint
-        run: flake8 . --max-line-length=120 --exclude=venv,migrations/versions,__pycache__,server.py
+        run: flake8 . --max-line-length=120 --exclude=venv,migrations/versions,__pycache__
 
       # Every file in tests/ is an HTTP integration test — it calls a real
       # running backend over requests, not the app object directly. Until

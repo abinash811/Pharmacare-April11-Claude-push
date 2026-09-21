@@ -41,6 +41,7 @@ export default function DoctorsTable({ doctors, loading, searchQuery, onAdd, onE
                     icon={Stethoscope}
                     title={searchQuery ? 'No doctors match your search' : 'No doctors yet'}
                     description={searchQuery ? 'Try a different search term' : 'Add referring doctors to track referrals'}
+                    action={!searchQuery && <AppButton onClick={onAdd} data-testid="empty-add-doctor-btn">Add Doctor</AppButton>}
                   />
                 </td>
               </tr>

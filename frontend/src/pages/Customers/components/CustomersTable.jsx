@@ -52,7 +52,10 @@ export default function CustomersTable({ customers, loading, searchQuery, onAdd,
             ) : customers.length === 0 ? (
               <tr>
                 <td colSpan={4} className="p-0">
-                  <CustomersEmptyState filtered={!!searchQuery} action={null} />
+                  <CustomersEmptyState
+                    filtered={!!searchQuery}
+                    action={!searchQuery && <AppButton onClick={onAdd} data-testid="empty-add-customer-btn">Add Customer</AppButton>}
+                  />
                 </td>
               </tr>
             ) : customers.map(customer => (

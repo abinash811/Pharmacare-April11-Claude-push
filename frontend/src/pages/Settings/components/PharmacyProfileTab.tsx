@@ -15,10 +15,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Building2, Phone, MapPin, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AppButton } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import LogoUpload from './LogoUpload';
 import ProfileCompletionPanel from './ProfileCompletionPanel';
+import ProfileCategoryNav from './ProfileCategoryNav';
 
 interface Props {
   general: Record<string, string>;
@@ -87,6 +87,7 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
   const dlWarning = drugLicenseExpiryWarning(general.drug_license_expiry);
 
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].key);
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
@@ -111,29 +112,21 @@ export default function PharmacyProfileTab({ general, onUpdate }: Props) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 items-start">
+    <div className={cn(
+      'grid grid-cols-1 gap-8 items-start',
+      navCollapsed ? 'lg:grid-cols-[56px_1fr]' : 'lg:grid-cols-[220px_1fr]',
+    )}>
 
       {/* Category nav + completeness — sticky left column */}
       <div className="lg:sticky lg:top-6 space-y-4">
-        <nav className="space-y-1" data-testid="profile-category-nav">
-          {CATEGORIES.map(({ key, label, icon: Icon }) => (
-            <AppButton
-              key={key}
-              type="button"
-              variant="ghost"
-              onClick={() => scrollToCategory(key)}
-              className={cn(
-                'w-full justify-start gap-2 font-normal',
-                activeCategory === key ? 'bg-brand-tint text-brand font-medium' : 'text-gray-600',
-              )}
-              data-testid={`profile-category-${key}`}
-            >
-              <Icon className="w-3.5 h-3.5 shrink-0" />
-              {label}
-            </AppButton>
-          ))}
-        </nav>
-        <ProfileCompletionPanel general={general} />
+        <ProfileCategoryNav
+          categories={CATEGORIES}
+          activeCategory={activeCategory}
+          onSelect={scrollToCategory}
+          collapsed={navCollapsed}
+          onToggleCollapsed={() => setNavCollapsed((v) => !v)}
+        />
+        {!navCollapsed && <ProfileCompletionPanel general={general} />}
       </div>
 
       {/* Fields — every section stacked, one Save button lives in the parent */}

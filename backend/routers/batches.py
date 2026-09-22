@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +15,7 @@ from deps import get_db
 from models.billing import Bill as BillORM, SalesReturn as SalesReturnORM
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
 from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
+from models.users import AuditLog
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
 )
@@ -219,6 +220,27 @@ async def _record_movement(
     return movement
 
 
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    """Same shared shape as suppliers.py/inventory.py's own per-router copy.
+    _record_movement above is the sanctioned audit trail for a quantity
+    change; this covers everything else (MRP/cost/expiry edits, delete) —
+    previously left no record at all (docs/15_ROADMAP.md KNOWN ISSUES,
+    found by scripts/check_audit_log_coverage.py)."""
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
 # ── /stock/batches ─────────────────────────────────────────────────────────────
 
 @router.post("/stock/batches")
@@ -334,15 +356,13 @@ async def get_stock_batch(batch_id: str, current_user: User = Depends(
 async def update_stock_batch(
         batch_id: str,
         batch_data: StockBatchUpdate,
+        request: Request,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
-    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — a
-    # qty_on_hand change already records a StockMovement (_record_movement below),
-    # but a non-quantity edit (MRP/cost/expiry) leaves no record at all. Real,
-    # scoped gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass.
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await require_admin_or_super(current_user, db, detail="Only admins can update stock batches")
 
-    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
+    batch = await _get_batch(batch_id, pharmacy_id, db)
     updates = batch_data.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -360,50 +380,90 @@ async def update_stock_batch(
     # real quantity change gets the same audit trail.
     old_qty_on_hand = batch.quantity_on_hand
 
+    # Non-quantity fields (MRP/cost/expiry/batch number/etc.) previously
+    # left no record at all — qty_on_hand is deliberately excluded here
+    # since _record_movement below is its own, more detailed audit trail
+    # (before/after quantities, not just a raw value).
+    old_values: dict = {}
+    new_values: dict = {}
+
     for key, value in updates.items():
+        if key == "qty_on_hand":
+            setattr(batch, "quantity_on_hand", value)
+            continue
         if key == "cost_price_per_unit":
+            old_val = batch.cost_price_paise / 100
+            if old_val != value:
+                old_values[key] = old_val
+                new_values[key] = value
             batch.cost_price_paise = int(value * 100)
         elif key == "mrp_per_unit":
+            old_val = batch.mrp_paise / 100
+            if old_val != value:
+                old_values[key] = old_val
+                new_values[key] = value
             batch.mrp_paise = int(value * 100)
         elif key == "expiry_date":
             new_expiry = date.fromisoformat(value[:10])
             if new_expiry < date.today():
                 raise HTTPException(status_code=400, detail="Expiry date has already passed")
+            if batch.expiry_date != new_expiry:
+                old_values[key] = batch.expiry_date.isoformat() if batch.expiry_date else None
+                new_values[key] = new_expiry.isoformat()
             batch.expiry_date = new_expiry
         elif key == "manufacture_date":
-            batch.manufacture_date = date.fromisoformat(value[:10])
+            new_mfg = date.fromisoformat(value[:10])
+            if batch.manufacture_date != new_mfg:
+                old_values[key] = batch.manufacture_date.isoformat() if batch.manufacture_date else None
+                new_values[key] = new_mfg.isoformat()
+            batch.manufacture_date = new_mfg
         else:
             col = field_map.get(key, key)
             if col and hasattr(batch, col):
+                old_val = getattr(batch, col)
+                if old_val != value:
+                    old_values[key] = old_val
+                    new_values[key] = value
                 setattr(batch, col, value)
 
     if batch.quantity_on_hand != old_qty_on_hand:
         db.add(MovementORM(
-            pharmacy_id=uuid.UUID(current_user.pharmacy_id), product_id=batch.product_id, batch_id=batch.id,
+            pharmacy_id=pharmacy_id, product_id=batch.product_id, batch_id=batch.id,
             movement_type="batch_edit", quantity=batch.quantity_on_hand - old_qty_on_hand,
             quantity_before=old_qty_on_hand, quantity_after=batch.quantity_on_hand,
             reference_type="batch_edit", reference_id=batch.id,
             user_id=uuid.UUID(current_user.id), notes="Direct batch quantity edit via PUT /stock/batches",
         ))
 
+    if new_values:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "stock_batch", batch.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request),
+        )
+
     await db.flush()
     return {"message": "Batch updated successfully"}
 
 
 @router.delete("/stock/batches/{batch_id}")
-async def delete_stock_batch(batch_id: str, current_user: User = Depends(
+async def delete_stock_batch(batch_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
-    # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await require_admin_or_super(current_user, db, detail="Only admins can delete stock batches")
 
-    batch = await _get_batch(batch_id, uuid.UUID(current_user.pharmacy_id), db)
+    batch = await _get_batch(batch_id, pharmacy_id, db)
     if batch.quantity_on_hand > 0:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete batch with stock. Adjust quantity to 0 first.")
 
     batch.is_active = False
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "delete", "stock_batch", batch.id,
+        {"deleted": True}, db,
+        old_values={"batch_number": batch.batch_number, "quantity_on_hand": batch.quantity_on_hand},
+        ip_address=_client_ip(request),
+    )
     await db.flush()
     return {"message": "Batch deleted successfully"}
 

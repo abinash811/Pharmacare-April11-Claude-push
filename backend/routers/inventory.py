@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +20,7 @@ from models.pharmacy import PharmacySettings
 from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from models.suppliers import Supplier as SupplierORM
+from models.users import AuditLog
 from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, paginate_response
 
 router = APIRouter(prefix="/api", tags=["inventory"])
@@ -112,6 +114,26 @@ async def _require_inventory_permission(current_user: User, action: str, db: Asy
             detail=f"Your role does not have permission to {action} products")
 
 
+async def _record_audit(
+    pharmacy_id: uuid.UUID, user_id: uuid.UUID, action: str,
+    entity_type: str, entity_id: uuid.UUID, new_values: dict, db: AsyncSession,
+    old_values: dict | None = None, ip_address: str | None = None,
+) -> None:
+    """Same shared shape as suppliers.py/customers.py/purchases.py's own
+    per-router copy — a medicine create/edit/delete previously left no
+    record of who did it at all (docs/15_ROADMAP.md KNOWN ISSUES, found by
+    scripts/check_audit_log_coverage.py)."""
+    db.add(AuditLog(
+        pharmacy_id=pharmacy_id, user_id=user_id, action=action,
+        entity_type=entity_type, entity_id=entity_id, new_values=new_values,
+        old_values=old_values, ip_address=ip_address,
+    ))
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
 def _product_response(p: ProductORM) -> dict:
     return {
         "id": str(p.id), "sku": p.sku, "name": p.name, "barcode": p.barcode,
@@ -155,10 +177,8 @@ def _batch_for_billing(b: BatchORM, units_per_pack: int = 1) -> dict:
 # ── /products CRUD ────────────────────────────────────────────────────────────
 
 @router.post("/products")
-async def create_product(data: ProductCreate, current_user: User = Depends(
+async def create_product(data: ProductCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
-    # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
     await _require_inventory_permission(current_user, "create", db)
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
 
@@ -200,6 +220,14 @@ async def create_product(data: ProductCreate, current_user: User = Depends(
         storage_location=data.storage_location, is_returnable=data.is_returnable,
     )
     db.add(product)
+    await db.flush()
+
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "create", "product", product.id,
+        {"name": product.name, "sku": product.sku, "category": product.category,
+         "gst_percent": float(product.gst_rate)},
+        db, ip_address=_client_ip(request),
+    )
     await db.flush()
     return _product_response(product)
 
@@ -345,18 +373,17 @@ async def get_product(product_id: str, current_user: User = Depends(
 
 
 @router.put("/products/{product_id}")
-async def update_product(product_id: str, data: ProductUpdate, current_user: User = Depends(
+async def update_product(product_id: str, data: ProductUpdate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
     # Was a hardcoded `role != "admin"` check — a magic-string role comparison
     # that bypassed the real permissions catalog entirely and blocked manager/
     # inventory_staff, who are granted "inventory:edit" per constants.py and
     # the Team > Roles UI, from ever editing a product. Found Sep 12, 2026
     # while wiring ACL into Suppliers/Products creation.
-    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
-    # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
     await _require_inventory_permission(current_user, "edit", db)
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     product = await get_owned_or_404(
-        db, ProductORM, product_id, uuid.UUID(current_user.pharmacy_id),
+        db, ProductORM, product_id, pharmacy_id,
         not_found_detail="Product not found")
     field_map = {
         "gst_percent": "gst_rate",
@@ -364,8 +391,23 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
         "low_stock_threshold_units": "reorder_level",
         "reorder_quantity_units": "reorder_quantity"}
     updates = data.model_dump(exclude_unset=True)
+    old_values: dict = {}
+    new_values: dict = {}
     for key, value in updates.items():
-        setattr(product, field_map.get(key, key), value)
+        col = field_map.get(key, key)
+        if hasattr(product, col):
+            old_value = getattr(product, col)
+            # gst_rate/discount_percent are Numeric columns — SQLAlchemy
+            # returns a real Decimal at runtime regardless of the model's
+            # `Mapped[float]` type hint, and Decimal isn't JSON-serializable
+            # for the JSONB old_values/new_values columns below (confirmed
+            # live: a real gst_percent edit 500'd until this was added).
+            if isinstance(old_value, Decimal):
+                old_value = float(old_value)
+            if old_value != value:
+                old_values[col] = old_value
+                new_values[col] = value
+            setattr(product, col, value)
     if "category" in updates:
         # Same pharmacy-configured HSN override as create_product — see
         # that function's comment.
@@ -380,18 +422,24 @@ async def update_product(product_id: str, data: ProductUpdate, current_user: Use
             category_hsn_overrides.get(updates["category"])
             or CATEGORY_HSN_MAP.get(updates["category"], "3004")
         )
+
+    if new_values:
+        await _record_audit(
+            pharmacy_id, uuid.UUID(current_user.id), "update", "product", product.id,
+            new_values, db, old_values=old_values, ip_address=_client_ip(request),
+        )
+
     await db.flush()
     return {"message": "Product updated successfully"}
 
 
 @router.delete("/products/{product_id}")
-async def delete_product(product_id: str, current_user: User = Depends(
+async def delete_product(product_id: str, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    # audit-exempt: found Sep 16, 2026 (scripts/check_audit_log_coverage.py) — real
-    # gap, logged in docs/15_ROADMAP.md KNOWN ISSUES, not fixed in this pass
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     await _require_inventory_permission(current_user, "delete", db)
     product = await get_owned_or_404(
-        db, ProductORM, product_id, uuid.UUID(current_user.pharmacy_id),
+        db, ProductORM, product_id, pharmacy_id,
         not_found_detail="Product not found")
     pid = product.id
     batch_count = await db.execute(select(func.count()).select_from(BatchORM).where(
@@ -400,8 +448,12 @@ async def delete_product(product_id: str, current_user: User = Depends(
         raise HTTPException(
             status_code=400,
             detail="Cannot delete product with stock. Write off batches first.")
-    from datetime import datetime, timezone
     product.deleted_at = datetime.now(timezone.utc)
+    await _record_audit(
+        pharmacy_id, uuid.UUID(current_user.id), "delete", "product", pid,
+        {"deleted": True}, db,
+        old_values={"name": product.name, "sku": product.sku}, ip_address=_client_ip(request),
+    )
     await db.flush()
     return {"message": "Product deleted successfully"}
 

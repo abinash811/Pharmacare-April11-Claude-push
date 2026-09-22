@@ -5,11 +5,13 @@
  * added — same content, no behavior change beyond that empty state.
  */
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
+import { ROUTES } from '@/constants/routes';
 
 interface ProductBatch {
   batch_no: string;
@@ -92,7 +94,11 @@ export default function AddMedicineSearchRow({
           // MRP/cost to sell yet — that's set at Purchase time), so this
           // names the real next step instead of a dead inline "add" button.
           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 px-3 py-3 text-xs text-gray-500">
-            No medicine found for "{newItemSearch}". Add it via <strong>Purchases</strong> (brings in stock) or <strong>Inventory</strong>, then search again here.
+            No medicine found for "{newItemSearch}" — add it via{' '}
+            <Link to={ROUTES.PURCHASES.CREATE} className="text-brand font-semibold hover:underline">Purchases</Link>{' '}
+            (brings in stock) or{' '}
+            <Link to={ROUTES.INVENTORY.LIST} className="text-brand font-semibold hover:underline">Inventory</Link>{' '}
+            (catalog only), then search again.
           </div>
         )}
         {showSearchResults && searchResults.length > 0 && (

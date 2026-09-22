@@ -121,19 +121,9 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                   <td className="px-4 py-2 text-xs font-medium text-gray-400">{String(index + 1).padStart(2, '0')}</td>
 
                   <td className="px-4 py-2">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900">{item.product_name}</span>
-                        {isRx && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">Rx</span>}
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-500">
-                        <span className="font-mono">{item.batch_no}</span>
-                        <span>·</span>
-                        <span>Cost {formatCurrency(item.cost_price || item.unit_price * 0.7)}</span>
-                        <span>·</span>
-                        <span className="text-green-600">▲{(((item.unit_price - (item.cost_price || item.unit_price * 0.7)) / (item.cost_price || item.unit_price * 0.7)) * 100).toFixed(0)}%</span>
-                        {item.composition && <><span>·</span><span className="truncate max-w-[120px]" title={item.composition}>{item.composition}</span></>}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-900">{item.product_name}</span>
+                      {isRx && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">Rx</span>}
                     </div>
                   </td>
 

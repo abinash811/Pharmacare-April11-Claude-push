@@ -1,9 +1,12 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import BillingTable from '../BillingTable';
+
+const renderTable = (props: any) => render(<MemoryRouter><BillingTable {...props} /></MemoryRouter>);
 
 jest.mock('@/lib/axios', () => ({ get: jest.fn() }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), info: jest.fn() } }));
@@ -32,7 +35,7 @@ describe('BillingTable — out-of-stock search results', () => {
       ],
     });
 
-    render(<BillingTable {...baseProps} />);
+    renderTable(baseProps);
     await userEvent.type(screen.getByTestId('new-item-search'), 'Med');
 
     await waitFor(() => expect(screen.getByText('Sold Out Med')).toBeInTheDocument());
@@ -46,7 +49,7 @@ describe('BillingTable — out-of-stock search results', () => {
       data: [{ sku: 'OUT-1', name: 'Sold Out Med', has_stock: false, batches: [] }],
     });
 
-    render(<BillingTable {...baseProps} />);
+    renderTable(baseProps);
     await userEvent.type(screen.getByTestId('new-item-search'), 'Sold');
 
     const row = await screen.findByTestId('out-of-stock-OUT-1');
@@ -65,14 +68,37 @@ describe('BillingTable — out-of-stock search results', () => {
     // (nothing purchased into stock yet) got dead silence with no next step.
     (api.get as jest.Mock).mockResolvedValue({ data: [] });
 
-    render(<BillingTable {...baseProps} />);
+    renderTable(baseProps);
     await userEvent.type(screen.getByTestId('new-item-search'), 'Paracetamol');
 
     await waitFor(() => expect(
       screen.getByText(/No medicine found for "Paracetamol"/),
     ).toBeInTheDocument());
-    expect(screen.getByText(/Purchases/)).toBeInTheDocument();
-    expect(screen.getByText(/Inventory/)).toBeInTheDocument();
+    // Real navigable links, not just bold text — Sep 22, 2026 fix.
+    expect(screen.getByRole('link', { name: 'Purchases' })).toHaveAttribute('href', '/purchases/create');
+    expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute('href', '/inventory');
+  });
+
+  it('does not show cost price or margin % on a bill line — Sep 22, 2026 fix', () => {
+    // Reported directly with a screenshot: every bill row showed the
+    // batch's real cost price and a computed margin % (a fabricated one,
+    // via an `item.unit_price * 0.7` fallback, when cost_price was
+    // missing) under the medicine name — sensitive financial info a
+    // cashier has no business seeing on every sale, and redundant with
+    // the batch number already shown in its own column.
+    renderTable({
+      ...baseProps,
+      billItems: [{
+        id: '1', product_sku: 'X', product_name: 'Dolo 650', batch_no: '123456',
+        qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+        expiry_date: '2027-01-01', discount_percent: 0,
+      }],
+    });
+
+    expect(screen.getByText('Dolo 650')).toBeInTheDocument();
+    expect(screen.queryByText(/Cost ₹/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/▲/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/43%/)).not.toBeInTheDocument();
   });
 
   it('still allows billing an in-stock batch normally', async () => {
@@ -83,7 +109,7 @@ describe('BillingTable — out-of-stock search results', () => {
       }],
     });
 
-    render(<BillingTable {...baseProps} />);
+    renderTable(baseProps);
     await userEvent.type(screen.getByTestId('new-item-search'), 'Available');
 
     const batchRow = await screen.findByText('B1');

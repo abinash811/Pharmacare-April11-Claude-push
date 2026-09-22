@@ -138,7 +138,7 @@ export default function AuthPage() {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
                     <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" name="email" type="email" placeholder="admin@pharmacy.com" required className="h-12 md:h-9" data-testid="login-email-input" />
+                    <Input id="login-email" name="email" type="email" placeholder="admin@pharmacy.com" required autoComplete="email" className="h-12 md:h-9" data-testid="login-email-input" />
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
@@ -147,7 +147,7 @@ export default function AuthPage() {
                         Forgot password?
                       </Link>
                     </div>
-                    <Input id="login-password" name="password" type="password" required className="h-12 md:h-9" data-testid="login-password-input" />
+                    <Input id="login-password" name="password" type="password" required autoComplete="current-password" className="h-12 md:h-9" data-testid="login-password-input" />
                   </div>
                   <AppButton type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" disabled={loading} data-testid="login-submit-btn">
                     {loading ? 'Signing in...' : 'Sign In'}
@@ -166,19 +166,19 @@ export default function AuthPage() {
                   <form onSubmit={handleAccountStepNext} className="space-y-4" data-testid="register-step-account">
                     <div>
                       <Label htmlFor="register-name">Full Name</Label>
-                      <Input id="register-name" name="name" type="text" placeholder="John Doe" required defaultValue={accountInfo?.name} className="h-12 md:h-9" data-testid="register-name-input" />
+                      <Input id="register-name" name="name" type="text" placeholder="John Doe" required defaultValue={accountInfo?.name} autoComplete="name" className="h-12 md:h-9" data-testid="register-name-input" />
                     </div>
                     <div>
                       <Label htmlFor="register-email">Email</Label>
-                      <Input id="register-email" name="email" type="email" placeholder="john@pharmacy.com" required defaultValue={accountInfo?.email} className="h-12 md:h-9" data-testid="register-email-input" />
+                      <Input id="register-email" name="email" type="email" placeholder="john@pharmacy.com" required defaultValue={accountInfo?.email} autoComplete="email" className="h-12 md:h-9" data-testid="register-email-input" />
                     </div>
                     <div>
                       <Label htmlFor="register-password">Password</Label>
-                      <Input id="register-password" name="password" type="password" required defaultValue={accountInfo?.password} className="h-12 md:h-9" data-testid="register-password-input" />
+                      <Input id="register-password" name="password" type="password" required defaultValue={accountInfo?.password} autoComplete="new-password" className="h-12 md:h-9" data-testid="register-password-input" />
                     </div>
                     <div>
                       <Label htmlFor="register-phone">Phone</Label>
-                      <Input id="register-phone" name="phone" type="tel" placeholder="9876543210" required defaultValue={accountInfo?.phone} className="h-12 md:h-9" data-testid="register-phone-input" />
+                      <Input id="register-phone" name="phone" type="tel" placeholder="9876543210" required defaultValue={accountInfo?.phone} autoComplete="tel" className="h-12 md:h-9" data-testid="register-phone-input" />
                     </div>
                     <AppButton type="submit" className="w-full h-12 md:h-9 text-[15px] md:text-sm" data-testid="register-next-btn">
                       Continue
@@ -188,30 +188,30 @@ export default function AuthPage() {
                   <form onSubmit={handleRegister} className="space-y-4" data-testid="register-step-pharmacy">
                     <div>
                       <Label htmlFor="register-pharmacy-name">Pharmacy Name</Label>
-                      <Input id="register-pharmacy-name" name="pharmacy_name" type="text" placeholder="City Medical Store" required className="h-12 md:h-9" data-testid="register-pharmacy-name-input" />
+                      <Input id="register-pharmacy-name" name="pharmacy_name" type="text" placeholder="City Medical Store" required autoComplete="organization" className="h-12 md:h-9" data-testid="register-pharmacy-name-input" />
                     </div>
                     <div>
                       <Label htmlFor="register-address">Address</Label>
-                      <Input id="register-address" name="address" type="text" placeholder="123 Main Street" required className="h-12 md:h-9" data-testid="register-address-input" />
+                      <Input id="register-address" name="address" type="text" placeholder="123 Main Street" required autoComplete="address-line1" className="h-12 md:h-9" data-testid="register-address-input" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor="register-city">City</Label>
-                        <Input id="register-city" name="city" type="text" placeholder="Bengaluru" required className="h-12 md:h-9" data-testid="register-city-input" />
+                        <Input id="register-city" name="city" type="text" placeholder="Bengaluru" required autoComplete="address-level2" className="h-12 md:h-9" data-testid="register-city-input" />
                       </div>
                       <div>
                         <Label htmlFor="register-state">State</Label>
-                        <Input id="register-state" name="state" type="text" placeholder="Karnataka" required className="h-12 md:h-9" data-testid="register-state-input" />
+                        <Input id="register-state" name="state" type="text" placeholder="Karnataka" required autoComplete="address-level1" className="h-12 md:h-9" data-testid="register-state-input" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label htmlFor="register-pincode">Pincode</Label>
-                        <Input id="register-pincode" name="pincode" type="text" placeholder="560001" required pattern="\d{6}" className="h-12 md:h-9" data-testid="register-pincode-input" />
+                        <Input id="register-pincode" name="pincode" type="text" placeholder="560001" required pattern="\d{6}" autoComplete="postal-code" className="h-12 md:h-9" data-testid="register-pincode-input" />
                       </div>
                       <div>
                         <Label htmlFor="register-dl">Drug License No.</Label>
-                        <Input id="register-dl" name="drug_license_number" type="text" placeholder="KA-BLR-12345" className="h-12 md:h-9" data-testid="register-dl-input" />
+                        <Input id="register-dl" name="drug_license_number" type="text" placeholder="KA-BLR-12345" autoComplete="off" className="h-12 md:h-9" data-testid="register-dl-input" />
                       </div>
                     </div>
                     <div className="flex gap-2">

@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.23 | Last updated: September 22, 2026
+# Version: 3.24 | Last updated: September 22, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1397,14 +1397,18 @@ accident.
 
 These are confirmed requirements from CLAUDE.md `WHAT'S NEXT`. Build in this order:
 
-### 1. Sheets (right-side drawers) — `📋 Planned`
+### 1. Sheets (right-side drawers) — `🚫 Decided against, Sep 22, 2026`
 
-Replace all centered modals for data-entry forms.
+~~Replace all centered modals for data-entry forms.~~ **Decision (Abinash,
+Sep 22, 2026): keep centered modals — do not build Sheets.** Asked
+directly as part of a broader "what needs polish" review; the answer was
+explicit: popup modal only, not the side-drawer pattern. Standing rule
+going forward — do not re-propose Sheets without Abinash raising it again.
 
-- **What:** Shadcn `<Sheet side="right">`, 480px wide
-- **Where:** New bill form, new purchase form, add/edit medicine, add supplier
-- **Why:** Industry standard (Linear, Notion) — better for complex forms than centered modals
-- **Rule:** All new data-entry forms must use Sheet. No new centered modals.
+- ~~**What:** Shadcn `<Sheet side="right">`, 480px wide~~
+- ~~**Where:** New bill form, new purchase form, add/edit medicine, add supplier~~
+- ~~**Why:** Industry standard (Linear, Notion) — better for complex forms than centered modals~~
+- ~~**Rule:** All new data-entry forms must use Sheet. No new centered modals.~~
 
 ### 2. Zod + react-hook-form on all forms — `📋 Planned`
 

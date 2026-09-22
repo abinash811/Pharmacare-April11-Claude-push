@@ -5,10 +5,14 @@
  *
  * @param {object} general  — settings.general (pharmacy profile)
  * @param {object} print    — settings.print (paper size, toggles, header/footer text)
+ * @param {object} gst      — settings.gst ("Print GST summary on bill" toggle lives
+ *   here, not under settings.print — same place the backend PDF and BillDetail's
+ *   `show_gst_summary`/`showGstin`-style gates already read it from)
  */
-export function buildPrintPharmacyInfo(general, print) {
+export function buildPrintPharmacyInfo(general, print, gst) {
   const g = general || {};
   const p = print || {};
+  const x = gst || {};
   return {
     pharmacy_name:    g.name,
     pharmacy_address: [g.address, g.city, g.state, g.pincode].filter(Boolean).join(', '),
@@ -21,5 +25,6 @@ export function buildPrintPharmacyInfo(general, print) {
     bill_footer:      p.bill_footer,
     print_signature:  !!p.print_signature,
     print_patient_name: p.print_patient_name !== false,
+    print_gst_summary: x.print_gst_summary !== false,
   };
 }

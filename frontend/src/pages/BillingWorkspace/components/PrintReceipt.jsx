@@ -14,6 +14,8 @@
 import React from 'react';
 import { formatCurrency } from '@/utils/currency';
 import { formatDateTime } from '@/utils/dates';
+import { computeGstBreakup } from '../utils/computeGstBreakup';
+import GstBreakupTable from './GstBreakupTable';
 
 const isThermal = (format) => format === '80mm' || format === '58mm';
 
@@ -37,8 +39,9 @@ function ThermalReceipt({ billData, format }) {
     payment_method, payment_splits, pharmacy_name, pharmacy_address, pharmacy_phone,
     gstin, drug_license, fssai, pan, items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
-    bill_header, bill_footer, print_patient_name = true,
+    bill_header, bill_footer, print_patient_name = true, print_gst_summary = true,
   } = billData;
+  const gstRows = print_gst_summary ? computeGstBreakup(items) : [];
 
   return (
     <div style={{ width, padding: '8px', fontFamily: 'monospace', fontSize: '11px' }}>
@@ -81,6 +84,8 @@ function ThermalReceipt({ billData, format }) {
         </tbody>
       </table>
 
+      <GstBreakupTable rows={gstRows} thermal />
+
       <div style={{ borderTop: '1px dashed #000', marginTop: '8px', paddingTop: '4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span>Subtotal:</span><span>{formatCurrency(subtotal)}</span>
@@ -114,10 +119,11 @@ function A4Invoice({ billData, format }) {
     gstin, drug_license, fssai, pan,
     items = [],
     subtotal = 0, total_discount = 0, total_gst = 0, grand_total = 0,
-    bill_header, bill_footer, print_signature, print_patient_name = true,
+    bill_header, bill_footer, print_signature, print_patient_name = true, print_gst_summary = true,
   } = billData;
 
   const isA5 = format === 'a5';
+  const gstRows = print_gst_summary ? computeGstBreakup(items) : [];
 
   return (
     <div style={{ width: isA5 ? '148mm' : '210mm', padding: '16mm', fontFamily: 'Arial, sans-serif', fontSize: '11px', color: '#111' }}>
@@ -192,9 +198,10 @@ function A4Invoice({ billData, format }) {
         </tbody>
       </table>
 
-      {/* Totals */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-        <table style={{ fontSize: '10px', minWidth: '200px' }}>
+      {/* GST Breakup + Totals */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <GstBreakupTable rows={gstRows} />
+        <table style={{ fontSize: '10px', minWidth: '200px', marginLeft: 'auto' }}>
           <tbody>
             <tr>
               <td style={{ padding: '2px 8px', color: '#555' }}>Subtotal</td>

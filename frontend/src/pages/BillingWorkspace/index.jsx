@@ -70,6 +70,7 @@ export default function BillingWorkspace() {
   const [printFormat,    setPrintFormat]    = useState('80mm'); // default until settings load
   const [pharmacyGeneral, setPharmacyGeneral] = useState(null);
   const [printSettings,  setPrintSettings]  = useState(null); // full settings.print — toggles, header/footer text
+  const [gstSettings,    setGstSettings]    = useState(null); // settings.gst — "Print GST summary on bill" lives here, not settings.print
   const [autoPrintInvoice, setAutoPrintInvoice] = useState(false); // Settings → Billing "Auto-print invoice after checkout"
 
   // ── Items + totals hook ──────────────────────────────────────────────────
@@ -125,6 +126,7 @@ export default function BillingWorkspace() {
         setPrintFormat(sr.data?.print?.paper_size || '80mm');
         setPharmacyGeneral(sr.data?.general || null);
         setPrintSettings(sr.data?.print || null);
+        setGstSettings(sr.data?.gst || null);
         setAutoPrintInvoice(!!sr.data?.billing?.auto_print_invoice);
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
@@ -194,7 +196,7 @@ export default function BillingWorkspace() {
 
   // Real pharmacy identity for the printed receipt — previously fetched but
   // never passed to print, so real receipts only showed a hardcoded fallback.
-  const printPharmacyInfo = buildPrintPharmacyInfo(pharmacyGeneral, printSettings);
+  const printPharmacyInfo = buildPrintPharmacyInfo(pharmacyGeneral, printSettings, gstSettings);
 
   const { saveBill, saveBillAndPrint, parkBill, confirmAndSaveBill, isSaving } =
     useBillActions(billSnapshot, clearBill, setSavedBillData, printPharmacyInfo, autoPrintInvoice);

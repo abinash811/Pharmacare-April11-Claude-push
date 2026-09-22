@@ -179,9 +179,15 @@ module.exports = [
   // text need exact black/white values for print fidelity, not brand
   // tokens meant for on-screen UI. The hardcoded-hex rules above exist to
   // stop screen-UI color drift; they don't apply to what a physical
-  // receipt printer renders.
+  // receipt printer renders. GstBreakupTable.tsx is the same print
+  // surface (rendered only inside PrintReceipt.jsx), split into its own
+  // file to keep PrintReceipt.jsx under the 300-line limit — same
+  // exemption reasoning, not a separate decision.
   {
-    files: ['src/pages/BillingWorkspace/components/PrintReceipt.jsx'],
+    files: [
+      'src/pages/BillingWorkspace/components/PrintReceipt.jsx',
+      'src/pages/BillingWorkspace/components/GstBreakupTable.tsx',
+    ],
     rules: { 'no-restricted-syntax': 'off' },
   },
 

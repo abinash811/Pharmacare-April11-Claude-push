@@ -163,6 +163,43 @@ function MarginTable({ data }) {
   );
 }
 
+// Category rollup — the backend already computes this (get_margin_report's
+// by_category), it just sat unused: the item table alone can't answer "is
+// surgical or OTC the better-margin category," which is the whole point of
+// grouping by category in the first place.
+function MarginCategoryTable({ categories }) {
+  if (!categories?.length) return null;
+  return (
+    <div className="px-4 pt-4">
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-0 py-2">By Category</div>
+      <table className="w-full mb-2" data-testid="margin-category-table">
+        <thead className="bg-gray-50 border-b">
+          <tr>
+            {['Category', 'Revenue', 'Cost', 'Margin', 'Margin %'].map((h, i) => (
+              <th key={h} className={`px-4 py-2 text-xs font-semibold text-gray-600 ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {categories.map((c, idx) => (
+            <tr key={idx} className="hover:bg-brand-tint transition-colors">
+              <td className="px-4 py-2 font-medium">{c.category}</td>
+              <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(c.revenue)}</td>
+              <td className="px-4 py-2 text-right tabular-nums">{formatCurrency(c.cost)}</td>
+              <td className="px-4 py-2 text-right font-semibold tabular-nums">{formatCurrency(c.margin)}</td>
+              <td className="px-4 py-2 text-right">
+                <span className={`px-2 py-1 rounded text-xs font-medium ${c.margin_percent >= 20 ? 'bg-green-50 text-green-700' : c.margin_percent >= 0 ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700'}`}>
+                  {c.margin_percent}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Dispatcher ────────────────────────────────────────────────────────────────
 export default function ReportTables({ activeReport, reportData, expiryDays }) {
   return (
@@ -170,7 +207,12 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       {activeReport === 'sales'     && <SalesTable    data={reportData?.data} />}
       {activeReport === 'low-stock' && <LowStockTable data={reportData?.data} />}
       {activeReport === 'expiry'    && <ExpiryTable   data={reportData?.data} expiryDays={expiryDays} />}
-      {activeReport === 'margin'    && <MarginTable   data={reportData?.data} />}
+      {activeReport === 'margin' && (
+        <>
+          <MarginCategoryTable categories={reportData?.by_category} />
+          <MarginTable data={reportData?.data} />
+        </>
+      )}
       {activeReport === 'sales-returns'    && <SalesReturnsTable    data={reportData?.data} />}
       {activeReport === 'purchase-returns' && <PurchaseReturnsTable data={reportData?.data} />}
       {activeReport === 'price-variation'  && <PriceVariationTable data={reportData?.data} />}

@@ -1,43 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import '@/App.css';
 import api from '@/lib/axios';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
+import { PageSkeleton } from '@/components/shared';
 
-// Pages
+// AuthPage stays a static import — it's the first thing an unauthenticated
+// visitor needs, and every other page below was previously bundled into
+// that same initial chunk too, which is exactly why the login page loaded
+// slower than it should have (Sep 22, 2026). Everything reachable only
+// after login is lazy so the login bundle stops carrying it.
 import AuthPage from '@/pages/AuthPage';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
-import Dashboard from '@/pages/Dashboard';
-import BillingOperations from '@/pages/BillingOperations';
-import BillingWorkspace from '@/pages/BillingWorkspace';
-import BillDetail from '@/pages/BillDetail';
-import SalesReturnsList from '@/pages/SalesReturnsList';
-import SalesReturnCreate from '@/pages/SalesReturnCreate';
-import SalesReturnDetail from '@/pages/SalesReturnDetail';
-import InventorySearch from '@/pages/InventorySearch';
-import MedicineDetail from '@/pages/MedicineDetail';
-import PurchasesList from '@/pages/PurchasesList';
-import PurchaseNew from '@/pages/PurchaseNew';
-import PurchaseDetail from '@/pages/PurchaseDetail';
-import PurchaseReturnCreate from '@/pages/PurchaseReturnCreate';
-import PurchaseReturnDetail from '@/pages/PurchaseReturnDetail';
-import PurchaseReturnsList from '@/pages/PurchaseReturnsList';
-import Customers from '@/pages/Customers';
-import Reports from '@/pages/Reports';
-import Settings from '@/pages/Settings';
-// Team page — merges Users + Roles into a single tabbed page
-import Team from '@/pages/Team';
-import Suppliers from '@/pages/Suppliers';
-import GSTReport from '@/pages/GSTReport';
-import DayEndClosing from '@/pages/DayEndClosing';
-import ScheduleH1Register from '@/pages/ScheduleH1Register';
-import AuditLog from '@/pages/AuditLog';
-import StockMovementLog from '@/pages/StockMovementLog';
-import ReorderList from '@/pages/ReorderList';
 import Layout from '@/components/Layout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const BillingOperations = lazy(() => import('@/pages/BillingOperations'));
+const BillingWorkspace = lazy(() => import('@/pages/BillingWorkspace'));
+const BillDetail = lazy(() => import('@/pages/BillDetail'));
+const SalesReturnsList = lazy(() => import('@/pages/SalesReturnsList'));
+const SalesReturnCreate = lazy(() => import('@/pages/SalesReturnCreate'));
+const SalesReturnDetail = lazy(() => import('@/pages/SalesReturnDetail'));
+const InventorySearch = lazy(() => import('@/pages/InventorySearch'));
+const MedicineDetail = lazy(() => import('@/pages/MedicineDetail'));
+const PurchasesList = lazy(() => import('@/pages/PurchasesList'));
+const PurchaseNew = lazy(() => import('@/pages/PurchaseNew'));
+const PurchaseDetail = lazy(() => import('@/pages/PurchaseDetail'));
+const PurchaseReturnCreate = lazy(() => import('@/pages/PurchaseReturnCreate'));
+const PurchaseReturnDetail = lazy(() => import('@/pages/PurchaseReturnDetail'));
+const PurchaseReturnsList = lazy(() => import('@/pages/PurchaseReturnsList'));
+const Customers = lazy(() => import('@/pages/Customers'));
+const Reports = lazy(() => import('@/pages/Reports'));
+const Settings = lazy(() => import('@/pages/Settings'));
+// Team page — merges Users + Roles into a single tabbed page
+const Team = lazy(() => import('@/pages/Team'));
+const Suppliers = lazy(() => import('@/pages/Suppliers'));
+const GSTReport = lazy(() => import('@/pages/GSTReport'));
+const DayEndClosing = lazy(() => import('@/pages/DayEndClosing'));
+const ScheduleH1Register = lazy(() => import('@/pages/ScheduleH1Register'));
+const AuditLog = lazy(() => import('@/pages/AuditLog'));
+const StockMovementLog = lazy(() => import('@/pages/StockMovementLog'));
+const ReorderList = lazy(() => import('@/pages/ReorderList'));
 
 // Auth Context
 export const AuthContext = React.createContext(null);
@@ -134,43 +140,45 @@ function AppRoutes({ user }) {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="billing" element={<BillingOperations />} />
-        <Route path="billing/new" element={<BillingWorkspace />} />
-        <Route path="billing/create" element={<BillingWorkspace />} />
-        <Route path="billing/edit/:id" element={<BillingWorkspace />} />
-        <Route path="billing/returns" element={<SalesReturnsList />} />
-        <Route path="billing/returns/new" element={<SalesReturnCreate />} />
-        <Route path="billing/returns/edit/:id" element={<SalesReturnCreate />} />
-        <Route path="billing/returns/:id" element={<SalesReturnDetail />} />
-        <Route path="billing/:id" element={<BillDetail />} />
-        <Route path="inventory" element={<InventorySearch />} />
-        <Route path="inventory/product/:sku" element={<MedicineDetail />} />
-        <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
-        <Route path="inventory/stock-movements" element={<StockMovementLog />} />
-        <Route path="inventory/reorder" element={<ReorderList />} />
-        <Route path="purchases" element={<PurchasesList />} />
-        <Route path="purchases/create" element={<PurchaseNew />} />
-        <Route path="purchases/edit/:id" element={<PurchaseNew />} />
-        <Route path="purchases/returns" element={<PurchaseReturnsList />} />
-        <Route path="purchases/returns/create" element={<PurchaseReturnCreate />} />
-        <Route path="purchases/returns/:id" element={<PurchaseReturnDetail />} />
-        <Route path="purchases/:id" element={<PurchaseDetail />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="suppliers" element={<Suppliers />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="reports/gst" element={<GSTReport />} />
-        <Route path="reports/day-end" element={<DayEndClosing />} />
-        <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
-        <Route path="audit-log" element={<AuditLog />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="team" element={<Team />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+    <Suspense fallback={<PageSkeleton />}>
+      <Routes>
+        <Route path="/" element={<ErrorBoundary><Layout /></ErrorBoundary>}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="billing" element={<BillingOperations />} />
+          <Route path="billing/new" element={<BillingWorkspace />} />
+          <Route path="billing/create" element={<BillingWorkspace />} />
+          <Route path="billing/edit/:id" element={<BillingWorkspace />} />
+          <Route path="billing/returns" element={<SalesReturnsList />} />
+          <Route path="billing/returns/new" element={<SalesReturnCreate />} />
+          <Route path="billing/returns/edit/:id" element={<SalesReturnCreate />} />
+          <Route path="billing/returns/:id" element={<SalesReturnDetail />} />
+          <Route path="billing/:id" element={<BillDetail />} />
+          <Route path="inventory" element={<InventorySearch />} />
+          <Route path="inventory/product/:sku" element={<MedicineDetail />} />
+          <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
+          <Route path="inventory/stock-movements" element={<StockMovementLog />} />
+          <Route path="inventory/reorder" element={<ReorderList />} />
+          <Route path="purchases" element={<PurchasesList />} />
+          <Route path="purchases/create" element={<PurchaseNew />} />
+          <Route path="purchases/edit/:id" element={<PurchaseNew />} />
+          <Route path="purchases/returns" element={<PurchaseReturnsList />} />
+          <Route path="purchases/returns/create" element={<PurchaseReturnCreate />} />
+          <Route path="purchases/returns/:id" element={<PurchaseReturnDetail />} />
+          <Route path="purchases/:id" element={<PurchaseDetail />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="suppliers" element={<Suppliers />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="reports/gst" element={<GSTReport />} />
+          <Route path="reports/day-end" element={<DayEndClosing />} />
+          <Route path="compliance/schedule-h1" element={<ScheduleH1Register />} />
+          <Route path="audit-log" element={<AuditLog />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="team" element={<Team />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

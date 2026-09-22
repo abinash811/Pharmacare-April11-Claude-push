@@ -1,5 +1,5 @@
 # PharmaCare — Product Document
-# Version: 1.11 | Last updated: September 15, 2026
+# Version: 1.12 | Last updated: September 22, 2026
 # Type: Explanation
 # Owner: Founder
 # Audience: Everyone — founders, developers, designers, investors, new hires
@@ -330,6 +330,13 @@ Real gaps this surfaces: split/multi-mode payment on a single bill (PharmaCare's
 - **Category-wide (multiple vendors — Vyapar/Gofrugal/Healthray/Pharma24x7):** role-based access control is standard, including a specific "only admin can activate Schedule H/H1 medicines for billing" pattern — counter staff cannot self-enable restricted-schedule sales. [Source](https://pharma247.in/top-pharmacy-management-software-in-india)
 
 Real gaps this surfaces, weighed against scope discipline (a single-store retail counter, not a 10-year-mature product): **scheduled/automatic backups** (today: manual "Download Backup" button only) and a **digital receipt renderer** (fields already exist and save correctly, but nothing consumes them — WhatsApp/email bill-sharing doesn't exist yet). Both reviewed Sep 14, 2026 and explicitly parked for now (not v1) — see `docs/15_ROADMAP.md`'s Settings section. Multi-location/multi-counter config is out of scope by design (Phase 1 is single-store). No named competitor evidence found for a from-scratch "settings module" screenshot/breakdown — these vendors don't publish granular admin-panel documentation publicly; findings above are pieced together from feature/support pages, not a screen-by-screen comparison.
+
+**Receipt & Print — full product-review pass (researched + live-tested Sep 22, 2026, direct request "review it thoroughly, check each individual feature"):**
+- **eVitalRx:** ships real **"WhatsApp invoicing"** — the actual invoice, not a text summary — plus omnichannel presence (ONDC/Amazon/Flipkart/WhatsApp). [Source](https://www.softwaresuggest.com/evitalrx), [Source](https://www.capterra.com/p/237227/eVitalRx/)
+- **Marg ERP / category-wide:** thermal (58mm/80mm) counter printing plus a portable A4/A5 copy are both baseline — a pharmacy runs both a receipt printer and needs an emailable/shareable invoice from the same bill.
+- Baseline (any POS/pharmacy software): whatever paper size and show/hide toggles are configured in settings apply consistently **every time that bill is printed or reprinted**, not just the first time.
+
+Real, confirmed gaps this surfaces (live-tested with a zero-data pharmacy, a real bill, real Settings values — see `docs/15_ROADMAP.md`'s Settings table for the evidence): PharmaCare has **three independent print/receipt code paths** for the same bill (in-session "Save & Print", `BillDetail`'s `window.print()`, and the backend `GET /bills/{id}/pdf`), and they don't all read the same settings — the in-session print ignores the GSTIN/DL/FSSAI/PAN toggles and never shows a GST summary at all, while the other two ignore Paper Size entirely (always A4, even in an 80mm-thermal-configured pharmacy). WhatsApp share sends a plain-text link only, no invoice — matches the already-tracked gap. Both v1, not v2 — a pharmacist's real, frequent task (reprint a lost receipt) currently produces a differently-formatted document than the original.
 
 **Schedule H1 register — legal requirement + competitor notes (researched Sep 15, 2026):**
 - **Legal (Drugs & Cosmetics Rules, Rule 65):** every Schedule H1 supply must be recorded, at the time of supply, with the prescriber's name and address, the **patient's name and address**, the drug name, quantity, batch number, and date — patient address carries the same legal standing as the prescriber's own details, not an optional extra. Records retained 3 years. [Source](https://indiankanoon.org/doc/147665881/), [Source](https://shelflifepro.in/blog/schedule-h1-drug-register-compliance-guide/)

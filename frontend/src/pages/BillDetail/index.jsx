@@ -19,6 +19,7 @@ export default function BillDetail() {
   const [bill, setBill]       = useState(null);
   const [pharmacy, setPharmacy] = useState(null);
   const [printSettings, setPrintSettings] = useState(null);
+  const [gstSettings, setGstSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
@@ -43,7 +44,7 @@ export default function BillDetail() {
     try {
       const [billRes, settingsRes] = await Promise.all([
         api.get(apiUrl.bill(id)),
-        api.get(apiUrl.settings()).catch(() => ({ data: { general: {}, print: {} } })),
+        api.get(apiUrl.settings()).catch(() => ({ data: { general: {}, print: {}, gst: {} } })),
       ]);
       setBill(billRes.data);
       setPharmacy(settingsRes.data?.general || {});
@@ -53,6 +54,12 @@ export default function BillDetail() {
       // all, so it silently ignored the same settings the backend PDF
       // (GET /bills/{id}/pdf) already honours. Same source, same shape.
       setPrintSettings(settingsRes.data?.print || {});
+      // "Print GST summary table" lives under settings.gst, not
+      // settings.print (same real gap found + fixed this session in
+      // BillingWorkspace) — this page's GST Breakup table rendered
+      // unconditionally whenever gstRows was non-empty, with nothing
+      // reading this toggle at all, on either the A4 or thermal view.
+      setGstSettings(settingsRes.data?.gst || {});
     } catch {
       toast.error('Failed to load bill');
       navigate('/billing');
@@ -80,7 +87,9 @@ export default function BillDetail() {
     acc[rate].total   += gst;
     return acc;
   }, {});
-  const gstRows = Object.entries(gstGroups).filter(([, v]) => v.total > 0);
+  const allGstRows = Object.entries(gstGroups).filter(([, v]) => v.total > 0);
+  const showGstSummary = gstSettings ? gstSettings.print_gst_summary !== false : true;
+  const gstRows = showGstSummary ? allGstRows : [];
 
   // Show-on-Bill toggles (Settings → Printing) — same fields the backend
   // PDF (GET /bills/{id}/pdf) already reads; this on-screen preview is

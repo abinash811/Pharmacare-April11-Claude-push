@@ -3,11 +3,16 @@
  * Print/Download when Settings > Receipt & Print > Paper Size is 80mm/58mm.
  *
  * Mirrors BillingWorkspace/components/PrintReceipt.jsx's ThermalReceipt
- * (same field set, no GST breakup table, no signature line) so a reprint
- * looks the same as the original Save & Print, not a differently
- * -formatted document — the exact gap this component closes (Sep 22,
- * 2026): BillDetail used to always render the wide A4-style card
- * regardless of this setting.
+ * (same field set, no signature line) so a reprint looks the same as the
+ * original Save & Print, not a differently-formatted document — the
+ * exact gap this component closes (Sep 22, 2026): BillDetail used to
+ * always render the wide A4-style card regardless of this setting.
+ *
+ * The GST summary block (added Sep 22, 2026, same day) mirrors that same
+ * component's compact Rate/Taxable/GST table — this view had none at
+ * all until then, and index.jsx now also gates it (and the A4 view's own
+ * table) by the "Print GST summary table" setting, which neither view
+ * read before.
  */
 import React from 'react';
 import { formatCurrency } from '@/utils/currency';
@@ -27,6 +32,7 @@ interface Props {
   pharmacy: any;
   printSettings: any;
   isParked: boolean;
+  gstRows: any[];
   showGstin: boolean;
   showDrugLic: boolean;
   showFssai: boolean;
@@ -35,7 +41,7 @@ interface Props {
 }
 
 export default function ThermalBillView({
-  bill, pharmacy, printSettings, isParked,
+  bill, pharmacy, printSettings, isParked, gstRows,
   showGstin, showDrugLic, showFssai, showPan, showPatientName,
 }: Props) {
   const width = printSettings?.paper_size === '58mm' ? '58mm' : '80mm';
@@ -90,6 +96,30 @@ export default function ThermalBillView({
             ))}
           </tbody>
         </table>
+
+        {gstRows.length > 0 && (
+          <div style={{ borderTop: '1px dashed #000', marginTop: '6px', paddingTop: '4px' }}>
+            <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2px' }}>GST Summary</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left' }}>Rate</th>
+                  <th style={{ textAlign: 'right' }}>Taxable</th>
+                  <th style={{ textAlign: 'right' }}>GST</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gstRows.map(([rate, v]: [string, any]) => (
+                  <tr key={rate}>
+                    <td>{rate}%</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(v.taxable)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(v.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div style={{ borderTop: '1px dashed #000', marginTop: '8px', paddingTop: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>

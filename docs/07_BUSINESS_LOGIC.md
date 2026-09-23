@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.14 | Last updated: September 23, 2026
+# Version: 2.15 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -264,6 +264,27 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   For a financial edit, the sum is computed *after* the edited return's own
   old items are deleted (see the code just above), so an edit isn't capped
   against its own prior quantity.
+- **A return does not adjust the original bill's own total, and most
+  revenue reports don't net returns out either — direct product decision,
+  Sep 23, 2026, not a bug.** Walked through with a concrete example (₹1,000
+  bill, ₹500 returned): confirmed the Billing list, the printed/reprinted
+  bill, and `BillORM.grand_total_paise` itself are never touched by a
+  return (only `amount_paid_paise`/`balance_paise`/`status` change, and
+  only to credit a due balance — a no-op on an already-fully-paid bill).
+  Dashboard's `today_sales`/`total_sales` and the Sales report's totals
+  likewise sum `grand_total_paise` with no return subtraction, and the
+  Margin report computes revenue/margin from bill line items alone, same
+  gap. Decision: **keep it this way** — "bills and returns should tally,"
+  i.e. a bill is a fixed historical record of what was sold, a return is
+  its own fixed historical record of what came back, and the two are read
+  side by side rather than one silently netting into the other. Two
+  things this decision does **not** cover, already correct and unchanged:
+  the **GST report** already nets a return's taxable amount/GST out of
+  the period's output tax (see the "Sales returns (credit notes) reduce
+  output GST" block above) — a real compliance requirement, not a revenue
+  rollup, so it stays netted. **Inventory** already restores real stock
+  quantity on a return (`_restore_stock`, `StockMovement` "sales_return")
+  — also unaffected by this decision; it was never in question.
 - **Cross-cutting fix (Sep 15, 2026, now moot):** `get_product_transactions`
   (`inventory.py`)'s outer join on `Bill` (added because a manual return
   had no bill to inner-join against) is unchanged and harmless now that no

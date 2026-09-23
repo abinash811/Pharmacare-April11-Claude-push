@@ -277,6 +277,13 @@ async def _reverse_stock(
 @router.post("/sales-returns")
 async def create_sales_return(return_data: SalesReturnCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
+    # permission-exempt: removing the allow_manual_returns check (Sep 23,
+    # 2026, see the original_bill_id block below) exposed that it was the
+    # ONLY permission check this endpoint ever had — the normal bill-linked
+    # path below has never been role-gated, for any role. Same class of gap
+    # as Billing's 4 money endpoints (docs/15_ROADMAP.md) and the same
+    # standing decision: leave as-is, do not add ACL here now, revisit
+    # post-launch based on real usage rather than a guess made before launch.
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     user_id = uuid.UUID(current_user.id)
 
@@ -284,7 +291,6 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
         select(PharmacySettings).where(PharmacySettings.pharmacy_id == pharmacy_id))
     ps = ps_result.scalar_one_or_none()
     return_window_days = ps.return_window_days if ps else 7
-    require_original_bill = ps.require_original_bill if ps else False
     allow_partial_return = ps.allow_partial_return if ps else True
 
     original_bill: Bill | None = None
@@ -292,35 +298,20 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
     bill_items: list[BillItem] = []
     bill_items_by_batch: dict[str, BillItem] = {}
 
+    # A return with no original bill (previously gated behind the
+    # allow_manual_returns permission + the "Require original bill" Settings
+    # toggle) is a real fraud/leakage surface — nothing ties the returned
+    # quantity or refund amount to an actual prior sale. Removed Sep 23,
+    # 2026, direct product decision: every return must now originate from a
+    # real bill, unconditionally, for every role including admin. The
+    # PharmacySettings.require_original_bill column and the
+    # allow_manual_returns permission are left in the schema (harmless,
+    # unread) rather than migrated out — see docs/15_ROADMAP.md.
     if not return_data.original_bill_id:
-        # Settings → Returns "Require original bill for all returns" — found
-        # Sep 13, 2026 (Settings product-review): this toggle saved but was
-        # never read anywhere. When on, it overrides the allow_manual_returns
-        # permission entirely — a hard compliance rule the owner set, not
-        # something an individual role can be granted around.
-        if require_original_bill:
-            raise HTTPException(
-                status_code=400,
-                detail="Original bill is required for all returns (Settings → Returns).",
-            )
-        # Used has_permission() here instead of the old inline role/list
-        # lookup — found the same day: the inline check only matched the
-        # literal string "allow_manual_returns" in a role's permission
-        # list, so a custom role granted every permission via the "*"
-        # wildcard (shown in the UI as "Super Admin") still failed this
-        # specific check. has_permission() already honors "*".
-        if not await has_permission(current_user, "allow_manual_returns", db):
-            raise HTTPException(
-                status_code=403,
-                detail="Manual returns require permission. Returns can only be created from an existing bill.",
-            )
-        # Sep 15, 2026: this used to unconditionally 400 right here even
-        # after the permission checks passed — allow_manual_returns and
-        # "Require original bill" were both checked and enforced, but the
-        # actual manual-return code path never existed. original_bill/
-        # bill_id/bill_items_by_batch all stay empty below, which the rest
-        # of this function (and _resolve_refund_and_credit) already treats
-        # as "no bill to validate or credit against."
+        raise HTTPException(
+            status_code=400,
+            detail="A return must be created from an existing bill — open the bill and use its Return option.",
+        )
     else:
         original_bill = await get_owned_or_404(
             db, Bill, return_data.original_bill_id, pharmacy_id, not_found_detail="Original bill not found")
@@ -909,7 +900,6 @@ async def get_role_return_permissions(role_name: str, current_user: User = Depen
         raise HTTPException(status_code=404, detail="Role not found")
     perms = role.permissions if isinstance(role.permissions, list) else []
     return {
-        "allow_manual_returns": "allow_manual_returns" in perms,
         "allow_financial_edit_return": "allow_financial_edit_return" in perms,
     }
 
@@ -918,7 +908,6 @@ async def get_role_return_permissions(role_name: str, current_user: User = Depen
 async def update_role_return_permissions(
     role_id: str,
     request: Request,
-    allow_manual_returns: bool = False,
     allow_financial_edit_return: bool = False,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
@@ -929,8 +918,7 @@ async def update_role_return_permissions(
 
     old_perms = list(role.permissions) if isinstance(role.permissions, list) else []
     perms = list(old_perms)
-    for perm, enabled in [("allow_manual_returns", allow_manual_returns),
-                          ("allow_financial_edit_return", allow_financial_edit_return)]:
+    for perm, enabled in [("allow_financial_edit_return", allow_financial_edit_return)]:
         if enabled and perm not in perms:
             perms.append(perm)
         elif not enabled and perm in perms:

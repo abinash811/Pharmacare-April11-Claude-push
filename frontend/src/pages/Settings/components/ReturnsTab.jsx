@@ -27,8 +27,11 @@ export default function ReturnsTab({ returns, onUpdate }) {
           </p>
         </div>
 
+        {/* "Require original bill for all returns" removed Sep 23, 2026 —
+            every return now always requires an original bill (no
+            manual-return path exists to require it against), so the
+            toggle would be a dead, always-effectively-on setting. */}
         {[
-          { id: 'require_original_bill', key: 'require_original_bill',  label: 'Require original bill for all returns',                   checked: returns?.require_original_bill || false },
           { id: 'allow_partial_return',  key: 'allow_partial_return',   label: 'Allow partial returns (return some items from a bill)',    checked: returns?.allow_partial_return !== false },
         ].map(({ id, key, label, checked }) => (
           <div key={id} className="flex items-center gap-3">

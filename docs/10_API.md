@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.5 | Last updated: September 19, 2026
+# Version: 1.6 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -616,7 +616,10 @@ List stock movements (the ledger).
 ## SALES RETURNS
 
 ### `POST /sales-returns`
-Create a sales return.
+Create a sales return. `original_bill_id` is **required** (Sep 23, 2026) —
+a request with it missing/null always 400s ("A return must be created from
+an existing bill…"), for every role. No manual/no-bill return path exists
+anymore.
 
 **Request:**
 ```json
@@ -1079,9 +1082,10 @@ Delete a custom role. Admin only.
 
 ### `GET /roles/{role_name}/permissions/returns`
 ### `PUT /roles/{role_id}/permissions/returns`
-Get/set the two Sales-Return-specific permission flags
-(`allow_manual_returns`, `allow_financial_edit_return`) for a role — admin
-only for the write. **Note:** defined in `backend/routers/sales_returns.py`,
+Get/set the one remaining Sales-Return-specific permission flag
+(`allow_financial_edit_return`) for a role — admin only for the write.
+`allow_manual_returns` removed Sep 23, 2026 along with the manual-return
+feature it gated. **Note:** defined in `backend/routers/sales_returns.py`,
 not `settings.py`, alongside the rest of the role endpoints above — look
 there first if these seem to be missing.
 

@@ -444,7 +444,7 @@ class TestRoleIsolation:
     def test_b_cannot_edit_a_role_via_return_permissions_endpoint(self, tenants, owned):
         resp = tenants["b"].put(
             f"{BASE_URL}/api/roles/{owned['role_id']}/permissions/returns",
-            params={"allow_manual_returns": True})
+            params={"allow_financial_edit_return": True})
         assert resp.status_code == 404, resp.text
 
 

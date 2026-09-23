@@ -163,23 +163,6 @@ class TestReturnsSettingsPersistence(_AuthedTestBase):
             self.session.put(f"{BASE_URL}/api/settings", json={"returns": original})
 
 
-class TestRequireOriginalBillEnforcement(_AuthedTestBase):
-    def test_manual_return_rejected_when_required(self):
-        try:
-            put_resp = self.session.put(f"{BASE_URL}/api/settings", json={
-                "returns": {"require_original_bill": True},
-            })
-            assert put_resp.status_code == 200, put_resp.text
-
-            resp = self.session.post(f"{BASE_URL}/api/sales-returns", json={
-                "items": [], "original_bill_id": None, "return_date": date.today().isoformat(),
-            })
-            assert resp.status_code == 400, resp.text
-            assert "original bill" in resp.json()["detail"].lower()
-        finally:
-            self.session.put(f"{BASE_URL}/api/settings", json={"returns": {"require_original_bill": False}})
-
-
 class TestReturnWindowEnforcement(_AuthedTestBase):
     def test_return_within_window_still_succeeds(self):
         """A same-day return against a generous window must never be

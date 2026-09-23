@@ -16,7 +16,6 @@ See docs/15_ROADMAP.md's Settings section for the full writeup.
 """
 import os
 import uuid
-from datetime import date
 
 import pytest
 import requests
@@ -100,37 +99,6 @@ class TestSuperAdminCustomRoleGetsRealAdminAccess(_AuthedTestBase):
 
         resp = user_session.get(f"{BASE_URL}/api/users")
         assert resp.status_code == 403, resp.text
-
-
-class TestSalesReturnsPermissionWildcard(_AuthedTestBase):
-    def test_wildcard_role_passes_manual_returns_permission_check(self):
-        """create_sales_return's allow_manual_returns check used to be a
-        hand-rolled role/permissions-list lookup that only matched the
-        literal string "allow_manual_returns" — a "*" role failed it. Now
-        uses has_permission(), which already honors "*". Proves the
-        permission gate itself passes (falls through to the unrelated
-        "No valid return items" 400 for the empty items list this test
-        sends — manual returns with real items are covered by
-        test_manual_sales_returns.py — not the 403 a real permission
-        failure would raise)."""
-        role = self._create_role(["*"])
-        user_session = self._session_as_new_user_with_role(role["name"])
-
-        resp = user_session.post(f"{BASE_URL}/api/sales-returns", json={
-            "items": [], "original_bill_id": None, "return_date": date.today().isoformat(),
-        })
-        assert resp.status_code == 400, resp.text
-        assert "permission" not in resp.json()["detail"].lower()
-
-    def test_role_without_permission_still_blocked(self):
-        role = self._create_role(["billing:view"])
-        user_session = self._session_as_new_user_with_role(role["name"])
-
-        resp = user_session.post(f"{BASE_URL}/api/sales-returns", json={
-            "items": [], "original_bill_id": None, "return_date": date.today().isoformat(),
-        })
-        assert resp.status_code == 403, resp.text
-        assert "permission" in resp.json()["detail"].lower()
 
 
 class TestSuperAdminFrontendGateField(_AuthedTestBase):

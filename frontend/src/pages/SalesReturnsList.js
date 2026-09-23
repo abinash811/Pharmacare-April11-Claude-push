@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AuthContext } from '@/App';
 import { Plus, Printer, Eye } from 'lucide-react';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
@@ -21,13 +20,11 @@ const BILLING_TABS = [
 
 export default function SalesReturnsList() {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
 
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats]     = useState({ returnsToday: 0, totalRefundedToday: 0 });
-  const [allowManualReturns, setAllowManualReturns] = useState(false);
 
   // Search & filters — dateRange can arrive pre-set via URL (?from_date=&
   // to_date=) so the Dashboard's "Returns (Month)" card drills straight
@@ -68,16 +65,6 @@ export default function SalesReturnsList() {
     }
   };
 
-  const fetchRolePermissions = async () => {
-    if (!user?.role) return;
-    try {
-      const res = await api.get(`roles/${user.role}/permissions/returns`);
-      setAllowManualReturns(res.data.allow_manual_returns || user.role === 'admin');
-    } catch {
-      setAllowManualReturns(user?.role === 'admin');
-    }
-  };
-
   // Re-fetch when filters change — reset to page 1
   useEffect(() => {
     pg.resetPage();
@@ -91,20 +78,12 @@ export default function SalesReturnsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pg.page]);
 
-  useEffect(() => {
-    fetchRolePermissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role]);
-
+  // A return always starts from a real bill (Sep 23, 2026 — see
+  // docs/15_ROADMAP.md) — this page can't pick one itself, so it sends the
+  // cashier to Billing to find and open the bill they want to return.
   const handleNewReturn = () => {
-    if (allowManualReturns) {
-      navigate('/billing/returns/new');
-    } else {
-      toast.warning(
-        'Sales returns can only be created from an existing bill. Open the bill and use the Return option.',
-        { duration: 5000 }
-      );
-    }
+    toast.info('Open the bill you want to return, then use its Return option.', { duration: 5000 });
+    navigate('/billing');
   };
 
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
@@ -181,7 +160,7 @@ export default function SalesReturnsList() {
                     <SalesReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <AppButton onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
+                        <AppButton onClick={handleNewReturn} data-testid="empty-new-return-btn">
                           <Plus className="w-4 h-4 mr-2" />
                           New Sales Return
                         </AppButton>

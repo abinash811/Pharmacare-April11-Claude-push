@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { toast } from 'sonner';
 import SalesReturnCreate from '../index';
 import api from '@/lib/axios';
 
@@ -10,6 +10,14 @@ import api from '@/lib/axios';
 // itself, lazily, inside the factory.
 jest.mock('@/App', () => ({
   AuthContext: require('react').createContext({ user: { name: 'Admin User', role: 'admin' } }),
+}));
+
+jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn(), info: jest.fn() } }));
+
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
 }));
 
 // jsdom (this test env) has no crypto.randomUUID — the component calls it
@@ -88,60 +96,23 @@ describe('SalesReturnCreate — due-balance credit UX', () => {
   });
 });
 
-// Regression tests for the Sep 15, 2026 manual-returns build: a return
-// with no original bill — allow_manual_returns and require_original_bill
-// already existed as a permission/setting, but the backend always 400'd
-// and the frontend had no way to add items at all without a billId.
-describe('SalesReturnCreate — manual return (no billId)', () => {
+// Regression tests for the Sep 23, 2026 removal of manual (no-billId)
+// returns: every return must now originate from a real bill. A direct hit
+// on this route with no billId is a dead link, not a blank return form.
+describe('SalesReturnCreate — no billId is redirected, not a blank form', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  function renderManual() {
-    (api.get as jest.Mock).mockImplementation((url: string) => {
-      if (url.includes('search-with-batches')) {
-        return Promise.resolve({
-          data: [{ sku: 'MANUAL-1', name: 'Cough Syrup 100ml' }],
-        });
-      }
-      if (url.includes('stock/batches')) {
-        return Promise.resolve({
-          data: [{ id: 'batch-9', batch_no: 'CS-B9', expiry_iso: '2029-01-01', mrp_per_unit: 85, gst_percent: 12, qty_on_hand: 0 }],
-        });
-      }
-      return Promise.resolve({ data: [] });
-    });
-    return render(
+  it('shows an error and redirects to the returns list instead of rendering a blank form', async () => {
+    render(
       <MemoryRouter initialEntries={['/billing/returns/new']}>
         <SalesReturnCreate />
       </MemoryRouter>,
     );
-  }
 
-  it('shows the manual empty-state message and the item search box, not the bill-based one', async () => {
-    renderManual();
-    expect(await screen.findByText('No items added yet. Search above to add a return item.')).toBeInTheDocument();
-    expect(screen.getByTestId('manual-item-search')).toBeInTheDocument();
-  });
-
-  it('lets the patient name be typed in directly', async () => {
-    renderManual();
-    const nameInput = await screen.findByTestId('manual-patient-name');
-    await userEvent.type(nameInput, 'Walk-in Customer Test');
-    expect(nameInput).toHaveValue('Walk-in Customer Test');
-  });
-
-  it('adds an item — including one at zero current stock — via search then batch pick', async () => {
-    renderManual();
-    const search = await screen.findByTestId('manual-item-search');
-    await userEvent.type(search, 'cough');
-
-    const productRow = await screen.findByTestId('manual-item-product-MANUAL-1');
-    await userEvent.click(productRow);
-
-    const batchRow = await screen.findByTestId('manual-item-batch-CS-B9');
-    await userEvent.click(batchRow);
-
-    expect(await screen.findByText('Cough Syrup 100ml')).toBeInTheDocument();
-    expect(screen.getByText('CS-B9')).toBeInTheDocument();
-    expect(screen.queryByText('No items added yet. Search above to add a return item.')).not.toBeInTheDocument();
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/billing/returns'));
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('must be started from a bill'),
+    );
+    expect(api.get).not.toHaveBeenCalled();
   });
 });

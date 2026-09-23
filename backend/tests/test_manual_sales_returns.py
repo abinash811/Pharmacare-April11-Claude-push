@@ -1,18 +1,18 @@
 """
-Regression tests for the Sep 15, 2026 manual-returns build (Sales Returns
-v2, per docs/15_ROADMAP.md's Billing table).
+Regression tests for the Sep 23, 2026 removal of manual (no-original-bill)
+sales returns, per docs/15_ROADMAP.md.
 
-Before this: allow_manual_returns (permission) and require_original_bill
-(Settings toggle) were both checked and enforced, but the code path they
-gated always ended in an unconditional 400 ("Original bill ID is
-required") right after — a manual return could never actually be created,
-by any role, under any settings combination. This tests the real,
-now-working path: original_bill_id/bill_item_id nullable, items resolved
-by product/batch only, no due-balance credit (nothing to credit against),
-stock restore and audit logging both still work.
+Manual returns (original_bill_id: None) used to be creatable, gated by the
+allow_manual_returns permission and the require_original_bill Settings
+toggle — see the deleted TestManualSalesReturns class this file used to
+hold. Removed as a direct product decision: nothing tied a manual return's
+quantity or refund amount to an actual prior sale, a real fraud/leakage
+surface. Every return must now originate from a real bill, unconditionally,
+regardless of role or the (now-dormant) require_original_bill setting.
 """
 import os
 import uuid
+from datetime import date
 
 import pytest
 import requests
@@ -20,7 +20,7 @@ import requests
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 
-class TestManualSalesReturns:
+class TestManualReturnsRemoved:
     @pytest.fixture(autouse=True)
     def setup(self):
         self.session = requests.Session()
@@ -53,149 +53,80 @@ class TestManualSalesReturns:
         assert batch.status_code == 200, batch.text
         return sku, batch_no
 
-    def _manual_payload(self, sku, batch_no, qty=1, unit_price=100, gst_percent=0, refund_method="cash"):
+    def _manual_payload(self, sku, batch_no, qty=1, unit_price=100, gst_percent=0):
         return {
-            "original_bill_id": None, "return_date": "2026-09-15",
+            "original_bill_id": None, "return_date": date.today().isoformat(),
             "items": [{
                 "medicine_name": "Manual Return Test Medicine", "product_sku": sku, "batch_no": batch_no,
                 "mrp": unit_price, "qty": qty, "original_qty": qty,
                 "disc_percent": 0, "gst_percent": gst_percent, "is_damaged": False,
             }],
-            "refund_method": refund_method,
+            "refund_method": "cash",
         }
 
-    def test_manual_return_creates_with_no_bill_and_restores_stock(self):
+    def test_return_with_no_original_bill_is_rejected(self):
+        sku, batch_no = self._create_product_and_batch()
+        resp = self.session.post(
+            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
+        assert resp.status_code == 400, resp.text
+        assert "existing bill" in resp.json()["detail"].lower()
+
+    def test_rejected_even_for_admin(self):
+        # The old gate let admin through via the allow_manual_returns
+        # permission (admin implicitly has every permission) — proves the
+        # new block is unconditional, not just a permission check that
+        # admin happens to still pass.
+        sku, batch_no = self._create_product_and_batch()
+        resp = self.session.post(
+            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
+        assert resp.status_code == 400, resp.text
+
+    def test_rejected_regardless_of_require_original_bill_setting(self):
+        # The setting that used to gate this is now dormant — off is the
+        # default and the block still applies.
+        settings_resp = self.session.put(f"{BASE_URL}/api/settings", json={
+            "returns": {"require_original_bill": False},
+        })
+        assert settings_resp.status_code == 200, settings_resp.text
+
+        sku, batch_no = self._create_product_and_batch()
+        resp = self.session.post(
+            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
+        assert resp.status_code == 400, resp.text
+
+    def test_no_stock_is_restored_for_a_rejected_manual_return(self):
         sku, batch_no = self._create_product_and_batch(qty_on_hand=20)
         resp = self.session.post(
             f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no, qty=3))
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert data["original_bill_id"] is None
-        assert data["original_bill_no"] is None
-        assert data["credit_applied"] == 0
-        assert data["refund_method"] == "cash"
-        assert data["net_amount"] == pytest.approx(300.0)
+        assert resp.status_code == 400, resp.text
 
         batches = self.session.get(f"{BASE_URL}/api/stock/batches", params={"product_sku": sku})
         assert batches.status_code == 200, batches.text
         matched = next(b for b in batches.json() if b["batch_no"] == batch_no)
-        assert matched["qty_on_hand"] == 23  # 20 + 3 returned
+        assert matched["qty_on_hand"] == 20, "a rejected return must not touch stock"
 
-    def test_manual_return_blocked_without_permission(self):
-        role_resp = self.session.post(f"{BASE_URL}/api/roles", json={
-            "name": f"norights_{self.suffix}", "display_name": "No Rights Role",
-            "permissions": ["billing:view"],
+    def test_return_with_a_real_bill_still_works(self):
+        # The bill-linked path is untouched by this change — a sanity check
+        # that removing the manual branch didn't break the real one.
+        sku, batch_no = self._create_product_and_batch(mrp=100, qty_on_hand=20, gst_percent=0)
+        bill = self.session.post(f"{BASE_URL}/api/bills", json={
+            "status": "paid", "tax_rate": 0, "payment_method": "cash",
+            "items": [{
+                "product_sku": sku, "batch_no": batch_no, "quantity": 2, "unit_price": 100,
+                "disc_percent": 0, "gst_percent": 0,
+            }],
         })
-        assert role_resp.status_code == 200, role_resp.text
-        email = f"norights_{self.suffix}@pharmacy.com"
-        user_resp = self.session.post(f"{BASE_URL}/api/users", json={
-            "email": email, "name": "No Rights User", "password": "NoRights123",
-            "role": role_resp.json()["name"],
+        assert bill.status_code == 200, bill.text
+        bill_id = bill.json()["id"]
+
+        resp = self.session.post(f"{BASE_URL}/api/sales-returns", json={
+            "original_bill_id": bill_id, "return_date": date.today().isoformat(),
+            "items": [{
+                "medicine_name": "Manual Return Test Medicine", "product_sku": sku, "batch_no": batch_no,
+                "mrp": 100, "qty": 1, "original_qty": 2,
+                "disc_percent": 0, "gst_percent": 0, "is_damaged": False,
+            }],
+            "refund_method": "cash",
         })
-        assert user_resp.status_code == 200, user_resp.text
-
-        other = requests.Session()
-        other.headers.update({"Content-Type": "application/json"})
-        login = other.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": "NoRights123"})
-        assert login.status_code == 200, login.text
-        other.headers.update({"Authorization": f"Bearer {login.json()['token']}"})
-
-        sku, batch_no = self._create_product_and_batch()
-        resp = other.post(f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
-        assert resp.status_code == 403, resp.text
-        assert "permission" in resp.json()["detail"].lower()
-
-    def test_manual_return_blocked_when_require_original_bill_setting_on(self):
-        settings_resp = self.session.put(f"{BASE_URL}/api/settings", json={
-            "returns": {"require_original_bill": True},
-        })
-        assert settings_resp.status_code == 200, settings_resp.text
-        try:
-            sku, batch_no = self._create_product_and_batch()
-            resp = self.session.post(
-                f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
-            assert resp.status_code == 400, resp.text
-            assert "original bill is required" in resp.json()["detail"].lower()
-        finally:
-            self.session.put(f"{BASE_URL}/api/settings", json={
-                "returns": {"require_original_bill": False},
-            })
-
-    def test_manual_return_same_as_original_resolves_to_cash(self):
-        sku, batch_no = self._create_product_and_batch()
-        resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns",
-            json=self._manual_payload(sku, batch_no, refund_method="same_as_original"))
         assert resp.status_code == 200, resp.text
-        assert resp.json()["refund_method"] == "cash"
-
-    def test_manual_return_is_audit_logged(self):
-        sku, batch_no = self._create_product_and_batch()
-        resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
-        assert resp.status_code == 200, resp.text
-        return_id = resp.json()["id"]
-
-        audit = self.session.get(f"{BASE_URL}/api/audit-logs/entity/sales_return/{return_id}")
-        assert audit.status_code == 200, audit.text
-        actions = [row["action"] for row in audit.json()]
-        assert "create" in actions
-
-    def test_manual_return_appears_in_list_and_detail(self):
-        sku, batch_no = self._create_product_and_batch()
-        create_resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no))
-        assert create_resp.status_code == 200, create_resp.text
-        return_id = create_resp.json()["id"]
-
-        detail = self.session.get(f"{BASE_URL}/api/sales-returns/{return_id}")
-        assert detail.status_code == 200, detail.text
-        assert detail.json()["original_bill_id"] is None
-
-        listing = self.session.get(f"{BASE_URL}/api/sales-returns")
-        assert listing.status_code == 200, listing.text
-        assert any(r["id"] == return_id for r in listing.json()["data"])
-
-    def test_financial_edit_of_manual_return_adjusts_stock_without_crashing(self):
-        sku, batch_no = self._create_product_and_batch(qty_on_hand=20)
-        create_resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no, qty=2))
-        assert create_resp.status_code == 200, create_resp.text
-        return_id = create_resp.json()["id"]
-
-        edit_resp = self.session.put(
-            f"{BASE_URL}/api/sales-returns/{return_id}?financial_edit=true", json={
-                "items": [{
-                    "medicine_name": "Manual Return Test Medicine", "product_sku": sku, "batch_no": batch_no,
-                    "mrp": 100, "qty": 5, "original_qty": 5,
-                    "disc_percent": 0, "gst_percent": 0, "is_damaged": False,
-                }],
-            })
-        assert edit_resp.status_code == 200, edit_resp.text
-        assert edit_resp.json()["net_amount"] == pytest.approx(500.0)
-        assert edit_resp.json()["credit_applied"] == 0
-
-        batches = self.session.get(f"{BASE_URL}/api/stock/batches", params={"product_sku": sku})
-        matched = next(b for b in batches.json() if b["batch_no"] == batch_no)
-        assert matched["qty_on_hand"] == 25  # 20 + 5 (2-unit return reversed, 5-unit return reapplied)
-
-    def test_manual_return_appears_in_product_transaction_history(self):
-        # inventory.py's get_product_transactions used to inner-join Bill on
-        # original_bill_id, which silently drops any return with no bill —
-        # exactly the case a manual return is. Regression for the outerjoin fix.
-        sku, batch_no = self._create_product_and_batch()
-        create_resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._manual_payload(sku, batch_no, qty=2))
-        assert create_resp.status_code == 200, create_resp.text
-        return_number = create_resp.json()["return_no"]
-
-        txns = self.session.get(
-            f"{BASE_URL}/api/products/{sku}/transactions",
-            params={"transaction_type": "sales_returns"})
-        assert txns.status_code == 200, txns.text
-        returns = txns.json()["sales_returns"]
-        assert any(r["return_number"] == return_number for r in returns), (
-            "Manual return missing from product transaction history")
-        matched = next(r for r in returns if r["return_number"] == return_number)
-        assert matched["original_invoice"] is None
-        assert matched["customer_name"] == "Walk-in"
+        assert resp.json()["original_bill_id"] == bill_id

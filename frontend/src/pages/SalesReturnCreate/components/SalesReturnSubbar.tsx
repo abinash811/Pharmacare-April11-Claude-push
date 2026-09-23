@@ -16,8 +16,6 @@ interface SalesReturnSubbarProps {
   onShowDatePickerChange: (open: boolean) => void;
   onReturnDateChange: (d: Date) => void;
   patient: { name?: string };
-  isManual: boolean;
-  onPatientNameChange: (name: string) => void;
   doctor: string;
   creditToBalance: number;
   excessAfterCredit: number;
@@ -36,7 +34,7 @@ interface SalesReturnSubbarProps {
  */
 export default function SalesReturnSubbar({
   returnDate, showDatePicker, onShowDatePickerChange, onReturnDateChange,
-  patient, isManual, onPatientNameChange, doctor,
+  patient, doctor,
   creditToBalance, excessAfterCredit, billDueAmount,
   refundMethod, onRefundMethodChange,
   hasErrors, onSaveClick,
@@ -58,18 +56,7 @@ export default function SalesReturnSubbar({
         </Popover>
 
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
-          {isManual ? (
-            <input
-              type="text"
-              value={patient.name || ''}
-              onChange={(e) => onPatientNameChange(e.target.value)}
-              placeholder="Walk-in"
-              className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none placeholder-gray-400 w-32"
-              data-testid="manual-patient-name"
-            />
-          ) : (
-            <span className="text-sm font-medium text-gray-700">{patient.name || 'Walk-in'}</span>
-          )}
+          <span className="text-sm font-medium text-gray-700">{patient.name || 'Walk-in'}</span>
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 rounded-lg">
           <Stethoscope className="w-4 h-4 text-gray-400" strokeWidth={1.5} />

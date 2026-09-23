@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboard }      from './hooks/useDashboard';
 import MetricCard            from './components/MetricCard';
 import QuickStatCard         from './components/QuickStatCard';
+import SalesReturnsSummaryCard from './components/SalesReturnsSummaryCard';
 import SalesCharts           from './components/SalesCharts';
 import InsightsList          from './components/InsightsList';
 import AlertsPanel           from './components/AlertsPanel';
@@ -140,7 +141,10 @@ export default function Dashboard() {
           {/* Row 5: Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <QuickStatCard title="Draft Bills"      value={quick_stats?.draft_bills || 0}                icon={<Clock className="w-4 h-4" />}      color="gray"   onClick={() => navigate('/billing?filter=parked')} />
-            <QuickStatCard title="Returns (Month)"  value={formatCompact(quick_stats?.month_returns)}   icon={<RefreshCw className="w-4 h-4" />}  color="red"    onClick={() => navigate(`/billing/returns?${dateRangeQuery(monthStart, today)}`)} />
+            <SalesReturnsSummaryCard
+              monthSales={quick_stats?.month_sales} monthReturns={quick_stats?.month_returns} netSales={quick_stats?.net_sales}
+              onClick={() => navigate(`/billing?${dateRangeQuery(monthStart, today)}`)}
+            />
             <QuickStatCard title="Stock Value"      value={formatCompact(quick_stats?.stock_value)}     icon={<Package className="w-4 h-4" />}    color="indigo" onClick={() => navigate('/inventory')} />
           </div>
 

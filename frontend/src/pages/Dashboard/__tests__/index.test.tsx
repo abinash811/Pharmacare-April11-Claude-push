@@ -28,7 +28,7 @@ const BASE_DATA = {
   low_stock: [{ product_name: 'Paracetamol', batch_no: 'B1', qty: 2 }],
   expiring_soon: [{ product_name: 'Cough Syrup', batch_no: 'B2', expiry_date: '2026-10-01', qty: 5 }],
   recent_bills: [],
-  quick_stats: { pending_payments: 1200, draft_bills: 3, month_returns: 400, total_products: 100, stock_value: 90000, low_stock_count: 1, expiring_count: 1 },
+  quick_stats: { pending_payments: 1200, draft_bills: 3, month_sales: 8000, month_returns: 400, net_sales: 7600, total_products: 100, stock_value: 90000, low_stock_count: 1, expiring_count: 1 },
   license_alert: { enabled: false },
   alerts_config: { low_stock_enabled: true, near_expiry_enabled: true },
   analytics_range: { start: '2026-09-01', end: '2026-09-14', is_custom: false },
@@ -82,11 +82,16 @@ describe('Dashboard drill-down navigation', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/billing?filter=parked');
   });
 
-  it('clicking Returns (Month) navigates to sales returns filtered to this month', async () => {
+  it('Sales (Month) summary card shows gross sales, returns, and net, and navigates to billing filtered to this month', async () => {
     render(<Dashboard />);
-    await userEvent.click(screen.getByTestId('quick-stat-returns-(month)'));
+    const card = screen.getByTestId('sales-returns-summary-card');
+    expect(card).toHaveTextContent('8.0K'); // gross month sales
+    expect(card).toHaveTextContent('400'); // returns
+    expect(card).toHaveTextContent('7.6K'); // net
+
+    await userEvent.click(card);
     const today = new Date();
-    expect(mockNavigate).toHaveBeenCalledWith(`/billing/returns?${dateRangeQuery(getMonthStart(today), today)}`);
+    expect(mockNavigate).toHaveBeenCalledWith(`/billing?${dateRangeQuery(getMonthStart(today), today)}`);
   });
 
   it('clicking Purchases (Month) navigates to purchases filtered to this month', async () => {

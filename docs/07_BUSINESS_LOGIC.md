@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.15 | Last updated: September 23, 2026
+# Version: 2.16 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -285,6 +285,24 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   rollup, so it stays netted. **Inventory** already restores real stock
   quantity on a return (`_restore_stock`, `StockMovement` "sales_return")
   — also unaffected by this decision; it was never in question.
+- **Dashboard now has one deliberate exception — a Sales (Month) summary
+  card (built Sep 23, 2026, same-day direct follow-up):** the Quick Stats
+  row's old standalone "Returns (Month)" tile was replaced with a small
+  Sales/Returns/Net table (`SalesReturnsSummaryCard.tsx`) showing all
+  three side by side for the current month only — Dashboard's other tiles
+  (Today's/Week/Month/Total Sales) are untouched and still gross, per the
+  decision above. Building this surfaced a real, separate bug: `quick_stats
+  .month_returns` (and `daily_trend`'s per-day `"returns"`) were computed
+  from `Bill.invoice_type == "SALES_RETURN"` — a condition no real code
+  path has ever set (sales returns are their own resource, never a Bill
+  row) — so this figure was always 0 for every real pharmacy, regardless
+  of how many actual returns existed. Fixed in `get_dashboard_analytics`
+  to sum real `SalesReturn` rows instead (same query shape the GST report
+  already used correctly); `quick_stats` gained `month_sales`/`net_sales`
+  so the new card has a real net figure. 2 new backend regression tests
+  (`test_dashboard_analytics.py::TestDashboardMonthReturnsAndNetSales`),
+  confirmed to fail against the pre-fix code (`KeyError` — the fields
+  didn't exist) via `git stash`.
 - **Cross-cutting fix (Sep 15, 2026, now moot):** `get_product_transactions`
   (`inventory.py`)'s outer join on `Bill` (added because a manual return
   had no bill to inner-join against) is unchanged and harmless now that no

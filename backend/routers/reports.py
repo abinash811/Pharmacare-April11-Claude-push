@@ -1082,6 +1082,30 @@ async def get_dashboard_analytics(
             }
         recent_bills: list = []
 
+        # Real sales returns — SalesReturn is its own resource
+        # (routers/sales_returns.py), never a Bill with invoice_type ==
+        # "SALES_RETURN". That literal string is checked in a few places in
+        # this file (a leftover from a pre-sales_returns.py design,
+        # docs/07_BUSINESS_LOGIC.md's own rewrite note) but no real code
+        # path anywhere ever sets it on a Bill, so month_returns/
+        # daily_sales[...]["returns"] were always 0 regardless of how many
+        # real returns existed. Found Sep 23, 2026, direct question about
+        # what a Net Sales figure would actually be built on top of — see
+        # docs/15_ROADMAP.md RULE MISSES LOG.
+        returns_result = await db.execute(
+            select(SalesReturnORM.return_date, SalesReturnORM.grand_total_paise)
+            .where(SalesReturnORM.pharmacy_id == pid)
+        )
+        for return_date_, grand_total_paise in returns_result.all():
+            if not return_date_:
+                continue
+            amt = grand_total_paise or 0
+            if return_date_ >= month_start:
+                month_returns += amt
+            dk = return_date_.isoformat()
+            if dk in daily_sales:
+                daily_sales[dk]["returns"] += amt
+
         for b in bills:
             bd = b.bill_date
             if not bd:
@@ -1092,7 +1116,7 @@ async def get_dashboard_analytics(
                 continue
             if b.status == "due":
                 pending_payments += amt
-            if b.invoice_type != "SALES_RETURN" and b.status in ["paid", "due"]:
+            if b.status in ["paid", "due"]:
                 total_sales += amt
                 if bd == today:
                     today_sales += amt
@@ -1118,12 +1142,6 @@ async def get_dashboard_analytics(
                     recent_bills.append({"id": str(b.id), "bill_number": b.bill_number,
                                          "customer_name": cn, "amount": _p2r(amt), "status": b.status,
                                          "created_at": b.created_at.isoformat() if b.created_at else None})
-            elif b.invoice_type == "SALES_RETURN" and b.status in ["paid", "refunded"]:
-                if bd >= month_start:
-                    month_returns += amt
-                dk = bd.isoformat()
-                if dk in daily_sales:
-                    daily_sales[dk]["returns"] += amt
 
         # Top products — last 30 days by default, or the requested custom
         # range (same range the Sales Trend chart above is windowed to).
@@ -1260,7 +1278,9 @@ async def get_dashboard_analytics(
                               for n, bn, ed, q in expiring_items],
             "recent_bills": recent_bills[:5],
             "quick_stats": {"pending_payments": _p2r(pending_payments), "draft_bills": draft_bills,
-                            "month_returns": _p2r(month_returns), "total_products": product_count,
+                            "month_sales": _p2r(month_sales), "month_returns": _p2r(month_returns),
+                            "net_sales": _p2r(max(0, month_sales - month_returns)),
+                            "total_products": product_count,
                             "stock_value": _p2r(sv_paise), "low_stock_count": low_total,
                             "expiring_count": exp_total},
             "alerts_config": {

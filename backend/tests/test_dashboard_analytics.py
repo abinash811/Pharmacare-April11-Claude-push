@@ -179,7 +179,7 @@ class TestDashboardAnalytics:
         assert "quick_stats" in data, "Response should contain 'quick_stats'"
 
         quick_stats = data["quick_stats"]
-        required_fields = ["pending_payments", "draft_bills", "month_returns",
+        required_fields = ["pending_payments", "draft_bills", "month_sales", "month_returns", "net_sales",
                            "stock_value", "low_stock_count", "expiring_count"]
 
         for field in required_fields:
@@ -288,6 +288,96 @@ class TestReportsDashboardAndAnalyticsSummary:
 
         # 2 units * 40 rupees = 80 rupees minimum gross sales from this bill
         assert data["gross_sales"] >= 80
+
+
+class TestDashboardMonthReturnsAndNetSales:
+    """Regression tests for the Sep 23, 2026 fix: quick_stats.month_returns
+    (and daily_trend's per-day "returns") were computed from
+    `Bill.invoice_type == "SALES_RETURN"` — a condition no real code path
+    has ever set, since sales returns are their own resource
+    (routers/sales_returns.py, SalesReturn/SalesReturnItem models), never a
+    Bill row. month_returns was always 0 for every real pharmacy regardless
+    of how many actual returns existed. Fixed to sum real SalesReturn rows;
+    quick_stats also gained month_sales/net_sales so the Dashboard's new
+    Sales (Month) summary card has a real net figure to show.
+
+    Uses an isolated, freshly-registered pharmacy (unlike this file's other
+    classes, which share the persistent dev seed account) so exact amounts
+    can be asserted instead of only field presence.
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+        suffix = uuid.uuid4().hex[:8]
+        resp = self.session.post(f"{BASE_URL}/api/auth/register", json={
+            "email": f"dashret_{suffix}@pharmacy.com", "name": "Dashboard Returns Test Admin",
+            "password": "DashRet123", "phone": "9844444444",
+            "pharmacy_name": f"Dashboard Returns Test Pharmacy {suffix}", "address": "1 St",
+            "city": "Testville", "state": "Karnataka", "pincode": "560001",
+            "drug_license_number": f"DL-DASHRET-{suffix}",
+        })
+        assert resp.status_code == 200, resp.text
+        self.session.headers.update({"Authorization": f"Bearer {resp.json()['token']}"})
+        self.suffix = suffix
+
+    def _create_paid_bill(self, quantity=5, unit_price=100):
+        sku = f"DASHRET-{self.suffix}-{uuid.uuid4().hex[:4]}"
+        batch_no = f"DASHRET-B-{uuid.uuid4().hex[:6]}"
+        prod = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": "Dashboard Returns Test Medicine", "category": "medicine",
+            "gst_percent": 0, "units_per_pack": 1,
+        })
+        assert prod.status_code == 200, prod.text
+        batch = self.session.post(f"{BASE_URL}/api/stock/batches", json={
+            "product_sku": sku, "batch_no": batch_no,
+            "expiry_date": "2030-01-01", "qty_on_hand": 100,
+            "cost_price_per_unit": 50, "mrp_per_unit": unit_price,
+        })
+        assert batch.status_code == 200, batch.text
+        bill = self.session.post(f"{BASE_URL}/api/bills", json={
+            "status": "paid", "tax_rate": 0, "payment_method": "cash",
+            "items": [{
+                "product_sku": sku, "batch_no": batch_no, "quantity": quantity, "unit_price": unit_price,
+                "disc_percent": 0, "gst_percent": 0,
+            }],
+        })
+        assert bill.status_code == 200, bill.text
+        return bill.json()["id"], sku, batch_no
+
+    def test_no_activity_yields_zero_sales_returns_and_net(self):
+        resp = self.session.get(f"{BASE_URL}/api/analytics/dashboard")
+        assert resp.status_code == 200, resp.text
+        qs = resp.json()["quick_stats"]
+        assert qs["month_sales"] == 0
+        assert qs["month_returns"] == 0
+        assert qs["net_sales"] == 0
+
+    def test_a_real_return_is_reflected_in_month_returns_and_net_sales(self):
+        bill_id, sku, batch_no = self._create_paid_bill(quantity=5, unit_price=100)  # 500 gross
+
+        ret = self.session.post(f"{BASE_URL}/api/sales-returns", json={
+            "original_bill_id": bill_id, "return_date": date.today().isoformat(),
+            "items": [{
+                "medicine_name": "Dashboard Returns Test Medicine", "batch_no": batch_no,
+                "mrp": 100, "qty": 2, "original_qty": 2,
+                "disc_percent": 0, "gst_percent": 0, "is_damaged": False,
+            }],
+            "refund_method": "cash",
+        })
+        assert ret.status_code == 200, ret.text  # 200 returned = 2 * 100
+
+        resp = self.session.get(f"{BASE_URL}/api/analytics/dashboard")
+        assert resp.status_code == 200, resp.text
+        qs = resp.json()["quick_stats"]
+
+        assert qs["month_sales"] == pytest.approx(500.0)
+        assert qs["month_returns"] == pytest.approx(200.0), (
+            "before the fix this was always 0 — SalesReturn rows were never summed, "
+            "only a Bill.invoice_type == 'SALES_RETURN' condition no real bill ever matches"
+        )
+        assert qs["net_sales"] == pytest.approx(300.0)
 
 
 if __name__ == "__main__":

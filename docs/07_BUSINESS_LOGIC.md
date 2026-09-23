@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.13 | Last updated: September 23, 2026
+# Version: 2.14 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -250,6 +250,20 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   `?billId=<id>` on the same page, which then loads exactly like it
   always has. `SalesReturnsList`'s "New Return" goes straight to
   `/billing/returns/new` — the picker there is now the one way in.
+- **Return quantity cap is cumulative, not per-request (fixed Sep 23,
+  2026):** `create_sales_return` only ever checked a new return's quantity
+  against the original bill's quantity, never against how much had
+  already been returned in an earlier, separate return on the same bill —
+  two separate returns could each claim the full original quantity and
+  both would be accepted. `update_sales_return` (financial edit) had **no**
+  quantity validation at all. Both now compute `max_returnable =
+  original_qty - sum(quantity across every existing SalesReturnItem tied
+  to the same original_bill_id, matched by batch_number)` and 400 if the
+  request exceeds it — the same `already_returned_qty`/`max_returnable_qty`
+  pattern `purchase_returns.py`'s `create_purchase_return` already used.
+  For a financial edit, the sum is computed *after* the edited return's own
+  old items are deleted (see the code just above), so an edit isn't capped
+  against its own prior quantity.
 - **Cross-cutting fix (Sep 15, 2026, now moot):** `get_product_transactions`
   (`inventory.py`)'s outer join on `Bill` (added because a manual return
   had no bill to inner-join against) is unchanged and harmless now that no

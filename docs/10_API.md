@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.6 | Last updated: September 23, 2026
+# Version: 1.7 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -619,7 +619,11 @@ List stock movements (the ledger).
 Create a sales return. `original_bill_id` is **required** (Sep 23, 2026) —
 a request with it missing/null always 400s ("A return must be created from
 an existing bill…"), for every role. No manual/no-bill return path exists
-anymore.
+anymore. Each item's `qty` is capped at what's *still* returnable on that
+batch — the original billed quantity minus whatever earlier, separate
+returns on this same bill already took (`PUT /sales-returns/{id}` with
+`financial_edit=true` enforces the identical cap). Exceeding it 400s with
+the remaining quantity in the message.
 
 **Request:**
 ```json

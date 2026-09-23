@@ -337,14 +337,37 @@ async def create_sales_return(return_data: SalesReturnCreate, request: Request, 
         bill_items = bill_items_result.scalars().all()
         bill_items_by_batch = {bi.batch_number: bi for bi in bill_items}
 
+        # Cap against what's actually still returnable, not just the
+        # original sale total — found Sep 23, 2026 (direct question,
+        # "can a user return more than they sold"): this only ever checked
+        # the new request against the original bill quantity, never against
+        # quantity already returned in an earlier, separate return on this
+        # same bill — two returns could each claim the full original
+        # quantity and both would pass. purchase_returns.py's
+        # create_purchase_return already solves the identical problem
+        # (already_returned_qty / max_returnable_qty) — this ports the same
+        # pattern here.
+        prior_returns_result = await db.execute(
+            select(SalesReturnItemORM.batch_number, SalesReturnItemORM.quantity)
+            .join(SalesReturnORM, SalesReturnItemORM.sales_return_id == SalesReturnORM.id)
+            .where(SalesReturnORM.original_bill_id == bill_id)
+        )
+        already_returned_by_batch: dict[str, int] = {}
+        for batch_number, qty in prior_returns_result.all():
+            already_returned_by_batch[batch_number] = already_returned_by_batch.get(batch_number, 0) + qty
+
         for item in return_data.items:
             orig_item = bill_items_by_batch.get(item.batch_no)
-            if orig_item and item.qty > orig_item.quantity:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
-                            f"original billed quantity ({orig_item.quantity})"),
-                )
+            if orig_item:
+                already_returned = already_returned_by_batch.get(item.batch_no, 0)
+                max_returnable = orig_item.quantity - already_returned
+                if item.qty > max_returnable:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(f"Return quantity for {item.medicine_name} ({item.qty}) exceeds "
+                                f"the remaining returnable quantity ({max_returnable}) — "
+                                f"{already_returned} of {orig_item.quantity} already returned."),
+                    )
 
         # Settings → Returns "Allow partial returns" — found Sep 13, 2026
         # (Settings product-review): saved but never enforced, so a return for
@@ -714,6 +737,25 @@ async def update_sales_return(
             await db.delete(old_item)
         await db.flush()
 
+        # Same remaining-returnable cap as create_sales_return — this
+        # endpoint had *no* quantity validation at all before Sep 23, 2026,
+        # not even the single-return check create had. Queried after the
+        # delete+flush above so this return's own (already-deleted) old
+        # items don't count against themselves.
+        bill_items_by_batch: dict[str, BillItem] = {}
+        already_returned_by_batch: dict[str, int] = {}
+        if original_bill:
+            bill_items_result = await db.execute(select(BillItem).where(BillItem.bill_id == original_bill.id))
+            bill_items_by_batch = {bi.batch_number: bi for bi in bill_items_result.scalars().all()}
+
+            prior_returns_result = await db.execute(
+                select(SalesReturnItemORM.batch_number, SalesReturnItemORM.quantity)
+                .join(SalesReturnORM, SalesReturnItemORM.sales_return_id == SalesReturnORM.id)
+                .where(SalesReturnORM.original_bill_id == original_bill.id)
+            )
+            for batch_number, qty in prior_returns_result.all():
+                already_returned_by_batch[batch_number] = already_returned_by_batch.get(batch_number, 0) + qty
+
         # Rebuild items
         total_paise = 0
         gst_paise = 0
@@ -729,6 +771,18 @@ async def update_sales_return(
         old_items_by_batch = {oi.batch_number: oi for oi in old_items}
 
         for item_data in update_data.items:
+            orig_item = bill_items_by_batch.get(item_data.batch_no)
+            if orig_item:
+                already_returned = already_returned_by_batch.get(item_data.batch_no, 0)
+                max_returnable = orig_item.quantity - already_returned
+                if item_data.qty > max_returnable:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(f"Return quantity for {item_data.medicine_name} ({item_data.qty}) exceeds "
+                                f"the remaining returnable quantity ({max_returnable}) — "
+                                f"{already_returned} of {orig_item.quantity} already returned."),
+                    )
+
             sale_price_paise = int(item_data.mrp * 100)
             base_paise = sale_price_paise * item_data.qty
             disc_paise = int(base_paise * item_data.disc_percent / 100)

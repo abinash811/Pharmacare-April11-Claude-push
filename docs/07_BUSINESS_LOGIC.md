@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.12 | Last updated: September 23, 2026
+# Version: 2.13 | Last updated: September 23, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -238,11 +238,18 @@ special `invoice_type` on a bill. This is what the frontend actually calls
   regardless of the (now-dormant) `require_original_bill` setting.
   `original_bill_id`/`bill_item_id` are left nullable in the schema and
   `allow_manual_returns`/`require_original_bill` left in place (harmless,
-  unread) rather than migrated out. Frontend: `SalesReturnCreate` with no
-  `billId` in the URL redirects to `/billing/returns` with an error toast
-  instead of showing a blank product-search form — `ManualItemSearch.tsx`
-  deleted. `SalesReturnsList`'s "New Return" now always sends the cashier
-  to Billing to find and open a real bill.
+  unread) rather than migrated out. `ManualItemSearch.tsx` deleted.
+  Frontend, same day, direct follow-up instruction: `SalesReturnCreate`
+  with no `billId` in the URL shows an inline bill search (`BillPicker.tsx`,
+  reuses `GET /bills`'s own `search` param — the same lookup Billing's own
+  list page uses) instead of a redirect — a cashier picks the bill right
+  there, no detour through Billing. Only completed sales are selectable
+  (`status` not in `draft`/`parked`, filtered client-side); a **due** bill
+  is deliberately still pickable, since the due-balance-credit flow just
+  above has no other way in. Picking a result navigates to
+  `?billId=<id>` on the same page, which then loads exactly like it
+  always has. `SalesReturnsList`'s "New Return" goes straight to
+  `/billing/returns/new` — the picker there is now the one way in.
 - **Cross-cutting fix (Sep 15, 2026, now moot):** `get_product_transactions`
   (`inventory.py`)'s outer join on `Bill` (added because a manual return
   had no bill to inner-join against) is unchanged and harmless now that no

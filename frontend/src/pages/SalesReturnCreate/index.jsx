@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '@/lib/axios';
 import { toast } from 'sonner';
 import { ArrowLeft, Printer, Trash2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { REFUND_METHOD_SAME_AS_ORIGINAL } from '@/constants/domainConstants';
 import SalesReturnFinaliseModal from './components/SalesReturnFinaliseModal';
 import SalesReturnSubbar from './components/SalesReturnSubbar';
+import BillPicker from './components/BillPicker';
 
 export default function SalesReturnCreate() {
   const navigate = useNavigate();
@@ -27,19 +28,15 @@ export default function SalesReturnCreate() {
   const [showFinaliseModal, setShowFinaliseModal] = useState(false);
   const [isSaving, setIsSaving]       = useState(false);
   const [totals, setTotals]           = useState({ mrpTotal: 0, totalDiscount: 0, gstAmount: 0, netAmount: 0 });
-  const [loading, setLoading]         = useState(true);
+  const [loading, setLoading]         = useState(!!billId);
 
-  // A return must always originate from a real bill — removed Sep 23,
-  // 2026, direct product decision (see docs/15_ROADMAP.md): nothing ties
-  // a manual return's quantity or refund amount to an actual prior sale,
-  // which is a real fraud/leakage surface, not just an edge case. This
-  // route is only ever reached with a billId (from BillDetail's/
-  // BillingWorkspace's own "Return" button) — a direct hit with none is
-  // treated as a dead link, same as billing/:id would for a bad bill id.
-  useEffect(() => {
-    if (billId) fetchOriginalBill(billId);
-    else { toast.error('A return must be started from a bill — open the bill and use its Return option.'); setLoading(false); navigate('/billing/returns'); }
-  }, [billId]); // eslint-disable-line
+  // A return must always originate from a real bill (Sep 23, 2026, direct
+  // product decision — see docs/15_ROADMAP.md): nothing ties a manual
+  // return's quantity or refund amount to an actual prior sale, a real
+  // fraud/leakage surface, not just an edge case. With no billId yet,
+  // BillPicker below is the only way to get one — no separate manual-item
+  // path exists anymore.
+  useEffect(() => { if (billId) fetchOriginalBill(billId); }, [billId]); // eslint-disable-line
   useEffect(() => { calculateTotals(); }, [items]); // eslint-disable-line
 
   const fetchOriginalBill = async (id) => {
@@ -147,6 +144,9 @@ export default function SalesReturnCreate() {
         </div>
       </header>
 
+      {!billId ? (
+        <BillPicker onSelect={(id) => navigate(`/billing/returns/new?billId=${id}`)} />
+      ) : (
       <main className="flex-grow p-4 lg:p-6 overflow-hidden flex flex-col gap-4">
         <SalesReturnSubbar
           returnDate={returnDate} showDatePicker={showDatePicker}
@@ -247,6 +247,7 @@ export default function SalesReturnCreate() {
           </div>
         </section>
       </main>
+      )}
 
       <SalesReturnFinaliseModal
         open={showFinaliseModal} onClose={() => setShowFinaliseModal(false)}

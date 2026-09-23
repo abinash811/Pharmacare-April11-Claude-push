@@ -78,14 +78,6 @@ export default function SalesReturnsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pg.page]);
 
-  // A return always starts from a real bill (Sep 23, 2026 — see
-  // docs/15_ROADMAP.md) — this page can't pick one itself, so it sends the
-  // cashier to Billing to find and open the bill they want to return.
-  const handleNewReturn = () => {
-    toast.info('Open the bill you want to return, then use its Return option.', { duration: 5000 });
-    navigate('/billing');
-  };
-
   const isFiltered = !!(searchQuery || dateRange.start || dateRange.end || activeFilter !== 'all');
 
   return (
@@ -93,7 +85,7 @@ export default function SalesReturnsList() {
       <PageHeader
         title="Billing"
         actions={
-          <AppButton onClick={handleNewReturn} data-testid="new-return-btn">
+          <AppButton onClick={() => navigate('/billing/returns/new')} data-testid="new-return-btn">
             <Plus className="w-4 h-4 mr-2" />
             New Return
           </AppButton>
@@ -160,7 +152,7 @@ export default function SalesReturnsList() {
                     <SalesReturnsEmptyState
                       filtered={isFiltered}
                       action={
-                        <AppButton onClick={handleNewReturn} data-testid="empty-new-return-btn">
+                        <AppButton onClick={() => navigate('/billing/returns/new')} data-testid="empty-new-return-btn">
                           <Plus className="w-4 h-4 mr-2" />
                           New Sales Return
                         </AppButton>

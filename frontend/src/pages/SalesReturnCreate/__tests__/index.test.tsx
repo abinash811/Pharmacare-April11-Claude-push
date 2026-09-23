@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { toast } from 'sonner';
 import SalesReturnCreate from '../index';
 import api from '@/lib/axios';
 
@@ -96,23 +96,48 @@ describe('SalesReturnCreate — due-balance credit UX', () => {
   });
 });
 
-// Regression tests for the Sep 23, 2026 removal of manual (no-billId)
-// returns: every return must now originate from a real bill. A direct hit
-// on this route with no billId is a dead link, not a blank return form.
-describe('SalesReturnCreate — no billId is redirected, not a blank form', () => {
+// Regression tests for the Sep 23, 2026 inline bill picker: every return
+// must originate from a real bill, and — per direct instruction — picking
+// that bill now happens inline on this page (BillPicker) instead of
+// sending the cashier away to find one in Billing first.
+describe('SalesReturnCreate — no billId shows the inline bill picker', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('shows an error and redirects to the returns list instead of rendering a blank form', async () => {
-    render(
+  const BILLS = [
+    { id: 'bill-paid', bill_number: 'INV-000005', status: 'paid', payment_method: 'cash', customer_name: 'Ravi Kumar', bill_date: '2026-09-20', total_amount: 250 },
+    { id: 'bill-due', bill_number: 'INV-000006', status: 'due', payment_method: null, customer_name: 'Anita Rao', bill_date: '2026-09-21', total_amount: 500 },
+    { id: 'bill-draft', bill_number: 'INV-000007', status: 'draft', payment_method: null, customer_name: 'Draft Guy', bill_date: '2026-09-22', total_amount: 100 },
+  ];
+
+  function renderPicker() {
+    (api.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.startsWith('bills')) return Promise.resolve({ data: { data: BILLS } });
+      return Promise.resolve({ data: [] });
+    });
+    return render(
       <MemoryRouter initialEntries={['/billing/returns/new']}>
         <SalesReturnCreate />
       </MemoryRouter>,
     );
+  }
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/billing/returns'));
-    expect(toast.error).toHaveBeenCalledWith(
-      expect.stringContaining('must be started from a bill'),
-    );
-    expect(api.get).not.toHaveBeenCalled();
+  it('renders the bill search box instead of a redirect', () => {
+    renderPicker();
+    expect(screen.getByTestId('return-bill-search')).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('shows matching paid/due bills but excludes drafts, and navigates with billId on pick', async () => {
+    const user = userEvent.setup();
+    renderPicker();
+
+    await user.type(screen.getByTestId('return-bill-search'), 'Ravi');
+
+    expect(await screen.findByTestId('return-bill-result-bill-paid')).toBeInTheDocument();
+    expect(screen.getByTestId('return-bill-result-bill-due')).toBeInTheDocument();
+    expect(screen.queryByTestId('return-bill-result-bill-draft')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('return-bill-result-bill-due'));
+    expect(mockNavigate).toHaveBeenCalledWith('/billing/returns/new?billId=bill-due');
   });
 });

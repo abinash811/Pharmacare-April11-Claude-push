@@ -4,6 +4,7 @@
  * index.jsx stays under the 300-line cap.
  */
 import { toISODate } from '@/utils/dates';
+import { toRealQty, toRealCostPerUnit, toRealMrpPerUnit } from './packUnitConversion';
 
 // Convert MM/YY string to ISO date (last day of that month)
 export const expiryToISO = (mmyy) => {
@@ -42,16 +43,20 @@ export const buildPurchasePayload = ({
   tcs:                invoiceBreakdown.tcs || 0,
   extra_charges:      invoiceBreakdown.extraCharges || 0,
   adjustment_amount:  invoiceBreakdown.adjustmentAmount || 0,
+  // toRealQty/toRealCostPerUnit/toRealMrpPerUnit convert a Pack-mode line
+  // (typed per strip/bottle) to the real per-unit values the backend has
+  // always expected — a Unit-mode line passes through unchanged. The
+  // backend contract itself doesn't change at all (see packUnitConversion.js).
   items: items.map(item => ({
     product_sku:        item.product_sku,
     product_name:       item.product_name,
     batch_no:           item.batch_no || null,
     expiry_date:        expiryToISO(item.expiry_mmyy),
-    qty_units:          parseInt(item.qty_units) || 0,
+    qty_units:          Math.round(toRealQty(item)),
     free_qty_units:     parseInt(item.free_qty_units) || 0,
-    cost_price_per_unit: parseFloat(item.ptr_per_unit) || 0,
-    ptr_per_unit:       parseFloat(item.ptr_per_unit) || 0,
-    mrp_per_unit:       parseFloat(item.mrp_per_unit) || 0,
+    cost_price_per_unit: toRealCostPerUnit(item),
+    ptr_per_unit:       toRealCostPerUnit(item),
+    mrp_per_unit:       toRealMrpPerUnit(item),
     gst_percent:        parseFloat(item.gst_percent) || 0,
     batch_priority:     item.batch_priority || batchPriority,
   })),

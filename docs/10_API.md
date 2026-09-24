@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.7 | Last updated: September 23, 2026
+# Version: 1.8 | Last updated: September 24, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -706,7 +706,17 @@ List purchases.
 ---
 
 ### `GET /purchases/{purchase_id}`
-Get single purchase with items.
+Get single purchase with items. Each item now also returns
+`units_per_pack` (added Sep 24, 2026 — stored at confirm time, was never
+returned before; the Purchase entry screen's Pack/Unit toggle needs it
+when a draft is reloaded for editing, see `docs/07_BUSINESS_LOGIC.md`).
+
+> Flagged, not fixed here (out of scope for this change): the `POST
+> /purchases` request example above uses field names (`quantity_received`,
+> `trade_discount`, `gst_rate`) that don't match the real schema —
+> `routers/purchases.py` and the frontend's `buildPurchasePayload.js` both
+> use `qty_units`/`cost_price_per_unit`/`ptr_per_unit`/`gst_percent`. Stale
+> since before this change; needs its own pass.
 
 ---
 

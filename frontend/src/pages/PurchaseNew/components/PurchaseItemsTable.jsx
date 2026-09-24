@@ -15,10 +15,18 @@ import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import AppButton from '@/components/shared/AppButton';
+import { FilterPills } from '@/components/shared/FilterPills';
 import AddMedicineModal from '@/components/shared/AddMedicineModal';
 import { formatCurrency } from '@/utils/currency';
+import { PURCHASE_QTY_MODE } from '@/constants/domainConstants';
+import { isPackMode, toRealQty, toRealCostPerUnit, toRealMrpPerUnit, convertQtyMode } from '../utils/packUnitConversion';
 
-export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, onAddItem, withGST, searchInputRef }) {
+const QTY_MODE_OPTIONS = [
+  { key: PURCHASE_QTY_MODE.PACK, label: 'Pack' },
+  { key: PURCHASE_QTY_MODE.UNIT, label: 'Unit' },
+];
+
+export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemFields, onRemoveItem, onAddItem, withGST, searchInputRef }) {
   const [searchQuery,       setSearchQuery]       = useState('');
   const [searchResults,     setSearchResults]     = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -131,13 +139,20 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                 </tr>
               ) : (
                 items.map((item, index) => {
-                  const qty = parseInt(item.qty_units) || 0;
-                  const ptr = parseFloat(item.ptr_per_unit) || 0;
-                  const mrp = parseFloat(item.mrp_per_unit) || 0;
+                  // Real per-unit values regardless of Pack/Unit mode — see
+                  // packUnitConversion.js. Everything money/stock-related
+                  // below (line total, MRP-vs-cost warning) uses these, not
+                  // the raw typed numbers, since those mean different things
+                  // depending on the mode.
+                  const qty = toRealQty(item);
+                  const ptr = toRealCostPerUnit(item);
+                  const mrp = toRealMrpPerUnit(item);
                   const gst = parseFloat(item.gst_percent) || 0;
                   const lineTotal = qty * ptr;
                   const total = lineTotal + (withGST ? lineTotal * (gst / 100) : 0);
                   const costExceedsMrp = ptr > 0 && mrp > 0 && ptr > mrp;
+                  const packMode = isPackMode(item);
+                  const hasPack = (parseInt(item.units_per_pack) || 1) > 1;
                   const inp = 'w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400';
                   return (
                     <tr key={item.id} className="hover:bg-brand-tint/50 transition-colors">
@@ -147,6 +162,14 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                         <div className="text-[10px] text-gray-500 truncate">
                           {item.manufacturer && `Manf. ${item.manufacturer}`}{item.pack_size && ` | ${item.pack_size}`}
                         </div>
+                        {hasPack && (
+                          <FilterPills
+                            options={QTY_MODE_OPTIONS}
+                            active={packMode ? PURCHASE_QTY_MODE.PACK : PURCHASE_QTY_MODE.UNIT}
+                            onChange={(mode) => onSetItemFields(item.id, convertQtyMode(item, mode))}
+                            className="mt-1"
+                          />
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <input type="text" value={item.batch_no} onChange={(e) => onUpdateItem(item.id, 'batch_no', e.target.value)}
@@ -164,6 +187,11 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                       <td className="px-2 py-2">
                         <input type="number" min="1" value={item.qty_units} onChange={(e) => onUpdateItem(item.id, 'qty_units', e.target.value)}
                           className={`${inp} text-center`} style={{ position: 'relative', zIndex: 1 }} data-testid={`qty-${index}`} />
+                        {packMode && (
+                          <div className="text-[9px] text-gray-400 text-center mt-0.5" data-testid={`qty-real-${index}`}>
+                            = {qty} units
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" min="0" value={item.free_qty_units} onChange={(e) => onUpdateItem(item.id, 'free_qty_units', e.target.value)}
@@ -175,12 +203,22 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onRemoveItem, 
                           className={`${inp} text-right ${costExceedsMrp ? 'border-amber-400 bg-amber-50' : ''}`}
                           style={{ position: 'relative', zIndex: 1 }} data-testid={`ptr-${index}`}
                           title={costExceedsMrp ? "PTR is higher than MRP — you'd be selling this at a loss. Double-check both values." : undefined} />
+                        {packMode && (
+                          <div className="text-[9px] text-gray-400 text-right mt-0.5" data-testid={`ptr-real-${index}`}>
+                            = {formatCurrency(ptr)}/unit
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" step="0.01" value={item.mrp_per_unit} onChange={(e) => onUpdateItem(item.id, 'mrp_per_unit', e.target.value)}
                           className={`${inp} text-right ${costExceedsMrp ? 'border-amber-400 bg-amber-50' : ''}`}
                           style={{ position: 'relative', zIndex: 1 }} data-testid={`mrp-${index}`}
                           title={costExceedsMrp ? "PTR is higher than MRP — you'd be selling this at a loss. Double-check both values." : undefined} />
+                        {packMode && (
+                          <div className="text-[9px] text-gray-400 text-right mt-0.5" data-testid={`mrp-real-${index}`}>
+                            = {formatCurrency(mrp)}/unit
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-2">
                         <input type="number" step="0.1" value={item.gst_percent} onChange={(e) => onUpdateItem(item.id, 'gst_percent', e.target.value)}

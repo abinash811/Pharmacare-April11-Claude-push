@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.17 | Last updated: September 24, 2026
+# Version: 2.18 | Last updated: September 24, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -444,6 +444,38 @@ three on `Purchase`/`PurchaseItem`. `PurchaseItem` also has no `landing_price_pe
 rollup onto `Product` — confirming a purchase updates that *batch's* own cost
 price only. All three are documented as known gaps, not implemented, in
 `backend/tests/test_purchases_module.py`.
+
+### Purchase entry — Pack / Unit (built Sep 24, 2026)
+
+The backend has only ever accepted/stored real per-unit values
+(`qty_units`/`cost_price_per_unit`/`mrp_per_unit`, per tablet or per ml —
+`StockBatch` quantities are real units, migration `a343c922f896`) — that
+part was always correct. What was missing: the Purchase entry screen
+forced the pharmacist to type in those same real-unit terms even though a
+supplier invoice is written per strip/bottle, so buying "10 strips of 10
+tablets at ₹30/strip" meant manually computing ₹3.00/tablet by hand.
+
+Fixed entirely on the frontend, no backend/schema change (the API contract
+above is unchanged) — `frontend/src/pages/PurchaseNew/utils/packUnitConversion.js`:
+- Each purchase line gets a Pack/Unit toggle (`PurchaseItemsTable.jsx`),
+  shown only when the product's `units_per_pack` > 1 — a product with no
+  real pack (`units_per_pack` = 1) has nothing to toggle.
+- Defaults to Pack mode for any product with a pack (`defaultQtyModeFor`).
+- In Pack mode, Qty/PTR/MRP are typed exactly as printed on the supplier's
+  invoice (per strip/bottle); a small line under each field shows the
+  live-computed real per-unit equivalent, so nothing is hidden.
+- `buildPurchasePayload.js` converts to real units right before the
+  existing, unchanged `POST/PUT /purchases` call — the backend never knows
+  a Pack-mode line existed.
+- Switching Pack ↔ Unit mid-entry re-expresses the same real quantity/cost/
+  MRP in the new mode's units (`convertQtyMode`) — it never silently
+  changes what the line is actually worth.
+- A saved draft, loaded back for editing, always starts in Unit mode —
+  its stored values are already real, and which mode was originally used
+  to type them isn't persisted (a deliberate, honest limitation, not a bug).
+- `GET /purchases/{id}`'s per-item response now also returns
+  `units_per_pack` (was stored at confirm time, never returned before) —
+  see `docs/10_API.md`.
 
 ### Purchase Number Generation
 

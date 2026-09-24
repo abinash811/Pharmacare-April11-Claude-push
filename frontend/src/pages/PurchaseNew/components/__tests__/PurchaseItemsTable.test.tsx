@@ -38,7 +38,7 @@ describe('PurchaseItemsTable — search, add-new-medicine', () => {
   beforeEach(() => jest.clearAllMocks());
 
   const baseProps = {
-    items: [], onUpdateItem: jest.fn(), onRemoveItem: jest.fn(), onAddItem: jest.fn(),
+    items: [], onUpdateItem: jest.fn(), onSetItemFields: jest.fn(), onRemoveItem: jest.fn(), onAddItem: jest.fn(),
     withGST: true, searchInputRef: { current: null },
   };
 
@@ -110,5 +110,56 @@ describe('PurchaseItemsTable — search, add-new-medicine', () => {
     render(<PurchaseItemsTable {...baseProps} items={items} />);
     expect(screen.getByTestId('ptr-0')).not.toHaveClass('border-amber-400');
     expect(screen.getByTestId('mrp-0')).not.toHaveClass('border-amber-400');
+  });
+});
+
+describe('PurchaseItemsTable — Pack/Unit entry (Sep 24, 2026)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const baseProps = {
+    items: [], onUpdateItem: jest.fn(), onSetItemFields: jest.fn(), onRemoveItem: jest.fn(), onAddItem: jest.fn(),
+    withGST: true, searchInputRef: { current: null },
+  };
+
+  const packItem = {
+    id: 'i1', product_sku: 'SKU-1', product_name: 'Paracetamol', manufacturer: '', pack_size: '10 Tablets',
+    units_per_pack: 10, qty_mode: 'pack',
+    batch_no: '', expiry_mmyy: '', qty_units: 10, free_qty_units: 0,
+    ptr_per_unit: 30, mrp_per_unit: 50, gst_percent: 5, batch_priority: 'LIFA',
+  };
+
+  it('shows the Pack/Unit toggle for a product with a real pack size', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[packItem]} />);
+    expect(screen.getByRole('button', { name: 'Pack' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unit' })).toBeInTheDocument();
+  });
+
+  it('hides the toggle for a product with no pack (units_per_pack=1)', () => {
+    const singleUnitItem = { ...packItem, units_per_pack: 1, qty_mode: 'unit' };
+    render(<PurchaseItemsTable {...baseProps} items={[singleUnitItem]} />);
+    expect(screen.queryByRole('button', { name: 'Pack' })).not.toBeInTheDocument();
+  });
+
+  it('shows the real per-unit qty/cost/MRP under each field in Pack mode', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[packItem]} />);
+    // 10 strips x 10 tablets/strip = 100 tablets; ₹30/strip = ₹3.00/tablet; ₹50/strip = ₹5.00/tablet
+    expect(screen.getByTestId('qty-real-0')).toHaveTextContent('= 100 units');
+    expect(screen.getByTestId('ptr-real-0')).toHaveTextContent('/unit');
+    expect(screen.getByTestId('mrp-real-0')).toHaveTextContent('/unit');
+  });
+
+  it('hides the real-value subtext in Unit mode — the typed value is already real', () => {
+    const unitItem = { ...packItem, qty_mode: 'unit' };
+    render(<PurchaseItemsTable {...baseProps} items={[unitItem]} />);
+    expect(screen.queryByTestId('qty-real-0')).not.toBeInTheDocument();
+  });
+
+  it('clicking Unit converts the pack-mode line to its real per-unit values', async () => {
+    const onSetItemFields = jest.fn();
+    render(<PurchaseItemsTable {...baseProps} items={[packItem]} onSetItemFields={onSetItemFields} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Unit' }));
+    expect(onSetItemFields).toHaveBeenCalledWith('i1', expect.objectContaining({
+      qty_mode: 'unit', qty_units: 100, ptr_per_unit: 3, mrp_per_unit: 5,
+    }));
   });
 });

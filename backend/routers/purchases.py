@@ -330,6 +330,11 @@ def _purchase_item_response(i: PurchaseItemORM, product_skus: Optional[dict] = N
         "cost_price_per_unit": i.cost_price_paise / 100,
         "ptr_per_unit": i.cost_price_paise / 100,
         "mrp_per_unit": i.mrp_paise / 100,
+        # Stored at confirm time (from the product's own units_per_pack) but
+        # never returned before Sep 24, 2026 — the frontend's Pack/Unit
+        # toggle needs it to show/edit a draft's real pack size when it's
+        # loaded back for editing.
+        "units_per_pack": i.units_per_pack,
         "gst_percent": float(i.gst_rate),
         "line_total": i.line_total_paise / 100,
         "received_qty_units": i.quantity_received,

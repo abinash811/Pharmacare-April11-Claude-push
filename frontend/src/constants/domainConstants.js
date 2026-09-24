@@ -68,6 +68,17 @@ export const PAYMENT_METHOD_LABELS = {
   credit: 'Credit',
 };
 
+// ─── Purchase Entry — Pack / Unit ──────────────────────────────────────────────
+// A purchase line's Qty/PTR/MRP can be typed either per real dispensable
+// unit (tablet, ml) or per pack (strip, bottle) — see
+// frontend/src/pages/PurchaseNew/utils/packUnitConversion.js for the
+// conversion, added Sep 24, 2026 so a pharmacist buying "10 strips at ₹30"
+// never has to compute ₹3/tablet by hand.
+export const PURCHASE_QTY_MODE = {
+  UNIT: 'unit',
+  PACK: 'pack',
+};
+
 // ─── Purchase Payment Methods ─────────────────────────────────────────────────
 // Stored in purchase_payments.payment_method — how a pharmacy pays ITS
 // suppliers, a different set from PAYMENT_METHOD above (that's how a

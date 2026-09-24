@@ -135,3 +135,21 @@ class TestPurchaseFreeQtyUnits(_AuthedTestBase):
         assert purchase["items"][0]["free_qty_units"] == 0
         batch = self._get_batch(product["sku"])
         assert batch["qty_on_hand"] == 30
+
+    def test_units_per_pack_round_trips_on_the_purchase_item(self):
+        """Sep 24, 2026: the Purchase entry Pack/Unit toggle needs a saved
+        draft's real pack size back when loaded for editing — previously
+        stored (PurchaseItem.units_per_pack, confirm-time) but never
+        returned by GET /purchases/{id}."""
+        product = self._create_product(units_per_pack=10)
+        supplier_id = self._get_or_create_supplier()
+
+        purchase = self._confirm_purchase(
+            supplier_id, product["sku"], product["name"], qty_units=100)
+
+        assert purchase["items"][0]["units_per_pack"] == 10, (
+            f"units_per_pack must round-trip through the response, got {purchase['items'][0]}")
+
+        fetched = self.session.get(f"{BASE_URL}/api/purchases/{purchase['id']}")
+        assert fetched.status_code == 200, fetched.text
+        assert fetched.json()["items"][0]["units_per_pack"] == 10

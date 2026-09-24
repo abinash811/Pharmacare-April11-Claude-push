@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.17 | Last updated: September 24, 2026
+# Version: 1.18 | Last updated: September 24, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -284,8 +284,19 @@ Within one form: hard-blocked at the product level ("Product already added" toas
 Captured: batch#, expiry, qty, free qty, PTR, MRP, GST%. Missing entirely: manufacturing date, a distinct selling price, per-line storage location, and **per-line discount** — `PurchaseItem.discount_percent` exists in the DB but the frontend never sets it (always 0; only a purchase-level total discount exists).
 Validation: batch#/expiry/qty/MRP required at confirm ✅. **Expiry-in-the-past is never checked.** Free qty has a `min="0"` on the input but no real validation, and is never checked against paid qty. MRP-below-cost never warned (bug/gap #17 above).
 
-### UC-P16: Handle quantity units (pack/strip/tablet) — ❌ Missing in the UI, ✅ built in the backend
-`units_per_pack` exists on `PurchaseItem` and the backend's confirm-time math genuinely converts pack quantities correctly (tested: `test_units_per_pack_greater_than_1_converts_to_packs`). But `PurchaseItemsTable.jsx` has one flat "Qty" number field — no unit selector, no "invoice qty vs. inventory qty" display anywhere. A real backend feature the UI never surfaces.
+### UC-P16: Handle quantity units (pack/strip/tablet) — ✅ Built (Sep 24, 2026)
+This row's own backend claim was stale/wrong: no test named
+`test_units_per_pack_greater_than_1_converts_to_packs` exists — the real
+one (`test_free_qty_units_added_as_real_units_units_per_pack_greater_than_1`)
+asserts the opposite, that `units_per_pack` must **never** convert
+quantities server-side (`StockBatch` stores real units, migration
+`a343c922f896`). The actual gap was purely on screen: `PurchaseItemsTable.jsx`
+had one flat "Qty" field forcing per-unit entry/math onto the pharmacist.
+Fixed entirely on the frontend (no backend/schema change) — a Pack/Unit
+toggle per line, defaulting to Pack for any product with a real pack size,
+converting to real units only right before the unchanged `POST/PUT
+/purchases` call. See `docs/07_BUSINESS_LOGIC.md`'s "Purchase entry — Pack
+/ Unit" section for the full design and `frontend/src/pages/PurchaseNew/utils/packUnitConversion.js`.
 
 ### UC-P17: Handle free goods — 🔄 Partial
 Paid/free qty captured separately, correctly excluded from taxable value, correctly added to stock. Missing: no "total received" summary display, no scheme-description field, **no report shows free-stock separately** (no batch report exists at all), and **returns can't distinguish free from paid** (see PR05).

@@ -8,10 +8,12 @@ import { toast } from 'sonner';
 import { InlineLoader } from '@/components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { PURCHASE_QTY_MODE } from '@/constants/domainConstants';
 
 import { usePurchaseItems }       from './hooks/usePurchaseItems';
 import { useDuplicateInvoiceCheck } from './hooks/useDuplicateInvoiceCheck';
 import { buildPurchasePayload }   from './utils/buildPurchasePayload';
+import { mapDraftPurchaseItems }  from './utils/mapDraftPurchaseItems';
 import PurchaseHeader             from './components/PurchaseHeader';
 import PurchaseSubbar             from './components/PurchaseSubbar';
 import PurchaseItemsTable         from './components/PurchaseItemsTable';
@@ -32,7 +34,7 @@ export default function PurchaseNew() {
   const { id: editId }  = useParams();
   const searchInputRef  = useRef(null);
 
-  const { items, addItem, updateItem, removeItem, loadItems, calculateTotals } = usePurchaseItems();
+  const { items, addItem, updateItem, setItemFields, removeItem, loadItems, calculateTotals } = usePurchaseItems();
 
   // ── Meta state ────────────────────────────────────────────────────────────
   const [isEditMode,      setIsEditMode]      = useState(false);
@@ -103,21 +105,7 @@ export default function PurchaseNew() {
             extraCharges: p.extra_charges || 0,
             adjustmentAmount: p.adjustment_amount || 0,
           }));
-          loadItems((p.items || []).map((item, idx) => ({
-            id: `edit-${idx}`,
-            product_sku:    item.product_sku,
-            product_name:   item.product_name,
-            manufacturer:   item.manufacturer || '',
-            pack_size:      item.pack_size || '',
-            batch_no:       item.batch_no || '',
-            expiry_mmyy:    item.expiry_mmyy || '',
-            qty_units:      item.qty_units || 1,
-            free_qty_units: item.free_qty_units || 0,
-            ptr_per_unit:   item.ptr_per_unit || item.cost_price_per_unit || 0,
-            mrp_per_unit:   item.mrp_per_unit || 0,
-            gst_percent:    item.gst_percent || 5,
-            batch_priority: item.batch_priority || 'LIFA',
-          })));
+          loadItems(mapDraftPurchaseItems(p.items));
           toast.success('Draft purchase loaded');
         } catch { toast.error('Failed to load draft purchase'); navigate('/purchases'); }
       }
@@ -210,6 +198,8 @@ export default function PurchaseNew() {
       product_name:   item.product_name,
       manufacturer:   '',
       pack_size:      '',
+      units_per_pack: 1,
+      qty_mode:       PURCHASE_QTY_MODE.UNIT,
       batch_no:       item.batch_no,
       expiry_mmyy:    item.expiry_mmyy,
       qty_units:      item.qty_units,
@@ -260,6 +250,7 @@ export default function PurchaseNew() {
       <PurchaseItemsTable
         items={items}
         onUpdateItem={updateItem}
+        onSetItemFields={setItemFields}
         onRemoveItem={removeItem}
         onAddItem={(product) => addItem(product, DEFAULT_BATCH_PRIORITY)}
         withGST={withGST}

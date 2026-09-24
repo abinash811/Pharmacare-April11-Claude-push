@@ -14,6 +14,7 @@
  */
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { toRealQty, toRealCostPerUnit, defaultQtyModeFor } from '../utils/packUnitConversion';
 
 export function usePurchaseItems() {
   const [items, setItems] = useState([]);
@@ -27,6 +28,11 @@ export function usePurchaseItems() {
       product_name:     product.name,
       manufacturer:     product.manufacturer || '',
       pack_size:        product.pack_size || '',
+      units_per_pack:   product.units_per_pack || 1,
+      // Defaults to Pack for anything sold in a real pack (strip, bottle) —
+      // a product with units_per_pack=1 has no pack to speak of, so it
+      // starts in Unit mode with no toggle shown at all.
+      qty_mode:         defaultQtyModeFor(product),
       batch_no:         '',
       expiry_mmyy:      '',
       qty_units:        1,
@@ -42,6 +48,13 @@ export function usePurchaseItems() {
     setItems(prev => prev.map(item => item.id !== id ? item : { ...item, [field]: value }));
   };
 
+  // Applies several fields at once — used by the Pack/Unit toggle, whose
+  // conversion (packUnitConversion.js's convertQtyMode) changes qty_mode
+  // together with qty_units/ptr_per_unit/mrp_per_unit so they stay in sync.
+  const setItemFields = (id, patch) => {
+    setItems(prev => prev.map(item => item.id !== id ? item : { ...item, ...patch }));
+  };
+
   const removeItem = (id) => {
     setItems(prev => prev.filter(item => item.id !== id));
   };
@@ -51,8 +64,10 @@ export function usePurchaseItems() {
   const calculateTotals = (withGST = true) => {
     let ptrTotal = 0, taxValue = 0, totalQty = 0, totalFree = 0;
     items.forEach(item => {
-      const qty = parseInt(item.qty_units) || 0;
-      const ptr = parseFloat(item.ptr_per_unit) || 0;
+      // Real per-unit values regardless of whether this line was typed in
+      // Pack or Unit mode — see packUnitConversion.js.
+      const qty = toRealQty(item);
+      const ptr = toRealCostPerUnit(item);
       const gst = parseFloat(item.gst_percent) || 0;
       const free = parseInt(item.free_qty_units) || 0;
       const lineTotal = qty * ptr;
@@ -75,5 +90,5 @@ export function usePurchaseItems() {
     };
   };
 
-  return { items, addItem, updateItem, removeItem, loadItems, calculateTotals };
+  return { items, addItem, updateItem, setItemFields, removeItem, loadItems, calculateTotals };
 }

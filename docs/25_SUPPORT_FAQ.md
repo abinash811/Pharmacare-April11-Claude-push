@@ -1,5 +1,5 @@
 # PharmaCare — Support FAQ / Knowledge Base
-# Version: 1.0 | Last updated: September 24, 2026
+# Version: 1.1 | Last updated: September 24, 2026
 # Type: Reference
 
 Structured like Intercom's Help Center (Abinash's choice, Sep 24, 2026):
@@ -15,6 +15,17 @@ as the code change it describes (same discipline as every other doc —
 CLAUDE.md rule 13).
 
 **Status key:** ✅ Filled & verified · ⏳ Outline only, content pending
+
+> ⚠️ **Known gap, ON HOLD (Abinash, Sep 24, 2026):** the Billing and
+> Settings → Receipt & Print sections below were written answering "what
+> does the system do/limit" (an internal capability-audit voice), not
+> "how do I do my job" (a real end-user's voice). A proper rewrite is
+> task-first — "How do I sell 2 loose tablets instead of the whole
+> strip," "How do I split a payment across cash and card," step-by-step
+> where it helps, for someone who's never opened the app — while keeping
+> every underlying fact exactly as verified. **Do not start this rewrite
+> until Abinash explicitly says to begin it** — this note is the record
+> of the decision, not a green light to act on it.
 
 ---
 

@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.21 | Last updated: September 21, 2026
+# Version: 2.22 | Last updated: September 24, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -79,6 +79,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 | 19 | `docs/19_PERFORMANCE.md` | Lighthouse targets, lazy loading, pagination, N+1 rules |
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 | 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
+| 25 | `docs/25_SUPPORT_FAQ.md`  | Plain-language Q&A per module/sub-module, Intercom-style — for support agents and, later, end users. Source-of-truth rule: every answer traces to real code or another doc, never guessed. |
 
 ### How-To — step-by-step task guides
 

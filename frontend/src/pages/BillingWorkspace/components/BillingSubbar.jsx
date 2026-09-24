@@ -34,6 +34,7 @@ import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { FilterPills, AppButton } from '@/components/shared';
+import { PAYMENT_METHOD } from '@/constants/domainConstants';
 import DoctorDropdown from './DoctorDropdown';
 import PatientCombobox from './PatientCombobox';
 import SplitPaymentPanel, { SPLIT_METHODS } from './SplitPaymentPanel';
@@ -49,11 +50,14 @@ const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wi
 // "Due" removed for good Sep 19, 2026 (Abinash, direct instruction) — a
 // bill must be paid in full to finalize; the backend now rejects any
 // partial payment outright (see billing.py's create_bill/update_bill).
+// "Card" split into Credit Card / Debit Card Sep 24, 2026 (Abinash, direct
+// instruction) — see domainConstants.js's PAYMENT_METHOD comment for why.
 const PAYMENT_TYPES = [
-  { key: 'cash',     label: 'Cash'   },
-  { key: 'upi',      label: 'UPI'    },
-  { key: 'card',     label: 'Card'   },
-  { key: 'multiple', label: 'Multi'  },
+  { key: PAYMENT_METHOD.CASH,        label: 'Cash'        },
+  { key: PAYMENT_METHOD.UPI,         label: 'UPI'         },
+  { key: PAYMENT_METHOD.CREDIT_CARD, label: 'Credit Card' },
+  { key: PAYMENT_METHOD.DEBIT_CARD,  label: 'Debit Card'  },
+  { key: PAYMENT_METHOD.MULTIPLE,    label: 'Multi'       },
 ];
 
 function ColDivider() {

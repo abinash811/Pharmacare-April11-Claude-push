@@ -106,6 +106,18 @@ describe('BillingSubbar — Multi payment split panel', () => {
     expect(screen.getByTestId('split-total')).toHaveClass('text-amber-600');
   });
 
+  it('offers Credit Card and Debit Card as separate options, not one ambiguous "Card"', async () => {
+    const onPaymentTypeChange = jest.fn();
+    render(<BillingSubbar {...BASE_PROPS} paymentSplits={[]} onPaymentSplitsChange={jest.fn()} onPaymentTypeChange={onPaymentTypeChange} />);
+
+    expect(screen.queryByRole('button', { name: 'Card' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Credit Card' }));
+    expect(onPaymentTypeChange).toHaveBeenCalledWith('credit_card');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Debit Card' }));
+    expect(onPaymentTypeChange).toHaveBeenCalledWith('debit_card');
+  });
+
   it('view mode renders the real per-method breakdown instead of the bare word "multiple"', () => {
     render(
       <BillingSubbar

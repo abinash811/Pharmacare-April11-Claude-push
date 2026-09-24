@@ -17,6 +17,9 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700',
   draft: 'bg-amber-50 text-amber-700',
   upi: 'bg-blue-50 text-blue-700',
+  credit_card: 'bg-purple-50 text-purple-700',
+  debit_card: 'bg-purple-50 text-purple-700',
+  // Legacy — bills created before the Sep 24, 2026 Credit Card/Debit Card split.
   credit: 'bg-purple-50 text-purple-700',
   card: 'bg-purple-50 text-purple-700',
   multiple: 'bg-blue-50 text-blue-700',
@@ -58,6 +61,8 @@ const LABEL_MAPPINGS: Record<string, string> = {
   partially_credited: 'Partially Credited',
   fully_credited: 'Fully Credited',
   multiple: 'Multi',
+  credit_card: 'Credit Card',
+  debit_card: 'Debit Card',
 };
 
 export interface StatusBadgeProps {
@@ -117,6 +122,11 @@ export function PaymentStatusBadge({ status, paymentMethod }: PaymentStatusBadge
   if (status === 'paid') {
     const method = paymentMethod?.toLowerCase();
     if (method === 'upi')                  return <StatusBadge status="upi"   label="UPI" />;
+    if (method === 'credit_card')          return <StatusBadge status="credit_card" label="Credit Card" />;
+    if (method === 'debit_card')           return <StatusBadge status="debit_card" label="Debit Card" />;
+    // Legacy values from before the Sep 24, 2026 Credit Card/Debit Card
+    // split — still shown as-is on bills created before that change
+    // (Manifesto rule 6: never rewritten).
     if (method === 'card' || method === 'cc/dc') return <StatusBadge status="card" label="Card" />;
     if (method === 'credit')               return <StatusBadge status="credit" label="Credit" />;
     return <StatusBadge status="cash" label="Cash" />;

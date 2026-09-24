@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.16 | Last updated: September 23, 2026
+# Version: 2.17 | Last updated: September 24, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -117,6 +117,24 @@ Same as above except:
 - Drug License check, Schedule H1 checks (doctor name **and** patient
   address — see FLOW 6), MRP check, and stock check are all skipped
   (drafts aren't finalized sales)
+
+### Payment methods
+
+`bills.payment_method` (free `String(20)`, no DB enum): `cash`, `upi`,
+`credit_card`, `debit_card`, `multiple` (see Multi payment below). Selected
+via `PAYMENT_METHOD` in `frontend/src/constants/domainConstants.js` —
+`BillingSubbar.jsx`'s picker and `SplitPaymentPanel.jsx`'s split legs both
+read from it, never a raw string.
+
+`card`/`credit` were replaced by explicit `credit_card`/`debit_card` Sep 24,
+2026 (Abinash, direct instruction). `credit` dated from when a bill could
+carry a running due balance; once due bills were removed (Sep 19, 2026,
+below) it only ever meant "paid by credit card," so it's now its own
+explicit method instead of an ambiguous leftover next to the generic
+`card`. Bills created before this change keep their stored `card`/`credit`
+value — never rewritten (Manifesto rule 6) — and every display surface
+(`StatusBadge`, `PrintReceipt`, Day-End Closing's `BreakdownTables`) still
+renders a real label for them, it's just not a selectable option anymore.
 
 ### Multi payment (split across 2+ real methods)
 

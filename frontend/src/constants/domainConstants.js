@@ -40,12 +40,32 @@ export const BILL_STATUS_FILTER_MAP = {
 export const UNSETTLED_STATUSES = [BILL_STATUS.DRAFT, 'parked'];
 
 // ─── Payment Methods ──────────────────────────────────────────────────────────
+// "Card" and "Credit" were replaced by explicit CREDIT_CARD/DEBIT_CARD Sep
+// 24, 2026 (Abinash, direct instruction) — the old flat "Credit" option
+// dated from when a bill could carry a running due balance; since due bills
+// were removed (Sep 19, 2026) "Credit" only ever meant "paid by credit
+// card," so it's now its own explicit method alongside Debit Card instead
+// of an ambiguous leftover. 'card'/'credit' can still appear on bills
+// created before this change — never rewritten (Manifesto rule 6) — so
+// label maps that render historical data keep displaying them.
 export const PAYMENT_METHOD = {
-  CASH:     'cash',
-  UPI:      'upi',
-  CARD:     'card',
-  CREDIT:   'credit',
-  MULTIPLE: 'multiple',
+  CASH:        'cash',
+  UPI:         'upi',
+  CREDIT_CARD: 'credit_card',
+  DEBIT_CARD:  'debit_card',
+  MULTIPLE:    'multiple',
+};
+
+export const PAYMENT_METHOD_LABELS = {
+  [PAYMENT_METHOD.CASH]: 'Cash',
+  [PAYMENT_METHOD.UPI]: 'UPI',
+  [PAYMENT_METHOD.CREDIT_CARD]: 'Credit Card',
+  [PAYMENT_METHOD.DEBIT_CARD]: 'Debit Card',
+  [PAYMENT_METHOD.MULTIPLE]: 'Multiple',
+  // Legacy values — no longer selectable, kept so old bills still render a
+  // real label instead of a blank/raw string.
+  card: 'Card',
+  credit: 'Credit',
 };
 
 // ─── Purchase Payment Methods ─────────────────────────────────────────────────

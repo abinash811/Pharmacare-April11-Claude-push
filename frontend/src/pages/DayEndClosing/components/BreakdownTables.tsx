@@ -27,8 +27,12 @@ interface BreakdownTablesProps {
   operatorBreakdown: OperatorBreakdownRow[];
 }
 
+// "card"/"credit" are legacy values from bills created before the Sep 24,
+// 2026 Credit Card/Debit Card split — kept here so a historical date's
+// breakdown still shows a real label instead of the raw string.
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: 'Cash', upi: 'UPI', card: 'Card', credit: 'Credit', multiple: 'Multiple', unspecified: 'Unspecified',
+  cash: 'Cash', upi: 'UPI', credit_card: 'Credit Card', debit_card: 'Debit Card',
+  card: 'Card', credit: 'Credit', multiple: 'Multiple', unspecified: 'Unspecified',
 };
 
 export default function BreakdownTables({ paymentBreakdown, operatorBreakdown }: BreakdownTablesProps) {

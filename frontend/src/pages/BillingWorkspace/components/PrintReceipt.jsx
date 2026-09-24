@@ -21,14 +21,16 @@ const isThermal = (format) => format === '80mm' || format === '58mm';
 
 // A "Multi" bill's payment_method is the literal string "multiple" — on its
 // own that told a customer nothing about how they actually paid. Renders
-// the real per-method split instead (e.g. "CASH ₹300.00 + UPI ₹200.00").
+// the real per-method split instead (e.g. "CASH ₹300.00 + CREDIT CARD ₹200.00").
+const prettyMethod = (m) => m?.replace(/_/g, ' ').toUpperCase() || '';
+
 function paymentLine(payment_method, payment_splits) {
   if (payment_method === 'multiple' && payment_splits?.length) {
     return payment_splits
-      .map((s) => `${s.method?.toUpperCase()} ${formatCurrency(Number(s.amount))}`)
+      .map((s) => `${prettyMethod(s.method)} ${formatCurrency(Number(s.amount))}`)
       .join(' + ');
   }
-  return payment_method?.toUpperCase() || '';
+  return prettyMethod(payment_method);
 }
 
 // ── Thermal receipt (80mm / 58mm) ────────────────────────────────────────────

@@ -12,6 +12,7 @@
 import React from 'react';
 import { Plus, X } from 'lucide-react';
 import { AppButton } from '@/components/shared';
+import { PAYMENT_METHOD } from '@/constants/domainConstants';
 
 const LABEL = 'block text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-0.5';
 
@@ -27,11 +28,13 @@ interface SplitPaymentPanelProps {
 }
 
 // Matches backend's _VALID_SPLIT_METHODS (billing.py) — Due isn't a real
-// settled instrument, so it can't be one leg of a Multi split.
+// settled instrument, so it can't be one leg of a Multi split. "Card" split
+// into Credit Card / Debit Card Sep 24, 2026 — see domainConstants.js.
 export const SPLIT_METHODS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'upi',  label: 'UPI'  },
-  { value: 'card', label: 'Card' },
+  { value: PAYMENT_METHOD.CASH,        label: 'Cash'        },
+  { value: PAYMENT_METHOD.UPI,         label: 'UPI'         },
+  { value: PAYMENT_METHOD.CREDIT_CARD, label: 'Credit Card' },
+  { value: PAYMENT_METHOD.DEBIT_CARD,  label: 'Debit Card'  },
 ];
 
 export default function SplitPaymentPanel({ paymentSplits, onPaymentSplitsChange, grandTotal = 0 }: SplitPaymentPanelProps) {

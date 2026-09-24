@@ -92,11 +92,24 @@ class TestCreateBillWithMultiPayment(_AuthedTestBase):
             "payments": [
                 {"method": "cash", "amount": 200},
                 {"method": "upi", "amount": 200},
-                {"method": "card", "amount": 200},
+                {"method": "credit_card", "amount": 200},
             ],
         })
         assert resp.status_code == 200, resp.text
         assert len(resp.json()["payment_splits"]) == 3
+
+    def test_legacy_card_is_no_longer_a_valid_split_leg(self):
+        """"card" was replaced by explicit credit_card/debit_card Sep 24,
+        2026 — a NEW bill can no longer be split with the old bare value,
+        even though bills already carrying it are never rewritten."""
+        sku, batch_no = self._create_product_and_batch(mrp=500)
+        resp = self.session.post(f"{BASE_URL}/api/bills", json={
+            "status": "paid", "tax_rate": 0,
+            "items": self._bill_items(sku, batch_no, unit_price=500),
+            "payments": [{"method": "cash", "amount": 300}, {"method": "card", "amount": 200}],
+        })
+        assert resp.status_code == 400, resp.text
+        assert "invalid split payment method" in resp.json()["detail"].lower()
 
     def test_mismatched_split_sum_is_rejected(self):
         sku, batch_no = self._create_product_and_batch(mrp=500)
@@ -182,7 +195,7 @@ class TestDayEndClosingWithMultiPayment(_AuthedTestBase):
         resp = self.session.post(f"{BASE_URL}/api/bills", json={
             "status": "paid", "tax_rate": 0,
             "items": self._bill_items(sku, batch_no, unit_price=1000),
-            "payments": [{"method": "cash", "amount": 400}, {"method": "card", "amount": 600}],
+            "payments": [{"method": "cash", "amount": 400}, {"method": "credit_card", "amount": 600}],
         })
         assert resp.status_code == 200, resp.text
 
@@ -194,7 +207,7 @@ class TestDayEndClosingWithMultiPayment(_AuthedTestBase):
         # to its own method, and only cash counts toward the cash drawer.
         assert "multiple" not in methods
         assert methods["cash"] == pytest.approx(400.0)
-        assert methods["card"] == pytest.approx(600.0)
+        assert methods["credit_card"] == pytest.approx(600.0)
         assert data["summary"]["expected_cash"] == pytest.approx(400.0)
         assert data["summary"]["total_sales"] == pytest.approx(1000.0)
 

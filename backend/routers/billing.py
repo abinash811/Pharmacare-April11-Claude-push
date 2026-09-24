@@ -410,7 +410,11 @@ async def _create_h1_entry(
 # instruments — "due" as a split leg would mean "not paid," which is
 # what the separate Due flow (BillingSubbar's own paid_now/balance
 # handling) already covers; combining the two is real scope, not built.
-_VALID_SPLIT_METHODS = {"cash", "upi", "card"}
+# "card" split into "credit_card"/"debit_card" Sep 24, 2026 (Abinash, direct
+# instruction) — see domainConstants.js's PAYMENT_METHOD comment (frontend)
+# for why. Old bills whose payment_splits already contain "card" are never
+# rewritten (Manifesto rule 6); this whitelist only gates NEW writes.
+_VALID_SPLIT_METHODS = {"cash", "upi", "credit_card", "debit_card"}
 
 
 def _resolve_payment_splits(

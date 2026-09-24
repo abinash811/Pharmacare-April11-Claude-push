@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.7 | Last updated: September 19, 2026
+# Version: 2.8 | Last updated: September 24, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -376,13 +376,13 @@ just annoy her, it risks a real penalty for a real small business.
 
 | UC | Use case | Status | Evidence |
 |---|---|---|---|
-| GST01 | Generate report for a date range | 🐛 Broken | Live-confirmed hard crash on every "Generate Report" click — `GSTReport.js:136`, see UC-R05 |
+| GST01 | Generate report for a date range | ✅ **Fixed Sep 12, 2026** | Was: live-confirmed hard crash on every "Generate Report" click — `GSTReport.js:136`, see UC-R05. This appendix table predated that fix and wasn't updated with it — live-reverified Sep 24, 2026 (real pharmacy, real bill, `GET /reports/gst` returns `sales_summary`/`net_liability`, `GSTReport.js` reads exactly those keys, no crash). See Executive Summary item 1. |
 | GST02 | Output tax (sales-side) breakdown by rate | ✅ Built (once render is fixed) | Math correct, `reports.py:290-303` |
 | GST03 | Input tax credit (purchase-side) breakdown by rate | ✅ Built (once render is fixed) | `reports.py:322-335` |
 | GST04 | Net GST liability (output − input) | ✅ Built (once render is fixed) | `reports.py:373` |
 | GST05 | Sales returns reduce output tax | ✅ Built | Formula verified against `create_sales_return`'s own pricing, `reports.py:309-324` |
 | GST06 | Purchase returns reduce input tax credit | ✅ Built | Formula verified against `create_purchase_return`'s own pricing, `reports.py:346-361` |
-| GST07 | Credit ("due") sales included in output tax | 🐛 Missing | `status == "paid"` only excludes confirmed unpaid sales — see UC-R06 |
+| GST07 | Credit ("due") sales included in output tax | ✅ **Fixed Sep 12, 2026** | `get_gst_report`'s sales query now filters `status.in_(["paid","due"])` (`reports.py:764`, live-reverified Sep 24, 2026) — this appendix row predated the fix. See Executive Summary item 2. |
 | GST08 | HSN-wise breakdown (not just rate-wise) | ❌ Missing | Real GSTR-1 filing is HSN-wise ([ClearTax](https://docs.cleartax.in/product-help-and-support/for-large-businesses/cleargst/generate-reports/sales-and-g1/gstr-1-hsn-summary-report)); `hsn_code` exists on both `BillItem`/`PurchaseItem` but is never read in `get_gst_report` |
 | GST09 | B2B vs. B2C bifurcation | ❌ Missing | Real GSTR-1 Table 12 requires this split ([ClearTax](https://cleartax.in/s/gstr-1)); `Customer` has no GSTIN-for-invoicing concept at all — schema gap, not just a report gap |
 | GST10 | IGST (interstate sales) | ❌ Not populated, by design | Matches the already-known, deliberately-deferred single-state-only Phase 1 decision |

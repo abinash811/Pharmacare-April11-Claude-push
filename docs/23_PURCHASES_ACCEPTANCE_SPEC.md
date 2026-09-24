@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.16 | Last updated: September 17, 2026
+# Version: 1.17 | Last updated: September 24, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -455,7 +455,7 @@ code only ever produces one.
 | Edit/cancel purchase | N/A | Feature doesn't exist to gate |
 | Create/edit return | ✅ | |
 | Confirm/cancel return | N/A | Feature doesn't exist to gate |
-| **Adjust stock** | ❌ **Not gated at all** | `POST /batches/{id}/adjust` only requires login — any role, including cashier, can adjust any stock quantity. Bug #5 above. |
+| **Adjust stock** | ✅ **Fixed Sep 13, 2026** | Was: `POST /batches/{id}/adjust` only required login. Now calls `_require_inventory_permission(current_user, "stock_adjust", db)` (`batches.py:475`, live-reverified Sep 24, 2026) — this row predated the fix noted in bug #5 above. |
 | Change purchase rate / MRP | ✅ (not field-level) | Bundled into the same blanket edit gate, not its own permission |
 | **Backdate transactions** | ❌ **Not gated at all** | No date-range restriction exists anywhere; any user who can create/edit can backdate freely |
 | **Export reports** | ❌ **Not gated at all** | GST/sales/analytics endpoints only require login — a cashier can pull the GST report |

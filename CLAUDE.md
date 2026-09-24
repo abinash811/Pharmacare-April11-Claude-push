@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.22 | Last updated: September 24, 2026
+# Version: 2.23 | Last updated: September 24, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -104,7 +104,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 |---|------|--------------|
 | 15 | `docs/15_ROADMAP.md` | Built / in-progress / planned / Phase 2+ / tech debt |
 | 23 | `docs/23_PURCHASES_ACCEPTANCE_SPEC.md` | Purchases + Purchase Returns full use-case spec vs. real code — every UC rated Built/Partial/Missing with evidence. The template for future module acceptance specs. |
-| 24 | `docs/24_REPORTS_ACCEPTANCE_SPEC.md` | Reports/GST/Schedule H1/Dashboard full use-case spec vs. real code — same template as 23. Headline finding: the GST report currently hard-crashes on every use. |
+| 24 | `docs/24_REPORTS_ACCEPTANCE_SPEC.md` | Reports/GST/Schedule H1/Dashboard full use-case spec vs. real code — same template as 23. The GST report's Sep 12, 2026 hard-crash and credit-sale exclusion bugs are both fixed (live-reverified Sep 24, 2026) — this line itself was stale until then; see the doc's own Executive Summary, not just this one-liner. |
 
 ---
 

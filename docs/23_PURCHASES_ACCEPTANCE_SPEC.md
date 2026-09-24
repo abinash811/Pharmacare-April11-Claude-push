@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.18 | Last updated: September 24, 2026
+# Version: 1.19 | Last updated: September 24, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -243,7 +243,7 @@ Full flow verified end-to-end: draft → supplier → invoice# → date → due 
 
 ### UC-P06: Save purchase as draft — 🔄 Partial, one gap closed (Aug 25, 2026)
 Draft correctly excluded from stock/balance/reports (verified: `_create_stock_for_items` only runs `if status=="confirmed"`). All fields round-trip on edit.
-- **Fixed**: drafts can now be deleted (soft-delete, `DELETE /purchases/{id}`) — reuses the same `deleted_at` pattern already used for suppliers/customers elsewhere in this app. Restricted to `status=="draft"` only — a confirmed purchase has real stock/financial effects and gets a real correction mechanism instead (UC-P09, still not built), not a delete. While building this, found `get_purchase()` and `update_purchase()` never filtered `deleted_at` at all — a "deleted" purchase could still be fetched or edited directly by id. Fixed both in the same change. Trash icon only shows on draft rows in the Purchases list; confirmed rows never get one. 7 new backend regression tests, all passing, no regressions in the existing 36.
+- **Fixed**: drafts can now be deleted (soft-delete, `DELETE /purchases/{id}`) — reuses the same `deleted_at` pattern already used for suppliers/customers elsewhere in this app. Restricted to `status=="draft"` only — a confirmed purchase has real stock/financial effects and gets a real correction mechanism instead (UC-P09, built), not a delete. While building this, found `get_purchase()` and `update_purchase()` never filtered `deleted_at` at all — a "deleted" purchase could still be fetched or edited directly by id. Fixed both in the same change. Trash icon only shows on draft rows in the Purchases list; confirmed rows never get one. 7 new backend regression tests, all passing, no regressions in the existing 36.
 - **Still missing**: no autosave/recovery — a draft not explicitly saved is lost on refresh or navigation away.
 
 ### UC-P07: Confirm purchase — 🔄 Partial
@@ -258,8 +258,22 @@ Fix: `_purchase_response()` now resolves each item's real SKU via its `product_i
 
 Once that's fixed, the rest of the use case holds: every field editable pre-confirm, totals recalculate, permission-gated. Minor remaining gap: no field-level diff/version history — only one generic audit entry per edit.
 
-### UC-P09: Correct a confirmed purchase — ❌ Missing
-No reversal, no adjustment, no correction path of any kind exists. "Don't allow silent editing" is enforced (the 400 block); the other half of the requirement — *some* controlled way to fix a real mistake — was never built. A confirmed purchase is permanent, forever, even when wrong.
+### UC-P09: Correct a confirmed purchase — ✅ Built
+This row was stale/wrong — corrected Sep 24, 2026 after re-verifying
+against real code and tests, not trusting this doc's own claim. `PUT
+/purchases/{id}/correct` (`routers/purchases.py::correct_confirmed_purchase`)
+is real, complete, and wired to the frontend: `PurchaseDetail`'s "..." menu
+has an admin-only "Correct Purchase" action opening a real modal
+(`showCorrectModal`/`handleCorrect`). Admin-only, a `reason` is mandatory,
+every change is audit-logged old-vs-new. Deliberately narrower than a full
+re-edit: MRP, cost price/PTR, batch number, and expiry date are
+correctable; **quantity is not** — a confirmed purchase's stock may
+already be sold/returned against, so retroactively changing it risks
+inventing or destroying stock that no longer matches what was physically
+received (a genuine quantity mistake goes through Purchase Returns
+instead). 6 backend tests (`TestCorrectConfirmedPurchase` in
+`test_purchases_safety_and_corrections.py`), all confirmed passing
+Sep 24, 2026.
 
 ---
 
@@ -352,8 +366,14 @@ Overpayment is now rejected outright (400, "Payment amount exceeds the outstandi
 ### UC-P30: Support payment methods — 🔄 Partial
 Cash/UPI/Bank Transfer/Cheque all present, matching the spec. Card/Other — missing (already known, already queued). No cheque-number or bank-detail sub-fields; no attachment on a payment record.
 
-### UC-P31: Edit or reverse payment — ❌ Missing entirely
-No endpoint exists. A wrong amount, date, or method, once recorded, can never be corrected.
+### UC-P31: Edit or reverse payment — ✅ Built
+Also stale — corrected Sep 24, 2026. A recorded payment can't be edited
+in place, but it can be reversed: admin-only, reason mandatory, real
+endpoint (`PurchasePayment.reversed_at`, see `routers/purchases.py`),
+wired to the frontend (`PaymentHistorySection.tsx`). A reversed payment
+is excluded from supplier payment history and is idempotent (reversing
+twice doesn't double-reverse). 5 backend tests
+(`TestPaymentReversal`), all confirmed passing Sep 24, 2026.
 
 ### UC-P32: Payment due alerts — 🔄 Partial
 Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't go stale). Due-today/overdue/due-soon badges, and ageing buckets, don't exist as a dedicated system — and no purchase-specific dashboard metric (amount payable, overdue balance) exists at all (confirmed absent from both dashboard endpoints).

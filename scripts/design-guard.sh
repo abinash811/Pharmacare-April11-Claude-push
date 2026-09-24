@@ -355,6 +355,19 @@ else
   green "Rule 19 PASS: No toISOString()-based date-only conversions outside utils/dates.js"
 fi
 
+# ── Rule 20 (warn-only): acceptance-spec docs claiming a route is missing ──
+# that already has a real handler — see docs/15_ROADMAP.md RULE MISSES LOG,
+# Sep 24, 2026 (UC-P09/UC-P31). Narrow by design (only fires when the doc's
+# own "Missing"/"Broken" text quotes the contradicting route) — see
+# scripts/check_doc_status_claims.py's own docstring for what it can't catch.
+DOC_CLAIM_OUTPUT=$(python3 scripts/check_doc_status_claims.py 2>&1 || true)
+if echo "$DOC_CLAIM_OUTPUT" | grep -q "possible stale"; then
+  warn "Rule 20 NOTE: $(echo "$DOC_CLAIM_OUTPUT" | grep -c '^  ') acceptance-spec row(s) may be stale — see scripts/check_doc_status_claims.py output"
+  echo "$DOC_CLAIM_OUTPUT" | tail -n +2 | while read -r line; do warn "$line"; done
+else
+  green "Rule 20 PASS: No quoted-route acceptance-spec claims contradicted by real code"
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

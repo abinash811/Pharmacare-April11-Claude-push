@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.43 | Last updated: September 25, 2026
+# Version: 3.44 | Last updated: September 25, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -385,8 +385,8 @@ this list is the default order, not a fixed requirement).
 | Feature | Status | Notes |
 |---------|--------|-------|
 | JWT authentication | ✅ | Login, register, token refresh |
-| Forgot password / reset flow | 📋 | V1-required — see Auth Overhaul #6 for design notes |
-| Admin reset password for other users | 📋 | V1-required — see Auth Overhaul #8 for design notes |
+| Forgot password / reset flow | ✅ | Built Sep 16, 2026 — full token round-trip works; real email delivery deferred (dev-mode link shown instead, asked not assumed). This row was stale — see Auth Overhaul #6. Corrected Sep 25, 2026. |
+| Admin reset password for other users | 🔄 | Backend built (`PUT /users/{id}/reset-password`, Sep 15, 2026) but no Team/Members UI calls it — confirmed by grep, zero frontend consumers outside the unrelated self-service `/reset-password` page. This row and Auth Overhaul #8 both wrongly said 📋 — corrected Sep 25, 2026. |
 | Multi-tenancy (pharmacy_id isolation) | 🔄 | Enforced on the paths that have been audited; a real signup-flow bug (fixed) proved the pattern "forgot to scope by pharmacy_id" exists — full query audit not yet done. See `13_DEPLOYMENT.md` PRE-LAUNCH BLOCKERS #2. |
 | Soft deletes | ✅ | `is_deleted` + `deleted_at` on all tables |
 | Audit logging | ✅ | All state changes logged |
@@ -1515,11 +1515,17 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 - **Needs:** `user_sessions` table (user_id, device, ip, last_seen, token_ref), token blacklist or DB-backed refresh tokens, `GET /users/{id}/sessions`, `DELETE /sessions/{id}` endpoints
 - **Rule:** Logging out a session must take effect within seconds — not at next JWT expiry.
 
-### 8. Admin reset password for other users — `📋 Planned` — V1
+### 8. Admin reset password for other users — `🔄 Backend built, frontend missing` — corrected Sep 25, 2026
 
 - **What:** Admin sets a temporary password for any user from Team → Members
 - **Why:** Cashier forgets password → billing counter stops. Admin must be able to unblock them instantly.
-- **Needs:** Shares infra with #6 and #7. Build in same sprint.
+- **Status:** `PUT /users/{user_id}/reset-password` (`admin_reset_password`,
+  `users.py`) is real, built Sep 15, 2026, permission-checked and
+  audit-logged. This section previously said `📋 Planned` while #6's own
+  text said "built Sep 15, 2026" — a real self-contradiction, resolved by
+  checking the code directly: the backend genuinely exists, but grep found
+  zero frontend callers — no button/modal on Team → Members wires it up.
+  Remaining work is frontend-only: a "Reset password" action per member row.
 
 ---
 

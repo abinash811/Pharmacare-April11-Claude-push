@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.8 | Last updated: September 24, 2026
+# Version: 1.9 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -710,6 +710,12 @@ Get single purchase with items. Each item now also returns
 `units_per_pack` (added Sep 24, 2026 — stored at confirm time, was never
 returned before; the Purchase entry screen's Pack/Unit toggle needs it
 when a draft is reloaded for editing, see `docs/07_BUSINESS_LOGIC.md`).
+
+`POST/PUT /purchases`'s per-item request also accepts an optional
+`received_qty_units` (added Sep 25, 2026 — short/excess supply; `null`/
+omitted = no discrepancy, the default). `received_qty_units` now also
+appears on each item in the response, reflecting what was actually
+confirmed (previously always 0, a dead field — see `docs/07_BUSINESS_LOGIC.md`).
 
 > Flagged, not fixed here (out of scope for this change): the `POST
 > /purchases` request example above uses field names (`quantity_received`,

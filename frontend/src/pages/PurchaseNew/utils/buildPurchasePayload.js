@@ -4,7 +4,7 @@
  * index.jsx stays under the 300-line cap.
  */
 import { toISODate } from '@/utils/dates';
-import { toRealQty, toRealCostPerUnit, toRealMrpPerUnit } from './packUnitConversion';
+import { toRealQty, toRealCostPerUnit, toRealMrpPerUnit, toRealReceivedQty } from './packUnitConversion';
 
 // Convert MM/YY string to ISO date (last day of that month)
 export const expiryToISO = (mmyy) => {
@@ -53,6 +53,9 @@ export const buildPurchasePayload = ({
     batch_no:           item.batch_no || null,
     expiry_date:        expiryToISO(item.expiry_mmyy),
     qty_units:          Math.round(toRealQty(item)),
+    // null = no discrepancy (the common case) — backend then falls back to
+    // qty_units for real stock, exactly as it always has.
+    received_qty_units: toRealReceivedQty(item) === null ? null : Math.round(toRealReceivedQty(item)),
     free_qty_units:     parseInt(item.free_qty_units) || 0,
     cost_price_per_unit: toRealCostPerUnit(item),
     ptr_per_unit:       toRealCostPerUnit(item),

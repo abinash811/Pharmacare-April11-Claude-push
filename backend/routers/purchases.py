@@ -40,6 +40,12 @@ class PurchaseItemCreate(BaseModel):
     expiry_date: Optional[str] = None
     qty_packs: Optional[int] = None
     qty_units: int
+    # None = physically received exactly what was ordered/invoiced (the
+    # common case — no extra entry needed). Set only when the delivery was
+    # short or in excess of qty_units; drives real stock added, while
+    # qty_units alone still drives cost/GST/what's owed to the supplier
+    # (that's what the invoice says, short delivery or not).
+    received_qty_units: Optional[int] = None
     free_qty_units: Optional[int] = 0
     cost_price_per_unit: float
     ptr_per_unit: Optional[float] = None
@@ -453,6 +459,7 @@ async def _require_purchases_permission(current_user: User, action: str, db: Asy
 async def _create_stock_for_items(
     purchase: PurchaseORM, items: list[PurchaseItemORM],
     pharmacy_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession,
+    received_overrides: Optional[dict[int, int]] = None,
 ) -> None:
     """Create stock batches and movements when a purchase is confirmed.
 
@@ -471,6 +478,15 @@ async def _create_stock_for_items(
     as paid units — but were never included in taxable_amount_paise/
     line_total_paise (see create_purchase/update_purchase), so no tax
     or cost-price change is needed here to account for them correctly.
+
+    received_overrides (item index -> real received units, paid only, not
+    counting free_qty_units) is set only when the delivery didn't match
+    what was ordered/invoiced — a short or excess supply (Sep 25, 2026).
+    quantity_ordered still drives cost/GST/what's owed to the supplier
+    unchanged; only the real stock added, and item.quantity_received
+    itself, follow the override. Falls back to quantity_ordered when no
+    override is given, so a purchase with no discrepancy behaves exactly
+    as before this existed.
     """
     for idx, item in enumerate(items):
         # MRP=0 (or negative) is accepted by PurchaseItemCreate's plain
@@ -485,7 +501,14 @@ async def _create_stock_for_items(
                 status_code=400,
                 detail=f"MRP for {item.product_name} must be greater than ₹0 to confirm this purchase")
 
-        total_units = (item.quantity_ordered or 0) + (item.free_qty_units or 0)
+        paid_units = item.quantity_ordered or 0
+        if received_overrides and idx in received_overrides:
+            paid_units = received_overrides[idx]
+            if paid_units < 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Received quantity for {item.product_name} cannot be negative")
+        total_units = paid_units + (item.free_qty_units or 0)
         # Was `f"PUR-{purchase.purchase_number[:8]}"` — purchase_number's
         # format is "PUR-YYYY-NNNN", so the first 8 characters are always
         # just "PUR-YYYY", identical for every purchase confirmed in the
@@ -552,6 +575,10 @@ async def _create_stock_for_items(
         # instead of staying blank.
         item.batch_id = batch.id
         item.batch_number = batch_number
+        # Was left at its create-time default (0) forever before this —
+        # _purchase_item_response's "received_qty_units" field existed but
+        # always reported 0, regardless of what actually got confirmed.
+        item.quantity_received = total_units
 
         db.add(MovementORM(
             pharmacy_id=pharmacy_id, product_id=item.product_id, batch_id=batch.id,
@@ -840,7 +867,12 @@ async def create_purchase(purchase_data: PurchaseCreate, request: Request, curre
 
     # Create stock if confirmed
     if status == "confirmed":
-        await _create_stock_for_items(purchase, item_orms, pharmacy_id, uuid.UUID(current_user.id), db)
+        received_overrides = {
+            i: d.received_qty_units for i, d in enumerate(purchase_data.items)
+            if d.received_qty_units is not None
+        }
+        await _create_stock_for_items(
+            purchase, item_orms, pharmacy_id, uuid.UUID(current_user.id), db, received_overrides)
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "purchase", purchase.id,
@@ -977,7 +1009,12 @@ async def update_purchase(
 
     # Create stock if transitioning draft → confirmed
     if status == "confirmed":
-        await _create_stock_for_items(purchase, item_orms, pharmacy_id, uuid.UUID(current_user.id), db)
+        received_overrides = {
+            i: d.received_qty_units for i, d in enumerate(purchase_data.items)
+            if d.received_qty_units is not None
+        }
+        await _create_stock_for_items(
+            purchase, item_orms, pharmacy_id, uuid.UUID(current_user.id), db, received_overrides)
 
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "update", "purchase", purchase.id,

@@ -49,7 +49,20 @@ export default function PurchaseItemsTable({ items, withGst }) {
                   </td>
                   <td className="px-3 py-2 text-xs font-mono text-gray-700">{item.batch_no || '—'}</td>
                   <td className="px-3 py-2 text-xs text-gray-700 text-center">{formatExpiry(item.expiry_date)}</td>
-                  <td className="px-3 py-2 text-xs text-gray-700 text-center font-medium">{item.qty_units}</td>
+                  <td className="px-3 py-2 text-xs text-gray-700 text-center font-medium">
+                    {item.qty_units}
+                    {item.received_qty_units != null && item.received_qty_units !== item.qty_units && (
+                      <div
+                        className={`text-[9px] font-medium mt-0.5 ${
+                          item.received_qty_units < item.qty_units ? 'text-red-600' : 'text-blue-600'
+                        }`}
+                      >
+                        {item.received_qty_units < item.qty_units
+                          ? `Short by ${item.qty_units - item.received_qty_units}`
+                          : `Excess by ${item.received_qty_units - item.qty_units}`}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-xs text-green-600 text-center font-medium">{item.free_qty_units || 0}</td>
                   <td className="px-3 py-2 text-xs text-gray-700 text-right">{formatCurrency(ptr)}</td>
                   <td className="px-3 py-2 text-xs text-gray-700 text-right">{formatCurrency(item.mrp_per_unit)}</td>

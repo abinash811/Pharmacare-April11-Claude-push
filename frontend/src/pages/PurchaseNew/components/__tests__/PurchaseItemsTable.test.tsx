@@ -163,3 +163,65 @@ describe('PurchaseItemsTable — Pack/Unit entry (Sep 24, 2026)', () => {
     }));
   });
 });
+
+describe('PurchaseItemsTable — short/excess supply (Sep 25, 2026)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const baseProps = {
+    items: [], onUpdateItem: jest.fn(), onSetItemFields: jest.fn(), onRemoveItem: jest.fn(), onAddItem: jest.fn(),
+    withGST: true, searchInputRef: { current: null },
+  };
+
+  const item = {
+    id: 'i1', product_sku: 'SKU-1', product_name: 'Paracetamol', manufacturer: '', pack_size: '',
+    units_per_pack: 1, qty_mode: 'unit',
+    batch_no: '', expiry_mmyy: '', qty_units: 100, free_qty_units: 0,
+    ptr_per_unit: 10, mrp_per_unit: 20, gst_percent: 5, batch_priority: 'LIFA',
+  };
+
+  it('shows a reveal link and no received-qty input by default (received_qty_units unset)', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[item]} />);
+    expect(screen.getByTestId('reveal-received-0')).toBeInTheDocument();
+    expect(screen.queryByTestId('received-0')).not.toBeInTheDocument();
+  });
+
+  it('clicking the reveal link seeds the received field with the current qty', async () => {
+    const onUpdateItem = jest.fn();
+    render(<PurchaseItemsTable {...baseProps} items={[item]} onUpdateItem={onUpdateItem} />);
+    await userEvent.click(screen.getByTestId('reveal-received-0'));
+    expect(onUpdateItem).toHaveBeenCalledWith('i1', 'received_qty_units', 100);
+  });
+
+  it('shows the received-qty input, not the reveal link, once a value is set', () => {
+    const shortItem = { ...item, received_qty_units: 95 };
+    render(<PurchaseItemsTable {...baseProps} items={[shortItem]} />);
+    expect(screen.getByTestId('received-0')).toHaveValue(95);
+    expect(screen.queryByTestId('reveal-received-0')).not.toBeInTheDocument();
+  });
+
+  it('shows "Short by N" when received is less than ordered', () => {
+    const shortItem = { ...item, received_qty_units: 95 };
+    render(<PurchaseItemsTable {...baseProps} items={[shortItem]} />);
+    expect(screen.getByTestId('received-variance-0')).toHaveTextContent('Short by 5');
+  });
+
+  it('shows "Excess by N" when received is more than ordered', () => {
+    const excessItem = { ...item, received_qty_units: 105 };
+    render(<PurchaseItemsTable {...baseProps} items={[excessItem]} />);
+    expect(screen.getByTestId('received-variance-0')).toHaveTextContent('Excess by 5');
+  });
+
+  it('shows no variance text when received equals ordered', () => {
+    const evenItem = { ...item, received_qty_units: 100 };
+    render(<PurchaseItemsTable {...baseProps} items={[evenItem]} />);
+    expect(screen.queryByTestId('received-variance-0')).not.toBeInTheDocument();
+  });
+
+  it('clicking the clear button resets received_qty_units to null', async () => {
+    const onUpdateItem = jest.fn();
+    const shortItem = { ...item, received_qty_units: 95 };
+    render(<PurchaseItemsTable {...baseProps} items={[shortItem]} onUpdateItem={onUpdateItem} />);
+    await userEvent.click(screen.getByTestId('clear-received-0'));
+    expect(onUpdateItem).toHaveBeenCalledWith('i1', 'received_qty_units', null);
+  });
+});

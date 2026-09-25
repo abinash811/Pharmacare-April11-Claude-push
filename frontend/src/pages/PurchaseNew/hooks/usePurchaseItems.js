@@ -36,6 +36,10 @@ export function usePurchaseItems() {
       batch_no:         '',
       expiry_mmyy:      '',
       qty_units:        1,
+      // null = received exactly what was ordered/invoiced (the common
+      // case, no extra entry needed) — see packUnitConversion.js's
+      // toRealReceivedQty for why null is preserved, not coerced to 0.
+      received_qty_units: null,
       free_qty_units:   0,
       ptr_per_unit:     0,
       mrp_per_unit:     0,

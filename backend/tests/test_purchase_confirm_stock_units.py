@@ -218,7 +218,11 @@ class TestPurchaseConfirmStockUnits(_AuthedTestBase):
         item = purchase["items"][0]
         assert item["qty_units"] == 50
         assert item["free_qty_units"] == 0
-        assert item["received_qty_units"] == 0
+        # Was always 0 here regardless of what confirmed — a dead field —
+        # until the Sep 25, 2026 short/excess supply fix wired it to the
+        # real received total (see docs/07_BUSINESS_LOGIC.md). No
+        # discrepancy was recorded on this purchase, so it equals qty_units.
+        assert item["received_qty_units"] == 50
 
     def test_purchase_return_of_non_exact_multiple_deducts_correctly(self):
         """Purchase return of a quantity that is NOT an exact multiple of

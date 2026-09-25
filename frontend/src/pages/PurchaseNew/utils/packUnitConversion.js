@@ -30,14 +30,27 @@ export const toRealMrpPerUnit = (item) => {
   return isPackMode(item) ? round2(mrp / packSize(item)) : mrp;
 };
 
+// received_qty_units (short/excess supply, Sep 25, 2026) is typed in
+// whatever mode the line is currently in, same as qty_units — null/empty
+// means "received exactly what was ordered," the common case, and is left
+// untouched (not converted to 0) so the backend keeps treating it as "no
+// discrepancy" rather than "received nothing."
+export const toRealReceivedQty = (item) => {
+  if (item.received_qty_units === null || item.received_qty_units === undefined
+      || item.received_qty_units === '') return null;
+  const qty = parseFloat(item.received_qty_units) || 0;
+  return isPackMode(item) ? round2(qty * packSize(item)) : qty;
+};
+
 // Switching Pack <-> Unit must not silently change the real quantity/cost/
 // MRP already implied by what's typed — re-express the same real numbers
 // in the new mode's units instead of leaving stale figures behind.
 export const convertQtyMode = (item, newMode) => {
   if (newMode === item.qty_mode) return item;
-  const realQty  = toRealQty(item);
-  const realCost = toRealCostPerUnit(item);
-  const realMrp  = toRealMrpPerUnit(item);
+  const realQty      = toRealQty(item);
+  const realCost     = toRealCostPerUnit(item);
+  const realMrp      = toRealMrpPerUnit(item);
+  const realReceived = toRealReceivedQty(item);
   const size = packSize(item);
   const toPack = newMode === PURCHASE_QTY_MODE.PACK;
   return {
@@ -46,6 +59,9 @@ export const convertQtyMode = (item, newMode) => {
     qty_units:    toPack ? round2(realQty / size) : realQty,
     ptr_per_unit: toPack ? round2(realCost * size) : realCost,
     mrp_per_unit: toPack ? round2(realMrp * size) : realMrp,
+    received_qty_units: realReceived === null
+      ? item.received_qty_units
+      : (toPack ? round2(realReceived / size) : realReceived),
   };
 };
 

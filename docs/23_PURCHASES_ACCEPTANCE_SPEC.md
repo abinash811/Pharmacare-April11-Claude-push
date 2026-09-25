@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.19 | Last updated: September 24, 2026
+# Version: 1.20 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -315,8 +315,8 @@ converting to real units only right before the unchanged `POST/PUT
 ### UC-P17: Handle free goods — 🔄 Partial
 Paid/free qty captured separately, correctly excluded from taxable value, correctly added to stock. Missing: no "total received" summary display, no scheme-description field, **no report shows free-stock separately** (no batch report exists at all), and **returns can't distinguish free from paid** (see PR05).
 
-### UC-P18: Handle short/excess supply — ❌ Missing (schema hints at it, nothing uses it)
-`quantity_ordered` and `quantity_received` are separate DB columns, but the frontend has one field and always sends the same value for both. Ordered/received/accepted/rejected quantities functionally don't exist as distinct concepts anywhere.
+### UC-P18: Handle short/excess supply — ✅ Built (Sep 25, 2026)
+Verified against real code before building, not assumed from this row (see Sep 24 RULE MISSES LOG) — `quantity_ordered`/`quantity_received` genuinely were separate DB columns with the confirm path always forcing them equal; no frontend field existed. `PurchaseItemCreate` gained an optional `received_qty_units` (None = no discrepancy, the default — no extra entry needed for the common case). On the entry screen, a small "Received a different quantity?" link reveals the field per line only when needed; the variance ("Short by 5"/"Excess by 5") shows live and again on the Purchase Detail view. `received_qty_units` drives the real stock added to the batch and `PurchaseItem.quantity_received` itself (previously a dead field, always 0 — fixed as part of this change); `qty_units` alone still drives cost/GST/what's owed to the supplier, short delivery or not — that's a separate credit-note conversation, not built here. No schema change. 6 new backend tests + 11 new frontend tests, all confirmed passing.
 
 ---
 

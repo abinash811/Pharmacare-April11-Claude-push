@@ -1,5 +1,5 @@
 import {
-  isPackMode, toRealQty, toRealCostPerUnit, toRealMrpPerUnit,
+  isPackMode, toRealQty, toRealCostPerUnit, toRealMrpPerUnit, toRealReceivedQty,
   convertQtyMode, defaultQtyModeFor,
 } from '../packUnitConversion';
 import { PURCHASE_QTY_MODE } from '@/constants/domainConstants';
@@ -71,5 +71,28 @@ describe('packUnitConversion', () => {
     expect(toRealQty(legacyItem)).toBe(30);
     expect(toRealCostPerUnit(legacyItem)).toBe(3);
     expect(toRealMrpPerUnit(legacyItem)).toBe(5);
+  });
+
+  // Sep 25, 2026 — short/excess supply
+  describe('toRealReceivedQty', () => {
+    it('returns null when no discrepancy was recorded (the common case)', () => {
+      expect(toRealReceivedQty({ ...unitItem, received_qty_units: null })).toBeNull();
+      expect(toRealReceivedQty({ ...unitItem, received_qty_units: '' })).toBeNull();
+      expect(toRealReceivedQty({ ...unitItem })).toBeNull();
+    });
+
+    it('converts a Pack-mode received qty to real units', () => {
+      expect(toRealReceivedQty({ ...packItem, received_qty_units: 9 })).toBe(90);
+    });
+
+    it('passes a Unit-mode received qty through unchanged', () => {
+      expect(toRealReceivedQty({ ...unitItem, received_qty_units: 95 })).toBe(95);
+    });
+
+    it('is carried through a Pack <-> Unit mode switch, converted consistently', () => {
+      const shortPack = { ...packItem, received_qty_units: 9 }; // 9 strips instead of 10
+      const converted = convertQtyMode(shortPack, PURCHASE_QTY_MODE.UNIT);
+      expect(toRealReceivedQty(converted)).toBe(90);
+    });
   });
 });

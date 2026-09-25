@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.18 | Last updated: September 24, 2026
+# Version: 2.19 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -476,6 +476,32 @@ above is unchanged) — `frontend/src/pages/PurchaseNew/utils/packUnitConversion
 - `GET /purchases/{id}`'s per-item response now also returns
   `units_per_pack` (was stored at confirm time, never returned before) —
   see `docs/10_API.md`.
+
+### Purchase entry — short/excess supply (built Sep 25, 2026)
+
+`quantity_ordered` and `quantity_received` (`PurchaseItem`) already
+existed as separate columns, but `_create_stock_for_items` always forced
+`quantity_received = quantity_ordered + free_qty_units` — there was no
+way to record a delivery that didn't match what was ordered/invoiced.
+Verified against real code before building this (Sep 24 RULE MISSES LOG
+made that non-negotiable) — this one turned out to be a genuine gap,
+unlike UC-P09/UC-P31 the same day.
+
+- `PurchaseItemCreate` gained `received_qty_units` (optional, `None` =
+  no discrepancy — the common case, no extra entry needed).
+- Entry screen (`PurchaseItemsTable.jsx`): a small "Received a different
+  quantity?" link reveals the field per line, only when needed. The
+  variance ("Short by 5"/"Excess by 5") shows live, and again on the
+  Purchase Detail view once confirmed.
+- `received_qty_units` drives the real stock added to the batch and
+  `PurchaseItem.quantity_received` itself — a dead field before this,
+  always 0 regardless of what was actually confirmed, now fixed as a
+  byproduct of wiring this in.
+- `quantity_ordered` (`qty_units`) alone still drives cost/GST/what's
+  owed to the supplier, short delivery or not — a genuine short
+  shipment is a supplier credit-note conversation, a separate feature
+  not built here.
+- No schema change — both columns already existed.
 
 ### Purchase Number Generation
 

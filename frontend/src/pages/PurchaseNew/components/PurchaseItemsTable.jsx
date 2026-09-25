@@ -10,7 +10,7 @@
  *   searchInputRef {React.Ref}
  */
 import React, { useState } from 'react';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, X } from 'lucide-react';
 import { useDebouncedCallback } from '@/hooks/useDebounce';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -19,7 +19,9 @@ import { FilterPills } from '@/components/shared/FilterPills';
 import AddMedicineModal from '@/components/shared/AddMedicineModal';
 import { formatCurrency } from '@/utils/currency';
 import { PURCHASE_QTY_MODE } from '@/constants/domainConstants';
-import { isPackMode, toRealQty, toRealCostPerUnit, toRealMrpPerUnit, convertQtyMode } from '../utils/packUnitConversion';
+import {
+  isPackMode, toRealQty, toRealCostPerUnit, toRealMrpPerUnit, toRealReceivedQty, convertQtyMode,
+} from '../utils/packUnitConversion';
 
 const QTY_MODE_OPTIONS = [
   { key: PURCHASE_QTY_MODE.PACK, label: 'Pack' },
@@ -147,6 +149,10 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemField
                   const qty = toRealQty(item);
                   const ptr = toRealCostPerUnit(item);
                   const mrp = toRealMrpPerUnit(item);
+                  const receivedQty = toRealReceivedQty(item);
+                  // Positive = short by this many, negative = excess by
+                  // this many — never affects cost/GST, only real stock.
+                  const receivedVariance = receivedQty === null ? 0 : qty - receivedQty;
                   const gst = parseFloat(item.gst_percent) || 0;
                   const lineTotal = qty * ptr;
                   const total = lineTotal + (withGST ? lineTotal * (gst / 100) : 0);
@@ -190,6 +196,34 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemField
                         {packMode && (
                           <div className="text-[9px] text-gray-400 text-center mt-0.5" data-testid={`qty-real-${index}`}>
                             = {qty} units
+                          </div>
+                        )}
+                        {item.received_qty_units == null ? (
+                          <AppButton variant="chip" size="sm"
+                            className="text-[9px] w-full justify-center"
+                            onClick={() => onUpdateItem(item.id, 'received_qty_units', item.qty_units)}
+                            data-testid={`reveal-received-${index}`}
+                          >
+                            Received different qty?
+                          </AppButton>
+                        ) : (
+                          <div className="mt-1 flex items-center gap-1">
+                            <input type="number" min="0" value={item.received_qty_units}
+                              onChange={(e) => onUpdateItem(item.id, 'received_qty_units', e.target.value)}
+                              placeholder="Received"
+                              className="w-full h-7 px-1.5 text-[10px] text-center bg-amber-50 border border-amber-200 rounded focus:outline-none focus:ring-2 focus:ring-amber-400"
+                              style={{ position: 'relative', zIndex: 1 }} data-testid={`received-${index}`} />
+                            <AppButton variant="ghost" iconOnly size="sm"
+                              icon={<X className="w-3 h-3 text-gray-400" />}
+                              aria-label="Clear received quantity"
+                              onClick={() => onUpdateItem(item.id, 'received_qty_units', null)}
+                              data-testid={`clear-received-${index}`} />
+                          </div>
+                        )}
+                        {receivedVariance !== 0 && (
+                          <div className={`text-[9px] text-center mt-0.5 font-medium ${receivedVariance > 0 ? 'text-red-600' : 'text-blue-600'}`}
+                            data-testid={`received-variance-${index}`}>
+                            {receivedVariance > 0 ? `Short by ${receivedVariance}` : `Excess by ${Math.abs(receivedVariance)}`}
                           </div>
                         )}
                       </td>

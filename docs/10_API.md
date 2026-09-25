@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.10 | Last updated: September 25, 2026
+# Version: 1.11 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -931,6 +931,34 @@ Detailed sales report.
 GST report for GSTR-1 filing.
 
 **Query params:** `start_date`, `end_date`
+
+---
+
+### `GET /reports/purchase-payments`
+Added Sep 25, 2026 — UC-P37. Lists every real (non-reversed) supplier
+payment across all purchases, date-filtered, with a by-payment-method
+breakdown. Previously payments were only queryable one purchase at a time
+(`GET /purchases/{id}/payments`).
+
+**Query params:** `from_date`, `to_date` (both optional — omitted = all time)
+
+**Response:**
+```json
+{
+  "summary": { "total_payments": 12, "total_amount": 45000.00 },
+  "by_method": [
+    { "payment_method": "cash", "count": 8, "amount": 30000.00 },
+    { "payment_method": "upi", "count": 4, "amount": 15000.00 }
+  ],
+  "data": [
+    {
+      "payment_date": "20/09/2026", "purchase_number": "PUR-2026-0042",
+      "supplier_name": "Acme Pharma", "payment_method": "cash",
+      "reference_number": "", "notes": "", "amount": 5000.00
+    }
+  ]
+}
+```
 
 **Response:**
 ```json

@@ -92,6 +92,13 @@ export const PURCHASE_PAYMENT_METHOD = {
   UPI:           'upi',
 };
 
+export const PURCHASE_PAYMENT_METHOD_LABELS = {
+  [PURCHASE_PAYMENT_METHOD.CASH]: 'Cash',
+  [PURCHASE_PAYMENT_METHOD.BANK_TRANSFER]: 'Bank Transfer',
+  [PURCHASE_PAYMENT_METHOD.CHEQUE]: 'Cheque',
+  [PURCHASE_PAYMENT_METHOD.UPI]: 'UPI',
+};
+
 // ─── Invoice Types ────────────────────────────────────────────────────────────
 export const INVOICE_TYPE = {
   SALE:           'SALE',

@@ -4,8 +4,9 @@
  * Props per table: { data }
  */
 import React from 'react';
-import { Undo2, LineChart, Stethoscope } from 'lucide-react';
+import { Undo2, LineChart, Stethoscope, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
+import { PURCHASE_PAYMENT_METHOD_LABELS } from '@/constants/domainConstants';
 
 // Bill.doctor_name is free text (Billing's DoctorDropdown lets a cashier
 // type anything, "Dr." prefix included or not) — never assume it's bare,
@@ -74,6 +75,43 @@ export function PurchaseReturnsTable({ data }: { data?: any[] }) {
             <td className="px-4 py-3">{row.supplier_name}</td>
             <td className="px-4 py-3 text-sm text-gray-600">{row.reason}</td>
             <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.total_value)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ── Purchase Payments ─────────────────────────────────────────────────────────
+export function PurchasePaymentsTable({ data }: { data?: any[] }) {
+  return (
+    <table className="w-full" data-testid="purchase-payments-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['Date','Purchase #','Supplier','Method','Reference','Notes','Amount'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i === 6 ? 'text-right' : i === 3 ? 'text-center' : 'text-left'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+            <Wallet className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No supplier payments for selected period</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3 text-sm">{row.payment_date}</td>
+            <td className="px-4 py-3 font-medium text-brand">{row.purchase_number}</td>
+            <td className="px-4 py-3">{row.supplier_name}</td>
+            <td className="px-4 py-3 text-center">
+              <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                {PURCHASE_PAYMENT_METHOD_LABELS[row.payment_method] || row.payment_method}
+              </span>
+            </td>
+            <td className="px-4 py-3 text-sm text-gray-600">{row.reference_number || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600">{row.notes || '-'}</td>
+            <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.amount)}</td>
           </tr>
         ))}
       </tbody>

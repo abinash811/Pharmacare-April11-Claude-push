@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.22 | Last updated: September 25, 2026
+# Version: 1.23 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -403,9 +403,9 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 | P34 Batch purchase report | ❌ Missing | No report endpoint exists; `StockBatch` has no supplier/purchase link to build one from without new joins. |
 | P35 Supplier purchase report | 🔄 Partial | `GET /suppliers/{id}/summary` gives total purchases/value/last-date/outstanding only — missing returns, net purchases, payments, avg rate, top medicines. The draft-purchases-counted-in-totals bug this row used to flag was fixed in `edfe2f8` (confirmed Sep 25, 2026 — `suppliers.py`'s summary query is `status == "confirmed"` only now). |
 | P36 GST purchase report | 🔄 Partial + 🐛 | Backend correctly restricts to confirmed purchases and nets returns against input tax. IGST never populated (matches P21), no cess in the response despite the column existing. **Frontend is broken** (bug #3). |
-| P37 Purchase payment report | ❌ Missing | Payments are recorded and individually queryable, but nothing aggregates/lists them across purchases. |
+| P37 Purchase payment report | ✅ Built Sep 25, 2026 | `GET /reports/purchase-payments` — date-filtered, by-method breakdown, excludes reversed payments. On the Reports page as its own tab, CSV/Excel export included for free via the page's generic export. See `docs/07_BUSINESS_LOGIC.md`. |
 | P38 Purchase variance report | ❌ Missing | Zero mentions anywhere in the backend. `adjustment_amount_paise` is captured but never surfaced (matches P22). |
-| P39 Export and print | 🔄 Partial | Print works for a single purchase. Export exists for Sales/Low-stock/Expiry/Inventory reports only — nothing for the purchase register, supplier statement, batch, or payment reports, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
+| P39 Export and print | 🔄 Partial | Print works for a single purchase. Export now also covers the payment report (Sep 25, 2026 — via the Reports page's generic CSV/Excel export). Still nothing for the purchase register, supplier statement, or batch report, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
 | P40 Purchase dashboard | ✅ **Fixed** (Batch 6, between Sep 7–13) | `useDashboard.js` now calls `apiUrl.analyticsPurchases(...)`, feeding three new QuickStatCards (Purchases/Purchase Returns/Net Purchases, month-scoped, clickable) into the real Dashboard. Payable/overdue/near-expiry-purchase-value still aren't surfaced as their own cards — the endpoint is wired in, not every metric it could show is used yet. |
 | P41 Supplier analytics | ❌ Missing | No ranking, payment-performance, return-rate, or price-comparison logic anywhere. |
 | P42 Product purchase analytics | ❌ Missing | Zero endpoints for rate trends, coverage, free-goods contribution, etc. |

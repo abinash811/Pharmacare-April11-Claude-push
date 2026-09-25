@@ -90,6 +90,8 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatSalesReturnsReport(reportData);
     case 'purchase-returns':
       return formatPurchaseReturnsReport(reportData);
+    case 'purchase-payments':
+      return formatPurchasePaymentsReport(reportData);
     case 'price-variation':
       return formatPriceVariationReport(reportData);
     case 'doctor-wise-sales':
@@ -198,6 +200,20 @@ const formatPurchaseReturnsReport = (data) => {
     'Supplier': item.supplier_name,
     'Reason': item.reason,
     'Amount (₹)': item.total_value,
+  }));
+};
+
+const formatPurchasePaymentsReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/purchase-payments's real response exactly.
+  return data.data.map((item) => ({
+    'Date': item.payment_date,
+    'Purchase #': item.purchase_number,
+    'Supplier': item.supplier_name,
+    'Method': item.payment_method,
+    'Reference': item.reference_number,
+    'Notes': item.notes,
+    'Amount (₹)': item.amount,
   }));
 };
 

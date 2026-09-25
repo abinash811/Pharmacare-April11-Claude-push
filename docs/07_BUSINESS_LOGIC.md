@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.20 | Last updated: September 25, 2026
+# Version: 2.21 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -526,6 +526,30 @@ no comparison against price history at all, anywhere — built here.
   second look, not just an increase).
 - A product never purchased before shows no warning (nothing to
   compare against) — correctly indistinguishable from "still loading."
+
+### Purchase payments report (built Sep 25, 2026)
+
+UC-P37 in `docs/23`, verified real (zero aggregation anywhere) before
+building: `PurchasePayment` rows were only ever queryable one purchase
+at a time (`GET /purchases/{id}/payments`) — nothing listed or summed
+them across purchases.
+
+- `GET /reports/purchase-payments` (`routers/reports.py`), same
+  shape/pattern as the sibling `GET /reports/purchase-returns`: date-range
+  filtered (`from_date`/`to_date`, both optional), `summary` (count +
+  total) plus a `by_method` breakdown (cash/UPI/cheque/bank transfer
+  totals — the natural "how did we actually pay this month" question),
+  plus flat `data` rows for the table/CSV/Excel export.
+- Excludes reversed payments (`reversed_at.is_(None)`) — a reversed
+  payment isn't a real payment anymore, same filter
+  `suppliers.py`'s `_payment_history_by_suppliers` already applies.
+- No supplier filter in v1 — matches every sibling report on this page
+  (purchase-returns, price-variation) which also don't have one; a
+  supplier-scoped view already exists on Supplier Detail's Outstanding
+  tab.
+- Wired into the existing Reports page/export machinery unchanged
+  (`useReports.js`'s generic CSV/Excel export works off any flat `data`
+  array) — no new export code needed.
 
 ### Purchase Number Generation
 

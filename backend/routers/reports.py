@@ -24,6 +24,7 @@ from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import (
     Purchase as PurchaseORM,
     PurchaseItem as PurchaseItemORM,
+    PurchasePayment as PurchasePaymentORM,
     PurchaseReturn as PurchaseReturnORM,
     PurchaseReturnItem as PurchaseReturnItemORM,
 )
@@ -735,6 +736,70 @@ async def get_purchase_returns_report(
         }
     except Exception as e:
         logger.error(f"Purchase returns report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Purchase payments ────────────────────────────────────────────────────────
+
+
+@router.get("/reports/purchase-payments")
+async def get_purchase_payments_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    """Payments were only ever queryable one purchase at a time
+    (GET /purchases/{id}/payments) — nothing aggregated/listed them across
+    purchases. docs/23_PURCHASES_ACCEPTANCE_SPEC.md UC-P37."""
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        # Reversed payments aren't real payments anymore — same filter
+        # suppliers.py's _payment_history_by_suppliers already applies.
+        conds = [PurchasePaymentORM.pharmacy_id == pid, PurchasePaymentORM.reversed_at.is_(None)]
+        if from_date:
+            conds.append(PurchasePaymentORM.payment_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(PurchasePaymentORM.payment_date <= date.fromisoformat(to_date))
+
+        rows = (await db.execute(
+            select(PurchasePaymentORM, PurchaseORM.purchase_number, SupplierORM.name)
+            .join(PurchaseORM, PurchasePaymentORM.purchase_id == PurchaseORM.id)
+            .outerjoin(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .where(*conds).order_by(PurchasePaymentORM.payment_date.desc())
+        )).all()
+
+        data = []
+        by_method: dict = {}
+        total_paise = 0
+        for payment, purchase_number, supplier_name in rows:
+            amt = _p2r(payment.amount_paise)
+            total_paise += payment.amount_paise
+            bucket = by_method.setdefault(
+                payment.payment_method,
+                {"payment_method": payment.payment_method, "count": 0, "amount": 0})
+            bucket["count"] += 1
+            bucket["amount"] = round(bucket["amount"] + amt, 2)
+            data.append({
+                "payment_date": payment.payment_date.strftime("%d/%m/%Y") if payment.payment_date else "N/A",
+                "purchase_number": purchase_number or "",
+                "supplier_name": supplier_name or "",
+                "payment_method": payment.payment_method,
+                "reference_number": payment.reference_number or "",
+                "notes": payment.notes or "",
+                "amount": amt,
+            })
+
+        return {
+            "summary": {
+                "total_payments": len(data),
+                "total_amount": _p2r(total_paise),
+            },
+            "by_method": list(by_method.values()),
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Purchase payments report error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

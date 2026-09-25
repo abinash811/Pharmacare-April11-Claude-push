@@ -12,9 +12,15 @@ import { downloadBlob, extractBlobErrorMessage } from '@/utils/fileDownload';
  * list row can't call window.print() for a bill it isn't currently
  * viewing, so a direct PDF download is the correct fix, not a
  * navigate-then-print round trip. Found/fixed Sep 15, 2026.
+ *
+ * WhatsApp opens WhatsAppShareModal (real custom-number entry + a PDF
+ * download to attach) instead of erroring out with no number on file —
+ * fixed Sep 25, 2026. See WhatsAppShareModal.tsx for why the actual PDF
+ * still can't be auto-attached (a wa.me link is text-only).
  */
 export function useBillRowActions() {
   const [downloadingId, setDownloadingId] = useState(null);
+  const [whatsAppBill, setWhatsAppBill] = useState(null);
 
   const handlePrint = async (e, bill) => {
     e.stopPropagation();
@@ -36,13 +42,11 @@ export function useBillRowActions() {
 
   const handleWhatsApp = (e, bill) => {
     e.stopPropagation();
-    if (bill.customer_mobile) {
-      const msg = `Your bill #${bill.bill_number} from PharmaCare. Total: ₹${(bill.total_amount || 0).toFixed(2)}`;
-      window.open(`https://wa.me/91${bill.customer_mobile}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      toast.error('No mobile number available for this customer');
-    }
+    setWhatsAppBill(bill);
   };
 
-  return { downloadingId, handlePrint, handleWhatsApp };
+  return {
+    downloadingId, handlePrint, handleWhatsApp,
+    whatsAppBill, closeWhatsApp: () => setWhatsAppBill(null),
+  };
 }

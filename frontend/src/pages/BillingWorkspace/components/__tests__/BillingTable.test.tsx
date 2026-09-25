@@ -101,6 +101,26 @@ describe('BillingTable — out-of-stock search results', () => {
     expect(screen.queryByText(/43%/)).not.toBeInTheDocument();
   });
 
+  it('shows a chevron on the batch chip so it reads as a dropdown, not plain text — Sep 25, 2026 fix', () => {
+    // Roadmap-flagged gap: the batch cell was an AppButton variant="chip"
+    // (deliberately chrome-less by design) showing only the batch number
+    // in monospace, indistinguishable from static text until hovered.
+    // DoctorDropdown/PatientCombobox already use the same chip + trailing
+    // chevron pattern to signal "this opens something" — matched here.
+    renderTable({
+      ...baseProps,
+      billItems: [{
+        id: '1', product_sku: 'X', product_name: 'Dolo 650', batch_no: '123456',
+        qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+        expiry_date: '2027-01-01', discount_percent: 0,
+      }],
+    });
+
+    const batchButton = screen.getByTestId('batch-select-0');
+    expect(batchButton).toHaveTextContent('123456');
+    expect(batchButton.querySelector('svg')).toBeInTheDocument();
+  });
+
   it('still allows billing an in-stock batch normally', async () => {
     (api.get as jest.Mock).mockResolvedValue({
       data: [{

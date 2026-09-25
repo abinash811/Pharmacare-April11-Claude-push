@@ -32,3 +32,4 @@ export { MoreMenu } from './MoreMenu';
 export { SuggestField } from './SuggestField';
 export { default as SupplierFormModal } from './SupplierFormModal';
 export { default as AddMedicineModal } from './AddMedicineModal';
+export { default as WhatsAppShareModal } from './WhatsAppShareModal';

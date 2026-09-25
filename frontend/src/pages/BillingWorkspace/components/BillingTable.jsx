@@ -129,8 +129,11 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
 
                   {/* Batch cell + panel */}
                   <td className="px-4 py-2 relative">
-                    <AppButton variant="chip" onClick={() => openBatchPanel(index)} className="text-xs font-mono hover:underline" data-testid={`batch-select-${index}`}>
+                    <AppButton variant="chip" onClick={() => openBatchPanel(index)} className="text-xs font-mono flex items-center gap-1 hover:underline" data-testid={`batch-select-${index}`}>
                       {item.batch_no}
+                      <svg className="w-2.5 h-2.5 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
                     </AppButton>
                     {showBatchPanel === index && batchPanelData.length > 0 && (
                       <div ref={batchPanelRef} className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-[640px] max-h-64 overflow-hidden">

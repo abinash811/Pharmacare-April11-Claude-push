@@ -6,7 +6,7 @@ import { BILL_STATUS, PAYMENT_METHOD } from '@/constants/domainConstants';
 import {
   PageHeader, PageTabs, DataCard, SearchInput, StatusBadge,
   DateRangePicker, TableSkeleton, BillingEmptyState, PaginationBar,
-  FilterPills, AppButton, BackdatedBadge,
+  FilterPills, AppButton, BackdatedBadge, WhatsAppShareModal,
 } from '../components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
@@ -26,7 +26,7 @@ export default function BillingOperations() {
   const [searchParams] = useSearchParams();
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const { downloadingId, handlePrint, handleWhatsApp } = useBillRowActions();
+  const { downloadingId, handlePrint, handleWhatsApp, whatsAppBill, closeWhatsApp } = useBillRowActions();
 
   // Search & filters — activeFilter/dateRange/searchQuery can arrive
   // pre-set via URL (?filter=parked|cash|upi, ?from_date=&to_date=,
@@ -294,6 +294,7 @@ export default function BillingOperations() {
         {/* Pagination footer */}
         <PaginationBar {...pg} />
       </DataCard>
+      <WhatsAppShareModal open={!!whatsAppBill} bill={whatsAppBill} onClose={closeWhatsApp} />
     </div>
   );
 }

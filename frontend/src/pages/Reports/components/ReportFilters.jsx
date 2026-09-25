@@ -8,7 +8,7 @@ export default function ReportFilters({
 }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {['sales', 'margin', 'sales-returns', 'purchase-returns', 'purchase-payments', 'price-variation'].includes(activeReport) && (
+      {['sales', 'margin', 'sales-returns', 'purchase-returns', 'purchase-payments', 'supplier-analytics', 'price-variation'].includes(activeReport) && (
         <DateRangePicker dateRange={dateRange} onDateRangeChange={onDateChange} />
       )}
 

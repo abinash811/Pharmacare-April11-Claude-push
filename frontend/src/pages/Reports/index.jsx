@@ -4,7 +4,7 @@
  */
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, AlertCircle, Clock, PieChart, Undo2, Truck, LineChart, Stethoscope, Wallet } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, PieChart, Undo2, Truck, LineChart, Stethoscope, Wallet, Users } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { toISODate } from '@/utils/dates';
@@ -33,6 +33,7 @@ const REPORT_TYPES = [
   { key: 'sales-returns',    label: 'Sales Returns'    },
   { key: 'purchase-returns', label: 'Purchase Returns' },
   { key: 'purchase-payments', label: 'Purchase Payments' },
+  { key: 'supplier-analytics', label: 'Supplier Analytics' },
   { key: 'price-variation',  label: 'Price Variation'  },
   { key: 'doctor-wise-sales', label: 'Doctor-wise Sales' },
 ];
@@ -45,6 +46,7 @@ const REPORT_TITLES = {
   'sales-returns':    'Sales Returns Report',
   'purchase-returns': 'Purchase Returns Report',
   'purchase-payments': 'Purchase Payments Report',
+  'supplier-analytics': 'Supplier Analytics Report',
   'price-variation':  'Price Variation Report',
   'doctor-wise-sales': 'Doctor-wise Sales Report',
 };
@@ -57,6 +59,7 @@ const REPORT_ICONS = {
   'sales-returns':    <Undo2       className="w-5 h-5 text-red-600"    />,
   'purchase-returns': <Truck       className="w-5 h-5 text-indigo-600" />,
   'purchase-payments': <Wallet     className="w-5 h-5 text-emerald-600" />,
+  'supplier-analytics': <Users     className="w-5 h-5 text-cyan-600"   />,
   'price-variation':  <LineChart   className="w-5 h-5 text-purple-600" />,
   'doctor-wise-sales': <Stethoscope className="w-5 h-5 text-teal-600"  />,
 };
@@ -137,6 +140,8 @@ export default function Reports() {
               {reportData.summary.total_return_value !== undefined && <span>Return Value: <strong>{formatCurrency(reportData.summary.total_return_value)}</strong> ({reportData.summary.return_rate_percent}%)</span>}
               {reportData.summary.total_payments !== undefined && <span>Total Payments: <strong>{reportData.summary.total_payments}</strong></span>}
               {reportData.summary.total_amount !== undefined && <span>Total Amount: <strong>{formatCurrency(reportData.summary.total_amount)}</strong></span>}
+              {reportData.summary.total_suppliers !== undefined && <span>Suppliers: <strong>{reportData.summary.total_suppliers}</strong></span>}
+              {reportData.summary.total_purchase_value !== undefined && <span>Purchase Value: <strong>{formatCurrency(reportData.summary.total_purchase_value)}</strong></span>}
               {reportData.summary.net_sales !== undefined && <span>Net Sales: <strong>{formatCurrency(reportData.summary.net_sales)}</strong></span>}
               {reportData.summary.net_purchases !== undefined && <span>Net Purchases: <strong>{formatCurrency(reportData.summary.net_purchases)}</strong></span>}
               {reportData.summary.products_tracked !== undefined && <span>Products Tracked: <strong>{reportData.summary.products_tracked}</strong> (<span className="text-orange-600">{reportData.summary.products_with_mrp_increase} up</span>, <span className="text-green-600">{reportData.summary.products_with_mrp_decrease} down</span>)</span>}

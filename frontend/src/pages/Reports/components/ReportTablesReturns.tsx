@@ -4,7 +4,7 @@
  * Props per table: { data }
  */
 import React from 'react';
-import { Undo2, LineChart, Stethoscope, Wallet } from 'lucide-react';
+import { Undo2, LineChart, Stethoscope, Wallet, Users } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 import { PURCHASE_PAYMENT_METHOD_LABELS } from '@/constants/domainConstants';
 
@@ -112,6 +112,66 @@ export function PurchasePaymentsTable({ data }: { data?: any[] }) {
             <td className="px-4 py-3 text-sm text-gray-600">{row.reference_number || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-600">{row.notes || '-'}</td>
             <td className="px-4 py-3 text-right font-semibold tabular-nums">{formatCurrency(row.amount)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// ── Supplier Analytics ────────────────────────────────────────────────────────
+function ReturnRateBadge({ percent }: { percent: number }) {
+  if (percent <= 0) return <span className="text-xs text-gray-400">No returns</span>;
+  const cls = percent > 10 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700';
+  return <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>{percent}%</span>;
+}
+
+export function SupplierAnalyticsTable({ data }: { data?: any[] }) {
+  return (
+    <table className="w-full" data-testid="supplier-analytics-report-table">
+      <thead className="bg-gray-50 border-b">
+        <tr>
+          {['#','Supplier','Purchases','Returns','Payment','Products'].map((h, i) => (
+            <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-600 ${i <= 1 ? 'text-left' : 'text-right'}`}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y">
+        {!data?.length ? (
+          <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No supplier purchases for selected period</p>
+          </td></tr>
+        ) : data.map((row, idx) => (
+          <tr key={idx} className="hover:bg-brand-tint transition-colors">
+            <td className="px-4 py-3 text-sm text-gray-400">{idx + 1}</td>
+            <td className="px-4 py-3 font-medium">{row.supplier_name}</td>
+            <td className="px-4 py-3 text-right">
+              <div className="text-sm">{row.total_purchases} purchase{row.total_purchases === 1 ? '' : 's'}</div>
+              <div className="text-xs text-gray-500 tabular-nums">{formatCurrency(row.total_purchase_value)}</div>
+            </td>
+            <td className="px-4 py-3 text-right">
+              <div className="text-sm">{row.total_returns} return{row.total_returns === 1 ? '' : 's'}</div>
+              <ReturnRateBadge percent={row.return_rate_percent} />
+            </td>
+            <td className="px-4 py-3 text-right">
+              <div className="text-sm">
+                {row.avg_days_to_pay === null ? <span className="text-gray-400">No paid purchases</span> : `Avg ${row.avg_days_to_pay}d to pay`}
+              </div>
+              {row.overdue_amount > 0 ? (
+                <div className="text-xs text-red-600 font-medium tabular-nums">{formatCurrency(row.overdue_amount)} overdue</div>
+              ) : (
+                <div className="text-xs text-gray-400">Nothing overdue</div>
+              )}
+            </td>
+            <td className="px-4 py-3 text-right">
+              <div className="text-sm">{row.products_supplied} supplied</div>
+              {row.higher_priced_products_count > 0 ? (
+                <div className="text-xs text-amber-600 font-medium">{row.higher_priced_products_count} priced higher</div>
+              ) : (
+                <div className="text-xs text-green-600">Best priced</div>
+              )}
+            </td>
           </tr>
         ))}
       </tbody>

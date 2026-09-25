@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.8 | Last updated: September 24, 2026
+# Version: 2.9 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -437,7 +437,7 @@ specific angle:
 | PU01 | A Purchases tab on the Reports landing page | ❌ Not applicable — re-scoped | `/analytics/purchases` returns aggregate metrics (totals/counts), Analytics-shaped per the product's Reports-vs-Analytics split, not Reports-page-shaped (no filters, no download). See PU03. |
 | PU02 | Purchase register / GST purchase report | 🔄 Partial | Lives entirely on the Purchases list page itself, not Reports — see `docs/23` P33/P36 |
 | PU03 | Purchase dashboard metrics (value today/month, payable, overdue) | ✅ Fixed Sep 12, 2026 | `GET /analytics/purchases` (already correct) now wired into Dashboard as a visual card row — "Purchases (Month)"/"Purchase Returns (Month)"/"Net Purchases (Month)", each clickable through to `/purchases`/`/purchases/returns`. Live-verified in browser with real non-zero data. |
-| PU04 | Supplier/product purchase analytics | ❌ Missing | See `docs/23` P41/P42 |
+| PU04 | Supplier/product purchase analytics | 🔄 Partial — supplier half built Sep 25, 2026 | Supplier analytics done, see `docs/23` P41. Product purchase analytics (P42) still missing. |
 | PU05 | Purchase variance report | ❌ Missing | See `docs/23` P38 |
 | PU06 | Purchase profitability impact | ❌ Missing | See `docs/23` P43 |
 

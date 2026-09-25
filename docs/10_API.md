@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.11 | Last updated: September 25, 2026
+# Version: 1.12 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -931,6 +931,34 @@ Detailed sales report.
 GST report for GSTR-1 filing.
 
 **Query params:** `start_date`, `end_date`
+
+---
+
+### `GET /reports/supplier-analytics`
+Added Sep 25, 2026 — UC-P41. Cross-supplier ranking, payment performance,
+return rate, and price comparison. Previously the only per-supplier view
+was `GET /suppliers/{id}/summary` — one supplier at a time.
+
+**Query params:** `from_date`, `to_date` (both optional — omitted = all time)
+
+**Response:**
+```json
+{
+  "summary": { "total_suppliers": 2, "total_purchase_value": 945.00 },
+  "data": [
+    {
+      "supplier_name": "Reliable Distributors", "total_purchases": 1,
+      "total_purchase_value": 525.00, "total_returns": 0,
+      "total_return_value": 0.0, "return_rate_percent": 0.0,
+      "avg_days_to_pay": 0.0, "overdue_amount": 0.0,
+      "products_supplied": 1, "higher_priced_products_count": 0
+    }
+  ]
+}
+```
+`data` is sorted by `total_purchase_value` descending — row position is
+the rank. `avg_days_to_pay` is `null` when the supplier has no fully paid
+purchase in range yet.
 
 ---
 

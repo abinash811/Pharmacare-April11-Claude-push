@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.21 | Last updated: September 25, 2026
+# Version: 2.22 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -550,6 +550,43 @@ them across purchases.
 - Wired into the existing Reports page/export machinery unchanged
   (`useReports.js`'s generic CSV/Excel export works off any flat `data`
   array) — no new export code needed.
+
+### Supplier analytics report (built Sep 25, 2026)
+
+UC-P41 in `docs/23`, verified real before building: `GET
+/suppliers/{id}/summary` only ever covered one supplier at a time (total
+purchases/value/last-date/outstanding) — no ranking, payment-performance,
+return-rate, or price-comparison across suppliers existed anywhere.
+
+- `GET /reports/supplier-analytics` (`routers/reports.py`), date-range
+  filtered (`from_date`/`to_date`, both optional). Confirmed-only
+  (`status == "confirmed"`) for both purchases and returns — same
+  reasoning as every sibling report on this page, and the same bug class
+  `suppliers.py`'s own summary endpoint had until `edfe2f8` (see the
+  corrected P35 row above).
+- Ranked by total purchase value, descending — the row order itself is
+  the ranking, no separate `rank` field.
+- **Return rate**: `total_return_value / total_purchase_value * 100`,
+  same formula as the purchase-returns report.
+- **Avg days to pay**: for each `payment_status == "paid"` purchase,
+  `days = last non-reversed payment date − purchase date`. A cash
+  purchase (paid instantly on confirm, per `purchases.py`'s
+  `amount_paid_paise=grand_total_paise if payment_status == "paid" else
+  0`) never gets a real `PurchasePayment` row — only `POST .../pay`
+  creates those — so it falls back to the purchase date itself (0 days)
+  rather than being silently excluded, which would have skewed a
+  cash-heavy supplier's average toward its credit purchases only. Found
+  and fixed while writing this report's own tests, not by inspection.
+- **Overdue amount**: sum of `grand_total − amount_paid` for purchases
+  that are not yet `paid` and whose `due_date` has passed.
+- **Price comparison**: for any product bought from 2+ suppliers in the
+  date range, every supplier whose qty-weighted average cost isn't the
+  cheapest gets counted in `higher_priced_products_count` — a direct
+  "which supplier is overcharging me for this" signal, computed in
+  Python from the same `PurchaseItem` rows the report already fetches
+  (no separate query).
+- No supplier filter — the report's whole point is comparing *across*
+  suppliers; a single-supplier view already exists on Supplier Detail.
 
 ### Purchase Number Generation
 

@@ -92,6 +92,8 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatPurchaseReturnsReport(reportData);
     case 'purchase-payments':
       return formatPurchasePaymentsReport(reportData);
+    case 'supplier-analytics':
+      return formatSupplierAnalyticsReport(reportData);
     case 'price-variation':
       return formatPriceVariationReport(reportData);
     case 'doctor-wise-sales':
@@ -214,6 +216,23 @@ const formatPurchasePaymentsReport = (data) => {
     'Reference': item.reference_number,
     'Notes': item.notes,
     'Amount (₹)': item.amount,
+  }));
+};
+
+const formatSupplierAnalyticsReport = (data) => {
+  if (!data?.data) return [];
+  // Field names match GET /reports/supplier-analytics's real response exactly.
+  return data.data.map((item) => ({
+    'Supplier': item.supplier_name,
+    'Purchases': item.total_purchases,
+    'Purchase Value (₹)': item.total_purchase_value,
+    'Returns': item.total_returns,
+    'Return Value (₹)': item.total_return_value,
+    'Return Rate (%)': item.return_rate_percent,
+    'Avg Days to Pay': item.avg_days_to_pay,
+    'Overdue Amount (₹)': item.overdue_amount,
+    'Products Supplied': item.products_supplied,
+    'Priced Higher Than Other Suppliers': item.higher_priced_products_count,
   }));
 };
 

@@ -803,6 +803,153 @@ async def get_purchase_payments_report(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── Supplier analytics ───────────────────────────────────────────────────────
+
+
+@router.get("/reports/supplier-analytics")
+async def get_supplier_analytics_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    """No cross-supplier ranking, payment-performance, return-rate, or
+    price-comparison existed anywhere — GET /suppliers/{id}/summary only
+    ever covered one supplier at a time. docs/23_PURCHASES_ACCEPTANCE_SPEC.md
+    UC-P41."""
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        today = date.today()
+
+        purchase_conds = [
+            PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+            PurchaseORM.deleted_at.is_(None)]
+        if from_date:
+            purchase_conds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
+        if to_date:
+            purchase_conds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+
+        purchases = (await db.execute(
+            select(PurchaseORM.id, PurchaseORM.supplier_id, PurchaseORM.purchase_date,
+                   PurchaseORM.grand_total_paise, PurchaseORM.amount_paid_paise,
+                   PurchaseORM.payment_status, PurchaseORM.due_date, SupplierORM.name)
+            .join(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .where(*purchase_conds)
+        )).all()
+
+        by_supplier: dict = {}
+        for purchase_id, sid, pdate, total_paise, paid_paise, pay_status, due, sname in purchases:
+            b = by_supplier.setdefault(sid, {
+                "supplier_name": sname, "total_purchases": 0, "total_purchase_paise": 0,
+                "return_count": 0, "return_paise": 0, "overdue_paise": 0,
+                "paid_days": [], "products": set(),
+            })
+            b["total_purchases"] += 1
+            b["total_purchase_paise"] += total_paise
+            if pay_status != "paid" and due and due < today:
+                b["overdue_paise"] += (total_paise - paid_paise)
+
+        # Days-to-pay uses the LAST non-reversed payment on a fully-paid
+        # purchase as a proxy for "when it was settled" — same reversal
+        # filter suppliers.py's _payment_history_by_suppliers already uses.
+        purchase_ids = [row.id for row in purchases]
+        last_payment_by_purchase: dict = {}
+        if purchase_ids:
+            pay_rows = (await db.execute(
+                select(PurchasePaymentORM.purchase_id, func.max(PurchasePaymentORM.payment_date))
+                .where(PurchasePaymentORM.purchase_id.in_(purchase_ids),
+                       PurchasePaymentORM.reversed_at.is_(None))
+                .group_by(PurchasePaymentORM.purchase_id)
+            )).all()
+            last_payment_by_purchase = dict(pay_rows)
+        for purchase_id, sid, pdate, total_paise, paid_paise, pay_status, due, sname in purchases:
+            if pay_status == "paid":
+                # A cash-on-confirm purchase is marked paid instantly but
+                # never gets a real PurchasePayment row (only POST /pay
+                # creates those) - falls back to the purchase date itself
+                # (0 days) instead of being silently excluded, which would
+                # skew this supplier's average toward credit purchases only.
+                last_pay = last_payment_by_purchase.get(purchase_id, pdate)
+                by_supplier[sid]["paid_days"].append((last_pay - pdate).days)
+
+        return_conds = [PurchaseReturnORM.pharmacy_id == pid, PurchaseReturnORM.status == "confirmed"]
+        if from_date:
+            return_conds.append(PurchaseReturnORM.return_date >= date.fromisoformat(from_date))
+        if to_date:
+            return_conds.append(PurchaseReturnORM.return_date <= date.fromisoformat(to_date))
+        returns = (await db.execute(
+            select(PurchaseReturnORM.supplier_id, PurchaseReturnORM.grand_total_paise, SupplierORM.name)
+            .join(SupplierORM, PurchaseReturnORM.supplier_id == SupplierORM.id)
+            .where(*return_conds)
+        )).all()
+        for sid, ret_paise, sname in returns:
+            b = by_supplier.setdefault(sid, {
+                "supplier_name": sname, "total_purchases": 0, "total_purchase_paise": 0,
+                "return_count": 0, "return_paise": 0, "overdue_paise": 0,
+                "paid_days": [], "products": set(),
+            })
+            b["return_count"] += 1
+            b["return_paise"] += ret_paise
+
+        # Price comparison: for a product bought from 2+ suppliers in range,
+        # flag every supplier whose qty-weighted avg cost isn't the cheapest.
+        items = (await db.execute(
+            select(PurchaseORM.supplier_id, PurchaseItemORM.product_id,
+                   PurchaseItemORM.cost_price_paise, PurchaseItemORM.quantity_ordered)
+            .join(PurchaseORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+            .where(*purchase_conds)
+        )).all()
+        product_supplier_cost: dict = {}
+        for sid, product_id, cost_paise, qty in items:
+            if sid in by_supplier:
+                by_supplier[sid]["products"].add(product_id)
+            entry = product_supplier_cost.setdefault(product_id, {})
+            spent, units = entry.get(sid, (0, 0))
+            entry[sid] = (spent + cost_paise * qty, units + qty)
+
+        higher_priced_count: dict = {sid: 0 for sid in by_supplier}
+        for product_id, supplier_costs in product_supplier_cost.items():
+            avgs = {sid: (spent / units) for sid, (spent, units) in supplier_costs.items() if units > 0}
+            if len(avgs) < 2:
+                continue
+            cheapest = min(avgs.values())
+            for sid, avg in avgs.items():
+                if avg > cheapest:
+                    higher_priced_count[sid] = higher_priced_count.get(sid, 0) + 1
+
+        data = []
+        total_purchase_paise = 0
+        for sid, b in by_supplier.items():
+            purchase_value = _p2r(b["total_purchase_paise"])
+            return_value = _p2r(b["return_paise"])
+            total_purchase_paise += b["total_purchase_paise"]
+            avg_days = round(sum(b["paid_days"]) / len(b["paid_days"]), 1) if b["paid_days"] else None
+            data.append({
+                "supplier_name": b["supplier_name"],
+                "total_purchases": b["total_purchases"],
+                "total_purchase_value": purchase_value,
+                "total_returns": b["return_count"],
+                "total_return_value": return_value,
+                "return_rate_percent": round((return_value / purchase_value * 100) if purchase_value > 0 else 0, 2),
+                "avg_days_to_pay": avg_days,
+                "overdue_amount": _p2r(b["overdue_paise"]),
+                "products_supplied": len(b["products"]),
+                "higher_priced_products_count": higher_priced_count.get(sid, 0),
+            })
+        data.sort(key=lambda row: row["total_purchase_value"], reverse=True)
+
+        return {
+            "summary": {
+                "total_suppliers": len(data),
+                "total_purchase_value": _p2r(total_purchase_paise),
+            },
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Supplier analytics report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── GST report ────────────────────────────────────────────────────────────────
 
 

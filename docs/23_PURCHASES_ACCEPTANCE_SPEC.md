@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.23 | Last updated: September 25, 2026
+# Version: 1.24 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -407,7 +407,7 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 | P38 Purchase variance report | ❌ Missing | Zero mentions anywhere in the backend. `adjustment_amount_paise` is captured but never surfaced (matches P22). |
 | P39 Export and print | 🔄 Partial | Print works for a single purchase. Export now also covers the payment report (Sep 25, 2026 — via the Reports page's generic CSV/Excel export). Still nothing for the purchase register, supplier statement, or batch report, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
 | P40 Purchase dashboard | ✅ **Fixed** (Batch 6, between Sep 7–13) | `useDashboard.js` now calls `apiUrl.analyticsPurchases(...)`, feeding three new QuickStatCards (Purchases/Purchase Returns/Net Purchases, month-scoped, clickable) into the real Dashboard. Payable/overdue/near-expiry-purchase-value still aren't surfaced as their own cards — the endpoint is wired in, not every metric it could show is used yet. |
-| P41 Supplier analytics | ❌ Missing | No ranking, payment-performance, return-rate, or price-comparison logic anywhere. |
+| P41 Supplier analytics | ✅ Built Sep 25, 2026 | `GET /reports/supplier-analytics` — ranked by purchase value, per-supplier return rate, avg days-to-pay, overdue amount, and a price-comparison flag (count of products this supplier charges more for than the cheapest alternative supplier). On the Reports page as its own tab. See `docs/07_BUSINESS_LOGIC.md`. |
 | P42 Product purchase analytics | ❌ Missing | Zero endpoints for rate trends, coverage, free-goods contribution, etc. |
 | P43 Purchase profitability impact | ❌ Missing | No margin computation exists. Secondary finding: most report endpoints correctly restrict to confirmed-only, **but the supplier summary (P35) leaks drafts into its totals** — the same bug noted there. |
 

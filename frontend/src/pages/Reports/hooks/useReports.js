@@ -43,6 +43,7 @@ export function useReports() {
       'sales-returns':    { endpoint: 'reports/sales-returns',    params: { from_date: from, to_date: to }, cacheKey: `report_sales_returns_${from}_${to}` },
       'purchase-returns': { endpoint: 'reports/purchase-returns', params: { from_date: from, to_date: to }, cacheKey: `report_purchase_returns_${from}_${to}` },
       'purchase-payments': { endpoint: 'reports/purchase-payments', params: { from_date: from, to_date: to }, cacheKey: `report_purchase_payments_${from}_${to}` },
+      'supplier-analytics': { endpoint: 'reports/supplier-analytics', params: { from_date: from, to_date: to }, cacheKey: `report_supplier_analytics_${from}_${to}` },
       'price-variation':  { endpoint: 'reports/price-variation',  params: { from_date: from, to_date: to }, cacheKey: `report_price_variation_${from}_${to}` },
       'doctor-wise-sales': { endpoint: 'reports/doctor-wise-sales', params: { from_date: from, to_date: to }, cacheKey: `report_doctor_wise_sales_${from}_${to}` },
     };
@@ -98,7 +99,7 @@ export function useReports() {
     const NAMES = {
       sales: 'Sales_Report', 'low-stock': 'Low_Stock_Report', expiry: 'Expiry_Report', margin: 'Margin_Report',
       'sales-returns': 'Sales_Returns_Report', 'purchase-returns': 'Purchase_Returns_Report',
-      'purchase-payments': 'Purchase_Payments_Report',
+      'purchase-payments': 'Purchase_Payments_Report', 'supplier-analytics': 'Supplier_Analytics_Report',
       'price-variation': 'Price_Variation_Report', 'doctor-wise-sales': 'Doctor_Wise_Sales_Report',
     };
     try {

@@ -13,11 +13,15 @@
  *   onSelectAll      {(checked) => void}
  *   onDeleteBatches  {() => void}
  */
-import React from 'react';
-import { Trash2, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Trash2, Check, Undo2 } from 'lucide-react';
 import { isExpired, isExpiringSoon, formatExpiry } from '@/utils/dates';
 import { AppButton } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
 
 function calculateMargin(mrp, costPrice) {
   if (!mrp || !costPrice || costPrice === 0) return '0.00';
@@ -29,6 +33,31 @@ export default function BatchesTab({
   hideZeroQty, onHideZeroQty,
   onSelectBatch, onSelectAll, onDeleteBatches,
 }) {
+  const navigate = useNavigate();
+  const [returning, setReturning] = useState(null);
+
+  // A near-expiry/expired batch had no path to returning it to the
+  // supplier from here — a pharmacist had to already know and find the
+  // original purchase first. A return is always initiated from a specific
+  // past Purchase, so this resolves the batch's origin purchase (not every
+  // batch has one — a manually-added batch never goes through one) and
+  // hands off to the real return flow, pre-selected.
+  const handleReturnToSupplier = async (batch) => {
+    setReturning(batch.id);
+    try {
+      const res = await api.get(apiUrl.batchOriginPurchase(batch.id));
+      if (res.data?.found) {
+        navigate(`/purchases/returns/create?purchase_id=${res.data.purchase_id}`);
+      } else {
+        toast.error(`No purchase on file for batch ${batch.batch_no} — it wasn't added through a Purchase, so it can't be returned to a supplier this way.`);
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to look up this batch’s purchase');
+    } finally {
+      setReturning(null);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
       {/* Action bar */}
@@ -66,16 +95,16 @@ export default function BatchesTab({
                   onChange={(e) => onSelectAll(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 text-brand focus:ring-brand" />
               </th>
-              {['Batch ID','Qty.','Exp. Date','MRP','Disc. (%)','Cost Price','Margin%'].map(h => (
+              {['Batch ID','Qty.','Exp. Date','MRP','Disc. (%)','Cost Price','Margin%','Actions'].map(h => (
                 <th key={h} className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  ['MRP','Cost Price','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' ? 'text-center' : 'text-left'
+                  ['MRP','Cost Price','Margin%'].includes(h) ? 'text-right' : h === 'Qty.' || h === 'Exp. Date' || h === 'Disc. (%)' || h === 'Actions' ? 'text-center' : 'text-left'
                 }`}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {batches.length === 0 ? (
-              <tr><td colSpan="8" className="px-4 py-12 text-center text-gray-500">No batches found</td></tr>
+              <tr><td colSpan="9" className="px-4 py-12 text-center text-gray-500">No batches found</td></tr>
             ) : (
               batches.map(batch => {
                 const expired = isExpired(batch.expiry_date);
@@ -125,6 +154,20 @@ export default function BatchesTab({
                     <td className="px-4 py-4 text-center text-gray-700">{product.discount_percent || 0}</td>
                     <td className="px-4 py-4 text-right text-gray-700">{formatCurrency(costPrice)}</td>
                     <td className="px-4 py-4 text-right"><span className="text-brand font-medium">{margin}%</span></td>
+                    <td className="px-4 py-4 text-center">
+                      {(expired || soon) && batch.qty_on_hand > 0 && (
+                        <AppButton
+                          variant="outline"
+                          size="sm"
+                          icon={<Undo2 className="w-3.5 h-3.5" />}
+                          loading={returning === batch.id}
+                          onClick={() => handleReturnToSupplier(batch)}
+                          data-testid={`return-to-supplier-${batch.id}`}
+                        >
+                          Return to Supplier
+                        </AppButton>
+                      )}
+                    </td>
                   </tr>
                 );
               })

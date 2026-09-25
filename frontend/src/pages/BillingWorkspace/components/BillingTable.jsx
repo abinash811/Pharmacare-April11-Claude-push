@@ -8,6 +8,7 @@
  *   onRemoveItem  {(index) => void}
  *   onItemAdded   {(product, batch) => void}
  *   searchInputRef{React.Ref}
+ *   nearExpiryDays{number}  from Settings -> Inventory, defaults to isExpiringSoon's own default until loaded
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
@@ -19,7 +20,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import AddMedicineSearchRow from './AddMedicineSearchRow';
 
-export default function BillingTable({ viewMode, billItems = [], onUpdateItem, onRemoveItem, onItemAdded, searchInputRef }) {
+export default function BillingTable({ viewMode, billItems = [], onUpdateItem, onRemoveItem, onItemAdded, searchInputRef, nearExpiryDays }) {
   const [showBatchPanel, setShowBatchPanel] = useState(null);
   const [batchPanelData, setBatchPanelData] = useState([]);
   const [hidZeroStock,   setHidZeroStock]   = useState(true);
@@ -113,7 +114,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
             {billItems.map((item, index) => {
               const itemDiscAmt = (item.qty * item.unit_price) * (item.discount_percent / 100);
               const expExpired  = isExpired(item.expiry_date);
-              const expSoon     = isExpiringSoon(item.expiry_date);
+              const expSoon     = isExpiringSoon(item.expiry_date, nearExpiryDays);
               const isRx        = item.schedule === 'H' || item.schedule === 'H1' || item.scheduleH;
 
               return (
@@ -178,6 +179,17 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
 
                   <td className="px-4 py-2">
                     <span className={`text-xs ${expExpired ? 'text-red-600 font-bold' : expSoon ? 'text-amber-600 font-bold' : 'text-gray-600'}`}>{formatExpiry(item.expiry_date)}</span>
+                    {/* Enforcement (block/allow near-expiry sale) already existed —
+                        this is the missing "(with warning)" half of that Settings
+                        toggle's own label. A colored date alone isn't a real warning
+                        (color-only meaning, easy to miss) — explicit text next to it,
+                        same as every other warning in this table. */}
+                    {expExpired && (
+                      <div className="text-[10px] text-red-600 font-medium" data-testid={`expiry-warning-${index}`}>Expired</div>
+                    )}
+                    {!expExpired && expSoon && (
+                      <div className="text-[10px] text-amber-600 font-medium" data-testid={`expiry-warning-${index}`}>Expires soon</div>
+                    )}
                   </td>
 
                   <td className="px-4 py-2 text-right">

@@ -14,7 +14,9 @@ from constants import PRODUCT_CATEGORIES
 from deps import get_db
 from models.billing import Bill as BillORM, SalesReturn as SalesReturnORM
 from models.products import Product as ProductORM, StockBatch as BatchORM, StockMovement as MovementORM
-from models.purchases import Purchase as PurchaseORM, PurchaseReturn as PurchaseReturnORM
+from models.purchases import (
+    Purchase as PurchaseORM, PurchaseItem as PurchaseItemORM, PurchaseReturn as PurchaseReturnORM,
+)
 from models.users import AuditLog
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
@@ -66,7 +68,6 @@ class StockBatchCreate(BaseModel):
     supplier_name: Optional[str] = None
     supplier_invoice_no: Optional[str] = None
     received_date: Optional[str] = None
-    location: Optional[str] = "default"
     free_qty_units: Optional[int] = 0
     notes: Optional[str] = None
 
@@ -83,7 +84,6 @@ class StockBatchUpdate(BaseModel):
     supplier_name: Optional[str] = None
     supplier_invoice_no: Optional[str] = None
     received_date: Optional[str] = None
-    location: Optional[str] = None
     free_qty_units: Optional[int] = None
     notes: Optional[str] = None
 
@@ -100,7 +100,6 @@ class StockMovementCreate(BaseModel):
     movement_type: str
     ref_type: str
     ref_id: str
-    location: Optional[str] = "default"
     reason: Optional[str] = None
 
 
@@ -141,7 +140,6 @@ def _batch_response(b: BatchORM, product: ProductORM) -> dict:
         "category": product.category,
         "category_label": _CATEGORY_LABELS.get(product.category, product.category or "—"),
         "discount_percent": float(product.discount_percent),
-        "location": "default",
         "is_active": b.is_active,
         "created_at": b.created_at.isoformat() if b.created_at else None,
         "updated_at": b.updated_at.isoformat() if b.updated_at else None,
@@ -311,7 +309,6 @@ async def create_stock_batch(batch_data: StockBatchCreate, current_user: User = 
 @router.get("/stock/batches")
 async def get_stock_batches(
         product_sku: Optional[str] = None,
-        location: Optional[str] = None,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)):
     pharmacy_id = uuid.UUID(current_user.pharmacy_id)
@@ -350,6 +347,33 @@ async def get_stock_batch(batch_id: str, current_user: User = Depends(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return _batch_response(batch, product)
+
+
+@router.get("/stock/batches/{batch_id}/origin-purchase")
+async def get_batch_origin_purchase(batch_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    """A near-expiry/expired batch on Medicine Detail had no path to
+    returning it to the supplier — a return is always initiated from a
+    specific past Purchase (GET /purchases/{id}/items-for-return), and
+    nothing pointed a batch back to the purchase it came from. Not every
+    batch has one (a manually-added batch via POST /stock/batches never
+    goes through a Purchase), so this is advisory, found:false when there
+    isn't one, same shape as check-duplicate-invoice/last-purchase-price."""
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    await _get_batch(batch_id, pharmacy_id, db)  # tenant-scope check only
+
+    result = await db.execute(
+        select(PurchaseORM.id, PurchaseORM.purchase_number, PurchaseORM.status)
+        .join(PurchaseItemORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+        .where(PurchaseItemORM.batch_id == uuid.UUID(batch_id),
+               PurchaseORM.pharmacy_id == pharmacy_id, PurchaseORM.deleted_at.is_(None))
+        .order_by(PurchaseORM.created_at.desc())
+        .limit(1)
+    )
+    row = result.first()
+    if not row or row.status != "confirmed":
+        return {"found": False}
+    return {"found": True, "purchase_id": str(row.id), "purchase_number": row.purchase_number}
 
 
 @router.put("/stock/batches/{batch_id}")

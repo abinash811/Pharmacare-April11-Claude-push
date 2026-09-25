@@ -229,6 +229,7 @@ export const apiUrl = {
   // Stock
   stockBatches:     (params) => `stock/batches${qs(params)}`,
   stockBatch:       (id)     => `stock/batches/${id}`,
+  batchOriginPurchase: (id)  => `stock/batches/${id}/origin-purchase`,
   batchAdjust:      (id)     => `batches/${id}/adjust`,
   batchWriteoff:    (id)     => `batches/${id}/writeoff-expiry`,
   stockMovements:   (params) => `stock-movements${qs(params)}`,

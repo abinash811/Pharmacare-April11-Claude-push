@@ -72,6 +72,7 @@ export default function BillingWorkspace() {
   const [printSettings,  setPrintSettings]  = useState(null); // full settings.print — toggles, header/footer text
   const [gstSettings,    setGstSettings]    = useState(null); // settings.gst — "Print GST summary on bill" lives here, not settings.print
   const [autoPrintInvoice, setAutoPrintInvoice] = useState(false); // Settings → Billing "Auto-print invoice after checkout"
+  const [nearExpiryDays, setNearExpiryDays] = useState(90); // Settings → Inventory — matches isExpiringSoon's own default until settings load
 
   // ── Items + totals hook ──────────────────────────────────────────────────
   const {
@@ -128,6 +129,7 @@ export default function BillingWorkspace() {
         setPrintSettings(sr.data?.print || null);
         setGstSettings(sr.data?.gst || null);
         setAutoPrintInvoice(!!sr.data?.billing?.auto_print_invoice);
+        if (sr.data?.inventory?.near_expiry_days) setNearExpiryDays(sr.data.inventory.near_expiry_days);
       } catch { /* silent */ } finally { setIsInitialising(false); }
     })();
     if (billId) { loadExistingBill(billId); return; }
@@ -246,6 +248,7 @@ export default function BillingWorkspace() {
           onUpdateItem={updateItem} onRemoveItem={removeItem}
           onItemAdded={(p, b) => { addItem(p, b); saveDraft(); }}
           searchInputRef={searchInputRef}
+          nearExpiryDays={nearExpiryDays}
         />
 
         <BillingFooter

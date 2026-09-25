@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.13 | Last updated: September 25, 2026
+# Version: 1.14 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -558,6 +558,21 @@ List batches, optionally filtered by product.
 
 ### `GET /stock/batches/{batch_id}`
 Get single batch.
+
+---
+
+### `GET /stock/batches/{batch_id}/origin-purchase`
+Added Sep 25, 2026 — resolves the confirmed purchase a batch came from
+(via `PurchaseItem.batch_id`), so a near-expiry/expired batch can be
+returned to its supplier without already knowing which purchase it was.
+Advisory only.
+
+**Response:**
+```json
+{ "found": true, "purchase_id": "uuid", "purchase_number": "PUR-2026-0001" }
+```
+Or `{"found": false}` if this batch wasn't created via a confirmed
+purchase (e.g. added directly via `POST /stock/batches`).
 
 ---
 

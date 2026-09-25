@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
+import { toISODate } from '@/utils/dates';
 import BillingTable from '../BillingTable';
 
 const renderTable = (props: any) => render(<MemoryRouter><BillingTable {...props} /></MemoryRouter>);
@@ -119,6 +120,30 @@ describe('BillingTable — out-of-stock search results', () => {
     const batchButton = screen.getByTestId('batch-select-0');
     expect(batchButton).toHaveTextContent('123456');
     expect(batchButton.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('shows an explicit "Expires soon"/"Expired" warning, not just a colored date — Sep 25, 2026 fix', () => {
+    // Roadmap-flagged gap: enforcement (block/allow near-expiry sale) already
+    // existed, but the "(with warning)" half of that Settings toggle's own
+    // label was never built — a near-expiry sale went through with only a
+    // colored date, no explicit warning shown anywhere.
+    const soon = toISODate(new Date(Date.now() + 10 * 86400000));
+    const expired = toISODate(new Date(Date.now() - 10 * 86400000));
+    renderTable({
+      ...baseProps,
+      nearExpiryDays: 30,
+      billItems: [
+        { id: '1', product_sku: 'X', product_name: 'Soon Med', batch_no: 'B1',
+          qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+          expiry_date: soon, discount_percent: 0 },
+        { id: '2', product_sku: 'Y', product_name: 'Expired Med', batch_no: 'B2',
+          qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+          expiry_date: expired, discount_percent: 0 },
+      ],
+    });
+
+    expect(screen.getByTestId('expiry-warning-0')).toHaveTextContent('Expires soon');
+    expect(screen.getByTestId('expiry-warning-1')).toHaveTextContent('Expired');
   });
 
   it('still allows billing an in-stock batch normally', async () => {

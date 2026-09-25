@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.23 | Last updated: September 25, 2026
+# Version: 2.24 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -91,6 +91,17 @@ no code path writes it today; only `paid` and `due` are ever assigned.
       - Snapshot: copy product_name, batch_number, expiry_date, hsn_code,
         drug_schedule, and the (now MRP-checked) price into the bill item
       - Calculate: disc_paise, taxable_paise, gst_paise, line_total_paise (all integers)
+
+      **Near-expiry warning UI (built Sep 25, 2026)** — when
+      `allow_near_expiry_sale` is on (the default), the sale is still
+      allowed through, but was previously silent: `BillingTable.jsx` only
+      colored the expiry date amber, no explicit warning text anywhere
+      (color-only meaning, easy to miss, and the toggle's own label
+      promises "with warning"). Now shows an explicit "Expires soon" /
+      "Expired" label under the date, reading the pharmacy's real
+      configured `near_expiry_days` (threaded from `GET /settings` through
+      `BillingWorkspace/index.jsx` → `BillingTable`, not the 90-day
+      default `isExpiringSoon` silently used before this fix).
    e. Calculate bill totals (all paise):
       - subtotal = sum of taxable_paise per item
       - gst = sum of gst_paise per item (split equally into CGST + SGST,
@@ -751,6 +762,29 @@ select(BatchORM).where(BatchORM.product_id == pid, BatchORM.quantity_on_hand > 0
 This only applies when the caller doesn't already specify a batch — an explicit
 `batch_id`/`batch_no` on the request always wins.
 
+### Return near-expiry/expired stock to the supplier (built Sep 25, 2026)
+
+A near-expiry or expired batch had no path to being returned to its
+supplier from where a pharmacist would actually notice it — a
+`PurchaseReturn` is always initiated from a specific past Purchase
+(`GET /purchases/{id}/items-for-return`), and nothing pointed a batch
+back to the purchase it came from.
+
+- `GET /stock/batches/{batch_id}/origin-purchase` (`routers/batches.py`)
+  resolves it: joins `PurchaseItem.batch_id == batch.id` → `Purchase`,
+  confirmed-only. Advisory shape (`found: true/false`), same pattern as
+  `check-duplicate-invoice`/`last-purchase-price` — **not every batch has
+  one**: a batch added directly via `POST /stock/batches` (no purchase
+  involved) correctly returns `found: false`.
+- "Return to Supplier" button on Medicine Detail's Batches tab
+  (`BatchesTab.jsx`), shown only when a batch is expired or near-expiry
+  **and** still has stock on hand (nothing to return once it's at 0).
+  Resolves the origin purchase, then navigates to the existing
+  `/purchases/returns/create?purchase_id=` flow, pre-selected — no new
+  return UI built, reuses what already exists.
+- A batch with no resolvable purchase shows the real reason via toast
+  (Manifesto rule 10) instead of silently failing or navigating nowhere.
+
 ---
 
 ## FLOW 6 — SCHEDULE H1 REGISTER
@@ -852,7 +886,20 @@ When the billing form contains a Schedule H1 drug:
 
 ## FLOW 7 — PAYMENTS (for due bills)
 
-### Creating a due bill (reinstated Sep 15, 2026)
+> **Superseded Sep 19, 2026, direct product decision — corrected here Sep
+> 25, 2026, found while verifying an unrelated Billing concern.** Creating
+> a new due bill is no longer possible: `create_bill`/`update_bill` reject
+> any finalize that would leave `balance_paise > 0` with a 400 ("a bill
+> must be paid in full to finalize"), enforced in both endpoints. The
+> "Creating a due bill" section below describes the Sep 15 design, which
+> this reversed — kept for history, not current behavior. The rest of this
+> flow (recording a payment, status transitions) is still real, but only
+> ever applies to a **legacy due bill created before Sep 19, 2026** — a
+> fixed, non-growing set for any pharmacy going forward, not live
+> infrastructure for new bills. See `docs/15_ROADMAP.md`'s "Credit / due
+> bills" row for the full history.
+
+### Creating a due bill (reinstated Sep 15, 2026, since reversed — see notice above)
 
 `create_bill`/`update_bill` set `status = "due"` when `balance_paise > 0`
 after payment, subject to two checks:
@@ -1008,7 +1055,7 @@ match existing call sites' conventions rather than inventing new values.
 | Bill H1 drug without doctor name or patient address | Legal requirement (Schedule H1 Rule 65) | Yes — doctor-name check fixed Aug 22, 2026, checked for every item regardless of identifier; patient-address check also real and enforced identically (both `create_bill` and `update_bill`'s finalize path) but was undocumented here until Sep 19, 2026 — see FLOW 6 |
 | Sell more than a batch has on hand | Data integrity | Yes — fixed Aug 22, 2026 (FLOW 1), matches the guard manual adjustments (FLOW 9) already had |
 | Sell expired stock (when `block_expired_stock` is on) | Drug safety / compliance | Yes — fixed Aug 22, 2026 (FLOW 1). Previously a Settings toggle that did nothing — hardcoded `True` server-side, never checked at billing |
-| Sell near-expiry stock (when `allow_near_expiry_sale` is off) | Pharmacy policy choice, opt-in per pharmacy | Yes — fixed Aug 22, 2026 (FLOW 1), same fix as above. When allowed (the default), no warning is shown yet — real gap, not built |
+| Sell near-expiry stock (when `allow_near_expiry_sale` is off) | Pharmacy policy choice, opt-in per pharmacy | Yes — fixed Aug 22, 2026 (FLOW 1), same fix as above. When allowed (the default), an explicit "Expires soon" warning now shows too (built Sep 25, 2026 — see FLOW 1) |
 | Store money as float | Rounding errors — always integer paise | Yes, throughout |
 | Skip stock movement record | Every stock change must be traceable | Yes |
 

@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.21 | Last updated: September 25, 2026
+# Version: 1.22 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -401,7 +401,7 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 |---|---|---|
 | P33 Purchase register | 🔄 Partial | `GET /purchases` filters date/supplier/status/search/purchase_on/payment_status — no product/category/manufacturer/type/user filters yet. List UI doesn't even render the taxable-value/tax columns the API already returns. Payment (Cash/Credit/Due) filter fixed and rebuilt as a dropdown, Aug 26 (was bug #4). |
 | P34 Batch purchase report | ❌ Missing | No report endpoint exists; `StockBatch` has no supplier/purchase link to build one from without new joins. |
-| P35 Supplier purchase report | 🔄 Partial | `GET /suppliers/{id}/summary` gives total purchases/value/last-date/outstanding only — missing returns, net purchases, payments, avg rate, top medicines. **Also counts draft purchases in its totals** — a real accuracy bug (`suppliers.py:227`). |
+| P35 Supplier purchase report | 🔄 Partial | `GET /suppliers/{id}/summary` gives total purchases/value/last-date/outstanding only — missing returns, net purchases, payments, avg rate, top medicines. The draft-purchases-counted-in-totals bug this row used to flag was fixed in `edfe2f8` (confirmed Sep 25, 2026 — `suppliers.py`'s summary query is `status == "confirmed"` only now). |
 | P36 GST purchase report | 🔄 Partial + 🐛 | Backend correctly restricts to confirmed purchases and nets returns against input tax. IGST never populated (matches P21), no cess in the response despite the column existing. **Frontend is broken** (bug #3). |
 | P37 Purchase payment report | ❌ Missing | Payments are recorded and individually queryable, but nothing aggregates/lists them across purchases. |
 | P38 Purchase variance report | ❌ Missing | Zero mentions anywhere in the backend. `adjustment_amount_paise` is captured but never surfaced (matches P22). |

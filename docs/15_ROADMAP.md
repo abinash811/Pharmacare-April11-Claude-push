@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.40 | Last updated: September 25, 2026
+# Version: 3.41 | Last updated: September 25, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1545,6 +1545,135 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 | Government reporting API (CDSCO) | |
 | WhatsApp / SMS reminders (refills, dues) | |
 | Accounting integration (Tally, Zoho Books) | |
+| **Eka Care integration** (EMR/clinic connection) | See full writeup below. Exploratory only — nothing built. |
+
+### Eka Care integration — exploratory, Sep 25, 2026 `🚫 Do not build now`
+
+> **Status:** Discussion/research only, direct from Abinash. No code, schema, or
+> API changes made. PharmaCare's existing frontend/onboarding stays exactly as
+> it is. **Revisit once the core product is finalized** — his own words, not a
+> deadline. Do not start building any of this without him explicitly restarting
+> the conversation.
+
+**Business reasoning (why this exists):** Eka Care (Abinash's company) has
+OPD + IPD EMR but no pharmacy module. Bigger clinics leave for a competitor
+because they want one platform for clinical care + pharmacy + analytics, not
+two separate systems. PharmaCare becomes that pharmacy layer.
+
+**The two data flows, once built:**
+1. Doctor finishes a prescription in Eka's EMR → creates a **draft Bill** in
+   PharmaCare (not a draft Purchase — this is dispensing to a patient, not
+   buying stock from a supplier). Confirmed directly by Abinash.
+2. Eka's own medicine-prescribing dropdown stays as-is (its own full drug
+   catalog, nothing hidden) but shows a live stock tag — in stock / low /
+   out of stock — sourced from PharmaCare for whichever pharmacy that
+   clinic is linked to. **Correction from the original ask**: not a filter
+   that hides out-of-stock drugs, just an informational tag layered on top —
+   a doctor should never be blocked from prescribing something this one
+   pharmacy doesn't stock.
+
+**Architecture direction (also confirmed directly):**
+- **Two separate, independently deployable, independently sellable
+  products, connected over APIs** — not a merged codebase. Same philosophy
+  as India's Open Healthcare Network / ABDM: independent systems
+  interoperating over open, standard APIs and consent-based data exchange,
+  not one system absorbing another.
+- **Clinics : pharmacy = many : one.** Several Eka clinics can link to a
+  single pharmacy; a clinic never links to more than one pharmacy.
+- **Sidebar placement is Eka's team's work, not ours** — a "Pharmacy" item
+  in Eka's own left sidebar, linking out (subdomain path, e.g. `/pharmacy`),
+  not PharmaCare screens rendered inside Eka's own shell.
+- Stock tag needs to be **live**, not periodically synced.
+
+**Eka Developer Platform — confirmed facts (Abinash's own research pass
+against the real docs, Sep 25, 2026; anything not explicitly documented was
+treated as "not documented," not inferred):**
+- Auth: Client ID + Client Secret → OAuth 2.0 Authorization Code flow →
+  short-lived access token + refresh token. Real, documented, standard.
+- `GET` patient search by mobile number returns `patient_id`, name, DOB,
+  gender, mobile, `clinic_id` — enough to link an Eka patient to a
+  PharmaCare customer record.
+- A drug/lab search API exists ("Search Drugs and Laboratory Tests").
+- A general webhook framework exists (events tied to `business_id` /
+  `client_id` / endpoint / `event_names`).
+- `business_id` and `clinic_id` both exist as real concepts in webhook
+  payloads and patient responses; the exact relationship between them, and
+  whether one credential can span multiple clinics, is **not documented**.
+- **Not confirmed**: a "prescription completed/signed" event carrying the
+  actual drug list — this is the single biggest open gap, since flow #1
+  above depends entirely on it. The docs confirm a Prescription Core EMR
+  API and the general webhook framework exist, but not that this specific
+  event is one of the available `event_names`. **Needs a direct question to
+  Eka's own platform/integrations team, not more public-doc digging.**
+- **Not confirmed**: any API to write a stock-status tag back onto an Eka
+  drug record. Working assumption: flow #2 has to be *Eka's frontend
+  calling a PharmaCare-hosted endpoint live* per search, not PharmaCare
+  pushing updates into Eka.
+- A `BYOA` mechanism is documented — "a short-lived JWT signed by a shared
+  secret" — which reads like the right mechanism for a linked-module login
+  handoff (no separate PharmaCare login/password), but the specific
+  click-Pharmacy→signed-ticket→auto-logged-in flow isn't confirmed as
+  built on it. Worth a direct, specific question rather than assuming.
+- No sandbox/staging environment, rate limits, or downloadable OpenAPI spec
+  documented. `v1`-style URL versioning exists; no broader versioning
+  policy documented.
+- **Feasibility isn't in question** — Eka's team already has a working
+  integration with eVitalRx (a competing pharmacy system), so whatever this
+  needs (the prescription event, the SSO handoff) has been solved once
+  already, even if not all of it is in the public docs.
+
+**Researched but NOT reusable as code — only as a reference pattern:**
+checked `github.com/ohcnetwork` (Open Healthcare Network's open-source
+CARE platform) for an existing open-source pharmacy module to copy from.
+None exists — CARE is a hospital bed/ICU/telemedicine system, not a
+pharmacy/billing system, and **Eka's own EMR is confirmed separate from
+CARE's codebase** (only Eka's Scribe product plugs into other hospitals'
+CARE deployments — that's Eka selling into CARE, not Eka's platform
+running on CARE). What IS a genuinely useful reference: CARE's real
+plugin architecture — a frontend plugin is its own standalone app loaded
+into the host at runtime via Module Federation; a backend plugin is a
+self-contained module registered in one config file; auth uses a
+broker pattern (the plugin's own backend validates the host's session,
+then mints its own short-lived scoped token) — and a real precedent,
+`care_pinelabs`, of exactly this "separate, independently-owned business,
+connected as a module" pattern already working in production. Good
+inspiration for design quality, not literal architecture to copy.
+
+**What PharmaCare should have ready before handing this to any
+developer** (ours or Eka's) — the actual thing that makes "connect two
+systems" a 1-day job instead of a multi-week one:
+1. A handful of clean, documented endpoints (prescription webhook receiver,
+   live stock lookup, clinic-link/unlink, SSO ticket verification) — each
+   with a one-page contract, no need to read our source code.
+2. The Eka-drug-to-PharmaCare-product matching rule decided and documented
+   ahead of time (e.g. match by generic name + strength, fall back to
+   manual review) — not left for whichever developer builds it to invent.
+3. Predictable, documented behavior for the messy cases: duplicate webhook
+   delivery, an unlinked clinic, a prescribed drug we don't stock. No
+   silent failures (Manifesto rule 10).
+4. A sandbox/test pharmacy account to integrate and test against before
+   touching real pharmacy data.
+5. One real integration guide written for an external developer — not our
+   internal `docs/` folder, which assumes deep familiarity with this
+   codebase.
+6. One named point of contact on our side for their first integration —
+   most delay in integrations is waiting on answers, not writing code.
+
+**Open questions still needing a direct answer from Eka's platform team**
+(not guessable from public docs, and not worth building around until
+confirmed):
+- Does a prescription-completed webhook/event exist, and does it carry
+  patient ID, clinic ID, doctor ID, and the drug list with
+  dosage/frequency/duration?
+- Is `BYOA` (short-lived JWT, shared secret) the actual mechanism for
+  SSO into a linked module like this one?
+- Where does the pharmacy's Drug License number come from for a clinic
+  that hasn't got one yet — does the clinic already hold one for its own
+  in-house pharmacy, or does a real one-time compliance step still happen
+  somewhere in provisioning? (Raised directly, not yet resolved — Abinash
+  deferred this: PharmaCare's current onboarding stays unchanged for now,
+  and the actual clinic-linking popup/UI is Eka's own team's work once the
+  product is handed over.)
 
 ---
 

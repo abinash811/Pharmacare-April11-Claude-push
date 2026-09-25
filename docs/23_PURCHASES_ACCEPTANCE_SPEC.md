@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.20 | Last updated: September 25, 2026
+# Version: 1.21 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -325,8 +325,21 @@ Verified against real code before building, not assumed from this row (see Sep 2
 ### UC-P19: Enter purchase pricing — 🔄 Partial
 PTR, MRP, total discount, CESS, adjusted CN, TCS, extra charges, adjustment amount, round-off all present and correctly kept separate from calculated values. Missing: per-line discount (see P15), a distinct selling-price field, and trade/cash/scheme discount as separate concepts (only one flat "Total Discount" bucket exists).
 
-### UC-P20: Validate price changes — ❌ Missing entirely
-No warning anywhere for a rate increase, MRP change, MRP below cost, selling price below cost, or a price differing from history. "Don't overwrite historical batch pricing" holds true, but only because each purchase naturally creates its own row — not from any deliberate protection.
+### UC-P20: Validate price changes — 🔄 Partial, both halves now real
+This row's own claim was half-wrong — verified against code before
+building (Sep 24 RULE MISSES LOG made that non-negotiable): "MRP below
+cost" (PTR > MRP — the amber-highlighted `costExceedsMrp` warning on
+both fields, `PurchaseItemsTable.jsx`) already existed. What was
+genuinely missing — no comparison against price history at all — built
+Sep 25, 2026: `GET /purchases/last-purchase-price` (advisory, `routers/purchases.py`)
+returns the most recent CONFIRMED purchase's cost/MRP for a product,
+across any supplier (direct product decision — a different supplier's
+rate is still the real signal, not noise). Fetched once per line item
+when added; warns "Was ₹X last time" when cost increased, "MRP was ₹X"
+on any MRP change (either direction — a regulated, printed number
+changing is always worth a second look). Never blocks entry. "Selling
+price below cost" isn't a distinct concept here — PTR is the only cost
+this app tracks, already covered by the existing warning.
 
 ### UC-P21: Calculate GST — 🔄 Partial
 CGST/SGST auto-split 50/50 and correctly computed. **IGST is never populated** — the columns exist, nothing ever writes to them (matches the already-known, deliberately-deferred single-state-only decision). Cess is a flat user-entered adjustment, not rate-driven. Same formula shared between create/update — no inconsistency risk there.

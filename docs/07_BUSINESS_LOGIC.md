@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.19 | Last updated: September 25, 2026
+# Version: 2.20 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -502,6 +502,30 @@ unlike UC-P09/UC-P31 the same day.
   shipment is a supplier credit-note conversation, a separate feature
   not built here.
 - No schema change — both columns already existed.
+
+### Purchase entry — price-change warning (built Sep 25, 2026)
+
+UC-P20 in `docs/23` was half-wrong, checked before building: "MRP below
+cost" already existed (`costExceedsMrp` — PTR > MRP, amber-highlighted
+on both fields, `PurchaseItemsTable.jsx`). What was genuinely missing —
+no comparison against price history at all, anywhere — built here.
+
+- `GET /purchases/last-purchase-price?product_sku=...` (`routers/purchases.py`,
+  advisory, same precedent as `check-duplicate-invoice`): the most
+  recent CONFIRMED purchase's cost/MRP for a product, across **any**
+  supplier (direct product decision — a different supplier's rate is
+  still the real market signal a pharmacist cares about, not noise;
+  same-supplier-only would also need the supplier picked before the
+  first line item, a real ordering problem on this screen).
+- `usePurchaseItems.js`'s `addItem` fetches this once per line (not on
+  every keystroke) and patches `last_cost_per_unit`/`last_mrp_per_unit`
+  in once resolved — never blocks adding the item, fails silently.
+- Warns "Was ₹X last time" only when cost **increased** (a decrease is
+  good news, not a warning); "MRP was ₹X" on **any** MRP change, either
+  direction (a regulated, printed number changing is always worth a
+  second look, not just an increase).
+- A product never purchased before shows no warning (nothing to
+  compare against) — correctly indistinguishable from "still loading."
 
 ### Purchase Number Generation
 

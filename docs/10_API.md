@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.9 | Last updated: September 25, 2026
+# Version: 1.10 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -723,6 +723,20 @@ confirmed (previously always 0, a dead field — see `docs/07_BUSINESS_LOGIC.md`
 > `routers/purchases.py` and the frontend's `buildPurchasePayload.js` both
 > use `qty_units`/`cost_price_per_unit`/`ptr_per_unit`/`gst_percent`. Stale
 > since before this change; needs its own pass.
+
+### `GET /purchases/last-purchase-price`
+Added Sep 25, 2026 — price-change warning. Advisory only, same shape as
+`GET /purchases/check-duplicate-invoice` (undocumented before this, also
+static-registered ahead of `/purchases/{purchase_id}`).
+
+**Query params:** `product_sku` (required)
+
+**Response** (most recent CONFIRMED purchase of this product, any supplier):
+```json
+{ "found": true, "cost_price_per_unit": 8.00, "mrp_per_unit": 18.00, "purchase_date": "2026-09-01" }
+```
+Or `{"found": false}` if this product has never been purchased before
+(or only ever as a draft — drafts never count).
 
 ---
 

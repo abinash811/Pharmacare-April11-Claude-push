@@ -225,3 +225,50 @@ describe('PurchaseItemsTable — short/excess supply (Sep 25, 2026)', () => {
     expect(onUpdateItem).toHaveBeenCalledWith('i1', 'received_qty_units', null);
   });
 });
+
+describe('PurchaseItemsTable — price-change warning (Sep 25, 2026)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const baseProps = {
+    items: [], onUpdateItem: jest.fn(), onSetItemFields: jest.fn(), onRemoveItem: jest.fn(), onAddItem: jest.fn(),
+    withGST: true, searchInputRef: { current: null },
+  };
+
+  const item = {
+    id: 'i1', product_sku: 'SKU-1', product_name: 'Paracetamol', manufacturer: '', pack_size: '',
+    units_per_pack: 1, qty_mode: 'unit',
+    batch_no: '', expiry_mmyy: '', qty_units: 100, free_qty_units: 0,
+    ptr_per_unit: 10, mrp_per_unit: 20, gst_percent: 5, batch_priority: 'LIFA',
+  };
+
+  it('shows no warning while last price is still loading (null)', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: null, last_mrp_per_unit: null }]} />);
+    expect(screen.queryByTestId('ptr-increased-0')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mrp-changed-0')).not.toBeInTheDocument();
+  });
+
+  it('warns when cost is higher than the last recorded purchase', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: 8, last_mrp_per_unit: 20 }]} />);
+    expect(screen.getByTestId('ptr-increased-0')).toHaveTextContent('Was ₹8.00 last time');
+  });
+
+  it('does not warn when cost is the same as last time', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: 10, last_mrp_per_unit: 20 }]} />);
+    expect(screen.queryByTestId('ptr-increased-0')).not.toBeInTheDocument();
+  });
+
+  it('does not warn when cost is lower than last time', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: 12, last_mrp_per_unit: 20 }]} />);
+    expect(screen.queryByTestId('ptr-increased-0')).not.toBeInTheDocument();
+  });
+
+  it('warns when MRP differs from last time, either direction', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: 10, last_mrp_per_unit: 18 }]} />);
+    expect(screen.getByTestId('mrp-changed-0')).toHaveTextContent('MRP was ₹18.00');
+  });
+
+  it('does not warn when MRP is unchanged from last time', () => {
+    render(<PurchaseItemsTable {...baseProps} items={[{ ...item, last_cost_per_unit: 10, last_mrp_per_unit: 20 }]} />);
+    expect(screen.queryByTestId('mrp-changed-0')).not.toBeInTheDocument();
+  });
+});

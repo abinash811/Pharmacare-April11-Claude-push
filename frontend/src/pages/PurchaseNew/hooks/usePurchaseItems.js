@@ -14,6 +14,8 @@
  */
 import { useState } from 'react';
 import { toast } from 'sonner';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
 import { toRealQty, toRealCostPerUnit, defaultQtyModeFor } from '../utils/packUnitConversion';
 
 export function usePurchaseItems() {
@@ -22,30 +24,57 @@ export function usePurchaseItems() {
   const addItem = (product, batchPriority = 'LIFA') => {
     const exists = items.find(i => i.product_sku === product.sku);
     if (exists) { toast.error('Product already added'); return; }
-    setItems(prev => [...prev, {
-      id:               Date.now().toString(),
-      product_sku:      product.sku,
-      product_name:     product.name,
-      manufacturer:     product.manufacturer || '',
-      pack_size:        product.pack_size || '',
-      units_per_pack:   product.units_per_pack || 1,
-      // Defaults to Pack for anything sold in a real pack (strip, bottle) —
-      // a product with units_per_pack=1 has no pack to speak of, so it
-      // starts in Unit mode with no toggle shown at all.
-      qty_mode:         defaultQtyModeFor(product),
-      batch_no:         '',
-      expiry_mmyy:      '',
-      qty_units:        1,
-      // null = received exactly what was ordered/invoiced (the common
-      // case, no extra entry needed) — see packUnitConversion.js's
-      // toRealReceivedQty for why null is preserved, not coerced to 0.
-      received_qty_units: null,
-      free_qty_units:   0,
-      ptr_per_unit:     0,
-      mrp_per_unit:     0,
-      gst_percent:      product.gst_percent || 5,
-      batch_priority:   batchPriority,
-    }]);
+    // Date.now() must stay inside the setItems updater (the one place an
+    // impure call is allowed — eslint's react-hooks/purity rule flags it
+    // as a bare statement in the function body). Captured here so the
+    // async price fetch below can still target the right item.
+    let newId;
+    setItems(prev => {
+      newId = Date.now().toString();
+      return [...prev, {
+        id:               newId,
+        product_sku:      product.sku,
+        product_name:     product.name,
+        manufacturer:     product.manufacturer || '',
+        pack_size:        product.pack_size || '',
+        units_per_pack:   product.units_per_pack || 1,
+        // Defaults to Pack for anything sold in a real pack (strip, bottle) —
+        // a product with units_per_pack=1 has no pack to speak of, so it
+        // starts in Unit mode with no toggle shown at all.
+        qty_mode:         defaultQtyModeFor(product),
+        batch_no:         '',
+        expiry_mmyy:      '',
+        qty_units:        1,
+        // Filled in async once /purchases/last-purchase-price resolves —
+        // null means either "not loaded yet" or "no prior purchase exists,"
+        // both of which correctly show no price-change warning.
+        last_cost_per_unit: null,
+        last_mrp_per_unit: null,
+        // null = received exactly what was ordered/invoiced (the common
+        // case, no extra entry needed) — see packUnitConversion.js's
+        // toRealReceivedQty for why null is preserved, not coerced to 0.
+        received_qty_units: null,
+        free_qty_units:   0,
+        ptr_per_unit:     0,
+        mrp_per_unit:     0,
+        gst_percent:      product.gst_percent || 5,
+        batch_priority:   batchPriority,
+      }];
+    });
+    // Advisory price-change warning (Sep 25, 2026) — fetched once per line,
+    // not on every keystroke; failing silently is correct here, the same
+    // as useDuplicateInvoiceCheck's own advisory-only stance. Patches in
+    // via setItemFields once resolved, so it never blocks adding the item.
+    api.get(apiUrl.purchaseLastPrice({ product_sku: product.sku }))
+      .then(res => {
+        if (res.data?.found) {
+          setItemFields(newId, {
+            last_cost_per_unit: res.data.cost_price_per_unit,
+            last_mrp_per_unit: res.data.mrp_per_unit,
+          });
+        }
+      })
+      .catch(() => { /* advisory only — never blocks entry */ });
   };
 
   const updateItem = (id, field, value) => {

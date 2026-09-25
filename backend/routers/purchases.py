@@ -1279,6 +1279,46 @@ async def check_duplicate_invoice(
     }
 
 
+# Static route — must be registered before the parameterized
+# /purchases/{purchase_id} below, same convention as check-duplicate-invoice.
+@router.get("/purchases/last-purchase-price")
+async def get_last_purchase_price(
+        product_sku: str,
+        current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Advisory (never blocking), Sep 25, 2026 — the Purchase entry screen's
+    price-change warning needs to know what this product last cost so a
+    real jump ("₹8 -> ₹10") isn't silently missed. Any supplier, most
+    recent CONFIRMED purchase (a draft never really happened, and a
+    different supplier's rate is still the real market signal a
+    pharmacist cares about — direct product decision, see
+    docs/07_BUSINESS_LOGIC.md)."""
+    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    product = await _get_product_by_sku(pharmacy_id, product_sku, db)
+
+    result = await db.execute(
+        select(PurchaseItemORM, PurchaseORM.purchase_date)
+        .join(PurchaseORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+        .where(
+            PurchaseORM.pharmacy_id == pharmacy_id,
+            PurchaseORM.status == "confirmed",
+            PurchaseORM.deleted_at.is_(None),
+            PurchaseItemORM.product_id == product.id,
+        )
+        .order_by(PurchaseORM.purchase_date.desc(), PurchaseORM.created_at.desc())
+        .limit(1)
+    )
+    row = result.first()
+    if not row:
+        return {"found": False}
+    item, purchase_date = row
+    return {
+        "found": True,
+        "cost_price_per_unit": item.cost_price_paise / 100,
+        "mrp_per_unit": item.mrp_paise / 100,
+        "purchase_date": purchase_date.isoformat() if purchase_date else None,
+    }
+
+
 @router.get("/purchases/{purchase_id}")
 async def get_purchase(purchase_id: str, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):

@@ -950,6 +950,179 @@ async def get_supplier_analytics_report(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── Purchase variance ────────────────────────────────────────────────────────
+
+
+@router.get("/reports/purchase-variance")
+async def get_purchase_variance_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    """Two distinct "didn't go as planned" signals, never surfaced in
+    aggregate before: (1) quantity variance — a delivery that didn't match
+    what was ordered (UC-P18, received_qty_units, built same day as this
+    report); (2) adjustment variance — purchases where a manual invoice
+    correction (adjustment_amount_paise) was needed to reconcile the
+    computed total against the supplier's real invoice. Both fields
+    already existed per-purchase; neither was ever rolled up into a
+    report. docs/23_PURCHASES_ACCEPTANCE_SPEC.md UC-P38."""
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+                 PurchaseORM.deleted_at.is_(None)]
+        if from_date:
+            conds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+
+        item_rows = (await db.execute(
+            select(PurchaseItemORM.quantity_ordered, PurchaseItemORM.quantity_received,
+                   PurchaseItemORM.product_name, PurchaseItemORM.batch_number,
+                   PurchaseORM.purchase_number, PurchaseORM.purchase_date, SupplierORM.name)
+            .join(PurchaseORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+            .join(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .where(*conds, PurchaseItemORM.quantity_received != PurchaseItemORM.quantity_ordered)
+        )).all()
+
+        quantity_variance = []
+        total_short_qty = 0
+        total_excess_qty = 0
+        for ordered, received, product_name, batch_number, purchase_number, pdate, sname in item_rows:
+            variance = received - ordered
+            if variance < 0:
+                total_short_qty += -variance
+            else:
+                total_excess_qty += variance
+            quantity_variance.append({
+                "purchase_number": purchase_number,
+                "purchase_date": pdate.strftime("%d/%m/%Y") if pdate else "N/A",
+                "supplier_name": sname,
+                "product_name": product_name,
+                "batch_number": batch_number or "",
+                "qty_ordered": ordered,
+                "qty_received": received,
+                "variance_qty": variance,
+                "variance_type": "short" if variance < 0 else "excess",
+            })
+        quantity_variance.sort(key=lambda row: row["purchase_date"], reverse=True)
+
+        purchase_rows = (await db.execute(
+            select(PurchaseORM.purchase_number, PurchaseORM.purchase_date,
+                   PurchaseORM.adjustment_amount_paise, SupplierORM.name)
+            .join(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .where(*conds, PurchaseORM.adjustment_amount_paise != 0)
+        )).all()
+
+        adjustment_variance = []
+        total_adjustment_paise = 0
+        for purchase_number, pdate, adj_paise, sname in purchase_rows:
+            total_adjustment_paise += adj_paise
+            adjustment_variance.append({
+                "purchase_number": purchase_number,
+                "purchase_date": pdate.strftime("%d/%m/%Y") if pdate else "N/A",
+                "supplier_name": sname,
+                "adjustment_amount": _p2r(adj_paise),
+            })
+        adjustment_variance.sort(key=lambda row: row["purchase_date"], reverse=True)
+
+        return {
+            "summary": {
+                "total_quantity_variances": len(quantity_variance),
+                "total_short_qty": total_short_qty,
+                "total_excess_qty": total_excess_qty,
+                "total_adjustment_variances": len(adjustment_variance),
+                "total_adjustment_amount": _p2r(total_adjustment_paise),
+            },
+            # "data" (not "quantity_variance") is deliberate - matches the
+            # margin report's data/by_category split, so the existing
+            # generic CSV/Excel export (which only ever reads reportData.data)
+            # exports the primary quantity-variance table for free.
+            # adjustment_variance is a secondary table, view-only, same as
+            # margin's by_category rollup.
+            "data": quantity_variance,
+            "adjustment_variance": adjustment_variance,
+        }
+    except Exception as e:
+        logger.error(f"Purchase variance report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Batch purchase report ────────────────────────────────────────────────────
+
+
+@router.get("/reports/batch-purchases")
+async def get_batch_purchase_report(
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        db: AsyncSession = Depends(get_db),
+        current_user: User = Depends(get_current_user)):
+    """No report grouped stock batches by the purchase/supplier they came
+    from — tracing a batch back to its source meant opening the purchase
+    directly, if you already knew which one. PurchaseItem.batch_id ->
+    StockBatch is a real, existing FK; this just joins through it, no
+    new schema. docs/23_PURCHASES_ACCEPTANCE_SPEC.md UC-P34."""
+    await _require_reports_permission(current_user, db)
+    try:
+        pid = current_user.pharmacy_id
+        conds = [PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+                 PurchaseORM.deleted_at.is_(None), PurchaseItemORM.batch_id.isnot(None)]
+        if from_date:
+            conds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
+        if to_date:
+            conds.append(PurchaseORM.purchase_date <= date.fromisoformat(to_date))
+
+        rows = (await db.execute(
+            select(PurchaseItemORM.batch_number, PurchaseItemORM.product_name,
+                   ProductORM.sku, PurchaseItemORM.quantity_received,
+                   PurchaseItemORM.cost_price_paise, PurchaseItemORM.mrp_paise,
+                   PurchaseORM.purchase_number, PurchaseORM.purchase_date, SupplierORM.name,
+                   BatchORM.quantity_on_hand, BatchORM.expiry_date, BatchORM.is_active)
+            .join(PurchaseORM, PurchaseItemORM.purchase_id == PurchaseORM.id)
+            .join(SupplierORM, PurchaseORM.supplier_id == SupplierORM.id)
+            .outerjoin(ProductORM, PurchaseItemORM.product_id == ProductORM.id)
+            .outerjoin(BatchORM, PurchaseItemORM.batch_id == BatchORM.id)
+            .where(*conds)
+            .order_by(PurchaseORM.purchase_date.desc())
+        )).all()
+
+        data = []
+        total_units = 0
+        active_batches = 0
+        for (batch_number, product_name, sku, qty_received, cost_paise, mrp_paise,
+             purchase_number, pdate, sname, on_hand, expiry, is_active) in rows:
+            total_units += qty_received
+            if is_active:
+                active_batches += 1
+            data.append({
+                "batch_number": batch_number or "",
+                "product_name": product_name,
+                "sku": sku or "",
+                "purchase_number": purchase_number,
+                "purchase_date": pdate.strftime("%d/%m/%Y") if pdate else "N/A",
+                "supplier_name": sname,
+                "qty_received": qty_received,
+                "cost_price_per_unit": _p2r(cost_paise),
+                "mrp_per_unit": _p2r(mrp_paise),
+                "current_stock": on_hand if on_hand is not None else 0,
+                "expiry_date": expiry.strftime("%d/%m/%Y") if expiry else "N/A",
+                "is_active": bool(is_active),
+            })
+
+        return {
+            "summary": {
+                "total_batches": len(data),
+                "total_units": total_units,
+                "active_batches": active_batches,
+            },
+            "data": data,
+        }
+    except Exception as e:
+        logger.error(f"Batch purchase report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── GST report ────────────────────────────────────────────────────────────────
 
 

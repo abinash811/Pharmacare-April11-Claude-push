@@ -94,6 +94,10 @@ export const formatReportForExcel = (reportType, reportData) => {
       return formatPurchasePaymentsReport(reportData);
     case 'supplier-analytics':
       return formatSupplierAnalyticsReport(reportData);
+    case 'purchase-variance':
+      return formatPurchaseVarianceReport(reportData);
+    case 'batch-purchases':
+      return formatBatchPurchaseReport(reportData);
     case 'price-variation':
       return formatPriceVariationReport(reportData);
     case 'doctor-wise-sales':
@@ -233,6 +237,42 @@ const formatSupplierAnalyticsReport = (data) => {
     'Overdue Amount (₹)': item.overdue_amount,
     'Products Supplied': item.products_supplied,
     'Priced Higher Than Other Suppliers': item.higher_priced_products_count,
+  }));
+};
+
+// Exports the quantity-variance table only (reportData.data) — the
+// adjustment-variance table is a secondary breakdown, same as the margin
+// report's by_category rollup never being part of its own export either.
+const formatPurchaseVarianceReport = (data) => {
+  if (!data?.data) return [];
+  return data.data.map((item) => ({
+    'Purchase #': item.purchase_number,
+    'Date': item.purchase_date,
+    'Supplier': item.supplier_name,
+    'Product': item.product_name,
+    'Batch': item.batch_number,
+    'Ordered': item.qty_ordered,
+    'Received': item.qty_received,
+    'Variance': item.variance_qty,
+    'Type': item.variance_type,
+  }));
+};
+
+const formatBatchPurchaseReport = (data) => {
+  if (!data?.data) return [];
+  return data.data.map((item) => ({
+    'Batch #': item.batch_number,
+    'Product': item.product_name,
+    'SKU': item.sku,
+    'Purchase #': item.purchase_number,
+    'Date': item.purchase_date,
+    'Supplier': item.supplier_name,
+    'Received': item.qty_received,
+    'Cost Price (₹)': item.cost_price_per_unit,
+    'MRP (₹)': item.mrp_per_unit,
+    'Current Stock': item.current_stock,
+    'Expiry': item.expiry_date,
+    'Status': item.is_active ? 'Active' : 'Written off',
   }));
 };
 

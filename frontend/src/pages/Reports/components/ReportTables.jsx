@@ -9,6 +9,7 @@ import React from 'react';
 import { FileText, Package, Clock, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/utils/currency';
 import { SalesReturnsTable, PurchaseReturnsTable, PurchasePaymentsTable, SupplierAnalyticsTable, PriceVariationTable, DoctorWiseSalesTable } from './ReportTablesReturns';
+import { QuantityVarianceTable, AdjustmentVarianceTable, BatchPurchaseTable } from './ReportTablesVariance';
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
 function SalesTable({ data }) {
@@ -217,6 +218,13 @@ export default function ReportTables({ activeReport, reportData, expiryDays }) {
       {activeReport === 'purchase-returns' && <PurchaseReturnsTable data={reportData?.data} />}
       {activeReport === 'purchase-payments' && <PurchasePaymentsTable data={reportData?.data} />}
       {activeReport === 'supplier-analytics' && <SupplierAnalyticsTable data={reportData?.data} />}
+      {activeReport === 'purchase-variance' && (
+        <>
+          <QuantityVarianceTable data={reportData?.data} />
+          <AdjustmentVarianceTable data={reportData?.adjustment_variance} />
+        </>
+      )}
+      {activeReport === 'batch-purchases' && <BatchPurchaseTable data={reportData?.data} />}
       {activeReport === 'price-variation'  && <PriceVariationTable data={reportData?.data} />}
       {activeReport === 'doctor-wise-sales' && <DoctorWiseSalesTable data={reportData?.data} />}
     </div>

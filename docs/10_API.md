@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.12 | Last updated: September 25, 2026
+# Version: 1.13 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -959,6 +959,67 @@ was `GET /suppliers/{id}/summary` — one supplier at a time.
 `data` is sorted by `total_purchase_value` descending — row position is
 the rank. `avg_days_to_pay` is `null` when the supplier has no fully paid
 purchase in range yet.
+
+---
+
+### `GET /reports/purchase-variance`
+Added Sep 25, 2026 — UC-P38. Two independent datasets: quantity variance
+(short/excess delivery) and adjustment variance (manual invoice
+corrections).
+
+**Query params:** `from_date`, `to_date` (both optional — omitted = all time)
+
+**Response:**
+```json
+{
+  "summary": {
+    "total_quantity_variances": 1, "total_short_qty": 5, "total_excess_qty": 0,
+    "total_adjustment_variances": 1, "total_adjustment_amount": 12.75
+  },
+  "data": [
+    {
+      "purchase_number": "PUR-2026-0003", "purchase_date": "25/09/2026",
+      "supplier_name": "Reliable Distributors", "product_name": "Paracetamol 650",
+      "batch_number": "B-001", "qty_ordered": 20, "qty_received": 15,
+      "variance_qty": -5, "variance_type": "short"
+    }
+  ],
+  "adjustment_variance": [
+    { "purchase_number": "PUR-2026-0003", "purchase_date": "25/09/2026",
+      "supplier_name": "Reliable Distributors", "adjustment_amount": 12.75 }
+  ]
+}
+```
+`data` holds quantity variance (exportable via the Reports page's generic
+CSV/Excel export); `adjustment_variance` is a secondary, view-only table
+— same split as the margin report's `data`/`by_category`.
+
+---
+
+### `GET /reports/batch-purchases`
+Added Sep 25, 2026 — UC-P34. Traces every purchased batch back to its
+purchase and supplier, via the real `PurchaseItem.batch_id` FK.
+
+**Query params:** `from_date`, `to_date` (both optional, filter on
+`purchase_date` — omitted = all time)
+
+**Response:**
+```json
+{
+  "summary": { "total_batches": 3, "total_units": 85, "active_batches": 3 },
+  "data": [
+    {
+      "batch_number": "B-001", "product_name": "Paracetamol 650", "sku": "SKU-1",
+      "purchase_number": "PUR-2026-0001", "purchase_date": "25/09/2026",
+      "supplier_name": "Reliable Distributors", "qty_received": 50,
+      "cost_price_per_unit": 10.00, "mrp_per_unit": 20.00,
+      "current_stock": 50, "expiry_date": "01/01/2030", "is_active": true
+    }
+  ]
+}
+```
+`current_stock` is live (`StockBatch.quantity_on_hand`) — reflects any
+sales/adjustments since purchase, not frozen at purchase time.
 
 ---
 

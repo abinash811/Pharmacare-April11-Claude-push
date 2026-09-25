@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.22 | Last updated: September 25, 2026
+# Version: 2.23 | Last updated: September 25, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -587,6 +587,51 @@ return-rate, or price-comparison across suppliers existed anywhere.
   (no separate query).
 - No supplier filter — the report's whole point is comparing *across*
   suppliers; a single-supplier view already exists on Supplier Detail.
+
+### Purchase variance report (built Sep 25, 2026)
+
+UC-P38 in `docs/23` — the "adjustment_amount_paise never surfaced" half
+of the old claim was already stale before this was built:
+`adjustment_amount` is returned on every purchase detail response and
+editable in the Invoice Breakdown modal. What was genuinely missing was
+an aggregate, cross-purchase view of two "didn't go as planned" signals.
+
+- `GET /reports/purchase-variance` (`routers/reports.py`), date-range
+  filtered. Returns two independent datasets, same split pattern as the
+  margin report's `data` (item-wise, exportable) + `by_category` (rollup,
+  view-only):
+  - **`data`** (quantity variance): one row per confirmed `PurchaseItem`
+    where `quantity_received != quantity_ordered` — the short/excess
+    delivery data UC-P18 already captures, rolled up for the first time.
+  - **`adjustment_variance`**: one row per confirmed `Purchase` with a
+    non-zero `adjustment_amount_paise` — a manual invoice correction is
+    itself a variance signal (the computed total didn't match the real
+    invoice), worth surfacing in aggregate even though the field was
+    already visible per-purchase.
+- Both use the same confirmed-only, `deleted_at IS NULL` filtering every
+  sibling report on this page uses.
+- CSV/Excel export covers the quantity-variance table only — the
+  adjustment table is a secondary breakdown, same as margin's
+  `by_category` never being part of its own export either.
+
+### Batch purchase report (built Sep 25, 2026)
+
+UC-P34 in `docs/23` — its old claim ("`StockBatch` has no supplier/
+purchase link to build one from without new joins") was wrong, caught
+before building: `PurchaseItem.batch_id` is a real, existing FK straight
+to `stock_batches`. The actual gap was narrower — no report used that
+join, not that the join didn't exist.
+
+- `GET /reports/batch-purchases` (`routers/reports.py`), date-range
+  filtered on `purchase_date`. One row per confirmed `PurchaseItem` with
+  a `batch_id`: batch number, product, the purchase/supplier it came
+  from, quantity received, cost/MRP at purchase time, current stock
+  (`StockBatch.quantity_on_hand`, live — reflects sales/adjustments since
+  purchase, not frozen at purchase-time), and active/written-off status.
+- Purchase-traceability-shaped, not a general as-of-today stock-by-batch
+  listing (that's `docs/24` STK06, still separately missing) — this
+  report answers "where did this batch come from," not "what's on the
+  shelf right now."
 
 ### Purchase Number Generation
 

@@ -1,5 +1,5 @@
 # PharmaCare — Purchases & Purchase Returns Acceptance Spec
-# Version: 1.24 | Last updated: September 25, 2026
+# Version: 1.25 | Last updated: September 25, 2026
 # Type: Living Status
 # Source: full use-case spec provided by Abinash, mapped against real code
 # (not assumptions) via direct reads + 3 parallel research passes + one
@@ -400,16 +400,16 @@ Supplier-wise and purchase-wise outstanding both work (computed-on-read, can't g
 | UC | Status | Evidence |
 |---|---|---|
 | P33 Purchase register | 🔄 Partial | `GET /purchases` filters date/supplier/status/search/purchase_on/payment_status — no product/category/manufacturer/type/user filters yet. List UI doesn't even render the taxable-value/tax columns the API already returns. Payment (Cash/Credit/Due) filter fixed and rebuilt as a dropdown, Aug 26 (was bug #4). |
-| P34 Batch purchase report | ❌ Missing | No report endpoint exists; `StockBatch` has no supplier/purchase link to build one from without new joins. |
+| P34 Batch purchase report | ✅ Built Sep 25, 2026 | `GET /reports/batch-purchases` — every batch traced back to its purchase/supplier via the real `PurchaseItem.batch_id` FK (this doc's earlier "no link" claim was wrong — the join already existed, just unused). Shows current stock and active/written-off status per batch. See `docs/07_BUSINESS_LOGIC.md`. |
 | P35 Supplier purchase report | 🔄 Partial | `GET /suppliers/{id}/summary` gives total purchases/value/last-date/outstanding only — missing returns, net purchases, payments, avg rate, top medicines. The draft-purchases-counted-in-totals bug this row used to flag was fixed in `edfe2f8` (confirmed Sep 25, 2026 — `suppliers.py`'s summary query is `status == "confirmed"` only now). |
 | P36 GST purchase report | 🔄 Partial + 🐛 | Backend correctly restricts to confirmed purchases and nets returns against input tax. IGST never populated (matches P21), no cess in the response despite the column existing. **Frontend is broken** (bug #3). |
 | P37 Purchase payment report | ✅ Built Sep 25, 2026 | `GET /reports/purchase-payments` — date-filtered, by-method breakdown, excludes reversed payments. On the Reports page as its own tab, CSV/Excel export included for free via the page's generic export. See `docs/07_BUSINESS_LOGIC.md`. |
-| P38 Purchase variance report | ❌ Missing | Zero mentions anywhere in the backend. `adjustment_amount_paise` is captured but never surfaced (matches P22). |
-| P39 Export and print | 🔄 Partial | Print works for a single purchase. Export now also covers the payment report (Sep 25, 2026 — via the Reports page's generic CSV/Excel export). Still nothing for the purchase register, supplier statement, or batch report, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
+| P38 Purchase variance report | ✅ Built Sep 25, 2026 | `GET /reports/purchase-variance` — two variance types rolled up: quantity (short/excess delivery, UC-P18's `received_qty_units`) and adjustment (manual invoice corrections, `adjustment_amount_paise`). The "never surfaced" half of this row's old claim was already stale even before building — `adjustment_amount` is returned on every purchase detail response and editable in the Invoice Breakdown modal; what was genuinely missing was an aggregate, cross-purchase view of either signal. See `docs/07_BUSINESS_LOGIC.md`. |
+| P39 Export and print | 🔄 Partial | Print works for a single purchase. Export now also covers the payment, supplier analytics, purchase variance, and batch purchase reports (Sep 25, 2026 — via the Reports page's generic CSV/Excel export). Still nothing for the purchase register or a supplier statement, because those reports don't exist. GST export would also throw (same broken field names as bug #3). |
 | P40 Purchase dashboard | ✅ **Fixed** (Batch 6, between Sep 7–13) | `useDashboard.js` now calls `apiUrl.analyticsPurchases(...)`, feeding three new QuickStatCards (Purchases/Purchase Returns/Net Purchases, month-scoped, clickable) into the real Dashboard. Payable/overdue/near-expiry-purchase-value still aren't surfaced as their own cards — the endpoint is wired in, not every metric it could show is used yet. |
 | P41 Supplier analytics | ✅ Built Sep 25, 2026 | `GET /reports/supplier-analytics` — ranked by purchase value, per-supplier return rate, avg days-to-pay, overdue amount, and a price-comparison flag (count of products this supplier charges more for than the cheapest alternative supplier). On the Reports page as its own tab. See `docs/07_BUSINESS_LOGIC.md`. |
 | P42 Product purchase analytics | ❌ Missing | Zero endpoints for rate trends, coverage, free-goods contribution, etc. |
-| P43 Purchase profitability impact | ❌ Missing | No margin computation exists. Secondary finding: most report endpoints correctly restrict to confirmed-only, **but the supplier summary (P35) leaks drafts into its totals** — the same bug noted there. |
+| P43 Purchase profitability impact | ❌ Missing | No margin computation exists. Secondary finding, now stale: this row used to note the supplier summary (P35) leaking drafts into its totals — fixed in `edfe2f8`, confirmed Sep 25, 2026 (see the corrected P35 row). Every report endpoint built this session (P37/P38/P34/P41) correctly restricts to confirmed-only. |
 
 ---
 

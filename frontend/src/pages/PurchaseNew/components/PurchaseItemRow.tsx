@@ -21,7 +21,18 @@ const QTY_MODE_OPTIONS = [
 
 const inp = 'w-full h-8 px-2 text-xs bg-white border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400';
 
-export default function PurchaseItemRow({ item, index, onUpdateItem, onSetItemFields, onRemoveItem, withGST }) {
+// item is a plain JS object shaped by usePurchaseItems.js (untyped) — typed
+// `any` here rather than duplicating that shape as a second source of truth.
+export interface PurchaseItemRowProps {
+  item: any;
+  index: number;
+  onUpdateItem: (id: string, field: string, value: unknown) => void;
+  onSetItemFields: (id: string, patch: Record<string, unknown>) => void;
+  onRemoveItem: (id: string) => void;
+  withGST: boolean;
+}
+
+export default function PurchaseItemRow({ item, index, onUpdateItem, onSetItemFields, onRemoveItem, withGST }: PurchaseItemRowProps) {
   // Real per-unit values regardless of Pack/Unit mode — see
   // packUnitConversion.js. Everything money/stock-related below (line
   // total, MRP-vs-cost warning) uses these, not the raw typed numbers,

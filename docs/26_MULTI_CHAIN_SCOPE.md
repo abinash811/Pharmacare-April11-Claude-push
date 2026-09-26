@@ -1,5 +1,5 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.0 | Last updated: September 26, 2026
+# Version: 1.1 | Last updated: September 26, 2026
 # Type: Explanation
 # Status: 🚫 Scoping only — nothing built, no schema changed. Do not build from this without a separate go-ahead per section.
 
@@ -91,11 +91,12 @@ unless there's a specific reason a switcher isn't good enough.
 
 ## 5. WHAT DOES **NOT** CHANGE (the reassurance part)
 
-Billing, Purchases, Inventory/Batches, Sales & Purchase Returns, GST report,
-Schedule H1 register, Day-End Closing, Customers, Suppliers, Audit Log —
-**all keep working exactly as they do today**, scoped to one `pharmacy_id`
-per request, same as now. This is deliberately not a rewrite of the core
-product; it's a new layer on top of it.
+Billing, Inventory/Batches, Sales & Purchase Returns, GST report, Schedule
+H1 register, Day-End Closing, Audit Log — **all keep working exactly as
+they do today**, scoped to one `pharmacy_id` per request, same as now. This
+is deliberately not a rewrite of the core product; it's a new layer on top
+of it. **Correction, same day: Customers/Suppliers moved out of this list
+— see Section 8 below, found after this section was first written.**
 
 ---
 
@@ -114,10 +115,41 @@ product; it's a new layer on top of it.
 
 ---
 
-## 7. OPEN ITEMS BEFORE ANY BUILD STARTS
+## 7. GAPS FOUND ON A SECOND PASS, Sep 26, 2026 — none of these were in the original 4 questions
+
+1. **Product catalog: shared or per-store?** Today `Product` is a fully
+   independent table per `pharmacy_id` — two stores in the same chain
+   would each re-enter the same medicine separately. For "centralized
+   purchasing" to mean anything, the catalog (name/SKU/GST%) almost
+   certainly needs to be **shared chain-wide**, with only stock/batches
+   staying per-store. Not yet in the schema sketch — needs its own
+   decision, same weight as Section 2's.
+2. **Customers/Doctors: shared or per-store?** Same problem, retail-facing
+   version: a customer who visits Store A and later Store B — one combined
+   record (so loyalty/history/credit follow them chain-wide) or two
+   separate ones? Real chains expect the combined version. **Moved out of
+   "unaffected" (Section 5) — this is a real, undecided question.**
+3. **Stock transfer between stores is a compliance event, not just a
+   stock movement.** Moving inventory between two stores with different
+   GSTINs is a "supply" under GST law even with no sale involved — it
+   likely needs its own delivery challan/document, not a plain internal
+   adjustment. Flagged alongside Section 3's GST rollup question, same
+   "needs real research" caveat.
+4. **How does a second store actually get added?** No flow exists yet for
+   "turn my one pharmacy into a chain HQ and create store #2" — who's
+   allowed to do it, and does the new store inherit the chain's existing
+   Settings (bill header/footer, GST defaults) or start blank?
+
+## 8. OPEN ITEMS BEFORE ANY BUILD STARTS
 
 - [ ] Confirm switcher-based, single-active-store-per-session (Section 2).
 - [ ] GST rollup — legal/CA research on what a chain is actually allowed to
       show/file as one view vs. per-store.
 - [ ] Purchases centralization — decide default (per-store vs. HQ-fanout)
       before building the setting, not required for Sections 1-2.
+- [ ] Product catalog shared vs. per-store (Section 7.1).
+- [ ] Customers/Doctors shared vs. per-store (Section 7.2).
+- [ ] Cross-store stock transfer's GST/delivery-challan requirement
+      (Section 7.3) — same "needs research" bucket as the GST rollup item.
+- [ ] New-store onboarding flow — who can add one, what it inherits
+      (Section 7.4).

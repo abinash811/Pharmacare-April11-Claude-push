@@ -1,5 +1,5 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.1 | Last updated: September 26, 2026
+# Version: 1.2 | Last updated: September 26, 2026
 # Type: Explanation
 # Status: 🚫 Scoping only — nothing built, no schema changed. Do not build from this without a separate go-ahead per section.
 
@@ -140,7 +140,31 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
    allowed to do it, and does the new store inherit the chain's existing
    Settings (bill header/footer, GST defaults) or start blank?
 
-## 8. OPEN ITEMS BEFORE ANY BUILD STARTS
+## 8. HOW REAL COMPETITORS ACTUALLY DO CENTRALIZED ORDERING/DISTRIBUTION (researched Sep 26, 2026)
+
+Direct answer to "how does HQ decide quantity per store" — checked both
+named competitors, and they represent two genuinely different models:
+
+- **Marg ERP: manual, HQ/store-triggered.** A **Stock Transfer** ("Stock
+  Issue") moves goods from one branch to another after the fact, with 3
+  selectable methods: **Minimum Bases** (transfer up to the minimum
+  quantity set per item), **Balance Stock** (transfer everything currently
+  spare), or **Receive-Issue** (transfer items with real purchase+sale
+  activity in a date range). A person decides when and how much — the
+  system doesn't decide on its own. [Source](https://care.margcompusoft.com/marg-books/branch-master/183217/9/what-is-the-process-of-multi-branch-pharmacy-retail-chain-management-in-marg-books), [Source](https://care.margcompusoft.com/margerp/stock-issue/1669/1/How-to-transfer-stock-from)
+- **eVitalRx: automatic, demand-driven.** Named as "**inter-branch stock
+  auto reallocation**" — the system itself moves stock toward whichever
+  branch has real demand, in real time, without someone manually deciding
+  a split. [Source](https://www.evitalrx.in/pharmacy-types/pharmacy-chain/)
+
+**This is a real decision we haven't made**, on top of the "does HQ place
+one order at all" question already flagged: start with Marg's simpler,
+human-decided model (a person picks quantity per store when creating the
+order or transferring stock) — eVitalRx's automatic version is real but a
+meaningfully bigger, smarter build, worth revisiting only once the manual
+version is working and actually used.
+
+## 9. OPEN ITEMS BEFORE ANY BUILD STARTS
 
 - [ ] Confirm switcher-based, single-active-store-per-session (Section 2).
 - [ ] GST rollup — legal/CA research on what a chain is actually allowed to
@@ -153,3 +177,6 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
       (Section 7.3) — same "needs research" bucket as the GST rollup item.
 - [ ] New-store onboarding flow — who can add one, what it inherits
       (Section 7.4).
+- [ ] Manual (Marg-style, person picks quantity per store) vs. automatic
+      (eVitalRx-style, system reallocates by demand) distribution model
+      (Section 8) — recommend starting manual.

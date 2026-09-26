@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.11 | Last updated: September 19, 2026
+# Version: 1.12 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -664,8 +664,7 @@ Line items on a purchase return.
 | `notes` | Text | Optional — added Sep 12, 2026, `routers/customers.py`'s `CustomerCreate`/update + `CustomerFormDialog.jsx`'s `<Textarea>` |
 | `customer_type` | String(20) | `retail`, `wholesale`, `institution` — default `retail` |
 | `gstin` | String(15) | For B2B customers |
-| `credit_limit_paise` | Integer | Max outstanding allowed — enforced at bill-creation time as of Sep 12, 2026 (`_check_credit_limit()`, `routers/billing.py`); `0` means no limit configured |
-| `credit_days` | Integer | Payment terms — default `0` |
+| `credit_days` | Integer | Payment terms — default `0` (unused; no code path reads it) |
 | `is_active` | Boolean | — |
 | `deleted_at` | TIMESTAMP | Soft delete |
 

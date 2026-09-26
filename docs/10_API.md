@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.14 | Last updated: September 25, 2026
+# Version: 1.15 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -817,8 +817,7 @@ Create a customer.
 {
   "name": "Ramesh Kumar",
   "phone": "9876543210",
-  "customer_type": "retail",
-  "credit_limit": 5000
+  "customer_type": "retail"
 }
 ```
 
@@ -846,13 +845,14 @@ Get customer detail.
 ### `GET /customers/{customer_id}/stats`
 Get customer purchase history stats.
 
-**Response:**
+**Response:** (corrected Sep 26, 2026 — this doc previously listed field
+names `total_bills`/`total_spent`/`outstanding`/`last_purchase_date`,
+none of which the real endpoint returns or ever returned)
 ```json
 {
-  "total_bills": 42,
-  "total_spent": 18500.00,
-  "outstanding": 0,
-  "last_purchase_date": "2026-04-10"
+  "total_purchases": 42,
+  "total_value": 18500.00,
+  "last_purchase": "10/04/2026"
 }
 ```
 

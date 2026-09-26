@@ -7,6 +7,16 @@ effect, and the router logged nothing to the audit trail at all.
 Fix: create_sales_return/update_sales_return always credit any
 outstanding balance on the original bill first (_resolve_refund_and_credit
 in sales_returns.py), and both endpoints now write AuditLog rows.
+
+Due bills were removed again Sep 19, 2026 — a bill's balance can never be
+> 0 by the time a return is created against it, so the "credits a due
+balance" tests below (all of which built a due bill first) were removed
+Sep 26, 2026; they tested a path that can no longer be reached. The
+"credit_to_account"/credit_applied_paise machinery in sales_returns.py
+itself was deliberately left in place (still correct, just permanently
+dead unless a legacy pre-Sep-19 due bill exists) rather than touched here
+— see docs/15_ROADMAP.md's RULE MISSES LOG. The one remaining test below
+covers the only reachable case: a return against an already-paid bill.
 """
 import os
 import uuid
@@ -34,13 +44,6 @@ class TestSalesReturnCreditAndAudit:
         self.session.headers.update({"Authorization": f"Bearer {resp.json()['token']}"})
         self.suffix = suffix
 
-    def _create_customer(self):
-        resp = self.session.post(f"{BASE_URL}/api/customers", json={
-            "name": f"SrCredit_{self.suffix}_{uuid.uuid4().hex[:4]}", "credit_limit": 100000,
-        })
-        assert resp.status_code == 200, resp.text
-        return resp.json()
-
     def _create_product_and_batch(self, mrp=100):
         sku = f"SRCREDIT-{self.suffix}-{uuid.uuid4().hex[:4]}"
         batch_no = f"SRCREDIT-B-{uuid.uuid4().hex[:6]}"
@@ -56,19 +59,6 @@ class TestSalesReturnCreditAndAudit:
         })
         assert batch.status_code == 200, batch.text
         return sku, batch_no
-
-    def _create_due_bill(self, quantity=5, unit_price=100):
-        customer = self._create_customer()
-        sku, batch_no = self._create_product_and_batch(mrp=unit_price)
-        resp = self.session.post(f"{BASE_URL}/api/bills", json={
-            "customer_id": customer["id"], "status": "due", "tax_rate": 0,
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no, "quantity": quantity, "unit_price": unit_price,
-                "disc_percent": 0, "gst_percent": 0,
-            }],
-        })
-        assert resp.status_code == 200, resp.text
-        return resp.json()
 
     def _create_paid_bill(self, quantity=2, unit_price=100):
         sku, batch_no = self._create_product_and_batch(mrp=unit_price)
@@ -97,32 +87,6 @@ class TestSalesReturnCreditAndAudit:
             "refund_method": refund_method,
         }
 
-    def test_return_fully_covering_due_balance_marks_bill_paid(self):
-        bill = self._create_due_bill(quantity=5, unit_price=100)  # due = 500
-        resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._return_payload(bill, qty=5))
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert data["refund_method"] == "credit_to_account"
-        assert data["credit_applied"] == pytest.approx(500.0)
-
-        check = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
-        assert check.json()["status"] == "paid"
-        assert check.json()["due_amount"] == 0
-
-    def test_partial_return_reduces_due_balance_and_stays_due(self):
-        bill = self._create_due_bill(quantity=5, unit_price=100)  # due = 500
-        resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._return_payload(bill, qty=2))
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert data["refund_method"] == "credit_to_account"
-        assert data["credit_applied"] == pytest.approx(200.0)
-
-        check = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
-        assert check.json()["status"] == "due"
-        assert check.json()["due_amount"] == pytest.approx(300.0)
-
     def test_return_on_fully_paid_bill_does_not_touch_balance(self):
         bill = self._create_paid_bill(quantity=2, unit_price=100)
         resp = self.session.post(
@@ -139,29 +103,8 @@ class TestSalesReturnCreditAndAudit:
         assert check.json()["status"] == "paid"
         assert check.json()["due_amount"] == 0
 
-    def test_return_exceeding_due_amount_credits_only_the_balance(self):
-        bill = self._create_due_bill(quantity=5, unit_price=100)  # due = 500
-        pay = self.session.post(f"{BASE_URL}/api/payments", json={
-            "invoice_id": bill["id"], "amount": 400, "payment_method": "cash",
-        })
-        assert pay.status_code == 200, pay.text  # due now 100
-
-        resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns",
-            json=self._return_payload(bill, qty=2, refund_method="cash"))  # return worth 200
-        assert resp.status_code == 200, resp.text
-        data = resp.json()
-        assert data["credit_applied"] == pytest.approx(100.0)
-        # An explicit leftover refund method survives once part of the
-        # return exceeds what was still owed.
-        assert data["refund_method"] == "cash"
-
-        check = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
-        assert check.json()["status"] == "paid"
-        assert check.json()["due_amount"] == 0
-
-    def test_create_and_credit_are_both_audit_logged(self):
-        bill = self._create_due_bill(quantity=3, unit_price=100)  # due = 300
+    def test_create_is_audit_logged(self):
+        bill = self._create_paid_bill(quantity=3, unit_price=100)
         resp = self.session.post(
             f"{BASE_URL}/api/sales-returns", json=self._return_payload(bill, qty=3))
         assert resp.status_code == 200, resp.text
@@ -172,22 +115,13 @@ class TestSalesReturnCreditAndAudit:
         actions = [row["action"] for row in sr_audit.json()]
         assert "create" in actions
 
-        invoice_audit = self.session.get(f"{BASE_URL}/api/audit-logs/entity/invoice/{bill['id']}")
-        assert invoice_audit.status_code == 200, invoice_audit.text
-        invoice_actions = [row["action"] for row in invoice_audit.json()]
-        assert "return_credit" in invoice_actions
-
-    def test_financial_edit_reverses_and_reapplies_credit(self):
-        bill = self._create_due_bill(quantity=5, unit_price=100)  # due = 500
+    def test_financial_edit_is_audit_logged(self):
+        bill = self._create_paid_bill(quantity=5, unit_price=100)
         resp = self.session.post(
-            f"{BASE_URL}/api/sales-returns", json=self._return_payload(bill, qty=2))  # credits 200
+            f"{BASE_URL}/api/sales-returns", json=self._return_payload(bill, qty=2))
         assert resp.status_code == 200, resp.text
         return_id = resp.json()["id"]
 
-        mid_check = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
-        assert mid_check.json()["due_amount"] == pytest.approx(300.0)
-
-        # Financial-edit the return down to qty=1 (credits 100 instead of 200)
         bill_detail = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
         item = bill_detail.json()["items"][0]
         edit_resp = self.session.put(
@@ -199,13 +133,7 @@ class TestSalesReturnCreditAndAudit:
                 }],
             })
         assert edit_resp.status_code == 200, edit_resp.text
-        assert edit_resp.json()["credit_applied"] == pytest.approx(100.0)
 
-        final_check = self.session.get(f"{BASE_URL}/api/bills/{bill['id']}")
-        # Reversed the original 200 credit (due back to 500), then
-        # reapplied the recalculated 100 credit -> due = 400.
-        assert final_check.json()["due_amount"] == pytest.approx(400.0)
-
-        invoice_audit = self.session.get(f"{BASE_URL}/api/audit-logs/entity/invoice/{bill['id']}")
-        invoice_actions = [row["action"] for row in invoice_audit.json()]
-        assert "return_credit_adjusted" in invoice_actions
+        sr_audit = self.session.get(f"{BASE_URL}/api/audit-logs/entity/sales_return/{return_id}")
+        actions = [row["action"] for row in sr_audit.json()]
+        assert "financial_edit" in actions

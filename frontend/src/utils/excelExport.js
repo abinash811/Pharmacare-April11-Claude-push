@@ -298,12 +298,6 @@ const formatPriceVariationReport = (data) => {
  * @param {Array} customers - Customer data
  */
 export const exportCustomersToExcel = (customers) => {
-  // Outstanding/Notes added Sep 12, 2026 — the Customers v1 fixes made
-  // both real (outstanding is computed fresh from real bills, notes is
-  // an actual stored field), but this export — the one place Meena the
-  // accountant would actually use them for reconciliation — was never
-  // updated to include either. Found checking Customers' dependency
-  // sections after the fix shipped, not before.
   const data = customers.map((c) => ({
     'Name': c.name,
     'Phone': c.phone,
@@ -311,8 +305,6 @@ export const exportCustomersToExcel = (customers) => {
     'Type': c.customer_type || 'Regular',
     'Address': c.address || '-',
     'GSTIN': c.gstin || '-',
-    'Credit Limit (₹)': c.credit_limit || 0,
-    'Outstanding (₹)': c.outstanding || 0,
     'Notes': c.notes || '-',
   }));
 

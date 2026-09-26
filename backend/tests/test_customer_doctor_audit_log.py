@@ -3,8 +3,8 @@ Regression tests for the Sep 12, 2026 Customers/Doctors audit-logging fix.
 
 Found while checking Customers' dependency sections after the v1 fixes
 shipped: customers.py had zero audit trail at all — unlike billing.py/
-purchases.py/purchase_returns.py, a credit-limit change, a notes edit, or
-a customer/doctor deletion left no record in the Audit Log.
+purchases.py/purchase_returns.py, a notes edit or a customer/doctor
+deletion left no record in the Audit Log.
 """
 import os
 import uuid
@@ -41,7 +41,7 @@ class TestCustomerDoctorAuditLog:
 
     def test_customer_create_is_audited(self):
         resp = self.session.post(f"{BASE_URL}/api/customers", json={
-            "name": f"AuditCust_{self.suffix}", "credit_limit": 500,
+            "name": f"AuditCust_{self.suffix}",
         })
         assert resp.status_code == 200, resp.text
         customer = resp.json()
@@ -49,20 +49,20 @@ class TestCustomerDoctorAuditLog:
         entries = self._audit_entries("customer", customer["id"])
         assert any(e["action"] == "create" for e in entries)
 
-    def test_customer_credit_limit_change_is_audited_with_old_and_new(self):
+    def test_customer_notes_change_is_audited_with_old_and_new(self):
         customer = self.session.post(f"{BASE_URL}/api/customers", json={
-            "name": f"AuditCust2_{self.suffix}", "credit_limit": 500,
+            "name": f"AuditCust2_{self.suffix}", "notes": "First note",
         }).json()
 
         resp = self.session.put(f"{BASE_URL}/api/customers/{customer['id']}", json={
-            "credit_limit": 1000,
+            "notes": "Updated note",
         })
         assert resp.status_code == 200, resp.text
 
         entries = self._audit_entries("customer", customer["id"])
         update_entry = next(e for e in entries if e["action"] == "update")
-        assert update_entry["old_value"]["credit_limit"] == 500
-        assert update_entry["new_value"]["credit_limit"] == 1000
+        assert update_entry["old_value"]["notes"] == "First note"
+        assert update_entry["new_value"]["notes"] == "Updated note"
 
     def test_customer_delete_is_audited(self):
         customer = self.session.post(f"{BASE_URL}/api/customers", json={

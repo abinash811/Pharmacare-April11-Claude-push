@@ -17,7 +17,6 @@ import { apiUrl } from '@/constants/api';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { AppButton } from '@/components/shared';
-import { formatCurrency } from '@/utils/currency';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import AddPersonMiniForm from './AddPersonMiniForm';
 
@@ -29,12 +28,6 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ name: '', phone: '' });
   const [saving,  setSaving]  = useState(false);
-  // Found Sep 12, 2026, dependency-check follow-up to the Customers v1
-  // credit-limit fix: a cashier had zero visibility into a customer's
-  // credit limit/outstanding until a due bill was rejected at Finalize.
-  // Shown here (search results + selected chip), not stored in the
-  // parent's bill state — this is display-only, not part of the bill.
-  const [creditInfo, setCreditInfo] = useState(null);
 
   const wrapperRef  = useRef(null);
   const contentRef  = useRef(null);
@@ -92,12 +85,8 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
   const select = useCallback((patient) => {
     if (patient === 'walkin') {
       onSelect({ name: 'Counter Sale', phone: '', id: null });
-      setCreditInfo(null);
     } else {
       onSelect({ name: patient.name, phone: patient.phone || patient.mobile || '', id: patient.id });
-      setCreditInfo(patient.credit_limit > 0
-        ? { creditLimit: patient.credit_limit, outstanding: patient.outstanding || 0 }
-        : null);
     }
     setOpen(false);
     setQuery('');
@@ -145,20 +134,10 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
               variant="chip"
               onClick={openDropdown}
               className="w-40 h-9 px-2.5 justify-between gap-1 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
-              title={creditInfo
-                ? `${displayValue} — owes ${formatCurrency(creditInfo.outstanding)} of ${formatCurrency(creditInfo.creditLimit)} credit limit`
-                : displayValue}
+              title={displayValue}
               data-testid="patient-chip"
             >
               <span className={`truncate ${!value ? 'text-gray-400' : ''}`}>{displayValue}</span>
-              {creditInfo && (
-                <span
-                  className={`shrink-0 w-1.5 h-1.5 rounded-full ${
-                    creditInfo.outstanding >= creditInfo.creditLimit ? 'bg-red-500' : 'bg-orange-400'
-                  }`}
-                  aria-hidden="true"
-                />
-              )}
               <svg className="w-3 h-3 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
               </svg>
@@ -221,11 +200,6 @@ export default function PatientCombobox({ value, phone, onSelect, readOnly }) {
                 <div>
                   <div className="text-sm font-medium text-gray-900">{p.name}</div>
                   {p.phone && <div className="text-xs text-gray-500">{p.phone}</div>}
-                  {p.credit_limit > 0 && (
-                    <div className={`text-xs ${p.outstanding >= p.credit_limit ? 'text-red-600' : 'text-orange-600'}`}>
-                      Owes {formatCurrency(p.outstanding || 0)} of {formatCurrency(p.credit_limit)} limit
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

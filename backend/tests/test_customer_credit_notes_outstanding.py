@@ -1,18 +1,17 @@
 """
-Regression tests for the Sep 12, 2026 Customers v1 items 2-4
-(docs/15_ROADMAP.md Customers section, product-review audit):
-- Customer "notes" field actually persists (was unreachable in the UI
-  and unstored in the DB before this fix).
-- Customer outstanding balance is computed fresh from real bills, not a
-  stored counter nothing ever wrote to (was always Rs.0 before this fix).
+Regression tests for the Sep 12, 2026 Customers v1 "notes" field fix:
+it's a real, persisted field now (was unreachable in the UI and unstored
+in the DB before this fix).
 
-Sep 15, 2026: due/partial-payment bills are allowed again, reversing the
-Sep 14, 2026 block — direct product decision after building a real
-Collect-Payment UI. Two new rules not present before Sep 14:
-- A due bill must have a real customer (no one to collect from otherwise).
-- `_check_credit_limit` is reinstated (was removed as dead code Sep 14).
-This restores the pre-Sep-14 test shape (limit math + real outstanding
-balance from a real due bill), plus the new customer-required case.
+The credit-limit/outstanding-balance tests that used to live in this file
+(customer credit limits, due-bill outstanding balances) tested the due-bill
+feature reinstated Sep 15, 2026 and removed again Sep 19, 2026. Removed
+Sep 26, 2026 along with the dead credit_limit/outstanding code itself
+(docs/15_ROADMAP.md RULE MISSES LOG) — a bill can never be left partially
+paid again, so a customer's credit limit can never be checked against
+anything, and "outstanding" can never be anything but ₹0. Replaced with
+the two rejection tests below, which protect today's real rule instead of
+yesterday's removed one.
 """
 import os
 import uuid
@@ -40,8 +39,8 @@ class TestCustomerCreditNotesOutstanding:
         self.session.headers.update({"Authorization": f"Bearer {resp.json()['token']}"})
         self.suffix = suffix
 
-    def _create_customer(self, credit_limit=0, notes=None):
-        payload = {"name": f"CustV1_{self.suffix}_{uuid.uuid4().hex[:4]}", "credit_limit": credit_limit}
+    def _create_customer(self, notes=None):
+        payload = {"name": f"CustV1_{self.suffix}_{uuid.uuid4().hex[:4]}"}
         if notes is not None:
             payload["notes"] = notes
         resp = self.session.post(f"{BASE_URL}/api/customers", json=payload)
@@ -63,21 +62,6 @@ class TestCustomerCreditNotesOutstanding:
         })
         assert batch.status_code == 200, batch.text
         return sku, batch_no
-
-    def _attempt_due_bill(self, customer_id, sku, batch_no, quantity, unit_price=100):
-        """Creates a bill with zero payment — no customer_id at all if
-        `customer_id` is None, exercising the "customer required" rule."""
-        payload = {
-            "status": "due",
-            "tax_rate": 5,
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no, "quantity": quantity, "unit_price": unit_price,
-                "disc_percent": 0, "gst_percent": 5,
-            }],
-        }
-        if customer_id:
-            payload["customer_id"] = customer_id
-        return self.session.post(f"{BASE_URL}/api/bills", json=payload)
 
     # ── notes ────────────────────────────────────────────────────────────────
 
@@ -101,49 +85,26 @@ class TestCustomerCreditNotesOutstanding:
         resp = self.session.get(f"{BASE_URL}/api/customers/{customer['id']}")
         assert resp.json()["notes"] == "Prefers evening delivery"
 
-    # ── due-bill creation (reinstated Sep 15, 2026) ──────────────────────────
+    # ── due bills are rejected (removed Sep 19, 2026) ────────────────────────
 
-    def test_due_bill_requires_a_customer(self):
-        """No customer at all (walk-in) means no one to collect from later
-        — blocked before credit limit is even considered."""
+    def test_create_bill_with_status_due_is_rejected(self):
+        customer = self._create_customer()
         sku, batch_no = self._create_product_and_batch(mrp=100)
 
-        resp = self._attempt_due_bill(None, sku, batch_no, quantity=2, unit_price=100)
+        resp = self.session.post(f"{BASE_URL}/api/bills", json={
+            "customer_id": customer["id"], "status": "due", "tax_rate": 5,
+            "items": [{
+                "product_sku": sku, "batch_no": batch_no, "quantity": 2, "unit_price": 100,
+                "disc_percent": 0, "gst_percent": 5,
+            }],
+        })
         assert resp.status_code == 400, resp.text
-        assert "customer is required" in resp.json()["detail"].lower()
+        assert "paid in full" in resp.json()["detail"].lower()
 
-    def test_due_bill_allowed_when_no_credit_limit_set(self):
-        """credit_limit=0 means no limit configured — any due amount is
-        allowed for that customer."""
-        customer = self._create_customer(credit_limit=0)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=50, unit_price=100)
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["status"] == "due"
-
-    def test_due_bill_blocked_over_credit_limit(self):
-        customer = self._create_customer(credit_limit=500)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=50, unit_price=100)
-        assert resp.status_code == 400, resp.text
-        assert "credit limit" in resp.json()["detail"].lower()
-
-    def test_due_bill_allowed_under_credit_limit(self):
-        customer = self._create_customer(credit_limit=500)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=2, unit_price=100)
-        assert resp.status_code == 200, resp.text
-        assert resp.json()["status"] == "due"
-        assert resp.json()["due_amount"] == pytest.approx(210.0)  # 2 x Rs.100 + 5% GST
-
-    def test_due_bill_requires_a_customer_when_finalizing_draft_via_update_bill(self):
-        """PUT /bills/{id} is the second real entry point that can produce
-        a 'due' bill (finalizing a draft directly) — same customer/limit
-        rules must apply there too, using the bill's own customer_id
-        (set at creation, not resendable on update)."""
+    def test_finalizing_a_draft_to_due_via_update_bill_is_rejected(self):
+        """PUT /bills/{id} is the second real entry point that could
+        otherwise produce a 'due' bill (finalizing a draft directly) —
+        same rejection must apply there too."""
         sku, batch_no = self._create_product_and_batch(mrp=100)
 
         draft = self.session.post(f"{BASE_URL}/api/bills", json={
@@ -163,56 +124,4 @@ class TestCustomerCreditNotesOutstanding:
             }],
         })
         assert resp.status_code == 400, resp.text
-        assert "customer is required" in resp.json()["detail"].lower()
-
-    def test_due_bill_blocked_over_credit_limit_when_finalizing_draft_via_update_bill(self):
-        customer = self._create_customer(credit_limit=500)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-
-        draft = self.session.post(f"{BASE_URL}/api/bills", json={
-            "customer_id": customer["id"], "status": "draft", "tax_rate": 5,
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no, "quantity": 50, "unit_price": 100,
-                "disc_percent": 0, "gst_percent": 5,
-            }],
-        })
-        assert draft.status_code == 200, draft.text
-
-        resp = self.session.put(f"{BASE_URL}/api/bills/{draft.json()['id']}", json={
-            "status": "due", "tax_rate": 5,
-            "items": [{
-                "product_sku": sku, "batch_no": batch_no, "quantity": 50, "unit_price": 100,
-                "disc_percent": 0, "gst_percent": 5,
-            }],
-        })
-        assert resp.status_code == 400, resp.text
-        assert "credit limit" in resp.json()["detail"].lower()
-
-    # ── outstanding balance ──────────────────────────────────────────────────
-
-    def test_outstanding_reflects_real_due_bill(self):
-        customer = self._create_customer(credit_limit=0)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-        resp = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=3, unit_price=100)
-        assert resp.status_code == 200, resp.text
-        due_amount = resp.json()["due_amount"]
-        assert due_amount > 0
-
-        search = self.session.get(f"{BASE_URL}/api/customers/search", params={"q": customer["name"]})
-        assert search.status_code == 200, search.text
-        match = next(c for c in search.json() if c["id"] == customer["id"])
-        assert match["outstanding"] == pytest.approx(due_amount)
-
-    def test_outstanding_decreases_after_payment(self):
-        customer = self._create_customer(credit_limit=0)
-        sku, batch_no = self._create_product_and_batch(mrp=100)
-        bill = self._attempt_due_bill(customer["id"], sku, batch_no, quantity=3, unit_price=100).json()
-
-        pay = self.session.post(f"{BASE_URL}/api/payments", json={
-            "invoice_id": bill["id"], "amount": 100, "payment_method": "cash",
-        })
-        assert pay.status_code == 200, pay.text
-
-        search = self.session.get(f"{BASE_URL}/api/customers/search", params={"q": customer["name"]})
-        match = next(c for c in search.json() if c["id"] == customer["id"])
-        assert match["outstanding"] == pytest.approx(bill["due_amount"] - 100)
+        assert "paid in full" in resp.json()["detail"].lower()

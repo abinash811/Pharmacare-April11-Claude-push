@@ -20,15 +20,6 @@ describe('BillingOperations — drill-down URL params', () => {
     (api.get as jest.Mock).mockResolvedValue({ data: { data: [], pagination: {} } });
   });
 
-  it('pre-selects the Due filter pill when ?filter=due is present', async () => {
-    render(
-      <MemoryRouter initialEntries={['/billing?filter=due']}>
-        <BillingOperations />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByRole('button', { name: 'Due', pressed: true })).toBeInTheDocument();
-  });
-
   it('pre-selects the Parked filter pill when ?filter=parked is present', async () => {
     render(
       <MemoryRouter initialEntries={['/billing?filter=parked']}>
@@ -57,12 +48,14 @@ describe('BillingOperations — drill-down URL params', () => {
     expect(await screen.findByRole('button', { name: 'All', pressed: true })).toBeInTheDocument();
   });
 
-  // Sep 15, 2026: the Outstanding Dues report's "View Bills" action drills
-  // into a specific customer's due bills via ?search=, same pattern as
-  // ?filter=/&from_date=/&to_date= above.
-  it('seeds the search box from ?search= (Outstanding Dues drill-down)', async () => {
+  // Sep 15, 2026: a customer-search drill-down (originally the Outstanding
+  // Dues report's "View Bills" action, removed Sep 26, 2026 along with
+  // due bills — kept as a general ?search= regression since other pages
+  // could still drill into a customer's bills this way) seeds the search
+  // box via ?search=, same pattern as ?filter=/&from_date=/&to_date= above.
+  it('seeds the search box from ?search=', async () => {
     render(
-      <MemoryRouter initialEntries={['/billing?filter=due&search=9812345670']}>
+      <MemoryRouter initialEntries={['/billing?search=9812345670']}>
         <BillingOperations />
       </MemoryRouter>,
     );

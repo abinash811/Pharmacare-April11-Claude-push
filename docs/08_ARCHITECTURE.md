@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.10 | Last updated: September 18, 2026
+# Version: 1.11 | Last updated: September 26, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -402,16 +402,20 @@ because they fail differently:
 **Customers** (`Customer`/`Doctor`, `POST /customers`, `PUT /customers/{id}`, `DELETE /customers/{id}`) — walked Sep 12, 2026
 | Consumer | Pattern | Where |
 |---|---|---|
-| Customer outstanding balance | Computed on read | `_outstanding_paise_by_customer` (routers/customers.py) — sums `Bill.balance_paise` for that customer's real `'due'` bills; no stored counter to drift |
 | Customer purchase stats (Total Bills/Spent/Last Purchase) | Computed on read | `get_customer_stats` (routers/customers.py) — scans `Bill` directly |
-| Credit limit enforcement | Shared helper | `_check_credit_limit` (billing.py) — called from both `create_bill` and `update_bill`; found only by checking `update_bill` explicitly, not assuming `create_bill` alone was the whole surface |
-| Billing patient search (credit/outstanding visibility) | Independent direct query | `PatientCombobox.jsx` renders `credit_limit`/`outstanding` straight from `GET /customers/search`'s response — re-check if that response shape changes |
 | Audit Log | Called at both create/update/delete sites | `_record_audit` (routers/customers.py, its own local copy — same duplicated-per-router pattern as billing.py/purchases.py/purchase_returns.py, not a shared module) |
 | Customers Excel export | Independent direct query | `exportCustomersToExcel` (frontend/src/utils/excelExport.js) — re-check if a customer field is added/renamed |
 
-Found Sep 12, 2026: the last three rows (billing search visibility, audit
-log, Excel export) were missed when Customers v1 first shipped — none of
-them are "the feature" itself, so none got checked until asked afterward.
+Found Sep 12, 2026: the last two rows (audit log, Excel export) were
+missed when Customers v1 first shipped — neither is "the feature" itself,
+so neither got checked until asked afterward.
+
+Removed Sep 26, 2026: customer outstanding balance, credit-limit
+enforcement (`_check_credit_limit`), and `PatientCombobox.jsx`'s
+credit/outstanding display were all dead code left over from due bills
+being removed Sep 19, 2026 — deleted along with the 16 stale tests that
+exercised them (docs/15_ROADMAP.md RULE MISSES LOG), not left as
+unreachable code.
 See CLAUDE.md Manifesto rule 11's Sep 12 addendum and
 `.claude/skills/pharmacare-ship-checklist`'s Step 2 for the habit this
 now enforces: grep broadly for the entity outside its own module, don't

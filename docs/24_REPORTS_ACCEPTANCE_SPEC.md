@@ -1,5 +1,5 @@
 # PharmaCare — Reports & Compliance Acceptance Spec
-# Version: 2.10 | Last updated: September 25, 2026
+# Version: 2.11 | Last updated: September 26, 2026
 # Type: Living Status
 # Source: product-review skill — business reasoning + eVitalRx/Marg ERP/
 # Pharmasoft benchmark + live zero-data browser walkthrough (a genuinely
@@ -162,22 +162,31 @@ broader Schedule H concept).
 
 ## 1. REPORTS LANDING PAGE (Sales / Low Stock / Expiry / Stock tabs)
 
-> **Corrected Sep 19, 2026 — was stale.** This used to say the real tabs
+> **Corrected Sep 19, 2026 — was stale. Corrected again Sep 26, 2026 — the
+> Sep 19 correction itself went stale.** This used to say the real tabs
 > are Sales/Low Stock/Expiry/Stock. That was true Sep 12, 2026 but the
 > app has moved since: the "Stock" tab was removed the same day this note
-> was written (see UC-R04), and the top-level Reports tab bar
-> (`Reports/index.jsx:15-19`) now reads **Reports | GST Report | Day-End
-> Closing | Outstanding Dues**, with "Reports" itself holding a secondary
-> report-type selector (`Reports/index.jsx:27-35`) of **Sales / Low Stock
-> / Expiry / Margin / Sales Returns / Purchase Returns / Price Variation /
-> Doctor-wise Sales**. Day-End Closing and Outstanding Dues are real,
-> shipped, top-level modules with **zero UC coverage anywhere in this
-> spec** — see the new "NOT YET COVERED" note before §J below. There is
-> still no "Purchases" tab on this page; purchase reporting lives entirely
-> on the Purchases list page itself (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md`
-> P33), a real structural fact `docs/21_FEATURES.md` doesn't document at
-> all (that doc only covers GST Report / Schedule H1 / Audit Log under
-> "Reports & Compliance").
+> was written (see UC-R04). The Sep 19 version of this note then said the
+> top-level Reports tab bar read Reports | GST Report | Day-End Closing |
+> Outstanding Dues — real as of that date, but the "Outstanding Dues" tab
+> was since removed from the frontend (found Sep 26, 2026 while removing
+> unrelated due-bill dead code: `Reports/index.jsx`'s real `REPORTS_TABS`
+> now has only 3 entries, **Reports | GST Report | Day-End Closing**; the
+> backend `GET /reports/outstanding-dues` endpoint and its `constants/
+> api.js` entry were leftover dead code with zero remaining frontend
+> caller, and were deleted rather than left unreachable). "Reports" itself
+> holds a secondary report-type selector (`Reports/index.jsx:27-35`) of
+> **Sales / Low Stock / Expiry / Margin / Sales Returns / Purchase Returns
+> / Purchase Payments / Supplier Analytics / Purchase Variance / Batch
+> Purchases / Price Variation / Doctor-wise Sales**. Day-End Closing is a
+> real, shipped, top-level module with **zero UC coverage anywhere in
+> this spec** — see the "NOT YET COVERED" note before §J below (that note
+> itself needs its "Outstanding Dues" half corrected — see there). There
+> is still no "Purchases" tab on this page; purchase reporting lives
+> entirely on the Purchases list page itself
+> (`docs/23_PURCHASES_ACCEPTANCE_SPEC.md` P33), a real structural fact
+> `docs/21_FEATURES.md` doesn't document at all (that doc only covers GST
+> Report / Schedule H1 / Audit Log under "Reports & Compliance").
 
 ### UC-R01: Sales report — ✅ Built
 Correct fields both ways (`bill_number/date/customer_name/items_count/payment_method/total_amount`, `reports.py:76-83` ↔ `ReportTables.jsx:31-38`), correct `pharmacy_id`/`status IN (paid,due)`/`deleted_at` scoping, indexed date filter. Live-verified zero-data → clean empty state → real bill appears after refresh with correct total. CSV and Excel export both correct.
@@ -588,27 +597,41 @@ listed here only for completeness of the numbered scheme.
 
 No gaps found. Not proposed for any batch.
 
-### NOT YET COVERED — added Sep 19, 2026
+### NOT YET COVERED — added Sep 19, 2026, corrected Sep 26, 2026
 
-Two real, live, top-level Reports tabs shipped after this spec's last full
-pass (Sep 12, 2026) and have **zero UC coverage anywhere in this
-document**: **Day-End Closing** (`/reports/day-end`, `DayEndClosing/
-index.tsx`, backend `GET /reports/day-end` + `POST /reports/day-end/close`
-— `reports.py:1498-1600`) and **Outstanding Dues** (`/reports/outstanding-
-dues`, backend `GET /reports/outstanding-dues` — `reports.py:1601+`). Both
-are permission-gated (`_require_reports_permission`) and both are real
-enough to have their own tab-bar entries alongside GST Report, not buried
-in the report-type selector. Also newly shipped and undocumented here:
-**Doctor-wise Sales** as an eighth entry in the report-type selector
-(`GET /reports/doctor-wise-sales`, `reports.py:524`).
+**Day-End Closing** (`/reports/day-end`, `DayEndClosing/index.tsx`,
+backend `GET /reports/day-end` + `POST /reports/day-end/close` —
+`reports.py:1498-1600`) is a real, live, top-level Reports tab that
+shipped after this spec's last full pass (Sep 12, 2026) and has **zero UC
+coverage anywhere in this document**. It's permission-gated
+(`_require_reports_permission`) and real enough to have its own tab-bar
+entry alongside GST Report, not buried in the report-type selector. Also
+newly shipped and undocumented here: **Doctor-wise Sales** as an entry in
+the report-type selector (`GET /reports/doctor-wise-sales`,
+`reports.py:524`), plus **Purchase Payments / Supplier Analytics /
+Purchase Variance / Batch Purchases** (all shipped this session, all
+already documented in `docs/23_PURCHASES_ACCEPTANCE_SPEC.md` instead of
+here since they're purchase-domain reports).
+
+**Outstanding Dues was real as of Sep 19, 2026** (this section originally
+listed it here too, tab and all, with its "View Bills" drill-through
+confirmed live) **but no longer exists** — found Sep 26, 2026 while
+removing unrelated due-bill dead code: the frontend tab is gone from
+`Reports/index.jsx` entirely (presumably removed alongside the Sep 19
+due-bill removal itself, since a due-bill list page makes no sense once
+due bills can't exist), but the backend `GET /reports/outstanding-dues`
+endpoint, its `constants/api.js` entry, and this very doc section were
+all left behind describing a page that no longer existed. The endpoint
+has now been deleted too (docs/15_ROADMAP.md RULE MISSES LOG) — there is
+nothing left here to give UC coverage to.
 
 This doc's own template (numbered UCs, Built/Partial/Missing verdict, live
 zero-data walkthrough, competitor benchmark) is the right way to cover
-these — not invented here as a quick pass, since that would mean guessing
-at use cases instead of walking the real feature the way UC-GST/UC-MAR/
-UC-RET were built. **Recommend a dedicated `product-review` pass on
-Day-End Closing + Outstanding Dues** (same rigor this spec already used
-for Margin/Return Reports) for the full business-reasoning/competitor-
+Day-End Closing — not invented here as a quick pass, since that would
+mean guessing at use cases instead of walking the real feature the way
+UC-GST/UC-MAR/UC-RET were built. **Recommend a dedicated `product-review`
+pass on Day-End Closing** (same rigor this spec already used for
+Margin/Return Reports) for the full business-reasoning/competitor-
 benchmark treatment — that pass hasn't happened yet, and this paragraph
 still stands as the real gap.
 
@@ -618,13 +641,11 @@ not checks 1-2/5): found and fixed a real, severe bug in Day-End Closing
 — its date picker used `toISOString().split('T')[0]`, which silently
 closes the WRONG day for any pharmacy in India (this product's entire
 market, see `docs/15_ROADMAP.md` RULE MISSES LOG, Sep 19, 2026 for the
-~20-site app-wide version of this bug). Every other field on both pages
-was verified to match the real backend response exactly (no drift found),
-and Outstanding Dues' "View Bills" drill-through into `/billing?filter=
-due&search=` was confirmed to be a real, already-wired integration, not a
-dead link. Business reasoning, competitor benchmark, and the full
-numbered-UC treatment are still not done — a real `product-review` pass
-remains the right next step before either module gets marked Built here.
+~20-site app-wide version of this bug). Every other field was verified to
+match the real backend response exactly (no drift found). Business
+reasoning, competitor benchmark, and the full numbered-UC treatment are
+still not done — a real `product-review` pass remains the right next step
+before this module gets marked Built here.
 
 ### J. CROSS-CUTTING PERMISSIONS MATRIX
 

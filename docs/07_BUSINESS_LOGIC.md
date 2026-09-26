@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.24 | Last updated: September 25, 2026
+# Version: 2.25 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -887,28 +887,35 @@ When the billing form contains a Schedule H1 drug:
 ## FLOW 7 — PAYMENTS (for due bills)
 
 > **Superseded Sep 19, 2026, direct product decision — corrected here Sep
-> 25, 2026, found while verifying an unrelated Billing concern.** Creating
-> a new due bill is no longer possible: `create_bill`/`update_bill` reject
-> any finalize that would leave `balance_paise > 0` with a 400 ("a bill
-> must be paid in full to finalize"), enforced in both endpoints. The
-> "Creating a due bill" section below describes the Sep 15 design, which
-> this reversed — kept for history, not current behavior. The rest of this
-> flow (recording a payment, status transitions) is still real, but only
-> ever applies to a **legacy due bill created before Sep 19, 2026** — a
-> fixed, non-growing set for any pharmacy going forward, not live
-> infrastructure for new bills. See `docs/15_ROADMAP.md`'s "Credit / due
-> bills" row for the full history.
+> 25, 2026, found while verifying an unrelated Billing concern; dead code
+> actually removed Sep 26, 2026 (RULE MISSES LOG).** Creating a new due
+> bill is no longer possible: `create_bill`/`update_bill` reject any
+> finalize that would leave `balance_paise > 0` with a 400 ("a bill must
+> be paid in full to finalize"), enforced in both endpoints. The
+> "Creating a due bill" section below describes the removed Sep 15
+> design — kept for history only. Confirmed Sep 26, 2026 that no real
+> pharmacy ever had a due bill (pre-launch, 0 in the dev database), so
+> there is no legacy set to worry about either: `_check_credit_limit`,
+> `Customer.credit_limit_paise`, the customer "outstanding" field, and
+> the orphaned `GET /reports/outstanding-dues` endpoint were all deleted
+> outright rather than kept as unreachable dead code. The rest of this
+> flow (recording a payment, status transitions) still exists in
+> billing.py's code and is exercised by tests, but is unreachable in
+> practice — no bill can be left partially paid to record a payment
+> against. See `docs/15_ROADMAP.md`'s "Credit / due bills" row for the
+> full history.
 
-### Creating a due bill (reinstated Sep 15, 2026, since reversed — see notice above)
+### Creating a due bill (removed — kept below for history only)
 
-`create_bill`/`update_bill` set `status = "due"` when `balance_paise > 0`
-after payment, subject to two checks:
+`create_bill`/`update_bill` used to set `status = "due"` when
+`balance_paise > 0` after payment, subject to two checks:
 - **A real `customer_id` is required.** No customer (walk-in) → HTTP 400.
   There must be someone to collect from later.
-- **`_check_credit_limit`** (billing.py) blocks the bill if the customer's
-  `credit_limit_paise` is set (> 0) and this bill would push their total
-  outstanding `due` balance over it. `credit_limit_paise == 0` means no
-  limit configured — unlimited due is allowed.
+- **`_check_credit_limit`** (billing.py, deleted) blocked the bill if the
+  customer's `credit_limit_paise` (deleted) was set (> 0) and this bill
+  would push their total outstanding `due` balance over it.
+  `credit_limit_paise == 0` meant no limit configured — unlimited due was
+  allowed.
 
 ### When a bill has `status = "due"`
 

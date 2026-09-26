@@ -69,7 +69,6 @@ class TestCustomersCRUD:
             "phone": _random_test_phone(),
             "email": f"test_{unique_id}@test.com",
             "customer_type": "regular",
-            "credit_limit": 5000
         }
         response = requests.post(f"{API}/customers", json=customer_data, headers=auth_headers)
         if response.status_code in [200, 201]:
@@ -91,7 +90,6 @@ class TestCustomersCRUD:
             "phone": _random_test_phone(),
             "email": f"newcust_{unique_id}@test.com",
             "customer_type": "regular",
-            "credit_limit": 10000
         }
         response = requests.post(f"{API}/customers", json=customer_data, headers=auth_headers)
         assert response.status_code in [200, 201], f"Create customer failed: {response.text}"
@@ -114,7 +112,6 @@ class TestCustomersCRUD:
 
         update_data = {
             "name": f"TEST_UpdatedCustomer_{test_customer_id[:8]}",
-            "credit_limit": 15000
         }
         response = requests.put(
             f"{API}/customers/{test_customer_id}",

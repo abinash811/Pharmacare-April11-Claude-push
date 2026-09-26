@@ -283,7 +283,6 @@ export const apiUrl = {
   reportGst:        (params) => `reports/gst${qs(params)}`,
   reportDayEnd:     (params) => `reports/day-end${qs(params)}`,
   reportDayEndClose:() => `reports/day-end/close`,
-  reportOutstandingDues: () => `reports/outstanding-dues`,
   analyticsSummary: (params) => `analytics/summary${qs(params)}`,
   analyticsDashboard:(params)=> `analytics/dashboard${qs(params)}`,
   analyticsDaily:   (params) => `analytics/daily${qs(params)}`,

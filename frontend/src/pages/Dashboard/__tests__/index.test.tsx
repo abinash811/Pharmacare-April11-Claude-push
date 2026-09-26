@@ -70,12 +70,6 @@ describe('Dashboard drill-down navigation', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/billing');
   });
 
-  it('clicking Pending Payments navigates to billing filtered to due bills', async () => {
-    render(<Dashboard />);
-    await userEvent.click(screen.getByTestId('quick-stat-pending-payments'));
-    expect(mockNavigate).toHaveBeenCalledWith('/billing?filter=due');
-  });
-
   it('clicking Draft Bills navigates to billing filtered to parked bills', async () => {
     render(<Dashboard />);
     await userEvent.click(screen.getByTestId('quick-stat-draft-bills'));

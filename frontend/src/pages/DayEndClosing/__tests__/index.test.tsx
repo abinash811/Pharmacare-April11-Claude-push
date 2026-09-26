@@ -6,6 +6,9 @@ import { toast } from 'sonner';
 import { AuthContext } from '@/App';
 import DayEndClosing from '../index';
 import api from '@/lib/axios';
+import { today } from '@/utils/dates';
+
+const TODAY = today();
 
 // Regression tests for the Sep 15, 2026 "Day-End Closing / Z-Report"
 // feature — Marg-validated gap, no cash-drawer reconciliation or
@@ -19,7 +22,7 @@ jest.mock('@/lib/axios', () => ({
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
 const REPORT = {
-  date: '2026-09-15',
+  date: TODAY,
   summary: { total_bills: 2, total_sales: 300, total_returns: 50, net_sales: 250, expected_cash: 100 },
   payment_breakdown: [
     { payment_method: 'cash', sales_count: 1, sales_amount: 100, returns_count: 1, returns_amount: 50, net_amount: 50 },
@@ -76,7 +79,7 @@ describe('DayEndClosing', () => {
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
         'reports/day-end/close',
-        expect.objectContaining({ closing_date: '2026-09-15', counted_cash: 95 }),
+        expect.objectContaining({ closing_date: TODAY, counted_cash: 95 }),
       );
     });
     expect(toast.success).toHaveBeenCalledWith('Day closed');

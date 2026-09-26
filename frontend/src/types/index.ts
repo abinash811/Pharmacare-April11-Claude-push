@@ -204,7 +204,6 @@ export interface Customer {
   address?:      string | null;
   customer_type: CustomerType;
   gstin?:        string | null;
-  credit_limit:  number;
   notes?:        string | null;
   created_at:    ISODateTime;
 }
@@ -216,7 +215,6 @@ export interface CustomerCreate {
   address?:       string;
   customer_type?: CustomerType;
   gstin?:         string;
-  credit_limit?:  number;
   notes?:         string;
 }
 
@@ -530,7 +528,6 @@ export interface DashboardMetrics {
   month_bills:        number;
   low_stock_count:    number;
   expiring_soon_count:number;
-  outstanding_dues:   number;
 }
 
 

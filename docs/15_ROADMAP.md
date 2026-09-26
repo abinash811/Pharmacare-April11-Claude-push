@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.52 | Last updated: September 26, 2026
+# Version: 3.53 | Last updated: September 26, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1534,15 +1534,12 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 
 > **Declared the primary Phase 2 focus, Sep 26, 2026, direct instruction:** multi-chain pharmacy support, data migration from other apps, and interoperability with other billing software (e.g. eVitalRx) — ahead of the rest of this phase's items below. **Sep 26, 2026: data migration put on hold, multi-chain scoped first (below).**
 
-### Multi-chain — scoping only, Sep 26, 2026, nothing built
+### Multi-chain — full scope moved to `docs/26_MULTI_CHAIN_SCOPE.md`, Sep 26, 2026
 
-**Schema shape:** a new `chains` table (one row per HQ account); `pharmacies.chain_id` nullable FK — existing single-store pharmacies stay `chain_id = NULL`, zero forced migration. Every Phase 1 table already keys off `pharmacy_id`, not `chain_id` — a chain is a grouping *above* the existing tenant boundary, not a replacement for it. Cross-store stock transfer is a new stock-movement type between two `pharmacy_id`s in the same chain, not a shared warehouse.
-
-**Real open questions to decide before any build (not yet answered):**
-1. **Login scope** — does one user account see one store at a time (switcher) with separate per-store roles, or can one login span the whole chain with a chain-wide role?
-2. **GST is legally per-registration, not per-chain** — each store almost certainly keeps its own GSTIN/filing; "chain-level GST report" has to mean a *rollup across* each store's own real GST report, never one merged return.
-3. **Purchases centralization** — does HQ create one PO that fans out stock to multiple stores, or does each store still confirm its own delivery/batches locally?
-4. **Store-level P&L** — needs a real cost-allocation answer (shared HQ overhead vs. store-only costs) before the number means anything.
+Schema sketch, the switcher-vs-shared-session decision, per-item mapping of
+the 4 open questions, and the build sequence all live there now (kept out of
+this already-long file). Still 🚫 nothing built — read that doc before
+touching any of the rows below.
 
 | Feature | Notes |
 |---------|-------|

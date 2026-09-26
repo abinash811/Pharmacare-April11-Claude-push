@@ -1,5 +1,5 @@
 # PharmaCare — Claude Code Master Reference
-# Version: 2.25 | Last updated: September 26, 2026
+# Version: 2.26 | Last updated: September 26, 2026
 # Read this file at the start of every session.
 # All rules live in /docs — this file is the index and quick-reference only.
 
@@ -80,6 +80,7 @@ frontend UI code — moved out Sep 18, 2026 to keep this file lean).
 | 20 | `docs/20_CODE_QUALITY.md` | ESLint, Prettier, CI pipeline, audit rubric, SOLID/DRY |
 | 21 | `docs/21_FEATURES.md`     | Every feature — what it is, why it exists, who uses it, how it works |
 | 25 | `docs/25_SUPPORT_FAQ.md`  | Plain-language Q&A per module/sub-module, Intercom-style — for support agents and, later, end users. Source-of-truth rule: every answer traces to real code or another doc, never guessed. |
+| 26 | `docs/26_MULTI_CHAIN_SCOPE.md` | Phase 2 multi-store scoping — schema sketch, the switcher-vs-shared-session decision, what does/doesn't change. Scoping only, 🚫 do not build from it without a separate go-ahead. |
 
 ### How-To — step-by-step task guides
 

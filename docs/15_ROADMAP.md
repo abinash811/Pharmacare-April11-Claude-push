@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.50 | Last updated: September 26, 2026
+# Version: 3.51 | Last updated: September 26, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1532,6 +1532,8 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 
 ## PHASE 2 — MULTI-STORE CHAINS `🚫 Do not build now`
 
+> **Declared the primary Phase 2 focus, Sep 26, 2026, direct instruction:** multi-chain pharmacy support, data migration from other apps, and interoperability with other billing software (e.g. eVitalRx) — ahead of the rest of this phase's items below.
+
 | Feature | Notes |
 |---------|-------|
 | Chain / HQ account | One account, multiple store locations |
@@ -1540,6 +1542,8 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 | Centralized purchase orders | HQ orders for all stores |
 | Chain-level GST reports | |
 | Store-level P&L | |
+| **Data migration from other apps** | Import a pharmacy's existing data (products, batches, customers, suppliers, historical bills) from a competitor tool (eVitalRx, Marg, Pharmasoft, Excel/paper) so onboarding isn't a cold start. Format/mapping per source app not yet scoped. |
+| **Interop with other billing software** | Two-way or one-way exchange with tools like eVitalRx — not yet scoped as import-once vs. an ongoing sync/API. |
 
 > **Do not add `chain_id`, `store_id`, or any multi-store column to Phase 1 tables.** It creates premature complexity. Phase 2 will be a migration sprint.
 

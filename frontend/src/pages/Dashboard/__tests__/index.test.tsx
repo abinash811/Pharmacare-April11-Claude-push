@@ -1,8 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Dashboard, { toISODate, getWeekStart, getMonthStart, dateRangeQuery } from '../index';
 import { useDashboard } from '../hooks/useDashboard';
+import api from '@/lib/axios';
+
+jest.mock('@/lib/axios', () => ({ __esModule: true, default: { get: jest.fn() } }));
 
 // Regression test for the Sep 14, 2026 "Dashboard drill-down" feature:
 // before this, clicking a metric/quick-stat card either did nothing or
@@ -41,6 +44,9 @@ describe('Dashboard drill-down navigation', () => {
       data: BASE_DATA, purchaseSummary: { total_purchases_value: 1000, total_purchase_returns_value: 200, net_purchases: 800 },
       loading: false, refreshing: false, fetchDashboardData: jest.fn(),
     });
+    // Single-store account by default — the store/chain toggle stays hidden
+    // (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #3) unless a test opts in.
+    (api.get as jest.Mock).mockResolvedValue({ data: [{ pharmacy_id: 'p1', name: 'Only Store' }] });
   });
 
   it('clicking Today\'s Sales navigates to billing filtered to just today', async () => {
@@ -105,6 +111,36 @@ describe('Dashboard drill-down navigation', () => {
     render(<Dashboard />);
     await userEvent.click(screen.getAllByText('View All')[1]);
     expect(mockNavigate).toHaveBeenCalledWith('/inventory?stock_status=near_expiry');
+  });
+});
+
+describe('multi-store dashboard scope toggle (docs/26_MULTI_CHAIN_SCOPE.md)', () => {
+  const mockFetch = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useDashboard as jest.Mock).mockReturnValue({
+      data: BASE_DATA, purchaseSummary: { total_purchases_value: 1000, total_purchase_returns_value: 200, net_purchases: 800 },
+      loading: false, refreshing: false, fetchDashboardData: mockFetch,
+    });
+  });
+
+  it('hides the store/chain toggle for a single-store account', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: [{ pharmacy_id: 'p1', name: 'Only Store' }] });
+    render(<Dashboard />);
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(screen.queryByText('All Stores')).not.toBeInTheDocument();
+  });
+
+  it('shows the toggle for a chain account and refetches with scope=chain on click', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: [{ pharmacy_id: 'p1', name: 'Store A' }, { pharmacy_id: 'p2', name: 'Store B' }] });
+    render(<Dashboard />);
+
+    const allStoresPill = await screen.findByText('All Stores');
+    mockFetch.mockClear();
+    await userEvent.click(allStoresPill);
+
+    expect(mockFetch).toHaveBeenCalledWith(false, { start: null, end: null }, 'chain');
   });
 });
 

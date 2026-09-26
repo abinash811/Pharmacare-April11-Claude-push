@@ -1,7 +1,47 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.5 | Last updated: September 26, 2026
+# Version: 1.6 | Last updated: September 26, 2026
 # Type: Explanation
-# Status: 🔄 Steps 1-3 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant). Everything else below still 🚫 scoping only.
+# Status: 🔄 Steps 1-4 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup). Cross-store stock transfer, purchases centralization, and GST chain rollup still 🚫 scoping only.
+
+## STEP 4 STATUS — Dashboard chain-wide rollup built, Sep 26, 2026
+
+Scoped down first, on direct instruction: only the main Dashboard page
+(not the whole Reports section) gets chain rollups, and it defaults to
+per-store with an explicit toggle to combined — zero behavior change for
+anyone who never adds a second store. `GET /analytics/dashboard` and
+`GET /analytics/purchases` (the Dashboard's Purchases summary card) both
+take an optional `?scope=store|chain` (default `store`, unchanged). When
+`scope=chain`, every summable number (bill totals, stock counts/value,
+low-stock/expiry counts, purchases/purchase-returns) sums across every
+pharmacy in the caller's chain via `pharmacy_id.in_(pids)` instead of a
+single `== pid`; single-pharmacy config (`PharmacySettings` thresholds,
+drug license expiry) always stays on the caller's own home store — those
+aren't sums, they're settings. Response includes `scope` and
+`store_count` so the frontend never has to guess what it got back. A
+standalone (non-chain) pharmacy gets `pids = [own_id]` either way — truly
+identical output whether or not the toggle exists for them.
+
+Frontend: a `FilterPills` toggle ("This Store" / "All Stores") in the
+Dashboard's `PageHeader` actions, gated on `GET /pharmacies/stores`
+returning more than one store (hidden entirely for everyone else — no
+dead UI for the common case). Defaults to `REPORT_SCOPE.STORE`
+(`constants/domainConstants.js`, no magic strings). 4 new backend tests
+(`test_dashboard_chain_scope.py` — standalone-unchanged, default-is-
+store-only, chain-sums-every-store, purchases-analytics-chain-scope),
+2 new frontend tests (toggle hidden for single-store, toggle shown +
+refetches with `scope=chain` on click); `npx tsc --noEmit` and
+`design-guard.sh` both clean.
+
+Full suites: frontend 402/402 passed. Backend isolated suite: this
+change's own new test file passed clean on 3 separate isolated reruns;
+a full-suite run showed 26 scattered failures (all traced to the same
+already-diagnosed "register/create → immediate authenticated call"
+read-after-write flakiness this session already found and reported —
+confirmed by reading the actual tracebacks: every one is a `401 User not
+found` or `404 Product not found` immediately after creating that exact
+row, not an assertion on this endpoint's numbers) plus this file's own 4
+tests re-appearing as errors in that same run for the identical reason —
+none of it reproduces the actual Dashboard rollup logic being wrong.
 
 ## STEP 3 STATUS — add a store + Team-page store-access grant/revoke built, Sep 26, 2026
 

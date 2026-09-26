@@ -142,6 +142,12 @@ export const CUSTOMER_TYPE = {
   INSTITUTION: 'institution',
 };
 
+// ─── Dashboard scope (multi-chain Step 4, docs/26_MULTI_CHAIN_SCOPE.md) ───────
+export const REPORT_SCOPE = {
+  STORE: 'store',
+  CHAIN: 'chain',
+};
+
 // ─── Stock Movement Types ─────────────────────────────────────────────────────
 export const STOCK_MOVEMENT_TYPE = {
   SALE:     'sale',

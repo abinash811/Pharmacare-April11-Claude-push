@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1388,13 +1388,33 @@ async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(
 # ── dashboard analytics ───────────────────────────────────────────────────────
 
 
+async def _resolve_dashboard_scope_pids(pid: str, scope: str, db: AsyncSession) -> list:
+    """"store" (default) = just the caller's own pharmacy, unchanged
+    behavior. "chain" = every pharmacy in the caller's chain, or just
+    their own if they aren't in one yet (docs/26_MULTI_CHAIN_SCOPE.md
+    Section 6 #3 — Dashboard-only chain rollup, Sep 26, 2026). Only the
+    Dashboard's summable numbers (bills, stock, purchases) use this list —
+    single-pharmacy config (settings, drug license) always stays on the
+    caller's own home store."""
+    if scope != "chain":
+        return [pid]
+    # tenant-safe: pid is current_user's own pharmacy_id, not caller-supplied
+    pharmacy = (await db.execute(select(Pharmacy).where(Pharmacy.id == uuid.UUID(pid)))).scalar_one()
+    if pharmacy.chain_id is None:
+        return [pid]
+    rows = await db.execute(select(Pharmacy.id).where(Pharmacy.chain_id == pharmacy.chain_id))
+    return [str(r) for r in rows.scalars().all()]
+
+
 @router.get("/analytics/dashboard")
 async def get_dashboard_analytics(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
+        scope: Literal["store", "chain"] = Query("store"),
         db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
+        pids = await _resolve_dashboard_scope_pids(pid, scope, db)
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
@@ -1448,7 +1468,7 @@ async def get_dashboard_analytics(
             drug_license_days_left = (drug_license_expiry - today).days
             drug_license_warning = alert_drug_license and drug_license_days_left <= drug_license_alert_days
 
-        base = [BillORM.pharmacy_id == pid, BillORM.deleted_at.is_(None)]
+        base = [BillORM.pharmacy_id.in_(pids), BillORM.deleted_at.is_(None)]
         bills = (await db.execute(select(BillORM).where(*base))).scalars().all()
 
         today_sales = yesterday_sales = week_sales = last_week_sales = month_sales = last_month_sales = 0
@@ -1479,7 +1499,7 @@ async def get_dashboard_analytics(
         # docs/15_ROADMAP.md RULE MISSES LOG.
         returns_result = await db.execute(
             select(SalesReturnORM.return_date, SalesReturnORM.grand_total_paise)
-            .where(SalesReturnORM.pharmacy_id == pid)
+            .where(SalesReturnORM.pharmacy_id.in_(pids))
         )
         for return_date_, grand_total_paise in returns_result.all():
             if not return_date_:
@@ -1530,13 +1550,13 @@ async def get_dashboard_analytics(
 
         # Top products — last 30 days by default, or the requested custom
         # range (same range the Sales Trend chart above is windowed to).
-        window_conds = [BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
+        window_conds = [BillORM.pharmacy_id.in_(pids), BillORM.status.in_(["paid", "due"]),
                         BillORM.deleted_at.is_(None), BillORM.bill_date >= (range_start or thirty_ago)]
         if range_end:
             window_conds.append(BillORM.bill_date <= range_end)
 
         product_sales_rows = (await db.execute(
-            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id == pid) above
+            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id.in_(pids)) above
             select(
                 BillItemORM.product_name, func.sum(
                     BillItemORM.line_total_paise).label("rev"), func.sum(
@@ -1549,7 +1569,7 @@ async def get_dashboard_analytics(
 
         # Category sales — same window as top products above.
         cat_rows = (await db.execute(
-            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id == pid) above
+            # tenant-safe: pharmacy_id is in window_conds (BillORM.pharmacy_id.in_(pids)) above
             select(ProductORM.category, func.sum(BillItemORM.line_total_paise).label("rev"))
             .join(BillItemORM, BillItemORM.product_id == ProductORM.id)
             .join(BillORM, BillORM.id == BillItemORM.bill_id)
@@ -1571,13 +1591,13 @@ async def get_dashboard_analytics(
         # where it now only seeds a new product's default reorder_level.
         product_stock_sub = (
             select(BatchORM.product_id, func.sum(BatchORM.quantity_on_hand).label("total_qty"))
-            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True))
+            .where(BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True))
             .group_by(BatchORM.product_id).subquery()
         )
         low_stock_products = (await db.execute(
             select(ProductORM.id, ProductORM.name, product_stock_sub.c.total_qty)
             .join(product_stock_sub, product_stock_sub.c.product_id == ProductORM.id)
-            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True),
+            .where(ProductORM.pharmacy_id.in_(pids), ProductORM.is_active.is_(True),
                    ProductORM.deleted_at.is_(None),
                    product_stock_sub.c.total_qty <= ProductORM.reorder_level)
             .order_by(product_stock_sub.c.total_qty).limit(5)
@@ -1586,7 +1606,7 @@ async def get_dashboard_analytics(
         for prod_id, prod_name, total_qty in low_stock_products:
             smallest_batch = (await db.execute(
                 select(BatchORM.batch_number).where(
-                    BatchORM.product_id == prod_id, BatchORM.pharmacy_id == pid,
+                    BatchORM.product_id == prod_id, BatchORM.pharmacy_id.in_(pids),
                     BatchORM.is_active.is_(True), BatchORM.quantity_on_hand > 0)
                 .order_by(BatchORM.quantity_on_hand).limit(1)
             )).first()
@@ -1602,25 +1622,26 @@ async def get_dashboard_analytics(
                 BatchORM.expiry_date,
                 BatchORM.quantity_on_hand)
             .join(BatchORM, BatchORM.product_id == ProductORM.id)
-            .where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True),
+            .where(BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True),
                    BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead)
             .order_by(BatchORM.expiry_date).limit(5)
         )).all()
         # Counts for quick stats
         product_count = (await db.execute(select(func.count()).where(
-            ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True), ProductORM.deleted_at.is_(None)))).scalar()
+            ProductORM.pharmacy_id.in_(pids), ProductORM.is_active.is_(True),
+            ProductORM.deleted_at.is_(None)))).scalar()
         sv_paise = (await db.execute(select(
             func.coalesce(func.sum(BatchORM.quantity_on_hand * BatchORM.cost_price_paise), 0)
-        ).where(BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True)))).scalar()
+        ).where(BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True)))).scalar()
         low_total = (await db.execute(
             select(func.count()).select_from(ProductORM).join(
                 product_stock_sub, product_stock_sub.c.product_id == ProductORM.id)
-            .where(ProductORM.pharmacy_id == pid, ProductORM.is_active.is_(True),
+            .where(ProductORM.pharmacy_id.in_(pids), ProductORM.is_active.is_(True),
                    ProductORM.deleted_at.is_(None),
                    product_stock_sub.c.total_qty <= ProductORM.reorder_level)
         )).scalar()
         exp_total = (await db.execute(select(func.count()).where(
-            BatchORM.pharmacy_id == pid, BatchORM.is_active.is_(True),
+            BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True),
             BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead))).scalar()
 
         def calc_change(cur, prev):
@@ -1683,6 +1704,8 @@ async def get_dashboard_analytics(
                 "days_left": drug_license_days_left,
                 "alert_days": drug_license_alert_days,
             },
+            "scope": scope,
+            "store_count": len(pids),
         }
     except HTTPException:
         raise
@@ -1698,10 +1721,12 @@ async def get_dashboard_analytics(
 async def get_purchase_analytics(
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
+        scope: Literal["store", "chain"] = Query("store"),
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
     pid = current_user.pharmacy_id
-    pconds = [PurchaseORM.pharmacy_id == pid, PurchaseORM.status.notin_(
+    pids = await _resolve_dashboard_scope_pids(pid, scope, db)
+    pconds = [PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status.notin_(
         ["cancelled", "draft"]), PurchaseORM.deleted_at.is_(None)]
     if from_date:
         pconds.append(PurchaseORM.purchase_date >= date.fromisoformat(from_date))
@@ -1712,7 +1737,7 @@ async def get_purchase_analytics(
     ).where(*pconds))).one()
     total_p, count_p = p_row[0], p_row[1]
 
-    rconds = [PurchaseReturnORM.pharmacy_id == pid, PurchaseReturnORM.status == "confirmed"]
+    rconds = [PurchaseReturnORM.pharmacy_id.in_(pids), PurchaseReturnORM.status == "confirmed"]
     if from_date:
         rconds.append(PurchaseReturnORM.return_date >= date.fromisoformat(from_date))
     if to_date:

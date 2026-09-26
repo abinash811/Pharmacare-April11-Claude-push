@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.17 | Last updated: September 26, 2026
+# Version: 1.18 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1111,11 +1111,19 @@ Per-day sales/returns/net for the last N days. **Query params:** `days` (default
 
 ### `GET /analytics/dashboard`
 Wider dashboard payload — week/month/yesterday/last-week/last-month/30-day
-comparisons.
+comparisons. **Query params:** `from_date`, `to_date` (optional custom
+trend range); `scope` (`store` default, or `chain` — added Sep 26, 2026,
+`docs/26_MULTI_CHAIN_SCOPE.md` Step 4). `scope=chain` sums every summable
+number across every store in the caller's chain (or just their own store,
+unchanged, if they aren't in one). Single-pharmacy config (settings,
+drug license alert) always stays on the caller's own home store
+regardless of `scope`. Response includes `scope` and `store_count`.
 
 ### `GET /analytics/purchases`
 Purchase totals + purchase-return totals for a date range. **Query params:**
-`from_date`, `to_date`.
+`from_date`, `to_date`, `scope` (`store` default, or `chain` — same Step 4
+rollup as `/analytics/dashboard` above, since this feeds the Dashboard's
+Purchases summary card).
 
 > ⚠️ **This route is defined twice** — in `backend/routers/reports.py:1274`
 > and again in `backend/routers/sales_returns.py:938`. FastAPI matches the

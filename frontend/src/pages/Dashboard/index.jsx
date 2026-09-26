@@ -10,8 +10,11 @@ import {
 } from 'lucide-react';
 import { formatCompact } from '@/utils/currency';
 import { toISODate } from '@/utils/dates';
-import { PageHeader, AppButton, DateRangePicker } from '@/components/shared';
+import { PageHeader, AppButton, DateRangePicker, FilterPills } from '@/components/shared';
 import { Skeleton } from '@/components/ui/skeleton';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
+import { REPORT_SCOPE } from '@/constants/domainConstants';
 
 import { useDashboard }      from './hooks/useDashboard';
 import MetricCard            from './components/MetricCard';
@@ -50,12 +53,28 @@ export default function Dashboard() {
   // Only drives the Sales Trend chart + Top Products/Categories below — the
   // fixed Today/Week/Month/Total cards above never change with this.
   const [trendRange, setTrendRange] = useState({ start: null, end: null });
+  // Per-store by default (REPORT_SCOPE.STORE) — matches today's behavior
+  // exactly until a chain admin opts into REPORT_SCOPE.CHAIN. The toggle
+  // itself only renders once we know there's more than one store to roll
+  // up (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #3).
+  const [scope, setScope] = useState(REPORT_SCOPE.STORE);
+  const [hasChain, setHasChain] = useState(false);
 
-  useEffect(() => { fetchDashboardData(); }, []); // eslint-disable-line
+  useEffect(() => {
+    fetchDashboardData();
+    api.get(apiUrl.chainStores())
+      .then((res) => setHasChain((res.data || []).length > 1))
+      .catch(() => setHasChain(false));
+  }, []); // eslint-disable-line
 
   const handleTrendRangeChange = (range) => {
     setTrendRange(range);
-    fetchDashboardData(false, range);
+    fetchDashboardData(false, range, scope);
+  };
+
+  const handleScopeChange = (nextScope) => {
+    setScope(nextScope);
+    fetchDashboardData(false, trendRange, nextScope);
   };
 
   const today = new Date();
@@ -88,11 +107,22 @@ export default function Dashboard() {
         title="Dashboard"
         actions={
           <div className="flex items-center gap-2">
+            {hasChain && (
+              <FilterPills
+                options={[
+                  { key: REPORT_SCOPE.STORE, label: 'This Store' },
+                  { key: REPORT_SCOPE.CHAIN, label: 'All Stores' },
+                ]}
+                active={scope}
+                onChange={handleScopeChange}
+                className="mr-1"
+              />
+            )}
             <DateRangePicker dateRange={trendRange} onDateRangeChange={handleTrendRangeChange} />
             <AppButton
               variant="outline"
               icon={<RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} strokeWidth={1.5} />}
-              onClick={() => fetchDashboardData(true, trendRange)}
+              onClick={() => fetchDashboardData(true, trendRange, scope)}
               disabled={refreshing}
               data-testid="refresh-btn"
             >

@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from deps import get_db
-from models.users import AuditLog, Role as RoleORM, User as UserORM
+from models.pharmacy import Pharmacy as PharmacyORM
+from models.users import AuditLog, Role as RoleORM, User as UserORM, UserStoreRole
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
 )
@@ -271,3 +272,76 @@ async def change_password(password_data: ChangePassword, current_user: User = De
     user.password_hash = hash_password(password_data.new_password)
     await db.flush()
     return {"message": "Password changed successfully"}
+
+
+class SwitchStore(BaseModel):
+    pharmacy_id: str
+
+
+@router.get("/users/me/stores")
+async def get_my_stores(current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    """Every store this person can access, for the sidebar switcher —
+    docs/26_MULTI_CHAIN_SCOPE.md Step 2. Always returns at least one row
+    (today's single-store reality); the switcher shows even then, per
+    direct instruction, not conditionally hidden for a single-store
+    account.
+    # permission-exempt: self-service, scoped to the caller's own access
+    """
+    result = await db.execute(
+        select(UserStoreRole, PharmacyORM.name, RoleORM.name)
+        .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
+        .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
+        .where(UserStoreRole.user_id == uuid.UUID(current_user.id))
+        .order_by(PharmacyORM.name)
+    )
+    current_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    return [
+        {
+            "pharmacy_id": str(usr.pharmacy_id),
+            "pharmacy_name": pharmacy_name,
+            "role_name": role_name,
+            "is_active": usr.pharmacy_id == current_pharmacy_id,
+        }
+        for usr, pharmacy_name, role_name in result.all()
+    ]
+
+
+@router.post("/users/me/switch-store")
+async def switch_store(body: SwitchStore, request: Request, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    """Makes another store this person already has access to their active
+    one. Not a login/session change — `users.pharmacy_id`/`role_id` are
+    read fresh from the DB on every request (routers/auth_helpers.py's
+    `get_current_user`), so updating those two columns *is* the switch;
+    no new token needs issuing.
+    # permission-exempt: self-service, but only into a store this exact
+    # user already has a real user_store_roles row for — checked below,
+    # not inferred from being logged in at all.
+    """
+    target_pharmacy_id = uuid.UUID(body.pharmacy_id)
+    result = await db.execute(
+        select(UserStoreRole).where(
+            UserStoreRole.user_id == uuid.UUID(current_user.id),
+            UserStoreRole.pharmacy_id == target_pharmacy_id,
+        )
+    )
+    access = result.scalar_one_or_none()
+    if not access:
+        raise HTTPException(status_code=403, detail="You do not have access to that store")
+
+    user_result = await db.execute(
+        # tenant-safe: id is the caller's own JWT subject, not user-supplied
+        select(UserORM).where(UserORM.id == uuid.UUID(current_user.id)))
+    user = user_result.scalar_one()
+    old_pharmacy_id = user.pharmacy_id
+    user.pharmacy_id = access.pharmacy_id
+    user.role_id = access.role_id
+    await db.flush()
+    await _record_audit(
+        access.pharmacy_id, uuid.UUID(current_user.id), "switch_store", "user", user.id,
+        {"pharmacy_id": str(access.pharmacy_id)}, db,
+        old_values={"pharmacy_id": str(old_pharmacy_id)}, ip_address=_client_ip(request),
+    )
+    await db.flush()
+    return {"message": "Switched store successfully", "pharmacy_id": str(access.pharmacy_id)}

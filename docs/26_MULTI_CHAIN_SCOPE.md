@@ -1,7 +1,28 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.3 | Last updated: September 26, 2026
+# Version: 1.4 | Last updated: September 26, 2026
 # Type: Explanation
-# Status: 🔄 Step 1 of Section 6 built (schema only) on branch `phase-2-multi-chain-pharmacy`. Everything else below still 🚫 scoping only.
+# Status: 🔄 Steps 1-2 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher). Team page assignment UI and everything else below still 🚫 scoping only.
+
+## STEP 2 STATUS — store switcher built, Sep 26, 2026
+
+Confirmed the design first: login stays completely unchanged (always
+resolves to whatever's already on `users.pharmacy_id` — for everyone
+today, their one and only store), and switching is not a session/token
+change at all — `GET/POST /users/me/{stores,switch-store}` just read/
+update `users.pharmacy_id`/`role_id` directly, since `get_current_user`
+already re-reads those columns fresh on every request. Switch is
+audit-logged (`switch_store` action) and checks a real `user_store_roles`
+grant exists before allowing it (403 otherwise). Sidebar switcher
+(`StoreSwitcher.tsx`) always renders, even for a single-store account, per
+direct instruction — confirmed live in a real browser (registered 2 real
+pharmacies, granted the second via direct DB insert matching Team-page
+work not built yet, switched between them, watched the checkmark move
+and the whole app reload into the new store). 3 new backend tests, 4 new
+frontend tests, all green. Full suites: frontend 394 passed; backend
+isolated suite re-run 3 times (17, 6, then a clean pass) — the varying
+failures are the already-diagnosed, pre-existing load-dependent flakiness
+(different unrelated files each run); this change's own tests passed
+clean in all three.
 
 ## STEP 1 STATUS — schema built, Sep 26, 2026
 

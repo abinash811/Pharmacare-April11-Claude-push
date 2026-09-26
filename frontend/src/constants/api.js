@@ -156,6 +156,8 @@ export const API_ENDPOINTS = {
     CREATE:          'users',
     DETAIL:          'users/:id',
     CHANGE_PASSWORD: 'users/me/change-password',
+    MY_STORES:       'users/me/stores',
+    SWITCH_STORE:    'users/me/switch-store',
   },
 
   ROLES: {
@@ -294,6 +296,8 @@ export const apiUrl = {
   user:             (id) => `users/${id}`,
   resetUserPassword:(id) => `users/${id}/reset-password`,
   changePassword:   () => API_ENDPOINTS.USERS.CHANGE_PASSWORD,
+  myStores:         () => API_ENDPOINTS.USERS.MY_STORES,
+  switchStore:      () => API_ENDPOINTS.USERS.SWITCH_STORE,
   roles:            () => API_ENDPOINTS.ROLES.LIST,
   role:             (id) => `roles/${id}`,
   roleReturnPermissions: (roleId) => `roles/${roleId}/permissions/returns`,

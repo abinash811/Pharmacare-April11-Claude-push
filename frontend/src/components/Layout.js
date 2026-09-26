@@ -11,6 +11,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AuthContext } from '@/App';
 import { AppButton } from '@/components/shared';
 import SidebarNav from '@/components/SidebarNav';
+import StoreSwitcher from '@/components/StoreSwitcher';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -129,6 +130,7 @@ function SidebarShell({ collapsed, visibleGroups, user, roleBadge, roleLabel, on
 
       {/* User footer */}
       <div className="flex-shrink-0 border-t border-white/10 px-3 py-3">
+        <StoreSwitcher collapsed={collapsed} />
         <div className={`flex items-center gap-2 mb-2 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
             <span className="text-[11px] font-semibold text-gray-300">

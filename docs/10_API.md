@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.15 | Last updated: September 26, 2026
+# Version: 1.16 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1226,6 +1226,28 @@ Change own password.
 ```json
 { "current_password": "old", "new_password": "new" }
 ```
+
+### `GET /users/me/stores`
+Added Sep 26, 2026 — multi-chain Phase 2 groundwork (`docs/26_MULTI_CHAIN_SCOPE.md`).
+Every store the caller has access to, for the sidebar switcher. Always
+returns at least one row.
+
+**Response:**
+```json
+[
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store A", "role_name": "admin", "is_active": true},
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store B", "role_name": "manager", "is_active": false}
+]
+```
+
+### `POST /users/me/switch-store`
+Added Sep 26, 2026, same groundwork. Makes another store the caller
+already has a `user_store_roles` grant for their active one — updates
+`users.pharmacy_id`/`role_id` directly (not a new session/token; those two
+columns are read fresh on every request). 403 if no grant exists for the
+target store.
+
+**Request:** `{ "pharmacy_id": "uuid" }`
 
 ### `GET /permissions`
 List every permission flag the system knows about (`ALL_PERMISSIONS`).

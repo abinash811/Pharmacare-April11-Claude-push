@@ -12,9 +12,11 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import uuid
+
 from constants import DEFAULT_ROLES
 from models.pharmacy import Pharmacy, PharmacySettings
-from models.users import Role as RoleORM
+from models.users import Role as RoleORM, UserStoreRole
 
 
 async def create_pharmacy_with_defaults(
@@ -62,3 +64,15 @@ async def create_pharmacy_with_defaults(
 
     await db.flush()
     return pharmacy
+
+
+async def sync_user_store_role(
+    db: AsyncSession, *, user_id: uuid.UUID, pharmacy_id: uuid.UUID, role_id: uuid.UUID,
+) -> None:
+    """Every place a `User` row gets created must call this too, so
+    `user_store_roles` (docs/26_MULTI_CHAIN_SCOPE.md) stays a complete,
+    correct mirror of `users.pharmacy_id`/`role_id` going forward — not
+    just backfilled once at migration time. Nothing reads this table yet;
+    login/permission checks still use the columns on `users` directly."""
+    db.add(UserStoreRole(user_id=user_id, pharmacy_id=pharmacy_id, role_id=role_id))
+    await db.flush()

@@ -28,6 +28,11 @@ class Pharmacy(Base):
     fssai_number: Mapped[Optional[str]] = mapped_column(String(20))
     pan_number: Mapped[Optional[str]] = mapped_column(String(10))
     logo_url: Mapped[Optional[str]] = mapped_column(Text)
+    # NULL = a standalone single-store pharmacy (every pharmacy today, and
+    # every new signup unless explicitly added to a chain later) — see
+    # docs/26_MULTI_CHAIN_SCOPE.md. Nothing reads this yet.
+    chain_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("chains.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[str] = mapped_column(
         TIMESTAMP(

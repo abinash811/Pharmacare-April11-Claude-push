@@ -24,7 +24,7 @@ from routers.auth_helpers import (
     hash_password,
     verify_password,
 )
-from services.provisioning import create_pharmacy_with_defaults
+from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -122,6 +122,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     )
     db.add(user)
     await db.flush()
+    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id, role_id=role.id)
 
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return {
@@ -301,6 +302,7 @@ async def create_session(request: Request, response: Response, db: AsyncSession 
         )
         db.add(user)
         await db.flush()
+        await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy.id, role_id=role.id)
         role_name_out = role_name
     else:
         role_name_out = user.role.name

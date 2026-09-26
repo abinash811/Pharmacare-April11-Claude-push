@@ -14,6 +14,7 @@ from models.users import AuditLog, Role as RoleORM, User as UserORM
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, hash_password, require_admin_or_super, verify_password,
 )
+from services.provisioning import sync_user_store_role
 
 router = APIRouter(prefix="/api", tags=["users"])
 
@@ -123,6 +124,7 @@ async def create_user(user_data: UserCreate, request: Request, current_user: Use
     )
     db.add(user)
     await db.flush()
+    await sync_user_store_role(db, user_id=user.id, pharmacy_id=pharmacy_id, role_id=role.id)
     await _record_audit(
         pharmacy_id, uuid.UUID(current_user.id), "create", "user", user.id,
         {"name": user.name, "email": user.email, "role": user_data.role}, db,

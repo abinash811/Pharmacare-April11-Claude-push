@@ -67,6 +67,34 @@ class User(Base):
     role: Mapped[Role] = relationship(back_populates="users")
 
 
+class UserStoreRole(Base):
+    """One row per (person, store) they can access, with their role at
+    that specific store — docs/26_MULTI_CHAIN_SCOPE.md's schema sketch.
+
+    Not read by login/permission checks yet — those still use `users.
+    pharmacy_id`/`users.role_id` directly, unchanged. This table is kept
+    correct going forward (every user-creation path writes a matching row
+    here too, not just the old columns) so it's ready for the switcher to
+    read from later, without a second backfill pass. For today's
+    single-store reality this is exactly one row per user, mirroring their
+    `users.pharmacy_id`/`role_id` — multi-store is only ever *adding* a
+    second row for a person, never removing this first one."""
+    __tablename__ = "user_store_roles"
+    __table_args__ = (UniqueConstraint("user_id", "pharmacy_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    pharmacy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pharmacies.id"), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("roles.id"), nullable=False)
+    created_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class PasswordResetToken(Base):
     """Self-service "Forgot password" flow (docs/15_ROADMAP.md Auth
     Overhaul #6) — a simple reset-token table on top of today's stateless

@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.12 | Last updated: September 26, 2026
+# Version: 1.13 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -91,7 +91,42 @@ The root entity. Every piece of data belongs to a pharmacy.
 | `fssai_number` | String(20) | Food Safety license if applicable |
 | `pan_number` | String(10) | PAN for IT filings |
 | `logo_url` | Text | Logo image URL — used on printed/digital bills |
+| `chain_id` | UUID FK → `chains.id`, nullable | `NULL` = standalone single-store pharmacy (every pharmacy today). Added `3bc60ce0ce95` for Phase 2 multi-chain (`docs/26_MULTI_CHAIN_SCOPE.md`) — not read by any login/permission code yet. |
 | `is_active` | Boolean | Soft disable |
+| `created_at`, `updated_at` | TIMESTAMP | — |
+
+---
+
+### `chains` — added `3bc60ce0ce95`, Sep 26, 2026, Phase 2 groundwork only
+
+Groups several already-independent `pharmacies` rows under one HQ account.
+Nothing reads this table yet — see `docs/26_MULTI_CHAIN_SCOPE.md`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `name` | String(200) | Chain/HQ display name |
+| `owner_user_id` | UUID FK → `users.id`, nullable | — |
+| `is_active` | Boolean | — |
+| `created_at`, `updated_at` | TIMESTAMP | — |
+
+---
+
+### `user_store_roles` — added `3bc60ce0ce95`, Sep 26, 2026, Phase 2 groundwork only
+
+One row per (person, store) they can access, with their role at that
+store. `UNIQUE(user_id, pharmacy_id)`. Kept correct going forward by
+`services/provisioning.sync_user_store_role()`, called everywhere a
+`User` row is created — not read by login/permission checks yet, which
+still use `users.pharmacy_id`/`role_id` directly. For today's
+single-store reality this is exactly one row per user.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `user_id` | UUID FK → `users.id`, `ON DELETE CASCADE` | — |
+| `pharmacy_id` | UUID FK → `pharmacies.id` | — |
+| `role_id` | UUID FK → `roles.id` | — |
 | `created_at`, `updated_at` | TIMESTAMP | — |
 
 ---

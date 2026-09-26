@@ -1,7 +1,24 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.2 | Last updated: September 26, 2026
+# Version: 1.3 | Last updated: September 26, 2026
 # Type: Explanation
-# Status: 🚫 Scoping only — nothing built, no schema changed. Do not build from this without a separate go-ahead per section.
+# Status: 🔄 Step 1 of Section 6 built (schema only) on branch `phase-2-multi-chain-pharmacy`. Everything else below still 🚫 scoping only.
+
+## STEP 1 STATUS — schema built, Sep 26, 2026
+
+Confirmed the switcher model (Section 2) and built exactly Section 6's
+Step 1, nothing more: `chains` table, `pharmacies.chain_id` (nullable),
+`user_store_roles` table (migration `3bc60ce0ce95`), backfilled 1-to-1 for
+every existing user (verified: 1285 users → 1285 matching rows, all
+fields equal). `services/provisioning.sync_user_store_role()` is now
+called from all 3 places a `User` row gets created (`POST /auth/register`,
+the SSO auto-provision path, `POST /users`), so the new table stays
+correct going forward, not just backfilled once. **Login/permission
+checks are unchanged** — still read `users.pharmacy_id`/`role_id`
+directly; nothing anywhere reads the new table yet. 2 new regression
+tests (`test_user_store_roles.py`). Full backend isolated suite: 632
+passed (2 failures are the already-documented, unrelated load-dependent
+flakiness — confirmed in files this change never touched). Frontend: 390
+passed, untouched by this step. design-guard clean.
 
 ---
 

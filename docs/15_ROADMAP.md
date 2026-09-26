@@ -1,5 +1,5 @@
 # PharmaCare — Roadmap
-# Version: 3.49 | Last updated: September 26, 2026
+# Version: 3.50 | Last updated: September 26, 2026
 # Type: Living Status
 # Audience: Claude, all developers
 # Rule: Before building anything, check here first. If it's planned, follow the agreed design.
@@ -1543,6 +1543,15 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 
 > **Do not add `chain_id`, `store_id`, or any multi-store column to Phase 1 tables.** It creates premature complexity. Phase 2 will be a migration sprint.
 
+### Integrations — moved into Phase 2 scope Sep 26, 2026, direct instruction
+
+| Feature | Notes |
+|---------|-------|
+| Distributor integration (live price lists) | |
+| Government reporting API (CDSCO) | |
+| Accounting integration (Tally, Zoho Books) | |
+| **Eka Care integration** (EMR/clinic connection) | See full writeup below. Exploratory only — nothing built; still "revisit once core product is finalized," per Abinash — moving phase label doesn't change that. |
+
 ---
 
 ## PHASE 3 — PLATFORM `🚫 Do not build now`
@@ -1551,11 +1560,7 @@ going forward — do not re-propose Sheets without Abinash raising it again.
 |---------|-------|
 | Patient app (prescription refills) | |
 | Doctor portal (e-prescriptions) | |
-| Distributor integration (live price lists) | |
-| Government reporting API (CDSCO) | |
 | WhatsApp / SMS reminders (refills, dues) | |
-| Accounting integration (Tally, Zoho Books) | |
-| **Eka Care integration** (EMR/clinic connection) | See full writeup below. Exploratory only — nothing built. |
 
 ### Eka Care integration — exploratory, Sep 25, 2026 `🚫 Do not build now`
 

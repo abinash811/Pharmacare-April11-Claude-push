@@ -15,6 +15,7 @@ import InventorySearchBar      from './components/InventorySearchBar';
 import InventoryEmptyState     from './components/InventoryEmptyState';
 import InventoryTable          from './components/InventoryTable';
 import BulkUpdateModal         from './components/BulkUpdateModal';
+import TransferStockModal      from './components/TransferStockModal';
 import { AddMedicineModal }    from '@/components/shared';
 import AdjustStockModal        from './components/AdjustStockModal';
 import EditProductModal        from './components/EditProductModal';
@@ -50,6 +51,7 @@ export default function InventorySearch() {
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [showBulkModal,      setShowBulkModal]      = useState(false);
+  const [showTransferModal,  setShowTransferModal]  = useState(false);
   const [showAddModal,       setShowAddModal]       = useState(false);
   const [showExcelWizard,    setShowExcelWizard]    = useState(false);
   const [adjustProduct,      setAdjustProduct]      = useState(null);
@@ -133,6 +135,7 @@ export default function InventorySearch() {
             onEdit={(item, e) => { e.stopPropagation(); setEditProduct(item.product); }}
             onAdjust={(item, e) => { e.stopPropagation(); setAdjustProduct(item); }}
             onBulkUpdate={() => setShowBulkModal(true)}
+            onTransferStock={() => setShowTransferModal(true)}
             currentPage={currentPage}
             totalPages={totalPages}
             totalItems={totalItems}
@@ -148,6 +151,14 @@ export default function InventorySearch() {
           filterOptions={filterOptions}
           onConfirm={handleBulkConfirm}
           onClose={() => setShowBulkModal(false)}
+        />
+      )}
+
+      {showTransferModal && (
+        <TransferStockModal
+          selectedSkus={Array.from(selectedItems)}
+          onClose={() => setShowTransferModal(false)}
+          onSuccess={() => { setShowTransferModal(false); setSelectedItems(new Set()); refetch(); }}
         />
       )}
 

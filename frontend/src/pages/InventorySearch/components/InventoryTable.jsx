@@ -9,6 +9,7 @@
  *   onEdit         {(item, e) => void}
  *   onAdjust       {(item, e) => void}
  *   onBulkUpdate   {() => void}
+ *   onTransferStock {() => void}
  *   currentPage    {number}
  *   totalPages     {number}
  *   totalItems     {number}
@@ -30,6 +31,7 @@ export default function InventoryTable({
   onEdit,
   onAdjust,
   onBulkUpdate,
+  onTransferStock,
   currentPage,
   totalPages,
   totalItems,
@@ -46,9 +48,14 @@ export default function InventoryTable({
           <span className="text-sm font-medium text-brand">
             {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
           </span>
-          <AppButton onClick={onBulkUpdate} size="sm" data-testid="bulk-update-btn">
-            Bulk Update
-          </AppButton>
+          <div className="flex items-center gap-2">
+            <AppButton onClick={onTransferStock} variant="outline" size="sm" data-testid="transfer-stock-btn">
+              Transfer Stock
+            </AppButton>
+            <AppButton onClick={onBulkUpdate} size="sm" data-testid="bulk-update-btn">
+              Bulk Update
+            </AppButton>
+          </div>
         </div>
       )}
 

@@ -150,12 +150,14 @@ export const REPORT_SCOPE = {
 
 // ─── Stock Movement Types ─────────────────────────────────────────────────────
 export const STOCK_MOVEMENT_TYPE = {
-  SALE:     'sale',
-  PURCHASE: 'purchase',
-  RETURN:   'return',
-  EXPIRY:   'expiry',
-  DAMAGE:   'damage',
-  ADJUST:   'adjustment',
+  SALE:         'sale',
+  PURCHASE:     'purchase',
+  RETURN:       'return',
+  EXPIRY:       'expiry',
+  DAMAGE:       'damage',
+  ADJUST:       'adjustment',
+  TRANSFER_OUT: 'transfer_out',
+  TRANSFER_IN:  'transfer_in',
 };
 
 // ─── Sales Return Refund Methods ───────────────────────────────────────────────

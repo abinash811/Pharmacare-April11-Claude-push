@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.18 | Last updated: September 26, 2026
+# Version: 1.19 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -625,6 +625,55 @@ flows internally, and available standalone).
 List stock movements (the ledger).
 
 **Query params:** `product_id`, `batch_id`, `movement_type`, `start_date`, `end_date`, `page`, `page_size`
+
+---
+
+## STOCK TRANSFERS
+
+Added Sep 26, 2026 — multi-chain Phase 2 Step 5, `docs/26_MULTI_CHAIN_SCOPE.md`.
+Cross-store stock transfer, instant (v1, no in-transit state), admin-only.
+
+### `POST /stock-transfers`
+Moves stock from the caller's own pharmacy to another store in the same
+chain. Auto-creates the destination product if that SKU doesn't exist
+there yet (products are stored separately per store); matches the
+destination batch by batch number, or creates one preserving the exact
+expiry/cost/MRP. `is_cross_gstin` is computed by comparing the two
+stores' GSTINs — display-only; **this endpoint does not generate a
+delivery challan, tax invoice, or e-way bill.** Writes an audit-log entry
+on both the source (`stock_transfer_out`) and destination
+(`stock_transfer_in`) pharmacy. 400 if not enough stock or destination
+== source; 403 if the destination isn't in the caller's chain or the
+caller isn't an admin.
+
+**Request:**
+```json
+{
+  "destination_pharmacy_id": "uuid", "notes": "optional",
+  "items": [{"product_sku": "SKU-1", "batch_number": "B-1", "quantity": 10}]
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid", "transfer_number": "TRF-2026-ABC123",
+  "source_pharmacy": "Store A", "destination_pharmacy": "Store B",
+  "is_cross_gstin": false,
+  "items": [{"product_sku": "SKU-1", "product_name": "...", "batch_number": "B-1", "quantity": 10}]
+}
+```
+
+### `GET /stock-transfers`
+Lists every transfer where the caller's own pharmacy is either the
+source or the destination, each tagged `direction: "out" | "in"`.
+
+### `POST /stock-transfers/{transfer_id}/reverse`
+Reverses a transfer: restores the source batch, reduces the destination
+batch. Admin-only. 400 if already reversed, or if the destination
+batch's on-hand quantity is less than what this transfer added (some of
+it has already been sold/used elsewhere) — checked against real stock,
+not a time limit.
 
 ---
 

@@ -13,7 +13,7 @@ from models.pharmacy import Pharmacy
 from routers import (
     auth, batches, billing, chains, customers, inventory,
     purchase_returns, purchases, reports, sales_returns,
-    settings, suppliers, users,
+    settings, stock_transfers, suppliers, users,
 )
 from services.provisioning import create_pharmacy_with_defaults
 from utils import excel
@@ -66,6 +66,7 @@ app.include_router(suppliers.router)
 app.include_router(purchases.router)
 app.include_router(purchase_returns.router)
 app.include_router(sales_returns.router)
+app.include_router(stock_transfers.router)
 app.include_router(excel.router)
 
 

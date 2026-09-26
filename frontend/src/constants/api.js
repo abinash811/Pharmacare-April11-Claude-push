@@ -164,6 +164,11 @@ export const API_ENDPOINTS = {
     STORES: 'pharmacies/stores',
   },
 
+  STOCK_TRANSFERS: {
+    LIST_CREATE: 'stock-transfers',
+    REVERSE:     'stock-transfers/:id/reverse',
+  },
+
   ROLES: {
     LIST:                'roles',
     CREATE:              'roles',
@@ -303,6 +308,8 @@ export const apiUrl = {
   myStores:         () => API_ENDPOINTS.USERS.MY_STORES,
   switchStore:      () => API_ENDPOINTS.USERS.SWITCH_STORE,
   chainStores:      () => API_ENDPOINTS.CHAINS.STORES,
+  stockTransfers:   () => API_ENDPOINTS.STOCK_TRANSFERS.LIST_CREATE,
+  reverseStockTransfer: (id) => `stock-transfers/${id}/reverse`,
   userStoreAccess:  (userId) => `users/${userId}/store-access`,
   revokeStoreAccess:(userId, pharmacyId) => `users/${userId}/store-access/${pharmacyId}`,
   roles:            () => API_ENDPOINTS.ROLES.LIST,

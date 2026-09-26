@@ -1,5 +1,5 @@
 # PharmaCare — Database
-# Version: 1.13 | Last updated: September 26, 2026
+# Version: 1.14 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: All schema changes go through Alembic migrations. Never ALTER TABLE manually.
@@ -128,6 +128,50 @@ single-store reality this is exactly one row per user.
 | `pharmacy_id` | UUID FK → `pharmacies.id` | — |
 | `role_id` | UUID FK → `roles.id` | — |
 | `created_at`, `updated_at` | TIMESTAMP | — |
+
+---
+
+### `stock_transfers` — added `e3511cb2db2b`, Sep 26, 2026, Phase 2 Step 5
+
+Header row for one cross-store stock transfer. Instant (v1 — no
+in-transit holding state). `is_cross_gstin` classifies whether the two
+stores' GSTINs differ (real "supply" under GST, needs a tax invoice) or
+match/are blank (just an internal move, delivery challan) — display
+only, this table never triggers an actual document generation.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `transfer_number` | String(50) | `TRF-{year}-{6 hex}`, `UNIQUE(source_pharmacy_id, transfer_number)` |
+| `source_pharmacy_id` | UUID FK → `pharmacies.id` | — |
+| `destination_pharmacy_id` | UUID FK → `pharmacies.id` | — |
+| `transfer_date` | Date | Defaults to today |
+| `is_cross_gstin` | Boolean | See above |
+| `source_gstin`, `destination_gstin` | String(15), nullable | Snapshot at transfer time |
+| `notes` | Text, nullable | — |
+| `initiated_by` | UUID FK → `users.id` | — |
+| `reversed_at` | TIMESTAMP, nullable | Set by `POST /stock-transfers/{id}/reverse` |
+| `reversed_by` | UUID FK → `users.id`, nullable | — |
+| `created_at` | TIMESTAMP | — |
+
+---
+
+### `stock_transfer_items` — added `e3511cb2db2b`, Sep 26, 2026, Phase 2 Step 5
+
+One row per medicine/batch moved in a transfer. Batch number, expiry,
+cost, and MRP are snapshotted from the source batch at transfer time —
+preserved exactly at the destination, never re-derived.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | — |
+| `transfer_id` | UUID FK → `stock_transfers.id`, `ON DELETE CASCADE` | — |
+| `product_sku`, `product_name`, `batch_number` | String | Snapshot, not a live join |
+| `expiry_date` | Date | — |
+| `quantity` | Integer | — |
+| `cost_price_paise`, `mrp_paise` | Integer | — |
+| `source_batch_id`, `destination_batch_id` | UUID FK → `stock_batches.id` | Used by the reversal check |
+| `created_at` | TIMESTAMP | — |
 
 ---
 
@@ -359,11 +403,11 @@ Immutable ledger of every stock change. Never delete rows.
 | `pharmacy_id` | UUID FK | — |
 | `batch_id` | UUID FK → stock_batches | — |
 | `product_id` | UUID FK → products | — |
-| `movement_type` | String(50) | `purchase`, `sale`, `sales_return`, `purchase_return`, `adjustment`, `opening_stock` |
+| `movement_type` | String(50) | `purchase`, `sale`, `sales_return`, `purchase_return`, `adjustment`, `opening_stock`, `transfer_out`, `transfer_in`, `transfer_reversal` (added Sep 26, 2026, Phase 2 Step 5) |
 | `quantity` | Integer | Negative for deductions, positive for additions |
 | `quantity_before` | Integer | Snapshot before movement |
 | `quantity_after` | Integer | Snapshot after movement |
-| `reference_type` | String(50) | `bill`, `purchase`, `adjustment` |
+| `reference_type` | String(50) | `bill`, `purchase`, `adjustment`, `stock_transfer` |
 | `reference_id` | UUID | FK to the source record |
 | `user_id` | UUID FK → users | Who triggered it |
 | `notes` | Text | Optional reason |

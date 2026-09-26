@@ -1,7 +1,63 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.6 | Last updated: September 26, 2026
+# Version: 1.7 | Last updated: September 26, 2026
 # Type: Explanation
-# Status: 🔄 Steps 1-4 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup). Cross-store stock transfer, purchases centralization, and GST chain rollup still 🚫 scoping only.
+# Status: 🔄 Steps 1-5 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer). Purchases centralization and GST chain rollup still 🚫 scoping only.
+
+## STEP 5 STATUS — cross-store stock transfer built, Sep 26, 2026
+
+Confirmed the design first, direct instruction: Marg ERP's manual,
+human-decided model (not eVitalRx's automatic demand-driven
+reallocation — bigger, smarter build, revisit only once manual is
+working and used). Real gaps worked through before building: in-transit
+state (v1: instant, no holding state — confirmed), GST paperwork
+(delivery challan vs. tax invoice — classified automatically from the
+two stores' GSTINs, but this app does **not** generate the actual
+challan/tax-invoice/e-way-bill document itself, that's separate, bigger
+scope), batch integrity (exact batch/cost/MRP/expiry preserved),
+concurrency (handled by the instant model — nothing sits half-moved),
+reversal (only if the destination hasn't already sold/used that stock),
+reporting (never counted as a sale/purchase anywhere), and drug license
+(checked only at sale time, same as today — not re-checked at transfer
+time, confirmed).
+
+New tables `stock_transfers` (header) + `stock_transfer_items` (lines,
+migration `e3511cb2db2b`). `POST /stock-transfers`: admin-only, moves
+real stock instantly between two stores in the same chain — destination
+product is auto-created if that SKU doesn't exist there yet (products
+are stored separately per store, not shared), destination batch matches
+by batch number (creates one if new, tops up if it already exists).
+Rejects if not enough stock, if the destination isn't in the same chain,
+or if a non-admin tries. `is_cross_gstin` is computed automatically by
+comparing the two stores' GSTINs — display-only classification, no
+document generated. `POST /stock-transfers/{id}/reverse`: rejects if
+already reversed, or if the destination batch's on-hand quantity is
+less than what this transfer added (some of it has already been
+sold/used). Every create and reversal writes an audit-log entry on
+**both** the source and destination pharmacy's own audit trail (direct
+instruction — verified live: `stock_transfer_out` on source,
+`stock_transfer_in` on destination, both showing the same transfer
+number, items, and store names).
+
+Frontend: reuses Inventory's existing bulk-select pattern (checkboxes +
+an always-visible action bar — direct instruction: "button should be
+upright visible", not hidden in a menu) — a "Transfer Stock" button
+next to "Bulk Update". `TransferStockModal.tsx` defaults each product to
+its earliest-expiring batch with stock (FEFO), never pre-fills a
+quantity (a deliberate entry every time), and only lists other stores in
+the caller's own chain as destinations (excludes the currently-active
+store). 10 new backend tests, 4 new frontend tests, all green; tsc +
+design-guard clean.
+
+Full suites: backend isolated suite 658/658 passed (fully clean run,
+zero pre-existing flakiness this time); frontend suite 406/406 passed
+(84/84 suites). Live-verified end-to-end in a real
+browser: registered a fresh admin, added a product with 100 units,
+added a second store, selected the product on the Inventory page,
+clicked the always-visible "Transfer Stock" button, sent 25 units —
+source dropped to 75, destination auto-created the product and showed
+25 units on the very next page load, and both pharmacies' own audit
+logs showed the matching `stock_transfer_out`/`stock_transfer_in`
+entries with the same transfer number.
 
 ## STEP 4 STATUS — Dashboard chain-wide rollup built, Sep 26, 2026
 

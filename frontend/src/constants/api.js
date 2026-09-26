@@ -160,6 +160,10 @@ export const API_ENDPOINTS = {
     SWITCH_STORE:    'users/me/switch-store',
   },
 
+  CHAINS: {
+    STORES: 'pharmacies/stores',
+  },
+
   ROLES: {
     LIST:                'roles',
     CREATE:              'roles',
@@ -298,6 +302,9 @@ export const apiUrl = {
   changePassword:   () => API_ENDPOINTS.USERS.CHANGE_PASSWORD,
   myStores:         () => API_ENDPOINTS.USERS.MY_STORES,
   switchStore:      () => API_ENDPOINTS.USERS.SWITCH_STORE,
+  chainStores:      () => API_ENDPOINTS.CHAINS.STORES,
+  userStoreAccess:  (userId) => `users/${userId}/store-access`,
+  revokeStoreAccess:(userId, pharmacyId) => `users/${userId}/store-access/${pharmacyId}`,
   roles:            () => API_ENDPOINTS.ROLES.LIST,
   role:             (id) => `roles/${id}`,
   roleReturnPermissions: (roleId) => `roles/${roleId}/permissions/returns`,

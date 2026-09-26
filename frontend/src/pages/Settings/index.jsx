@@ -18,6 +18,7 @@ import ReceiptTab             from './components/ReceiptTab';
 import GSTTab                 from './components/GSTTab';
 import NotificationsTab       from './components/NotificationsTab';
 import DataBackupTab          from './components/DataBackupTab';
+import StoresTab              from './components/StoresTab';
 
 const SETTINGS_TABS = [
   { key: 'profile',       label: 'Pharmacy Profile' },
@@ -29,6 +30,7 @@ const SETTINGS_TABS = [
   { key: 'bill_sequence', label: 'Bill Sequence'    },
   { key: 'returns',       label: 'Returns'          },
   { key: 'backup',        label: 'Data & Backup'    },
+  { key: 'stores',        label: 'Stores'           },
 ];
 
 export default function Settings() {
@@ -110,12 +112,13 @@ export default function Settings() {
                 />
               )}
               {activeTab === 'backup' && <DataBackupTab />}
+              {activeTab === 'stores' && <StoresTab />}
             </>
           )}
         </div>
 
-        {/* Save button — not shown on bill_sequence/backup (their own actions, not a form) */}
-        {activeTab !== 'bill_sequence' && activeTab !== 'backup' && (
+        {/* Save button — not shown on bill_sequence/backup/stores (their own actions, not a form) */}
+        {activeTab !== 'bill_sequence' && activeTab !== 'backup' && activeTab !== 'stores' && (
           <div className="border-t border-gray-100 px-6 py-4 flex justify-end">
             <AppButton
               onClick={() => saveSettings(settings)}

@@ -1,7 +1,41 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.4 | Last updated: September 26, 2026
+# Version: 1.5 | Last updated: September 26, 2026
 # Type: Explanation
-# Status: 🔄 Steps 1-2 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher). Team page assignment UI and everything else below still 🚫 scoping only.
+# Status: 🔄 Steps 1-3 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant). Everything else below still 🚫 scoping only.
+
+## STEP 3 STATUS — add a store + Team-page store-access grant/revoke built, Sep 26, 2026
+
+Built exactly what was asked: "add a store" under Settings first, then
+Team-page assignment. `POST /pharmacies/stores` creates a `Chain`
+**lazily** the first time an admin adds an additional store (never
+upfront) — names it `"{pharmacy.name} Group"`, links both pharmacies via
+`chain_id`, and auto-grants the creator admin access to the new store via
+`sync_user_store_role`. `GET /pharmacies/stores` lists every store in the
+caller's chain (or just their own, if `chain_id` is still `NULL`).
+Settings → Stores tab (`StoresTab.tsx`) lists stores and has an "+ Add
+Store" form. Team page gets a new "Store access" row-action
+(`StoreAccessModal.tsx`) per member: shows every chain store as either
+granted (role badge + Revoke) or ungranted (role picker + Grant),
+scoped so an admin can only grant/revoke access for their own team
+members, and only to stores in their own chain (`_same_chain_or_self()`
+— never an arbitrary pharmacy elsewhere in the system). Revoke is
+rejected (400) if it's the target's only store access, so nobody can
+strand a teammate with zero stores. All grant/revoke actions are
+audit-logged. 7 new backend tests, 6 new frontend tests (across
+`StoresTab.test.tsx` and `StoreAccessModal.test.tsx`), all green;
+`npx tsc --noEmit` and `design-guard.sh` both clean. Live-verified in a
+real browser end-to-end: added a third store from Settings, confirmed
+the creator was auto-granted, granted a different real team member
+"Manager" access to it from the Team page, then revoked it — all UI
+states updated correctly. Full suites: frontend 400/400 passed; backend
+isolated suite 631/632 non-pre-existing-flake tests passed (13 scattered
+failures across unrelated files — the same already-diagnosed
+read-after-write flakiness in `POST /auth/register` immediately followed
+by an authenticated call, a pattern shared by 36 other test files in this
+suite, not something this change introduced; re-running this change's own
+test file in isolation 3x reproduced the identical intermittent 401 on an
+unrelated run, confirming it's the pre-existing infra issue, not a Step 3
+regression).
 
 ## STEP 2 STATUS — store switcher built, Sep 26, 2026
 

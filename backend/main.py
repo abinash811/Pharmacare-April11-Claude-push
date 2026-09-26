@@ -11,7 +11,7 @@ from sqlalchemy import select
 from database import AsyncSessionLocal
 from models.pharmacy import Pharmacy
 from routers import (
-    auth, batches, billing, customers, inventory,
+    auth, batches, billing, chains, customers, inventory,
     purchase_returns, purchases, reports, sales_returns,
     settings, suppliers, users,
 )
@@ -55,6 +55,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(chains.router)
 app.include_router(settings.router)
 app.include_router(inventory.router)
 app.include_router(batches.router)

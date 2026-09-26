@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit, XCircle, CheckCircle, Users, History, KeyRound } from 'lucide-react';
+import { Edit, XCircle, CheckCircle, Users, History, KeyRound, Building2 } from 'lucide-react';
 import { AppButton, PaginationBar, TableSkeleton } from '@/components/shared';
 import { formatDateTime } from '@/utils/dates';
 import RoleBadge from './RoleBadge';
 
-export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate, onResetPassword }) {
+export default function MembersTable({ users, loading, currentUser, pagination, onEdit, onDeactivate, onActivate, onResetPassword, onStoreAccess }) {
   const navigate = useNavigate();
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -57,6 +57,8 @@ export default function MembersTable({ users, loading, currentUser, pagination, 
                       onClick={() => navigate(`/audit-log?entity_type=auth&entity_id=${u.id}`)} />
                     <AppButton variant="ghost" iconOnly icon={<Edit className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Edit ${u.name}`}
                       onClick={() => onEdit(u)} />
+                    <AppButton variant="ghost" iconOnly icon={<Building2 className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Store access for ${u.name}`}
+                      onClick={() => onStoreAccess(u)} data-testid={`store-access-btn-${u.id}`} />
                     {u.id !== currentUser.id && (
                       <AppButton variant="ghost" iconOnly icon={<KeyRound className="h-4 w-4" strokeWidth={1.5} />} aria-label={`Reset password for ${u.name}`}
                         onClick={() => onResetPassword(u)} />

@@ -345,3 +345,120 @@ async def switch_store(body: SwitchStore, request: Request, current_user: User =
     )
     await db.flush()
     return {"message": "Switched store successfully", "pharmacy_id": str(access.pharmacy_id)}
+
+
+class GrantStoreAccess(BaseModel):
+    pharmacy_id: str
+    role: str
+
+
+async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: uuid.UUID, db: AsyncSession) -> None:
+    """A store can only be granted if it's the admin's own pharmacy or
+    another store in the same chain — never an unrelated pharmacy
+    elsewhere in the system (docs/26_MULTI_CHAIN_SCOPE.md)."""
+    if target_pharmacy_id == admin_pharmacy_id:
+        return
+    result = await db.execute(
+        select(PharmacyORM.chain_id).where(PharmacyORM.id == admin_pharmacy_id))
+    admin_chain_id = result.scalar_one_or_none()
+    if admin_chain_id is None:
+        raise HTTPException(status_code=400, detail="Your pharmacy is not part of a chain yet")
+    target_result = await db.execute(
+        select(PharmacyORM).where(PharmacyORM.id == target_pharmacy_id, PharmacyORM.chain_id == admin_chain_id))
+    if not target_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="That store is not in your chain")
+
+
+@router.get("/users/{user_id}/store-access")
+async def get_user_store_access(user_id: str, current_user: User = Depends(
+        get_current_user), db: AsyncSession = Depends(get_db)):
+    await require_admin_or_super(current_user, db)
+    await get_owned_or_404(
+        db, UserORM, user_id, uuid.UUID(current_user.pharmacy_id), not_found_detail="User not found")
+
+    result = await db.execute(
+        select(UserStoreRole, PharmacyORM.name, RoleORM.name)
+        .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
+        .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
+        .where(UserStoreRole.user_id == uuid.UUID(user_id))
+        .order_by(PharmacyORM.name)
+    )
+    return [
+        {"pharmacy_id": str(usr.pharmacy_id), "pharmacy_name": pharmacy_name, "role_name": role_name}
+        for usr, pharmacy_name, role_name in result.all()
+    ]
+
+
+@router.post("/users/{user_id}/store-access")
+async def grant_user_store_access(user_id: str, body: GrantStoreAccess, request: Request,
+                                  current_user: User = Depends(get_current_user),
+                                  db: AsyncSession = Depends(get_db)):
+    """Grants (or updates the role for) one of the admin's team members
+    at another store in the same chain. The target user must already be
+    one of the admin's own team members — this never looks up an
+    arbitrary user elsewhere in the system."""
+    await require_admin_or_super(current_user, db)
+    admin_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    target_user = await get_owned_or_404(
+        db, UserORM, user_id, admin_pharmacy_id, not_found_detail="User not found")
+
+    target_pharmacy_id = uuid.UUID(body.pharmacy_id)
+    await _same_chain_or_self(target_pharmacy_id, admin_pharmacy_id, db)
+
+    role_result = await db.execute(
+        select(RoleORM).where(RoleORM.pharmacy_id == target_pharmacy_id, RoleORM.name == body.role))
+    role = role_result.scalar_one_or_none()
+    if not role:
+        raise HTTPException(status_code=400, detail=f"Role '{body.role}' not found at that store")
+
+    existing_result = await db.execute(
+        select(UserStoreRole).where(
+            UserStoreRole.user_id == target_user.id, UserStoreRole.pharmacy_id == target_pharmacy_id))
+    existing = existing_result.scalar_one_or_none()
+    if existing:
+        existing.role_id = role.id
+    else:
+        db.add(UserStoreRole(user_id=target_user.id, pharmacy_id=target_pharmacy_id, role_id=role.id))
+    await db.flush()
+
+    await _record_audit(
+        admin_pharmacy_id, uuid.UUID(current_user.id), "grant_store_access", "user", target_user.id,
+        {"pharmacy_id": str(target_pharmacy_id), "role": body.role}, db, ip_address=_client_ip(request),
+    )
+    await db.flush()
+    return {"message": "Store access granted"}
+
+
+@router.delete("/users/{user_id}/store-access/{pharmacy_id}")
+async def revoke_user_store_access(user_id: str, pharmacy_id: str, request: Request,
+                                   current_user: User = Depends(get_current_user),
+                                   db: AsyncSession = Depends(get_db)):
+    await require_admin_or_super(current_user, db)
+    admin_pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    target_user = await get_owned_or_404(
+        db, UserORM, user_id, admin_pharmacy_id, not_found_detail="User not found")
+
+    target_pharmacy_id = uuid.UUID(pharmacy_id)
+    if target_pharmacy_id == target_user.pharmacy_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot revoke access to this person's current active store — switch them to another store first")
+
+    count_result = await db.execute(
+        select(UserStoreRole).where(UserStoreRole.user_id == target_user.id))
+    all_grants = count_result.scalars().all()
+    if len(all_grants) <= 1:
+        raise HTTPException(status_code=400, detail="Cannot remove someone's only store access")
+
+    grant = next((g for g in all_grants if g.pharmacy_id == target_pharmacy_id), None)
+    if not grant:
+        raise HTTPException(status_code=404, detail="No such store access grant")
+
+    await db.delete(grant)
+    await db.flush()
+    await _record_audit(
+        admin_pharmacy_id, uuid.UUID(current_user.id), "revoke_store_access", "user", target_user.id,
+        {"pharmacy_id": str(target_pharmacy_id)}, db, ip_address=_client_ip(request),
+    )
+    await db.flush()
+    return {"message": "Store access revoked"}

@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.16 | Last updated: September 26, 2026
+# Version: 1.17 | Last updated: September 26, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1248,6 +1248,67 @@ columns are read fresh on every request). 403 if no grant exists for the
 target store.
 
 **Request:** `{ "pharmacy_id": "uuid" }`
+
+### `GET /users/{user_id}/store-access`
+Added Sep 26, 2026 — Step 3, `docs/26_MULTI_CHAIN_SCOPE.md`. Lists every
+`user_store_roles` grant for that user (scoped via `get_owned_or_404` to
+the caller's own pharmacy — the target user must already be one of the
+caller's own team members). Admin only.
+
+**Response:**
+```json
+[
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store A", "role_name": "admin"},
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store B", "role_name": "manager"}
+]
+```
+
+### `POST /users/{user_id}/store-access`
+Grants (or updates the role for) the target user's access to a store.
+Admin only. Rejects (400/403) if `pharmacy_id` isn't the admin's own
+pharmacy or another store in the admin's own chain (`_same_chain_or_self`)
+— never an arbitrary pharmacy elsewhere in the system. Audit-logged
+(`grant_store_access`).
+
+**Request:** `{ "pharmacy_id": "uuid", "role": "manager" }`
+
+### `DELETE /users/{user_id}/store-access/{pharmacy_id}`
+Revokes the target user's access to that store. Admin only. Rejects with
+`400` if `pharmacy_id` is the target's current active store
+(`users.pharmacy_id`), or if it's their only remaining grant — a user can
+never be left with zero store access. Audit-logged
+(`revoke_store_access`).
+
+### `GET /pharmacies/stores`
+Added Sep 26, 2026, same Step 3. Lists every pharmacy in the caller's
+chain — just the caller's own pharmacy if `chain_id` is still `NULL`
+(the common case; nothing forces a chain to exist). Permission-exempt
+(any authenticated user can see their own chain's store list, same as
+the switcher).
+
+**Response:**
+```json
+[{"pharmacy_id": "uuid", "name": "Store A", "city": "Bengaluru", "state": "Karnataka"}]
+```
+
+### `POST /pharmacies/stores`
+Creates a new store under the caller's pharmacy. Admin (or super admin)
+only. If the caller's pharmacy has no `chain_id` yet, creates a new
+`Chain` (named `"{pharmacy.name} Group"`) and links both pharmacies to
+it first — a chain is never created upfront, only lazily on first use.
+Auto-grants the creator admin access to the new store. Audit-logged
+against the admin's own pharmacy (not the chain).
+
+**Request:**
+```json
+{
+  "name": "Second Store", "address": "2 St", "city": "Testville",
+  "state": "Karnataka", "pincode": "560002", "phone": "9877700001",
+  "email": null, "gstin": null, "drug_license_number": "DL-2"
+}
+```
+
+**Response:** `{ "pharmacy_id": "uuid", "name": "Second Store", "chain_id": "uuid" }`
 
 ### `GET /permissions`
 List every permission flag the system knows about (`ALL_PERMISSIONS`).

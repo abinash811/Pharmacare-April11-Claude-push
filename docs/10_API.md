@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.21 | Last updated: September 27, 2026
+# Version: 1.22 | Last updated: September 27, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -645,13 +645,19 @@ Moves stock from the caller's own pharmacy to another store in the same
 chain. Auto-creates the destination product if that SKU doesn't exist
 there yet (products are stored separately per store); matches the
 destination batch by batch number, or creates one preserving the exact
-expiry/cost/MRP. `is_cross_gstin` is computed by comparing the two
-stores' GSTINs — display-only; **this endpoint does not generate a
-delivery challan, tax invoice, or e-way bill.** Writes an audit-log entry
-on both the source (`stock_transfer_out`) and destination
-(`stock_transfer_in`) pharmacy. 400 if not enough stock or destination
-== source; 403 if the destination isn't in the caller's chain or the
-caller isn't an admin.
+expiry/cost/MRP. Writes an audit-log entry on both the source
+(`stock_transfer_out`) and destination (`stock_transfer_in`) pharmacy.
+400 if not enough stock or destination == source; 403 if the destination
+isn't in the caller's chain or the caller isn't an admin.
+
+**Only allowed between two stores with a confirmed, matching GSTIN**
+(added Sep 27, 2026 — `docs/26_MULTI_CHAIN_SCOPE.md` Step 5b, after
+confirming moving stock between different-GSTIN stores is a taxable
+"supply" needing a tax invoice and typically a Wholesale Drug License,
+neither of which this app generates or verifies). 400 if either store's
+GSTIN is unset; 403 if the two GSTINs differ. `is_cross_gstin` in the
+response is now always `false` for a new transfer — the field stays on
+the model only for transfers made before this change.
 
 **Request:**
 ```json
@@ -1321,13 +1327,16 @@ Change own password.
 ### `GET /users/me/stores`
 Added Sep 26, 2026 — multi-chain Phase 2 groundwork (`docs/26_MULTI_CHAIN_SCOPE.md`).
 Every store the caller has access to, for the sidebar switcher. Always
-returns at least one row.
+returns at least one row. `gstin` (added Sep 27, 2026, Step 5b) lets the
+frontend pre-filter valid stock-transfer destinations before the caller
+fills in a whole transfer, since `POST /stock-transfers` only allows
+matching-GSTIN stores.
 
 **Response:**
 ```json
 [
-  {"pharmacy_id": "uuid", "pharmacy_name": "Store A", "role_name": "admin", "is_active": true},
-  {"pharmacy_id": "uuid", "pharmacy_name": "Store B", "role_name": "manager", "is_active": false}
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store A", "role_name": "admin", "is_active": true, "gstin": "29AAAAA0000A1Z5"},
+  {"pharmacy_id": "uuid", "pharmacy_name": "Store B", "role_name": "manager", "is_active": false, "gstin": null}
 ]
 ```
 

@@ -14,13 +14,14 @@ import { apiUrl } from '@/constants/api';
 const inputCls = 'w-24 h-9 px-2 rounded-lg border border-gray-300 text-sm text-right focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none';
 const selectCls = 'h-9 px-2 rounded-lg border border-gray-300 text-sm focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none';
 
-interface Store { pharmacy_id: string; pharmacy_name: string; is_active: boolean; }
+interface Store { pharmacy_id: string; pharmacy_name: string; is_active: boolean; gstin: string | null; }
 interface Batch { id: string; batch_no: string; qty_on_hand: number; expiry_date: string; product_name: string; }
 interface Row { sku: string; name: string; batches: Batch[]; batchNo: string; quantity: string; }
 
 export default function TransferStockModal({ selectedSkus, onClose, onSuccess }:
   { selectedSkus: string[]; onClose: () => void; onSuccess: () => void }) {
   const [stores, setStores] = useState<Store[]>([]);
+  const [ownGstinMissing, setOwnGstinMissing] = useState(false);
   const [destinationId, setDestinationId] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,18 @@ export default function TransferStockModal({ selectedSkus, onClose, onSuccess }:
           api.get(apiUrl.myStores()),
           ...selectedSkus.map(sku => api.get(apiUrl.stockBatches({ product_sku: sku }))),
         ]);
-        const otherStores = (storesRes.data || []).filter((s: Store) => !s.is_active);
+        const allStores: Store[] = storesRes.data || [];
+        // Only stores with the SAME GSTIN as the active store are valid
+        // transfer destinations (docs/26_MULTI_CHAIN_SCOPE.md Section 6
+        // #5) — a different or missing GSTIN is rejected server-side too,
+        // but filtering here means nobody fills in a whole transfer just
+        // to be rejected at submit.
+        const ownStore = allStores.find(s => s.is_active);
+        const missingOwnGstin = !ownStore?.gstin;
+        setOwnGstinMissing(missingOwnGstin);
+        const otherStores = missingOwnGstin
+          ? []
+          : allStores.filter(s => !s.is_active && s.gstin === ownStore!.gstin);
         setStores(otherStores);
         if (otherStores.length > 0) setDestinationId(otherStores[0].pharmacy_id);
 
@@ -86,7 +98,9 @@ export default function TransferStockModal({ selectedSkus, onClose, onSuccess }:
           <div className="py-8 flex justify-center"><InlineLoader text="Loading stock..." /></div>
         ) : stores.length === 0 ? (
           <p className="text-sm text-gray-600 py-4">
-            Add another store under Settings → Stores first to transfer stock between locations.
+            {ownGstinMissing
+              ? 'Set this store\'s GSTIN under Settings first — stock can only be transferred between stores with the same GSTIN.'
+              : 'No other store in your chain shares this store\'s GSTIN — stock can only be transferred between stores with the same GSTIN.'}
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

@@ -14,9 +14,12 @@ jest.mock('@/lib/axios', () => ({
 }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
+// Same GSTIN on both stores by default — most tests care about the
+// transfer mechanics, not the GSTIN gate itself (docs/26_MULTI_CHAIN_SCOPE.md
+// Section 6 #5). Tests for the gate itself override this.
 const STORES = [
-  { pharmacy_id: 'home', pharmacy_name: 'Home Store', role_name: 'admin', is_active: true },
-  { pharmacy_id: 'p2', pharmacy_name: 'Second Store', role_name: 'admin', is_active: false },
+  { pharmacy_id: 'home', pharmacy_name: 'Home Store', role_name: 'admin', is_active: true, gstin: '29AAAAA0000A1Z5' },
+  { pharmacy_id: 'p2', pharmacy_name: 'Second Store', role_name: 'admin', is_active: false, gstin: '29AAAAA0000A1Z5' },
 ];
 const BATCHES_A = [
   { id: 'ba1', batch_no: 'B-EARLY', qty_on_hand: 20, expiry_date: '2027-01-01', product_name: 'Paracetamol 500mg' },
@@ -90,5 +93,36 @@ describe('TransferStockModal', () => {
     render(<TransferStockModal selectedSkus={['SKU-EMPTY']} onClose={jest.fn()} onSuccess={jest.fn()} />);
 
     await waitFor(() => expect(screen.getByText('No stock available')).toBeInTheDocument());
+  });
+
+  it('hides a store with a different GSTIN from the destination list', async () => {
+    const differentGstinStores = [
+      { pharmacy_id: 'home', pharmacy_name: 'Home Store', role_name: 'admin', is_active: true, gstin: '29AAAAA0000A1Z5' },
+      { pharmacy_id: 'p2', pharmacy_name: 'Second Store', role_name: 'admin', is_active: false, gstin: '27BBBBB0000B1Z9' },
+    ];
+    (api.get as jest.Mock).mockImplementation((url: string) =>
+      url.includes('users/me/stores')
+        ? Promise.resolve({ data: differentGstinStores })
+        : Promise.resolve({ data: BATCHES_A }));
+
+    render(<TransferStockModal selectedSkus={['SKU-A']} onClose={jest.fn()} onSuccess={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/same GSTIN/)).toBeInTheDocument());
+    expect(screen.queryByTestId('transfer-destination-select')).not.toBeInTheDocument();
+  });
+
+  it('tells the pharmacist to set their own GSTIN when it is missing', async () => {
+    const noOwnGstinStores = [
+      { pharmacy_id: 'home', pharmacy_name: 'Home Store', role_name: 'admin', is_active: true, gstin: null },
+      { pharmacy_id: 'p2', pharmacy_name: 'Second Store', role_name: 'admin', is_active: false, gstin: null },
+    ];
+    (api.get as jest.Mock).mockImplementation((url: string) =>
+      url.includes('users/me/stores')
+        ? Promise.resolve({ data: noOwnGstinStores })
+        : Promise.resolve({ data: BATCHES_A }));
+
+    render(<TransferStockModal selectedSkus={['SKU-A']} onClose={jest.fn()} onSuccess={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByText(/Set this store's GSTIN/)).toBeInTheDocument());
   });
 });

@@ -1,7 +1,7 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.9 | Last updated: September 27, 2026
+# Version: 1.10 | Last updated: September 27, 2026
 # Type: Explanation
-# Status: ✅ All 6 items of Section 6's original build sequence are now built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer + HQ-buyer purchase picker + GST chain rollup). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
+# Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
 
 ## STEP 6b STATUS — GST report chain-wide rollup built, Sep 27, 2026
 
@@ -136,6 +136,54 @@ Second Store's — `PUR-2026-0001`, ₹21.00, status `confirmed` — proving
 the whole picker flow (store selection → distributor scoping → product
 scoping → the actual write) lands at the target store while the
 session never left Home.
+
+## STEP 5b STATUS — stock transfer blocked between different-GSTIN stores, Sep 27, 2026
+
+Direct instruction after a real compliance risk surfaced in conversation
+("evitals doesn't allow stock transfer if pharmacies have different Gst
+numbers, they need a B2B license" → "we just allow accounts who have
+same GSTIn do transfer. And block different GSTs... Simple"). Confirmed
+via research before building: moving stock between two different-GSTIN
+stores is a taxable "supply" under GST law (they're legally distinct
+"persons" under CGST Act Section 25) requiring its own tax invoice, and
+typically a Wholesale Drug License — a retail drug license only covers
+selling to end patients, not supplying another business. This app
+generates neither. Step 5's original build only computed `is_cross_gstin`
+for **display** — a real, already-shipped gap where a pharmacist could
+transfer stock across GSTINs with zero warning, zero license check, zero
+document.
+
+Fixed by blocking rather than building the document/license flow:
+`POST /stock-transfers` now requires both stores' GSTIN to be set AND
+identical before allowing any transfer — a missing GSTIN on either side
+is rejected too ("not proven different" isn't "confirmed same"), not
+silently treated as safe. `is_cross_gstin` stays on the model for
+transfers made before this change; no new transfer can ever set it
+`True` since the create endpoint blocks that case before it can happen.
+
+Also added `gstin` to `GET /users/me/stores`' response (previously
+`pharmacy_id`/`pharmacy_name`/`role_name`/`is_active` only) so
+`TransferStockModal.tsx` can filter the destination picker down to only
+GSTIN-matching stores up front — nobody fills in a whole transfer just
+to be rejected at submit. Missing own-GSTIN and no-matching-store both
+get their own clear message rather than an empty, unexplained dropdown.
+
+9 backend tests updated/added in `test_stock_transfers.py` (existing
+happy-path tests now explicitly set matching GSTINs via a new
+`_add_second_store_same_gstin()` helper; the old
+`test_cross_gstin_is_detected_when_gstins_differ` — which expected
+success — rewritten as `test_rejected_when_gstins_differ`; new
+`test_rejected_when_either_store_is_missing_a_gstin`), 2 new frontend
+tests (destination hidden for a GSTIN mismatch, own-GSTIN-missing
+message shown). `npx tsc --noEmit` and `design-guard.sh` both clean.
+
+Live-verified end-to-end in a real browser across all three states: (1)
+neither store has a GSTIN set → modal shows "Set this store's GSTIN
+under Settings first"; (2) stores have different GSTINs → modal shows
+"No other store in your chain shares this store's GSTIN"; (3) GSTINs
+set equal on both stores → destination appears normally, transfer of 10
+units completed successfully, source stock correctly dropped from 100
+to 90.
 
 ## STEP 5 STATUS — cross-store stock transfer built, Sep 26, 2026
 
@@ -431,12 +479,18 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
    record (so loyalty/history/credit follow them chain-wide) or two
    separate ones? Real chains expect the combined version. **Moved out of
    "unaffected" (Section 5) — this is a real, undecided question.**
-3. **Stock transfer between stores is a compliance event, not just a
-   stock movement.** Moving inventory between two stores with different
-   GSTINs is a "supply" under GST law even with no sale involved — it
-   likely needs its own delivery challan/document, not a plain internal
-   adjustment. Flagged alongside Section 3's GST rollup question, same
-   "needs real research" caveat.
+3. **RESOLVED Sep 27, 2026 (Step 5b) — stock transfer between stores with
+   different GSTINs is now blocked outright, not built for.** Confirmed
+   via research (both the general GST-law rule and a real competitor,
+   eVitalRx, which blocks this exact case and requires a Wholesale Drug
+   License instead): moving inventory between two different-GSTIN stores
+   is a taxable "supply" needing its own tax invoice and typically a
+   Wholesale Drug License — neither of which this app generates or
+   verifies. Direct instruction: rather than build that, `POST
+   /stock-transfers` now requires both stores' GSTIN to be set AND equal
+   before allowing a transfer at all; a missing GSTIN on either side is
+   rejected too ("not proven different" isn't "confirmed same"). See
+   STEP 5b STATUS below.
 4. **How does a second store actually get added?** No flow exists yet for
    "turn my one pharmacy into a chain HQ and create store #2" — who's
    allowed to do it, and does the new store inherit the chain's existing
@@ -510,16 +564,21 @@ version is working and actually used.
       major competitor does that either).
 - [x] New-store onboarding flow — built Step 3 (Settings → Stores tab,
       creator auto-granted admin, Team-page grant/revoke for others).
+- [x] Cross-store stock transfer's different-GSTIN risk (Section 7.3) —
+      resolved Step 5b by blocking the transfer outright rather than
+      building the document/license flow. Confirmed via research this
+      matches how eVitalRx actually handles it.
 - [ ] Product catalog shared vs. per-store (Section 7.1).
-- [ ] Customers/Doctors shared vs. per-store (Section 7.2).
-- [ ] Cross-store stock transfer's GST/delivery-challan requirement
-      (Section 7.3) — same "needs research" bucket as the GST rollup item
-      was; the rollup itself never needed this since it's display-only.
+- [ ] Customers/Doctors shared vs. per-store (Section 7.2) — laid out
+      Sep 27, 2026 (real cross-cutting surface confirmed: billing.py,
+      customers.py, reports.py, plus the phone-number dedup question),
+      not yet built.
 - [ ] Manual (Marg-style, person picks quantity per store) vs. automatic
       (eVitalRx-style, system reallocates by demand) distribution model
       (Section 8) — recommend starting manual; Step 5's stock transfer
       already built the manual version.
-- [ ] Two stores sharing one GSTIN (Section 7.5, added Sep 27, 2026) —
-      per-branch invoice-series support across Billing/Purchases/Returns,
-      plus the actual combined filing register. Not built; build only if
-      a real chain with this shape appears.
+- [ ] Two stores sharing one GSTIN (Section 7.5, added Sep 27, 2026;
+      explicitly on hold Sep 27, 2026) — per-branch invoice-series
+      support across Billing/Purchases/Returns, plus the actual combined
+      filing register. Not built; build only if a real chain with this
+      shape appears.

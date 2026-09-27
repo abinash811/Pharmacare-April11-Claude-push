@@ -4,10 +4,22 @@ Cross-store stock transfer — multi-chain Phase 2, Step 5
 chain to another, instantly (v1 — no in-transit holding state), always
 admin-only and audit-logged on BOTH the source and destination pharmacy's
 own audit trail (direct instruction: audit logs must be present and
-clear on this feature). `is_cross_gstin` is computed automatically by
-comparing the two stores' GSTINs — it only classifies the transfer for
-display; this app does not generate the actual delivery
-challan/tax-invoice/e-way-bill document, that's a bigger, separate build.
+clear on this feature).
+
+**Only allowed between two stores with the same GSTIN** (added Sep 27,
+2026, direct instruction, after confirming the real legal risk: two
+stores with different GSTINs are distinct "persons" under GST law, so
+moving stock between them is a taxable "supply" requiring a proper tax
+invoice, and typically a Wholesale Drug License to boot — not something
+this app generates or verifies. Real competitor eVitalRx blocks this
+exact case for the same reason. Rather than build the license/document
+flow, the simple and safe choice is to not allow the transfer at all
+unless both stores are confirmed to share one GSTIN.) A missing GSTIN on
+either side is rejected too — "not proven different" is not the same as
+"confirmed same." `is_cross_gstin`/`source_gstin`/`destination_gstin`
+stay on the model for historical transfers made before this change; new
+transfers can never set `is_cross_gstin=True` since the create endpoint
+now blocks that case before it can happen.
 """
 from __future__ import annotations
 
@@ -159,10 +171,25 @@ async def create_stock_transfer(
     if source_pharmacy.chain_id is None or destination_pharmacy.chain_id != source_pharmacy.chain_id:
         raise HTTPException(status_code=403, detail="That store is not in your chain")
 
-    is_cross_gstin = bool(
-        source_pharmacy.gstin and destination_pharmacy.gstin
-        and source_pharmacy.gstin != destination_pharmacy.gstin
-    )
+    # Moving stock between two different GSTINs is a taxable "supply" under
+    # GST law and typically needs a Wholesale Drug License — neither of
+    # which this app verifies or generates. Block rather than risk it; a
+    # missing GSTIN on either side can't be confirmed as "the same," so it's
+    # rejected too, not silently allowed through.
+    if not source_pharmacy.gstin or not destination_pharmacy.gstin:
+        raise HTTPException(
+            status_code=400,
+            detail="Both stores must have their GSTIN set in Settings before stock can be "
+                   "transferred between them.")
+    if source_pharmacy.gstin != destination_pharmacy.gstin:
+        raise HTTPException(
+            status_code=403,
+            detail="Stock transfer is only allowed between stores with the same GSTIN. "
+                   "Stores with different GSTINs are separate tax entities — moving stock "
+                   "between them is a taxable supply that needs its own tax invoice and "
+                   "typically a Wholesale Drug License, which this app does not handle.")
+
+    is_cross_gstin = False
 
     transfer_number = f"TRF-{date.today().year}-{uuid.uuid4().hex[:6].upper()}"
     transfer = StockTransfer(

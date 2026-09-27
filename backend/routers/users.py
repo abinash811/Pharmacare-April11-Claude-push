@@ -285,11 +285,16 @@ async def get_my_stores(current_user: User = Depends(
     docs/26_MULTI_CHAIN_SCOPE.md Step 2. Always returns at least one row
     (today's single-store reality); the switcher shows even then, per
     direct instruction, not conditionally hidden for a single-store
-    account.
+    account. `gstin` (added Sep 27, 2026) lets the frontend pre-filter
+    which stores are actually valid stock-transfer destinations — POST
+    /stock-transfers only allows transfers between stores with matching
+    GSTINs (Section 6 #5), so the picker can hide the rest up front
+    instead of letting someone fill in a whole transfer just to be
+    rejected at submit.
     # permission-exempt: self-service, scoped to the caller's own access
     """
     result = await db.execute(
-        select(UserStoreRole, PharmacyORM.name, RoleORM.name)
+        select(UserStoreRole, PharmacyORM.name, RoleORM.name, PharmacyORM.gstin)
         .join(PharmacyORM, PharmacyORM.id == UserStoreRole.pharmacy_id)
         .join(RoleORM, RoleORM.id == UserStoreRole.role_id)
         .where(UserStoreRole.user_id == uuid.UUID(current_user.id))
@@ -302,8 +307,9 @@ async def get_my_stores(current_user: User = Depends(
             "pharmacy_name": pharmacy_name,
             "role_name": role_name,
             "is_active": usr.pharmacy_id == current_pharmacy_id,
+            "gstin": gstin,
         }
-        for usr, pharmacy_name, role_name in result.all()
+        for usr, pharmacy_name, role_name, gstin in result.all()
     ]
 
 

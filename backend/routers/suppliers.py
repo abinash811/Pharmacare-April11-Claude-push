@@ -15,7 +15,10 @@ from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchasePayment, PurchaseReturn
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission
+from routers.auth_helpers import (
+    User, get_current_user, get_owned_or_404, has_permission, resolve_store_override,
+    resolve_store_override_for_write,
+)
 
 router = APIRouter(prefix="/api", tags=["suppliers"])
 
@@ -42,6 +45,12 @@ class SupplierCreate(BaseModel):
     payment_terms_days: int = 30
     credit_days: Optional[int] = None
     notes: Optional[str] = None
+    # Optional — set only when an HQ-authorized person creates this
+    # supplier while placing an order for a DIFFERENT store
+    # (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3). Omitted/blank = today's
+    # behavior, unchanged: the supplier belongs to the caller's own
+    # currently active store.
+    pharmacy_id: Optional[str] = None
 
 
 class SupplierUpdate(BaseModel):
@@ -181,12 +190,15 @@ async def _payment_history_by_suppliers(
 @router.get("/suppliers")
 async def get_suppliers(
     search: Optional[str] = None, active_only: Optional[bool] = None,
-    page: int = 1, page_size: int = 50,
+    page: int = 1, page_size: int = 50, pharmacy_id: Optional[str] = None,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
     page_size = min(max(page_size, 1), 100)
     page = max(page, 1)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    # pharmacy_id here is the HQ-buyer store picker's optional override
+    # (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3) — resolved and grant-
+    # checked by resolve_store_override, never trusted as-is.
+    pharmacy_id = await resolve_store_override(current_user, pharmacy_id, db)
 
     query = select(SupplierORM).where(
         SupplierORM.pharmacy_id == pharmacy_id,
@@ -231,8 +243,8 @@ async def get_suppliers(
 async def create_supplier(
         supplier_data: SupplierCreate, request: Request,
         current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    await _require_suppliers_permission(current_user, "create", db)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    pharmacy_id = await resolve_store_override_for_write(
+        current_user, supplier_data.pharmacy_id, "suppliers:create", db)
     existing = await db.execute(
         select(SupplierORM).where(
             SupplierORM.pharmacy_id == pharmacy_id,

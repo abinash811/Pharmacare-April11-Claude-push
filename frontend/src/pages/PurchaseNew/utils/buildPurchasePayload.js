@@ -20,8 +20,14 @@ export const expiryToISO = (mmyy) => {
 export const buildPurchasePayload = ({
   status, selectedSupplier, billDate, dueDate, supplierInvoiceNo, invoiceAttachment,
   orderType, withGST, purchaseOn, internalNote, invoiceBreakdown, items, batchPriority,
+  pharmacyId,
 }) => ({
   supplier_id:        selectedSupplier.id,
+  // Only set by the HQ-buyer store picker (docs/26_MULTI_CHAIN_SCOPE.md
+  // Section 3 #3) — omitted/undefined for every existing single-store
+  // purchase, which the backend then scopes to the caller's own active
+  // store exactly as it always has.
+  ...(pharmacyId ? { pharmacy_id: pharmacyId } : {}),
   // Found Sep 19, 2026: toISOString() converts to UTC first, silently
   // shifting the picked date back a day for any timezone ahead of UTC
   // (India, this product's whole market, is UTC+5:30) — every purchase's

@@ -12,6 +12,11 @@
  *   onSupplierCreated {(supplier) => void}  called after a successful
  *                                create, so the parent can add it to its
  *                                own suppliers list without a refetch.
+ *   pharmacyId        {string}   optional — the HQ-buyer picker's target
+ *                                store (docs/26_MULTI_CHAIN_SCOPE.md
+ *                                Section 3 #3); a newly-created supplier
+ *                                must belong to THAT store, not the
+ *                                caller's currently active one.
  */
 import React, { useState } from 'react';
 import { ChevronDown, Building2, Plus } from 'lucide-react';
@@ -22,7 +27,7 @@ import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
 import { formatCurrency } from '@/utils/currency';
 
-export default function SupplierDropdown({ suppliers = [], value, onChange, allowCreate = false, onSupplierCreated }) {
+export default function SupplierDropdown({ suppliers = [], value, onChange, allowCreate = false, onSupplierCreated, pharmacyId = null }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -37,7 +42,7 @@ export default function SupplierDropdown({ suppliers = [], value, onChange, allo
 
   const handleCreateSupplier = async (formData) => {
     try {
-      const res = await api.post(apiUrl.suppliers(), formData);
+      const res = await api.post(apiUrl.suppliers(), pharmacyId ? { ...formData, pharmacy_id: pharmacyId } : formData);
       const newSupplier = res.data;
       toast.success('Distributor added');
       onSupplierCreated?.(newSupplier);

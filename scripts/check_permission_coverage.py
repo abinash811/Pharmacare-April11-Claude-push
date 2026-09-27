@@ -20,8 +20,12 @@ remembering to re-check.
 
 Flags: any POST/PUT/PATCH/DELETE endpoint function in backend/routers/*.py
 whose body contains no call to a permission-check helper (any
-`_require_*_permission(`, `has_permission(`, or `require_admin_or_super(`)
-and no `# permission-exempt: <reason>` comment anywhere in its body.
+`_require_*_permission(`, `has_permission(`, `require_admin_or_super(`, or
+`resolve_store_override_for_write(` — added Sep 27, 2026 when the HQ-buyer
+store picker, docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3, introduced a
+permission check that itself lives inside a shared helper rather than a
+direct call in the endpoint body) and no `# permission-exempt: <reason>`
+comment anywhere in its body.
 
 A `# permission-exempt: <reason>` comment marks a deliberate, reviewed
 exception (e.g. a self-service "change my own password" endpoint, or a
@@ -50,7 +54,7 @@ ROUTERS_DIR = REPO_ROOT / "backend" / "routers"
 EXEMPT_FILES = {"auth.py", "auth_helpers.py"}
 
 MUTATING_METHODS = {"post", "put", "patch", "delete"}
-PERMISSION_CALL_NAMES = {"has_permission", "require_admin_or_super"}
+PERMISSION_CALL_NAMES = {"has_permission", "require_admin_or_super", "resolve_store_override_for_write"}
 PERMISSION_CALL_PREFIX = "_require_"
 EXEMPT_MARKER = "# permission-exempt:"
 

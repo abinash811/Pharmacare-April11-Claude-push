@@ -1,7 +1,84 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.7 | Last updated: September 26, 2026
+# Version: 1.8 | Last updated: September 27, 2026
 # Type: Explanation
-# Status: 🔄 Steps 1-5 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer). Purchases centralization and GST chain rollup still 🚫 scoping only.
+# Status: 🔄 Steps 1-6 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer + HQ-buyer purchase picker). GST chain rollup still 🚫 scoping only.
+
+## STEP 6 STATUS — HQ-buyer purchase picker built, Sep 27, 2026
+
+Researched real-world precedent before building, direct instruction
+("how does this work in real, how does other products solve this"):
+confirmed via web research that neither Marg nor eVitalRx auto-splits one
+PO across stores — both rely on per-store ordering plus centralized
+visibility and stock transfer (already built in Step 5), and GST filing
+cannot combine different GSTINs into one return regardless. The
+concrete simplification real ERPs (Odoo) use for "HQ places an order for
+a store they aren't currently in" is a **store selector directly on the
+transaction screen itself**, not a full account/session switch — that
+became this step's design.
+
+Added a STORE column to the New Purchase screen's subbar, shown only
+when the caller has `user_store_roles` access to more than one store
+(invisible for the common single-store case). Picking a different store
+there lets an HQ-authorized person place a purchase order — and, if
+needed, create the distributor for it — at that store, without leaving
+their own active session or switching stores first.
+
+**Permission architecture** — two new shared helpers in
+`backend/routers/auth_helpers.py`:
+- `resolve_store_override(current_user, requested_pharmacy_id, db)` — for
+  READ endpoints (`GET /suppliers`, `GET /products`). No override →
+  caller's own store, unchanged. Override → requires a real
+  `user_store_roles` grant at the target (403 otherwise); no specific
+  permission required, since listing is read-only and low-risk.
+- `resolve_store_override_for_write(current_user, requested_pharmacy_id,
+  required_permission, db)` — for WRITE endpoints (`POST /purchases`,
+  `POST /suppliers`). Requires the caller to actually hold
+  `required_permission` (e.g. `purchases:create`) — via their own
+  current role when there's no override, or via their granted role AT
+  THE TARGET STORE when there is one. **Caught and fixed before shipping:**
+  an earlier draft's "no override" branch returned the caller's own
+  `pharmacy_id` with no permission check at all, which would have let
+  any authenticated user (a cashier with no `purchases:create`/
+  `suppliers:create` anywhere) create a purchase or supplier at their
+  own store simply by omitting `pharmacy_id` — a silent bypass of the
+  existing permission gate. Fixed by re-checking permission explicitly
+  in that branch too; guarded going forward by a dedicated regression
+  test (`test_own_store_purchase_still_requires_permission_when_no_override_given`
+  and its supplier-create equivalent).
+
+**Two more real gaps found only by live-testing, not assumed fixed:**
+1. `GET /suppliers` and `GET /products` were still scoped to the
+   caller's *active session* store, not the picker's *target* store —
+   the Distributor dropdown and medicine search showed the wrong
+   store's data. Fixed by wiring `resolve_store_override` into both.
+2. The inline "+ Add new distributor" flow inside `SupplierDropdown`
+   created the new supplier at the *active* store too. Fixed via
+   `resolve_store_override_for_write` on `POST /suppliers` plus a
+   `pharmacy_id` field threaded through from the frontend.
+
+`scripts/check_permission_coverage.py` (Rule 15) flagged
+`create_purchase`/`create_supplier` as unguarded once their permission
+check moved inside the new shared helper — correctly extended the
+checker's own `PERMISSION_CALL_NAMES` set to recognize
+`resolve_store_override_for_write`, rather than mislabeling either
+endpoint exempt (they are not — they genuinely check permission, just
+inside a helper).
+
+8 new backend tests (`test_purchase_hq_picker.py`,
+`test_hq_store_override_read.py`) plus 5 new frontend tests
+(`useHQStorePicker.test.js`, `buildPurchasePayload.test.js` additions);
+`npx tsc --noEmit` and `design-guard.sh` both clean.
+
+Live-verified end-to-end in a real browser: as an HQ admin whose active
+session stayed at "Live Transfer Pharmacy," selected "Live Transfer
+Second Store" via the STORE picker, created a brand-new distributor
+("Verified Second Store Distributor") and confirmed via API it landed
+at Second Store (not Home), added a product, and confirmed the
+purchase. The saved purchase row's `pharmacy_id` in the database is
+Second Store's — `PUR-2026-0001`, ₹21.00, status `confirmed` — proving
+the whole picker flow (store selection → distributor scoping → product
+scoping → the actual write) lands at the target store while the
+session never left Home.
 
 ## STEP 5 STATUS — cross-store stock transfer built, Sep 26, 2026
 

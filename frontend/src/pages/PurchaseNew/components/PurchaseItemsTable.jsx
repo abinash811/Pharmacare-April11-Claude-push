@@ -8,6 +8,10 @@
  *   onAddItem      {(product) => void}
  *   withGST        {boolean}
  *   searchInputRef {React.Ref}
+ *   pharmacyId     {string}  optional — the HQ-buyer picker's target store
+ *                            (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3);
+ *                            search must find THAT store's medicines, not
+ *                            the caller's currently active one.
  */
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
@@ -17,7 +21,7 @@ import { apiUrl } from '@/constants/api';
 import AddMedicineModal from '@/components/shared/AddMedicineModal';
 import PurchaseItemRow from './PurchaseItemRow';
 
-export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemFields, onRemoveItem, onAddItem, withGST, searchInputRef }) {
+export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemFields, onRemoveItem, onAddItem, withGST, searchInputRef, pharmacyId = null }) {
   const [searchQuery,       setSearchQuery]       = useState('');
   const [searchResults,     setSearchResults]     = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -32,7 +36,7 @@ export default function PurchaseItemsTable({ items, onUpdateItem, onSetItemField
   const runSearch = useDebouncedCallback(async (query) => {
     if (!query || query.length < 2) { setSearchResults([]); setShowSearchResults(false); return; }
     try {
-      const res = await api.get(apiUrl.products({ search: query, page_size: 10 }));
+      const res = await api.get(apiUrl.products({ search: query, page_size: 10, ...(pharmacyId ? { pharmacy_id: pharmacyId } : {}) }));
       setSearchResults(res.data.data || res.data || []);
       setShowSearchResults(true);
     } catch { /* search failing shouldn't block manual entry */ }

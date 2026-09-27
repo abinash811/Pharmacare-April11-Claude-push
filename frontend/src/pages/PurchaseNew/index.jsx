@@ -12,6 +12,8 @@ import { PURCHASE_QTY_MODE } from '@/constants/domainConstants';
 
 import { usePurchaseItems }       from './hooks/usePurchaseItems';
 import { useDuplicateInvoiceCheck } from './hooks/useDuplicateInvoiceCheck';
+import { useHQStorePicker }       from './hooks/useHQStorePicker';
+import { useStoreScopedSuppliers } from './hooks/useStoreScopedSuppliers';
 import { buildPurchasePayload }   from './utils/buildPurchasePayload';
 import { mapDraftPurchaseItems }  from './utils/mapDraftPurchaseItems';
 import PurchaseHeader             from './components/PurchaseHeader';
@@ -45,8 +47,11 @@ export default function PurchaseNew() {
   const [withGST,       setWithGST]       = useState(true);
   const [purchaseOn,    setPurchaseOn]    = useState('credit');
 
+  // ── HQ-buyer store picker (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3) ────
+  const { stores, selectedStoreId, setSelectedStoreId } = useHQStorePicker(editId);
+
   // ── Supplier & dates ──────────────────────────────────────────────────────
-  const [suppliers,         setSuppliers]         = useState([]);
+  const { suppliers, setSuppliers } = useStoreScopedSuppliers(editId, selectedStoreId);
   const [selectedSupplier,  setSelectedSupplier]  = useState(null);
   const [billDate,          setBillDate]          = useState(new Date());
   const [dueDate,           setDueDate]           = useState(null);
@@ -77,11 +82,6 @@ export default function PurchaseNew() {
   useEffect(() => {
     (async () => {
       setInitialLoading(true);
-      try {
-        const res = await api.get(apiUrl.suppliers({ active_only: true, page_size: 100 }));
-        setSuppliers(res.data.data || res.data || []);
-      } catch { /* silent */ }
-
       if (editId) {
         try {
           const res = await api.get(apiUrl.purchase(editId));
@@ -135,6 +135,7 @@ export default function PurchaseNew() {
         status, selectedSupplier, billDate, dueDate, supplierInvoiceNo, invoiceAttachment,
         orderType: ORDER_TYPE, withGST, purchaseOn, internalNote, invoiceBreakdown, items,
         batchPriority: DEFAULT_BATCH_PRIORITY,
+        pharmacyId: !isEditMode ? selectedStoreId : undefined,
       });
       if (isEditMode && editId) {
         await api.put(apiUrl.purchase(editId), payload);
@@ -236,6 +237,7 @@ export default function PurchaseNew() {
       />
 
       <PurchaseSubbar
+        stores={isEditMode ? [] : stores} selectedStoreId={selectedStoreId} onStoreChange={setSelectedStoreId}
         billDate={billDate} onBillDateChange={setBillDate}
         selectedSupplier={selectedSupplier} suppliers={suppliers} onSupplierSelect={setSelectedSupplier}
         onSupplierCreated={(supplier) => setSuppliers(prev => [...prev, supplier])}
@@ -248,6 +250,7 @@ export default function PurchaseNew() {
       />
 
       <PurchaseItemsTable
+        pharmacyId={!isEditMode ? selectedStoreId : undefined}
         items={items}
         onUpdateItem={updateItem}
         onSetItemFields={setItemFields}

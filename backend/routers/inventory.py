@@ -21,7 +21,9 @@ from models.products import Product as ProductORM, StockBatch as BatchORM
 from models.purchases import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
-from routers.auth_helpers import User, get_current_user, get_owned_or_404, has_permission, paginate_response
+from routers.auth_helpers import (
+    User, get_current_user, get_owned_or_404, has_permission, paginate_response, resolve_store_override,
+)
 
 router = APIRouter(prefix="/api", tags=["inventory"])
 
@@ -235,10 +237,13 @@ async def create_product(data: ProductCreate, request: Request, current_user: Us
 @router.get("/products")
 async def get_products(
     search: Optional[str] = None, category: Optional[str] = None,
-    fields: Optional[str] = None, page: int = 1, page_size: int = 100,
+    fields: Optional[str] = None, page: int = 1, page_size: int = 100, pharmacy_id: Optional[str] = None,
     current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
+    # pharmacy_id here is the HQ-buyer store picker's optional override
+    # (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3) — resolved and grant-
+    # checked by resolve_store_override, never trusted as-is.
+    pharmacy_id = await resolve_store_override(current_user, pharmacy_id, db)
     query = select(ProductORM).where(
         ProductORM.pharmacy_id == pharmacy_id,
         ProductORM.deleted_at.is_(None))

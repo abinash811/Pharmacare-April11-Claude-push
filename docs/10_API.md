@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.19 | Last updated: September 26, 2026
+# Version: 1.20 | Last updated: September 27, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -448,6 +448,13 @@ Create a new product in the master.
 ### `GET /products`
 List products (master, without stock levels).
 
+**`pharmacy_id`** (optional query param, added Sep 27, 2026 — HQ-buyer
+picker, `docs/26_MULTI_CHAIN_SCOPE.md` Section 3 #3): list a different
+store's products than the caller's active session (via
+`resolve_store_override` in `routers/auth_helpers.py`). Requires a real
+`user_store_roles` grant at that store — 403 otherwise, no specific
+permission needed (read-only). Omit for the unchanged, common case.
+
 ---
 
 ### `GET /products/{product_id}`
@@ -760,6 +767,15 @@ Create a purchase (draft or confirmed).
 
 **Key rule:** `status: "confirmed"` creates stock batches immediately.
 
+**`pharmacy_id`** (optional, added Sep 27, 2026 — HQ-buyer picker,
+`docs/26_MULTI_CHAIN_SCOPE.md` Section 3 #3): places the purchase at a
+different store than the caller's active session. Omit for the
+unchanged, common case (creates at the caller's own active store).
+When set, requires a real `user_store_roles` grant at that store AND
+`purchases:create` there (via `resolve_store_override_for_write` in
+`routers/auth_helpers.py`) — 403 otherwise. `supplier_id`/`product_sku`
+in `items` must already exist AT the target store, same as always.
+
 ---
 
 ### `GET /purchases`
@@ -938,8 +954,20 @@ Soft delete.
 ### `GET /suppliers`
 List all suppliers.
 
+**`pharmacy_id`** (optional query param, added Sep 27, 2026 — HQ-buyer
+picker, `docs/26_MULTI_CHAIN_SCOPE.md` Section 3 #3): list a different
+store's suppliers than the caller's active session (via
+`resolve_store_override`). Requires a real `user_store_roles` grant at
+that store — 403 otherwise. Omit for the unchanged, common case.
+
 ### `POST /suppliers`
 Create supplier.
+
+**`pharmacy_id`** (optional body field, added Sep 27, 2026 — same HQ-buyer
+picker): create the supplier at a different store than the caller's
+active session (via `resolve_store_override_for_write`). Requires a real
+grant AND `suppliers:create` at that store — 403 otherwise. Omit for the
+unchanged, common case.
 
 ### `GET /suppliers/{supplier_id}`
 Get supplier detail.

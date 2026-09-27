@@ -88,4 +88,23 @@ describe('buildPurchasePayload — Pack/Unit conversion', () => {
     expect(payload.items[0].received_qty_units).toBe(90);
     expect(payload.items[0].qty_units).toBe(100);
   });
+
+  // Sep 27, 2026 — HQ-buyer store picker (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3)
+  it('includes pharmacy_id when the HQ-buyer picker set one', () => {
+    const items = [{
+      product_sku: 'SKU-1', product_name: 'Paracetamol', batch_no: 'B1', expiry_mmyy: '12/27',
+      qty_units: 10, free_qty_units: 0, ptr_per_unit: 3, mrp_per_unit: 5, gst_percent: 5,
+    }];
+    const payload = buildPurchasePayload({ ...baseArgs, items, pharmacyId: 'store-2' });
+    expect(payload.pharmacy_id).toBe('store-2');
+  });
+
+  it('omits pharmacy_id entirely for the common single-store case', () => {
+    const items = [{
+      product_sku: 'SKU-1', product_name: 'Paracetamol', batch_no: 'B1', expiry_mmyy: '12/27',
+      qty_units: 10, free_qty_units: 0, ptr_per_unit: 3, mrp_per_unit: 5, gst_percent: 5,
+    }];
+    const payload = buildPurchasePayload({ ...baseArgs, items });
+    expect(payload).not.toHaveProperty('pharmacy_id');
+  });
 });

@@ -1,8 +1,13 @@
 /**
  * PurchaseSubbar — labeled-column metadata strip for new/edit purchase.
  *
- * Columns: DISTRIBUTOR | INVOICE # | BILL DATE | DUE DATE | PAYMENT | GST |
+ * Columns: [STORE] | DISTRIBUTOR | INVOICE # | BILL DATE | DUE DATE | PAYMENT | GST |
  *          (spacer) | ATTACHMENT
+ *
+ * STORE only renders for a new purchase (not edit) when the caller has
+ * access to more than one store — the HQ-buyer picker
+ * (docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3). Omitted entirely for the
+ * common single-store case.
  *
  * Due Date always occupies its slot (disabled when Payment is Cash) rather
  * than mounting/unmounting — keeps the row's width stable instead of
@@ -26,6 +31,9 @@
  *   onDueDateChange     {(Date) => void}
  *   withGST             {boolean}
  *   onWithGSTChange     {(boolean) => void}
+ *   stores              {Array}  [{pharmacy_id, pharmacy_name}] — only >1 entry shows the picker
+ *   selectedStoreId     {string}
+ *   onStoreChange       {(string) => void}
  */
 import React, { useState } from 'react';
 import { ChevronDown, AlertTriangle } from 'lucide-react';
@@ -49,6 +57,7 @@ export default function PurchaseSubbar({
   purchaseOn, onPurchaseOnChange,
   dueDate, onDueDateChange,
   withGST, onWithGSTChange,
+  stores = [], selectedStoreId, onStoreChange,
 }) {
   const [showBillDatePicker, setShowBillDatePicker] = useState(false);
   const [showDueDatePicker,  setShowDueDatePicker]  = useState(false);
@@ -56,6 +65,26 @@ export default function PurchaseSubbar({
   return (
     <section className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
       <div className="flex items-center gap-10 overflow-x-auto">
+
+        {/* ── STORE (HQ-buyer picker, only shown with access to >1 store) ─ */}
+        {stores.length > 1 && (
+          <div className="shrink-0">
+            <span className={LABEL}>Store</span>
+            <div className="relative inline-flex items-center">
+              <select
+                value={selectedStoreId}
+                onChange={(e) => onStoreChange(e.target.value)}
+                className={`${SELECT_CLS} pr-4 text-brand`}
+                data-testid="purchase-store-select"
+              >
+                {stores.map(s => (
+                  <option key={s.pharmacy_id} value={s.pharmacy_id}>{s.pharmacy_name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3 h-3 text-gray-400 absolute right-0 pointer-events-none" />
+            </div>
+          </div>
+        )}
 
         {/* ── DISTRIBUTOR ─────────────────────────────────────────────── */}
         <div className="shrink-0 min-w-[140px] max-w-[220px]">
@@ -66,6 +95,7 @@ export default function PurchaseSubbar({
             onChange={onSupplierSelect}
             allowCreate
             onSupplierCreated={onSupplierCreated}
+            pharmacyId={selectedStoreId || undefined}
           />
         </div>
 

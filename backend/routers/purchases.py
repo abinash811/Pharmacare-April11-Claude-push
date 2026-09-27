@@ -26,6 +26,7 @@ from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog
 from routers.auth_helpers import (
     User, get_current_user, get_owned_or_404, has_permission, require_admin_or_super,
+    resolve_store_override_for_write,
 )
 
 router = APIRouter(prefix="/api", tags=["purchases"])
@@ -57,6 +58,12 @@ class PurchaseItemCreate(BaseModel):
 class PurchaseCreate(BaseModel):
     supplier_id: str
     purchase_date: str
+    # Optional — set only when an HQ-authorized person places this order for
+    # a DIFFERENT store than the one they're currently active in (the
+    # picker on the New Purchase screen, docs/26_MULTI_CHAIN_SCOPE.md
+    # Section 3 #3). Omitted/blank = today's behavior, unchanged: the
+    # purchase belongs to the caller's own currently active store.
+    pharmacy_id: Optional[str] = None
     due_date: Optional[str] = None
     supplier_invoice_no: Optional[str] = None
     supplier_invoice_date: Optional[str] = None
@@ -738,10 +745,10 @@ async def get_purchases(
 @router.post("/purchases")
 async def create_purchase(purchase_data: PurchaseCreate, request: Request, current_user: User = Depends(
         get_current_user), db: AsyncSession = Depends(get_db)):
-    await _require_purchases_permission(current_user, "create", db)
+    pharmacy_id = await resolve_store_override_for_write(
+        current_user, purchase_data.pharmacy_id, "purchases:create", db)
     if purchase_data.invoice_attachment_data:
         _validate_invoice_attachment(purchase_data.invoice_attachment_data)
-    pharmacy_id = uuid.UUID(current_user.pharmacy_id)
     supplier_id = uuid.UUID(purchase_data.supplier_id)
 
     supplier = await get_owned_or_404(

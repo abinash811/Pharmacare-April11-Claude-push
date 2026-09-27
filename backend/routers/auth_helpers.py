@@ -159,6 +159,83 @@ async def get_owned_or_404(
     return row
 
 
+async def resolve_store_override(
+    current_user: User, requested_pharmacy_id: Optional[str], db: AsyncSession,
+) -> uuid.UUID:
+    """The HQ-buyer store picker (docs/26_MULTI_CHAIN_SCOPE.md Section 3
+    #3) needs read endpoints like GET /suppliers and GET /products to
+    list the TARGET store's data, not the caller's currently active
+    store — otherwise the picker shows the wrong store's suppliers and
+    medicines. Returns the caller's own pharmacy_id unchanged when
+    requested_pharmacy_id is blank or matches it; otherwise requires a
+    real user_store_roles grant there (403, never trusts the caller-
+    supplied id alone). Read-only gate — the actual purchases:create
+    check for the WRITE happens separately in routers/purchases.py."""
+    from models.users import UserStoreRole as UserStoreRoleORM  # local import avoids a circular import at module load
+
+    if not requested_pharmacy_id or requested_pharmacy_id == current_user.pharmacy_id:
+        return uuid.UUID(current_user.pharmacy_id)
+
+    target_pharmacy_id = uuid.UUID(requested_pharmacy_id)
+    grant_result = await db.execute(
+        select(UserStoreRoleORM).where(
+            UserStoreRoleORM.user_id == uuid.UUID(current_user.id),
+            UserStoreRoleORM.pharmacy_id == target_pharmacy_id))
+    if not grant_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="You don't have access to that store")
+    return target_pharmacy_id
+
+
+async def resolve_store_override_for_write(
+    current_user: User, requested_pharmacy_id: Optional[str], required_permission: str, db: AsyncSession,
+) -> uuid.UUID:
+    """Same idea as resolve_store_override, but for a WRITE the HQ-buyer
+    picker makes for another store (creating a purchase, or a supplier
+    needed to create one — docs/26_MULTI_CHAIN_SCOPE.md Section 3 #3):
+    requires the caller's role AT THE TARGET STORE to actually hold
+    required_permission (e.g. "purchases:create"), not just any grant
+    there. When requested_pharmacy_id is blank or matches the caller's
+    own store, this still checks required_permission against the
+    caller's OWN current role — never a silent bypass for the common
+    case (a real regression caught before it shipped: an earlier draft
+    of this helper returned the caller's own pharmacy_id with no
+    permission check at all when there was no override)."""
+    from models.users import Role as RoleORM, UserStoreRole as UserStoreRoleORM  # local import avoids a circular import
+
+    if not requested_pharmacy_id or requested_pharmacy_id == current_user.pharmacy_id:
+        module, _, action = required_permission.partition(":")
+        if not await has_permission(current_user, required_permission, db):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Your role does not have permission to {action} {module}")
+        return uuid.UUID(current_user.pharmacy_id)
+
+    target_pharmacy_id = uuid.UUID(requested_pharmacy_id)
+    grant_result = await db.execute(
+        select(UserStoreRoleORM).where(
+            UserStoreRoleORM.user_id == uuid.UUID(current_user.id),
+            UserStoreRoleORM.pharmacy_id == target_pharmacy_id))
+    grant = grant_result.scalar_one_or_none()
+    if not grant:
+        raise HTTPException(status_code=403, detail="You don't have access to that store")
+
+    role_result = await db.execute(select(RoleORM).where(RoleORM.id == grant.role_id))
+    role = role_result.scalar_one_or_none()
+    module, _, action = required_permission.partition(":")
+    allowed = False
+    if role:
+        perms = role.permissions
+        if isinstance(perms, list):
+            allowed = "*" in perms or required_permission in perms
+        elif isinstance(perms, dict):
+            allowed = bool(perms.get("*")) or bool(perms.get(module, {}).get(action, False))
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your role at that store does not have permission to {action} {module}")
+    return target_pharmacy_id
+
+
 async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
     """Check if a user's role has the given permission (e.g. 'billing:create')."""
     result = await db.execute(

@@ -1130,10 +1130,16 @@ async def get_batch_purchase_report(
 async def get_gst_report(
         start_date: str,
         end_date: str,
+        scope: Literal["store", "chain"] = Query("store"),
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
     pid = current_user.pharmacy_id
+    # "chain" sums every store's own already-independently-filed GST numbers
+    # for display only (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #6) — assumes
+    # every store has its own separate GSTIN, same as _resolve_chain_scope_pids
+    # itself documents. Never merges an actual filing.
+    pids = await _resolve_chain_scope_pids(pid, scope, db)
     start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
 
     # Sales side — bill items. GST liability arises at the point of supply,
@@ -1146,7 +1152,7 @@ async def get_gst_report(
     # status list. See docs/24_REPORTS_ACCEPTANCE_SPEC.md UC-GST07.
     sales_items = (await db.execute(
         select(BillItemORM).join(BillORM, BillORM.id == BillItemORM.bill_id)
-        .where(BillORM.pharmacy_id == pid, BillORM.status.in_(["paid", "due"]),
+        .where(BillORM.pharmacy_id.in_(pids), BillORM.status.in_(["paid", "due"]),
                BillORM.deleted_at.is_(None),
                BillORM.bill_date >= start, BillORM.bill_date <= end)
     )).scalars().all()
@@ -1167,7 +1173,7 @@ async def get_gst_report(
     sales_return_items = (await db.execute(
         select(SalesReturnItemORM).join(
             SalesReturnORM, SalesReturnORM.id == SalesReturnItemORM.sales_return_id)
-        .where(SalesReturnORM.pharmacy_id == pid,
+        .where(SalesReturnORM.pharmacy_id.in_(pids),
                SalesReturnORM.return_date >= start, SalesReturnORM.return_date <= end)
     )).scalars().all()
     for it in sales_return_items:
@@ -1184,7 +1190,7 @@ async def get_gst_report(
     # Purchases side — purchase items
     purchase_items = (await db.execute(
         select(PurchaseItemORM).join(PurchaseORM, PurchaseORM.id == PurchaseItemORM.purchase_id)
-        .where(PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed", PurchaseORM.deleted_at.is_(None),
+        .where(PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status == "confirmed", PurchaseORM.deleted_at.is_(None),
                PurchaseORM.purchase_date >= start, PurchaseORM.purchase_date <= end)
     )).scalars().all()
     purchases_by_gst: dict = {}
@@ -1204,7 +1210,7 @@ async def get_gst_report(
     purchase_return_items = (await db.execute(
         select(PurchaseReturnItemORM).join(
             PurchaseReturnORM, PurchaseReturnORM.id == PurchaseReturnItemORM.purchase_return_id)
-        .where(PurchaseReturnORM.pharmacy_id == pid,
+        .where(PurchaseReturnORM.pharmacy_id.in_(pids),
                PurchaseReturnORM.return_date >= start, PurchaseReturnORM.return_date <= end)
     )).scalars().all()
     for it in purchase_return_items:
@@ -1238,7 +1244,7 @@ async def get_gst_report(
     # never tracked at.
     cess_total_paise = (await db.execute(
         select(func.coalesce(func.sum(PurchaseORM.cess_paise), 0)).where(
-            PurchaseORM.pharmacy_id == pid, PurchaseORM.status == "confirmed",
+            PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status == "confirmed",
             PurchaseORM.deleted_at.is_(None),
             PurchaseORM.purchase_date >= start, PurchaseORM.purchase_date <= end)
     )).scalar_one()
@@ -1247,7 +1253,8 @@ async def get_gst_report(
     return {"sales": list(sales_by_gst.values()), "purchases": list(purchases_by_gst.values()),
             "sales_summary": ss, "purchases_summary": ps,
             "net_liability": round(ss["total_gst"] - ps["total_gst"], 2),
-            "period": {"start_date": start_date, "end_date": end_date}}
+            "period": {"start_date": start_date, "end_date": end_date},
+            "scope": scope, "store_count": len(pids)}
 
 
 # ── compliance ────────────────────────────────────────────────────────────────
@@ -1388,14 +1395,17 @@ async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(
 # ── dashboard analytics ───────────────────────────────────────────────────────
 
 
-async def _resolve_dashboard_scope_pids(pid: str, scope: str, db: AsyncSession) -> list:
+async def _resolve_chain_scope_pids(pid: str, scope: str, db: AsyncSession) -> list:
     """"store" (default) = just the caller's own pharmacy, unchanged
     behavior. "chain" = every pharmacy in the caller's chain, or just
     their own if they aren't in one yet (docs/26_MULTI_CHAIN_SCOPE.md
-    Section 6 #3 — Dashboard-only chain rollup, Sep 26, 2026). Only the
-    Dashboard's summable numbers (bills, stock, purchases) use this list —
-    single-pharmacy config (settings, drug license) always stays on the
-    caller's own home store."""
+    Section 6 #3 — Dashboard chain rollup, Sep 26, 2026; reused Sep 27,
+    2026 by the GST report's own store/chain toggle, Section 6 #6).
+    Only a report's own summable numbers use this list — single-pharmacy
+    config (settings, drug license) always stays on the caller's own
+    home store, and this assumes every store in the chain has its own
+    separate GSTIN (docs/26_MULTI_CHAIN_SCOPE.md's documented common
+    case) — it is a display-only sum, never a real merged GST filing."""
     if scope != "chain":
         return [pid]
     # tenant-safe: pid is current_user's own pharmacy_id, not caller-supplied
@@ -1414,7 +1424,7 @@ async def get_dashboard_analytics(
         db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
-        pids = await _resolve_dashboard_scope_pids(pid, scope, db)
+        pids = await _resolve_chain_scope_pids(pid, scope, db)
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
@@ -1725,7 +1735,7 @@ async def get_purchase_analytics(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
     pid = current_user.pharmacy_id
-    pids = await _resolve_dashboard_scope_pids(pid, scope, db)
+    pids = await _resolve_chain_scope_pids(pid, scope, db)
     pconds = [PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status.notin_(
         ["cancelled", "draft"]), PurchaseORM.deleted_at.is_(None)]
     if from_date:

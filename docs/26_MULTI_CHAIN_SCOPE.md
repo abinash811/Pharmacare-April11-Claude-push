@@ -1,7 +1,64 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.8 | Last updated: September 27, 2026
+# Version: 1.9 | Last updated: September 27, 2026
 # Type: Explanation
-# Status: 🔄 Steps 1-6 of Section 6 built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer + HQ-buyer purchase picker). GST chain rollup still 🚫 scoping only.
+# Status: ✅ All 6 items of Section 6's original build sequence are now built on branch `phase-2-multi-chain-pharmacy` (schema + switcher + add-store/store-access grant + Dashboard chain rollup + cross-store stock transfer + HQ-buyer purchase picker + GST chain rollup). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
+
+## STEP 6b STATUS — GST report chain-wide rollup built, Sep 27, 2026
+
+Same design basis as Step 4's Dashboard rollup, extended to a second
+report on direct instruction. Researched real products again before
+building ("how does other products does this"): confirmed neither Marg
+nor eVitalRx (nor Pharmasoft, which has no public documentation on this
+at all) ever merges two different GSTINs' actual filed returns — GST law
+requires each GSTIN to file separately, always. What multi-branch
+software actually offers there is a read-only combined view stacking
+each GSTIN's own numbers — never a real merged filing. That confirmed
+the design: `GET /reports/gst` gained the same `?scope=store|chain`
+toggle Step 4 already established, reusing that step's own
+`_resolve_dashboard_scope_pids` helper — renamed to the scope-neutral
+`_resolve_chain_scope_pids` since it's now shared by two different
+reports, not Dashboard-only. All five of the report's query blocks
+(sales, sales returns, purchases, purchase returns, cess) switched from
+`pharmacy_id == pid` to `pharmacy_id.in_(pids)`. Response now also
+returns `scope`/`store_count`, same as Step 4.
+
+**Real risk flagged and handled, not left implicit**: a combined "All
+Stores" GST view could be mistaken for one store's actual filing figures
+by whoever downloads it. Fixed by labeling both surfaces that leave the
+screen or could be read without full context — the on-screen summary
+card shows "Combined across N stores — each store still files its own
+GSTIN return separately; this total is for your own visibility only"
+whenever chain scope is active, and the CSV export both gets a leading
+disclaimer line and an `_all_stores` filename suffix when exported in
+chain scope.
+
+Frontend: same `FilterPills` "This Store"/"All Stores" toggle pattern as
+Dashboard, gated on `GET /pharmacies/stores` returning more than one
+store. `GSTReport.js` extracted its two near-identical rate-bucketed
+tables into a new shared `GSTReportTable.tsx` component to stay under
+the 300-line cap once the toggle was added — the Sales/Purchases GST
+tables are now one parameterized component, not two copies.
+
+4 new backend tests (`test_gst_report_chain_scope.py`) covering
+standalone-unchanged, default-store-only, chain-sums-every-store (sales
+and purchases sides both), 2 new frontend tests (toggle hidden for
+single-store, toggle shown + refetches with scope=chain + disclaimer
+appears on click); `npx tsc --noEmit` and `design-guard.sh` both clean.
+
+Live-verified end-to-end in a real browser: registered a fresh two-store
+admin, created a ₹24 GST bill history at the home store and a ₹18 GST
+bill at a second store (session stayed active at home throughout),
+generated the GST report — "This Store" correctly showed ₹24, clicking
+"All Stores" instantly refetched and showed ₹42 with the disclaimer
+text, and toggling back to "This Store" correctly reverted to ₹24 with
+the disclaimer gone. Full suites: backend isolated and frontend suites
+both re-run clean after this change — see the commit for exact counts.
+
+**Explicitly NOT solved by this step** (documented, not silently
+assumed): every store in the chain is assumed to hold its own separate
+GSTIN. If two stores in a future chain ever share one GSTIN, this
+display-only sum would be the wrong model for that pair — see the new
+Section 7.5/9 item below for what that would actually require.
 
 ## STEP 6 STATUS — HQ-buyer purchase picker built, Sep 27, 2026
 
@@ -384,6 +441,32 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
    "turn my one pharmacy into a chain HQ and create store #2" — who's
    allowed to do it, and does the new store inherit the chain's existing
    Settings (bill header/footer, GST defaults) or start blank?
+5. **Two stores sharing one GSTIN — not built, and not a small follow-on
+   to Step 6b's rollup.** Added Sep 27, 2026, direct question before
+   approving Step 6b's build ("if we get a pharmacy that has same GSTIN
+   for two pharmacies... shouldn't be small"). Confirmed: it isn't small.
+   Every mutating flow (Billing, Purchases, Sales/Purchase Returns) numbers
+   its documents independently per `pharmacy_id` today, which is only safe
+   because every store has always had its own GSTIN. Two stores sharing one
+   GSTIN would make that numbering collide (both could generate "INV-0001"
+   under the same tax ID) — a real compliance problem, not cosmetic.
+   Researched how Marg actually solves this (the only one of the three
+   named competitors with a documented answer, Sep 27, 2026): a "Multi
+   Series" setting lets each branch use a distinct invoice-number
+   prefix/series while still sharing one GSTIN, so numbers never collide
+   even though it's legally one taxpayer — GST rules explicitly permit
+   different series per branch under one GSTIN. eVitalRx and Pharmasoft
+   have no public documentation on this case at all. **The user's own
+   proposed shape is right** — detect the GSTIN match when a store is
+   added to a chain and require a distinct series before allowing it,
+   never silently — but it is real plumbing across four numbering
+   systems (Billing, Purchases, Sales Returns, Purchase Returns) plus a
+   uniqueness validation rule, not a single prompt. It also only fixes
+   the numbering collision — it does **not** by itself produce a real
+   combined filing-ready register for that shared GSTIN (a second,
+   separate piece, easier once numbers can't collide). **Not built. Build
+   only if a real chain with this shape appears** — same "needs its own
+   decision" weight as items 1-2 above, not assumed away.
 
 ## 8. HOW REAL COMPETITORS ACTUALLY DO CENTRALIZED ORDERING/DISTRIBUTION (researched Sep 26, 2026)
 
@@ -409,19 +492,34 @@ order or transferring stock) — eVitalRx's automatic version is real but a
 meaningfully bigger, smarter build, worth revisiting only once the manual
 version is working and actually used.
 
-## 9. OPEN ITEMS BEFORE ANY BUILD STARTS
+## 9. OPEN ITEMS
 
-- [ ] Confirm switcher-based, single-active-store-per-session (Section 2).
-- [ ] GST rollup — legal/CA research on what a chain is actually allowed to
-      show/file as one view vs. per-store.
-- [ ] Purchases centralization — decide default (per-store vs. HQ-fanout)
-      before building the setting, not required for Sections 1-2.
+> Re-swept Sep 27, 2026 — several items below were resolved by Steps 2-6b
+> and are marked done rather than left stale. Genuinely open items remain
+> unchecked.
+
+- [x] Confirm switcher-based, single-active-store-per-session (Section 2)
+      — built Step 2.
+- [x] GST rollup — resolved as a display-only sum of each store's own
+      already-separately-filed numbers (Step 6b); legal research
+      confirmed different GSTINs can never file as one return regardless
+      of software, so there was no "show as one filing" option to choose.
+- [x] Purchases centralization — resolved as the HQ-buyer store picker on
+      the transaction screen itself (Step 6), matching Odoo's real-world
+      pattern; not a one-PO-fans-out-to-many-stores model (confirmed no
+      major competitor does that either).
+- [x] New-store onboarding flow — built Step 3 (Settings → Stores tab,
+      creator auto-granted admin, Team-page grant/revoke for others).
 - [ ] Product catalog shared vs. per-store (Section 7.1).
 - [ ] Customers/Doctors shared vs. per-store (Section 7.2).
 - [ ] Cross-store stock transfer's GST/delivery-challan requirement
-      (Section 7.3) — same "needs research" bucket as the GST rollup item.
-- [ ] New-store onboarding flow — who can add one, what it inherits
-      (Section 7.4).
+      (Section 7.3) — same "needs research" bucket as the GST rollup item
+      was; the rollup itself never needed this since it's display-only.
 - [ ] Manual (Marg-style, person picks quantity per store) vs. automatic
       (eVitalRx-style, system reallocates by demand) distribution model
-      (Section 8) — recommend starting manual.
+      (Section 8) — recommend starting manual; Step 5's stock transfer
+      already built the manual version.
+- [ ] Two stores sharing one GSTIN (Section 7.5, added Sep 27, 2026) —
+      per-branch invoice-series support across Billing/Purchases/Returns,
+      plus the actual combined filing register. Not built; build only if
+      a real chain with this shape appears.

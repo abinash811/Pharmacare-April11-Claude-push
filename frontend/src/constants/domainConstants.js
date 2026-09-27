@@ -142,7 +142,8 @@ export const CUSTOMER_TYPE = {
   INSTITUTION: 'institution',
 };
 
-// ─── Dashboard scope (multi-chain Step 4, docs/26_MULTI_CHAIN_SCOPE.md) ───────
+// ─── Report scope toggle (multi-chain Step 4, docs/26_MULTI_CHAIN_SCOPE.md;
+// reused Step 6 by the GST report) ─────────────────────────────────────────
 export const REPORT_SCOPE = {
   STORE: 'store',
   CHAIN: 'chain',

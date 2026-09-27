@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Calendar, FileText } from 'lucide-react';
+import { Calendar, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton, DateRangePicker } from '../components/shared';
+import { DataCard, InlineLoader, PageHeader, PageTabs, AppButton, DateRangePicker, FilterPills } from '../components/shared';
 import api from '@/lib/axios';
 import { apiUrl } from '@/constants/api';
+import { REPORT_SCOPE } from '@/constants/domainConstants';
 import { formatCurrency } from '@/utils/currency';
 import { toISODate } from '@/utils/dates';
+import GSTReportTable from './GSTReportTable';
 
 const REPORTS_TABS = [
   { key: 'reports', label: 'Reports'    },
@@ -30,8 +32,22 @@ export default function GSTReport() {
     const now = new Date();
     return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
   });
+  // Per-store by default (REPORT_SCOPE.STORE) — matches today's behavior
+  // exactly until a chain admin opts into REPORT_SCOPE.CHAIN. The toggle
+  // itself only renders once we know there's more than one store to roll
+  // up (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #6) — a display-only sum of
+  // each store's own already-independently-filed GST numbers, never a
+  // merged filing.
+  const [scope, setScope] = useState(REPORT_SCOPE.STORE);
+  const [hasChain, setHasChain] = useState(false);
 
-  const fetchGSTReport = async () => {
+  useEffect(() => {
+    api.get(apiUrl.chainStores())
+      .then((res) => setHasChain((res.data || []).length > 1))
+      .catch(() => setHasChain(false));
+  }, []);
+
+  const fetchGSTReport = async (nextScope = scope) => {
     if (!dateRange.start || !dateRange.end) {
       toast.error('Select a start and end date first');
       return;
@@ -40,6 +56,7 @@ export default function GSTReport() {
     try {
       const response = await api.get(apiUrl.reportGst({
         start_date: toApiDate(dateRange.start), end_date: toApiDate(dateRange.end),
+        scope: nextScope,
       }));
       setReportData(response.data);
     } catch (error) {
@@ -49,10 +66,21 @@ export default function GSTReport() {
     }
   };
 
+  const handleScopeChange = (nextScope) => {
+    setScope(nextScope);
+    if (reportData) fetchGSTReport(nextScope);
+  };
+
   const exportToCSV = () => {
     if (!reportData) return;
 
-    let csv = 'GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
+    // A combined chain export must say so — this rolls up more than one
+    // store's numbers, and a CA filing a single store's actual GSTIN return
+    // off an unlabeled file could easily mistake it for that one store's own.
+    let csv = reportData.scope === REPORT_SCOPE.CHAIN
+      ? `Combined across ${reportData.store_count} stores — not a single GSTIN's filing figures\n\n`
+      : '';
+    csv += 'GST Rate,Taxable Amount,CGST,SGST,IGST,Total GST\n';
 
     csv += '\nSales GST (Output Tax)\n';
     reportData.sales.forEach((row) => {
@@ -70,7 +98,8 @@ export default function GSTReport() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gst_report_${toApiDate(dateRange.start)}_to_${toApiDate(dateRange.end)}.csv`;
+    const scopeSuffix = reportData.scope === REPORT_SCOPE.CHAIN ? '_all_stores' : '';
+    a.download = `gst_report_${toApiDate(dateRange.start)}_to_${toApiDate(dateRange.end)}${scopeSuffix}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -79,6 +108,16 @@ export default function GSTReport() {
     <div className="px-8 py-6 min-h-screen bg-page">
       <PageHeader
         title="Reports"
+        actions={hasChain && (
+          <FilterPills
+            options={[
+              { key: REPORT_SCOPE.STORE, label: 'This Store' },
+              { key: REPORT_SCOPE.CHAIN, label: 'All Stores' },
+            ]}
+            active={scope}
+            onChange={handleScopeChange}
+          />
+        )}
       />
       <PageTabs
         tabs={REPORTS_TABS}
@@ -92,7 +131,7 @@ export default function GSTReport() {
           <div className="flex items-end gap-4 flex-wrap">
             <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
 
-            <AppButton onClick={fetchGSTReport} disabled={loading} data-testid="generate-report-btn">
+            <AppButton onClick={() => fetchGSTReport()} disabled={loading} data-testid="generate-report-btn">
               <Calendar className="w-4 h-4 mr-2" />
               {loading ? 'Generating...' : 'Generate Report'}
             </AppButton>
@@ -108,112 +147,30 @@ export default function GSTReport() {
 
       {!loading && reportData && (
         <>
-          {/* Sales GST Table */}
-          <DataCard className="mb-6">
-            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-base font-semibold text-gray-900">Sales GST (Output Tax)</h2>
-              <AppButton variant="outline" size="sm" onClick={exportToCSV}>
-                <Download className="w-4 h-4 mr-2" />
-                Export CSV
-              </AppButton>
-            </div>
+          <GSTReportTable
+            title="Sales GST (Output Tax)"
+            rows={reportData.sales}
+            summary={reportData.sales_summary}
+            onExport={exportToCSV}
+          />
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">IGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total GST</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {reportData.sales.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-brand-tint">
-                      <td className="px-4 py-3 text-sm font-medium text-brand">{row.gst_rate}%</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.cgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.sgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.igst)}</td>
-                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{formatCurrency(row.total_gst)}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.sales_summary.igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.sales_summary.total_gst)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </DataCard>
-
-          {/* Purchase GST Table */}
-          <DataCard className="mb-6">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-base font-semibold text-gray-900">Purchase GST (Input Tax Credit)</h2>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Amount</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">IGST</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total GST</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {reportData.purchases.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-brand-tint">
-                      <td className="px-4 py-3 text-sm font-medium text-brand">{row.gst_rate}%</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.taxable_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.cgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.sgst)}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(row.igst)}</td>
-                      <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{formatCurrency(row.total_gst)}</td>
-                    </tr>
-                  ))}
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="px-4 py-3 text-sm">Total</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.total_taxable)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.cgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.sgst)}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums">{formatCurrency(reportData.purchases_summary.igst)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums text-brand">{formatCurrency(reportData.purchases_summary.total_gst)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            {reportData.purchases_summary.cess > 0 && (
-              // Found Sep 19, 2026 (docs/24_REPORTS_ACCEPTANCE_SPEC.md
-              // UC-GST20): a real, captured field (invoice-level cess from
-              // Purchases' InvoiceBreakdownModal) that never appeared
-              // anywhere in this report — silently invisible in the one
-              // place it would matter most. Not itemized per GST rate
-              // above (no per-item cess exists to break down), so shown
-              // as a period total instead.
-              <div className="px-4 py-3 border-t border-gray-200 bg-gray-50 text-sm text-gray-600 flex items-center justify-between">
-                <span>Cess (from purchase invoices this period)</span>
-                <span className="font-semibold tabular-nums text-gray-900">{formatCurrency(reportData.purchases_summary.cess)}</span>
-              </div>
-            )}
-          </DataCard>
+          <GSTReportTable
+            title="Purchase GST (Input Tax Credit)"
+            rows={reportData.purchases}
+            summary={reportData.purchases_summary}
+            cess={reportData.purchases_summary.cess}
+          />
 
           {/* Summary Card */}
           <DataCard noPadding={false}>
             <div className="p-4">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">GST Summary</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h2 className="text-base font-semibold text-gray-900 mb-1">GST Summary</h2>
+              {reportData.scope === REPORT_SCOPE.CHAIN && (
+                <p className="text-xs text-gray-500 mb-4">
+                  Combined across {reportData.store_count} stores — each store still files its own GSTIN return separately; this total is for your own visibility only.
+                </p>
+              )}
+              <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${reportData.scope !== REPORT_SCOPE.CHAIN ? 'mt-4' : ''}`}>
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <p className="text-xs font-semibold text-green-600 uppercase">Output Tax (Sales)</p>
                   <p className="text-2xl font-bold text-green-700 mt-1">

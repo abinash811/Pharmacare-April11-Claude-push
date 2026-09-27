@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.20 | Last updated: September 27, 2026
+# Version: 1.21 | Last updated: September 27, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -1022,7 +1022,13 @@ Detailed sales report.
 ### `GET /reports/gst`
 GST report for GSTR-1 filing.
 
-**Query params:** `start_date`, `end_date`
+**Query params:** `start_date`, `end_date`, `scope` (optional, `store`|`chain`,
+default `store` — added Sep 27, 2026, `docs/26_MULTI_CHAIN_SCOPE.md`
+Section 6 #6b). `chain` sums every store in the caller's chain's own
+already-independently-filed GST numbers into one display-only view —
+each store still generates and files its own separate return, unaffected.
+Response gains `scope` and `store_count`, same convention as
+`GET /analytics/dashboard`.
 
 ---
 

@@ -1,5 +1,5 @@
 # PharmaCare — Security
-# Version: 1.5 | Last updated: September 18, 2026
+# Version: 1.6 | Last updated: September 28, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Every route is authenticated. Every query is pharmacy-scoped. No exceptions.
@@ -21,7 +21,7 @@
 3. **Passwords are bcrypt-hashed.** Never store plain text. Never log passwords.
 4. **Tokens expire.** Default: **8 hours** (`ACCESS_TOKEN_EXPIRE_MINUTES=480` in `backend/config.py`). Never issue non-expiring tokens.
 5. **Soft deletes only.** `deleted_at` timestamp set (see CLAUDE.md rule #6 and `docs/09_DATABASE.md`) — there is no `is_deleted` column anywhere in this codebase. Hard deletes are forbidden for compliance data.
-6. **No secrets in code.** All keys, passwords, and tokens via environment variables. **Currently violated in one place** — see KNOWN GAPS below.
+6. **No secrets in code.** All keys, passwords, and tokens via environment variables — enforced at startup as of Sep 28, 2026, see KNOWN GAPS #1.
 
 ---
 
@@ -31,16 +31,21 @@
 > duplicated where another doc already tracks the item; update the status
 > here when one is closed.
 
-1. **`SECRET_KEY` has an insecure hardcoded fallback.**
-   `backend/config.py`: `SECRET_KEY: str = "change-me-in-production"`. If
-   the `SECRET_KEY` env var isn't set, the app starts anyway and silently
-   signs every JWT with this literal string — anyone who reads this repo
-   can forge a valid token for any user. `docs/13_DEPLOYMENT.md` already
-   says production must override it; nothing in code *enforces* that
-   (e.g. refusing to start with the default value when `DEBUG=false`).
-2. **Backend does not enforce a password minimum.** See PASSWORD RULES
-   above — `UserCreate.password` has no length constraint; only the
-   frontend Zod schema (6 chars) stops a weak password.
+1. ~~`SECRET_KEY` has an insecure hardcoded fallback.~~ **Fixed Sep 28,
+   2026** — `backend/config.py`'s `Settings` now has a `field_validator`
+   that raises at startup if `SECRET_KEY` is still the literal
+   `"change-me-in-production"` default while `DEBUG` is `False`. Local
+   dev (`DEBUG=true` in `.env`) and CI (which sets its own `SECRET_KEY`)
+   are both unaffected; only a real deploy that forgot to set the env var
+   now fails loudly instead of silently signing tokens with a public
+   string. 3 regression tests (`test_password_minimum_length.py::
+   TestSecretKeyStartupGuard`).
+2. ~~Backend does not enforce a password minimum.~~ **Fixed Sep 28,
+   2026** — `UserCreate.password` (both `routers/auth.py` and
+   `routers/users.py`) and `ResetPassword.new_password` now carry
+   `Field(min_length=6)`, matching the frontend Zod schema's existing
+   rule (`lib/schemas/auth.ts`) so a direct API call can no longer bypass
+   it. 4 regression tests (`test_password_minimum_length.py`).
 3. ~~`GET /audit-logs` has no role restriction.~~ **Fixed Sep 12, 2026**
    — both `GET /audit-logs` and `GET /audit-logs/entity/{type}/{id}`
    (`backend/routers/billing.py`) now require `reports:view` via

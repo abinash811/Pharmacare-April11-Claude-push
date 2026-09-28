@@ -4,7 +4,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -45,7 +45,8 @@ async def _record_audit(
 class UserCreate(BaseModel):
     email: EmailStr
     name: str
-    password: str
+    # docs/14_SECURITY.md KNOWN GAPS #2 — same rule as auth.py::UserCreate.
+    password: str = Field(min_length=6)
     role: str
 
 

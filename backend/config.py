@@ -37,6 +37,22 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
 
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _refuse_default_secret_outside_debug(cls, v: str, info) -> str:
+        # docs/14_SECURITY.md KNOWN GAPS #1: the app used to start anyway
+        # with this literal fallback, silently signing every JWT with a
+        # string anyone reading this repo already knows — a forgeable
+        # token for any user. DEBUG defaults to False, so a deploy that
+        # forgets to set SECRET_KEY now fails loudly at startup instead.
+        debug = info.data.get("DEBUG", False)
+        if not debug and v == "change-me-in-production":
+            raise ValueError(
+                "SECRET_KEY is still the default placeholder. Set a real "
+                "random SECRET_KEY env var before starting outside DEBUG mode."
+            )
+        return v
+
 
 @lru_cache
 def get_settings() -> Settings:

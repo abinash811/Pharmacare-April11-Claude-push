@@ -8,7 +8,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -60,7 +60,10 @@ class UserCreate(BaseModel):
     # Account
     email: EmailStr
     name: str
-    password: str
+    # docs/14_SECURITY.md KNOWN GAPS #2: only the frontend Zod schema
+    # (lib/schemas/auth.ts) enforced this; matching it here so the
+    # backend can't be bypassed by a direct API call.
+    password: str = Field(min_length=6)
     phone: str
     # New pharmacy — every signup creates its own pharmacy; the signing-up
     # user is always that pharmacy's Admin. See CLAUDE.md "Signup / Auth
@@ -84,7 +87,7 @@ class ForgotPassword(BaseModel):
 
 class ResetPassword(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=6)
 
 
 @router.post("/auth/register")

@@ -1,5 +1,5 @@
 # PharmaCare — Glossary
-# Version: 1.1 | Last updated: September 5, 2026
+# Version: 1.2 | Last updated: September 28, 2026
 # Type: Reference
 # Audience: Claude, developers, designers, product — anyone building PharmaCare
 # Rule: Every pharmacy or business term used in code, UI, or docs must be defined here.
@@ -54,17 +54,33 @@ maximum chargeable = ₹110. Cannot charge ₹115 even if the pharmacist wants t
 The price at which a distributor/stockist sells a medicine to a pharmacy (retailer).
 This is the pharmacy's purchase price before adding their margin.
 
-**How it's calculated:**
+**How real-world PTR arises (context, not something PharmaCare calculates):**
 ```
 PTR = MRP × (1 - trade_margin_percent / 100)
 ```
-Typical trade margin is 8–20% depending on the drug category.
+Typical trade margin is 8–20% depending on the drug category. This is background
+on where the number on the supplier's invoice comes from — PharmaCare itself
+never runs this formula; see below.
 
-**How it works in PharmaCare:**
-- Displayed in the batch table on the medicine detail page
-- Helps the pharmacist quickly see what they paid vs. what they can sell at
-- Not stored separately — calculated from cost price in the UI
-- Field reference: `cost_price_per_unit` in the batch table is effectively PTR
+**How it actually works in PharmaCare (corrected Sep 28, 2026 — audit triggered
+by a direct question, "is PTR and cost price the same thing, are they in
+conflict?"):**
+- There is exactly **one** stored cost field, `cost_price_per_unit`
+  (`cost_price_paise` in Postgres) — PTR is that field's business name, not a
+  second, independently derived number sitting next to it.
+- At purchase entry, the pharmacist types the PTR straight off the supplier's
+  invoice into the box the UI labels "PTR" (`PurchaseItemRow.tsx`); that
+  typed value is sent to the backend and stored as `cost_price_per_unit`,
+  unmodified — nothing recalculates it from MRP or a margin percentage.
+- Displayed on the medicine detail page's batch table (`BatchesTab.jsx`)
+  under the column header **"Cost Price"**, not a separate "PTR" column.
+- Until Sep 28, 2026, the purchases API additionally accepted and returned a
+  second field, `ptr_per_unit`, meant to always equal `cost_price_per_unit` —
+  a genuinely redundant field with no second value behind it (a bug found by
+  this audit, not a real feature; nothing was ever double-counted, but the
+  duplication was a latent risk since nothing stopped the two from silently
+  diverging). Removed backend and frontend-wide — `cost_price_per_unit` is
+  now the only field, everywhere, on the wire and in the DB.
 
 **Example:**
 MRP ₹100. Distributor gives 15% margin. PTR = ₹85. Pharmacy buys at ₹85, sells at ≤ ₹100.
@@ -84,7 +100,7 @@ Not directly tracked in Phase 1. Relevant when we build distributor-side feature
 
 ### LP — Landing Price / Landed Cost
 
-**What it is:**
+**What it is (a real-world accounting concept, not a built PharmaCare feature — see below):**
 The actual cost to the pharmacy after all deductions and additions:
 ```
 LP = PTR - trade_discount - scheme_discount + freight_charges + taxes
@@ -94,10 +110,23 @@ LP = PTR - trade_discount - scheme_discount + freight_charges + taxes
 The true margin calculation must use LP, not just PTR. A pharmacist who ignores
 freight and scheme gives wrong margin numbers to their accountant.
 
-**How it works in PharmaCare:**
-- Displayed as "LP" column in the batch table (BatchesTab)
-- Stored as `cost_price_per_unit` on the batch
-- At purchase entry, the pharmacist enters the actual landed cost per unit
+**Reality in PharmaCare today (corrected Sep 28, 2026 — this section
+previously described LP as if it were already a distinct, separately
+computed value, which it is not):**
+- PharmaCare does **not** separately track `trade_discount`/`scheme_discount`/
+  `freight_charges` as itemized fields that net down into a computed LP.
+  There is no "LP" column anywhere in the live UI — the stale reference to
+  one in `BatchesTab` has been removed from this doc; that table's real
+  column header is "Cost Price" (see PTR above).
+- Whatever final net number the pharmacist decides to type as "PTR"/Cost
+  Price at purchase entry — whether or not they've already mentally
+  subtracted a discount before typing it — is exactly what gets stored in
+  `cost_price_per_unit`. There is no second, distinct LP value computed or
+  stored anywhere in the app.
+- If per-line trade/scheme-discount and freight tracking (a real LP feature,
+  distinct from PTR) becomes something we want to build, it needs new schema
+  and is a genuine product decision — per Manifesto rule 13, ask before
+  building it, don't assume this doc's formula is already implemented.
 
 ---
 
@@ -138,8 +167,17 @@ Reduces the effective purchase price.
 **Example:**
 Invoice shows PTR ₹100 with 5% trade discount. Effective cost = ₹95.
 
-**How it works in PharmaCare:**
-Entered during purchase entry. Applied to calculate final `cost_price_per_unit` on the batch.
+**How it works in PharmaCare (corrected Sep 28, 2026 — the previous text here
+claimed this feeds each item's `cost_price_per_unit`, which the real code
+does not do):**
+Entered once per purchase, in the Invoice Breakdown modal (`total_discount`),
+and reduces only that purchase's own invoice total
+(`Purchase.total_discount_paise`, part of `subtotal + tax − discount + cess`
+for the whole bill) — it never modifies any individual line item's
+`cost_price_per_unit`. There is no per-item/per-batch discount field feeding
+into cost price today (`PurchaseItemCreate` accepts no discount field at
+all); if the pharmacist wants a line's discount reflected in its cost, they
+net it into the PTR/Cost Price they type for that line.
 
 ---
 

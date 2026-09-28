@@ -98,7 +98,7 @@ export function useBillItems(billDiscount = 0, billDiscountType = '%') {
         expiry_date:      batch.expiry_iso || batch.expiry_date,
         qty:              1,
         unit_price:       batch.mrp_per_unit || product.default_mrp || 0,
-        cost_price:       batch.cost_price_per_unit || batch.ptr_per_unit || (batch.mrp_per_unit || 0) * 0.7,
+        cost_price:       batch.cost_price_per_unit || (batch.mrp_per_unit || 0) * 0.7,
         discount_percent: batch.discount_percent || 0,
         gst_percent:      product.gst_percent || 5,
         cess_percent:     product.cess_percent || 0,

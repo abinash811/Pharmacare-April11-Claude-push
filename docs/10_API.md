@@ -1,5 +1,5 @@
 # PharmaCare — API Reference
-# Version: 1.22 | Last updated: September 27, 2026
+# Version: 1.23 | Last updated: September 28, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Base URL: http://localhost:8000/api (dev) | https://api.pharmacare.in/api (prod)
@@ -761,15 +761,18 @@ Create a purchase (draft or confirmed).
       "product_sku": "PARA500",
       "batch_no": "BN240501",
       "expiry_date": "2026-06-30",
-      "quantity_received": 100,
+      "qty_units": 100,
       "mrp_per_unit": 12.50,
-      "ptr_per_unit": 10.00,
-      "trade_discount": 5,
-      "gst_rate": 5
+      "cost_price_per_unit": 10.00,
+      "gst_percent": 5
     }
   ]
 }
 ```
+`cost_price_per_unit` is the PTR the pharmacist types off the supplier's
+invoice — see `docs/02_GLOSSARY.md`'s PTR entry. There is no separate
+`ptr_per_unit` field; one was removed from this endpoint Sep 28, 2026 (it
+duplicated `cost_price_per_unit` with no real second value behind it).
 
 **Key rule:** `status: "confirmed"` creates stock batches immediately.
 
@@ -802,13 +805,6 @@ when a draft is reloaded for editing, see `docs/07_BUSINESS_LOGIC.md`).
 omitted = no discrepancy, the default). `received_qty_units` now also
 appears on each item in the response, reflecting what was actually
 confirmed (previously always 0, a dead field — see `docs/07_BUSINESS_LOGIC.md`).
-
-> Flagged, not fixed here (out of scope for this change): the `POST
-> /purchases` request example above uses field names (`quantity_received`,
-> `trade_discount`, `gst_rate`) that don't match the real schema —
-> `routers/purchases.py` and the frontend's `buildPurchasePayload.js` both
-> use `qty_units`/`cost_price_per_unit`/`ptr_per_unit`/`gst_percent`. Stale
-> since before this change; needs its own pass.
 
 ### `GET /purchases/last-purchase-price`
 Added Sep 25, 2026 — price-change warning. Advisory only, same shape as

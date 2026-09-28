@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.8 | Last updated: September 28, 2026
+# Version: 1.9 | Last updated: September 28, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
@@ -73,7 +73,8 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    database will be provided by Eka.** **Scope confirmed same day, direct
    instruction: medicine identity only — name, generic name, strength
    (mg/ml), and similar — explicitly NOT pricing.** That means every
-   commercial field (MRP, cost price, PTR, discount%, reorder level)
+   commercial field (MRP, cost price — the field PTR is stored as, see
+   `docs/02_GLOSSARY.md`'s PTR entry — discount%, reorder level)
    always stays a per-store entry, whether or not the catalog itself
    ends up chain-shared or platform-wide — never something the shared
    data supplies or that gets overridden, since it's simply never in

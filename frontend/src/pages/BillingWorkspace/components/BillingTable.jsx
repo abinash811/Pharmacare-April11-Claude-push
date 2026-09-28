@@ -62,7 +62,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
     onUpdateItem(index, 'batch_no',         batch.batch_no);
     onUpdateItem(index, 'expiry_date',      batch.expiry_iso || batch.expiry_date);
     onUpdateItem(index, 'unit_price',       batch.mrp_per_unit  || batch.mrp  || billItems[index].unit_price);
-    onUpdateItem(index, 'cost_price',       batch.cost_price_per_unit || batch.ptr_per_unit || billItems[index].cost_price);
+    onUpdateItem(index, 'cost_price',       batch.cost_price_per_unit || billItems[index].cost_price);
     onUpdateItem(index, 'available_qty',    batch.qty_on_hand);
     onUpdateItem(index, 'discount_percent', batch.discount_percent ?? billItems[index].discount_percent);
     setShowBatchPanel(null); setBatchPanelData([]);

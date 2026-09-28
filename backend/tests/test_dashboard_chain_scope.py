@@ -122,10 +122,7 @@ class TestDashboardChainScope:
                 "product_sku": f"DASHSCOPE-{sku_suffix}", "product_name": "Dash Scope Purchase Item",
                 "batch_no": f"DASHSCOPE-B-{sku_suffix}", "expiry_date": "2030-01-01",
                 "qty_units": qty_units, "free_qty_units": 0,
-                # taxable_amount (and this endpoint's total_purchases_value) is
-                # priced off ptr_per_unit, not cost_price_per_unit — keep them
-                # equal here so the expected sums below are exact, not a guess.
-                "cost_price_per_unit": cost_price_per_unit, "ptr_per_unit": cost_price_per_unit,
+                "cost_price_per_unit": cost_price_per_unit,
                 "mrp_per_unit": cost_price_per_unit * 2, "gst_percent": 0, "batch_priority": "LIFA",
             }],
         })

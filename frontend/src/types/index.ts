@@ -124,8 +124,6 @@ export interface Product {
   category?:               string | null;
   barcode?:                string | null;
   default_mrp_per_unit:    number;
-  default_ptr_per_unit?:   number | null;
-  landing_price_per_unit?: number | null;
   gst_percent:             number;
   hsn_code?:               string | null;
   description?:            string | null;
@@ -148,7 +146,6 @@ export interface ProductCreate {
   uom?:                      string;
   category?:                 string;
   default_mrp_per_unit?:     number;
-  default_ptr_per_unit?:     number;
   gst_percent?:              number;
   hsn_code?:                 string;
   description?:              string;
@@ -170,7 +167,6 @@ export interface StockBatch {
   expiry_date?:      ISODateTime | null;
   qty_units:         number;             // current stock in units
   mrp_per_unit:      number;
-  ptr_per_unit?:     number | null;
   cost_price_per_unit?: number | null;
   gst_percent:       number;
   batch_priority:    BatchPriority;
@@ -361,7 +357,6 @@ export interface PurchaseItem {
   qty_units:            number;
   free_qty_units:       number;
   cost_price_per_unit:  number;
-  ptr_per_unit?:        number | null;
   mrp_per_unit:         number;
   gst_percent:          number;
   batch_priority:       BatchPriority;

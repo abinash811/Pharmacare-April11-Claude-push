@@ -21,7 +21,7 @@ export const mapDraftPurchaseItems = (items = []) => items.map((item, idx) => ({
   expiry_mmyy:    item.expiry_mmyy || '',
   qty_units:      item.qty_units || 1,
   free_qty_units: item.free_qty_units || 0,
-  ptr_per_unit:   item.ptr_per_unit || item.cost_price_per_unit || 0,
+  ptr_per_unit:   item.cost_price_per_unit || 0,
   mrp_per_unit:   item.mrp_per_unit || 0,
   gst_percent:    item.gst_percent || 5,
   batch_priority: item.batch_priority || 'LIFA',

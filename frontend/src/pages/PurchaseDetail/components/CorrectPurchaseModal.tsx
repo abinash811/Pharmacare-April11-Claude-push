@@ -25,7 +25,7 @@ export default function CorrectPurchaseModal({ purchase, onClose, onConfirm, isS
       item_id: it.id,
       product_name: it.product_name,
       mrp_per_unit: String(it.mrp_per_unit ?? ''),
-      cost_price_per_unit: String(it.cost_price_per_unit ?? it.ptr_per_unit ?? ''),
+      cost_price_per_unit: String(it.cost_price_per_unit ?? ''),
       batch_no: it.batch_no || '',
       expiry_date: (it.expiry_date || '').slice(0, 10),
     })),
@@ -47,7 +47,7 @@ export default function CorrectPurchaseModal({ purchase, onClose, onConfirm, isS
           correction.mrp_per_unit = Number(it.mrp_per_unit);
           changed = true;
         }
-        const originalCost = original.cost_price_per_unit ?? original.ptr_per_unit;
+        const originalCost = original.cost_price_per_unit;
         if (it.cost_price_per_unit !== '' && Number(it.cost_price_per_unit) !== originalCost) {
           correction.cost_price_per_unit = Number(it.cost_price_per_unit);
           changed = true;

@@ -75,7 +75,7 @@ export default function PurchaseDetail() {
     let totalQty = 0, totalFree = 0, totalPTR = 0, totalMRP = 0, totalGST = 0;
     purchase.items.forEach((item) => {
       const qty = parseInt(item.qty_units) || 0;
-      const ptr = parseFloat(item.ptr_per_unit || item.cost_price_per_unit) || 0;
+      const ptr = parseFloat(item.cost_price_per_unit) || 0;
       const mrp = parseFloat(item.mrp_per_unit) || 0;
       const gst = parseFloat(item.gst_percent) || 0;
       totalQty  += qty; totalFree += parseInt(item.free_qty_units) || 0;

@@ -64,7 +64,6 @@ export const buildPurchasePayload = ({
     received_qty_units: toRealReceivedQty(item) === null ? null : Math.round(toRealReceivedQty(item)),
     free_qty_units:     parseInt(item.free_qty_units) || 0,
     cost_price_per_unit: toRealCostPerUnit(item),
-    ptr_per_unit:       toRealCostPerUnit(item),
     mrp_per_unit:       toRealMrpPerUnit(item),
     gst_percent:        parseFloat(item.gst_percent) || 0,
     batch_priority:     item.batch_priority || batchPriority,

@@ -92,7 +92,6 @@ class TestPurchasesModule:
             "name": f"TEST_Product_{uuid.uuid4().hex[:8]}",
             "manufacturer": "Test Manufacturer",
             "default_mrp_per_unit": 100.0,
-            "default_ptr_per_unit": 80.0,
             "gst_percent": 5.0,
             "units_per_pack": 10,
             "pack_size": "Strip",
@@ -160,7 +159,6 @@ class TestPurchasesModule:
                     "qty_units": 100,
                     "free_qty_units": 10,
                     "cost_price_per_unit": 75.0,
-                    "ptr_per_unit": 80.0,
                     "mrp_per_unit": 100.0,
                     "gst_percent": 5.0,
                     "batch_priority": "LIFA"
@@ -207,7 +205,6 @@ class TestPurchasesModule:
                     "qty_units": 50,
                     "free_qty_units": 5,
                     "cost_price_per_unit": 80.0,
-                    "ptr_per_unit": 85.0,
                     "mrp_per_unit": 100.0,
                     "gst_percent": 5.0,
                     "batch_priority": "LIFA"
@@ -260,7 +257,6 @@ class TestPurchasesModule:
                     "qty_units": 25,
                     "free_qty_units": 0,
                     "cost_price_per_unit": 70.0,
-                    "ptr_per_unit": 75.0,
                     "mrp_per_unit": 100.0,
                     "gst_percent": 5.0,
                     "batch_priority": "LILA"
@@ -326,7 +322,6 @@ class TestPurchasesModule:
                     "qty_units": 30,
                     "free_qty_units": 5,
                     "cost_price_per_unit": 85.0,
-                    "ptr_per_unit": ptr_value,
                     "mrp_per_unit": 110.0,
                     "gst_percent": 5.0,
                     "batch_priority": batch_priority
@@ -354,7 +349,7 @@ class TestPurchasesModule:
 
             if our_batch:
                 assert our_batch.get(
-                    'ptr_per_unit') == ptr_value, f"Batch PTR should be {ptr_value}"
+                    'cost_price_per_unit') == ptr_value, f"Batch PTR should be {ptr_value}"
                 assert our_batch.get(
                     'batch_priority') == batch_priority, f"Batch priority should be {batch_priority}"
                 assert our_batch.get('qty_on_hand') == 35, "Batch qty should be 30 + 5 free = 35"
@@ -498,7 +493,6 @@ class TestPurchasesModule:
                         "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
                         "qty_units": 10,
                         "cost_price_per_unit": 80.0,
-                        "ptr_per_unit": 85.0,
                         "mrp_per_unit": 100.0,
                         "gst_percent": 5.0
                     }
@@ -538,7 +532,6 @@ class TestPurchasesModule:
                         "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
                         "qty_units": 10,
                         "cost_price_per_unit": 80.0,
-                        "ptr_per_unit": 85.0,
                         "mrp_per_unit": 100.0,
                         "gst_percent": 5.0
                     }
@@ -582,7 +575,6 @@ class TestPurchasesModule:
                         "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
                         "qty_units": 10,
                         "cost_price_per_unit": 80.0,
-                        "ptr_per_unit": 85.0,
                         "mrp_per_unit": 100.0,
                         "gst_percent": 5.0,
                         "batch_priority": priority
@@ -625,7 +617,6 @@ class TestPurchasesModule:
                     "expiry_date": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
                     "qty_units": 10,
                     "cost_price_per_unit": 80.0,
-                    "ptr_per_unit": 85.0,
                     "mrp_per_unit": 100.0,
                     "gst_percent": 5.0
                 }

@@ -49,7 +49,6 @@ class PurchaseItemCreate(BaseModel):
     received_qty_units: Optional[int] = None
     free_qty_units: Optional[int] = 0
     cost_price_per_unit: float
-    ptr_per_unit: Optional[float] = None
     mrp_per_unit: float
     gst_percent: float = 5.0
     batch_priority: str = "LIFA"
@@ -341,7 +340,6 @@ def _purchase_item_response(i: PurchaseItemORM, product_skus: Optional[dict] = N
         "qty_units": i.quantity_ordered,
         "free_qty_units": i.free_qty_units,
         "cost_price_per_unit": i.cost_price_paise / 100,
-        "ptr_per_unit": i.cost_price_paise / 100,
         "mrp_per_unit": i.mrp_paise / 100,
         # Stored at confirm time (from the product's own units_per_pack) but
         # never returned before Sep 24, 2026 — the frontend's Pack/Unit
@@ -763,7 +761,7 @@ async def create_purchase(purchase_data: PurchaseCreate, request: Request, curre
 
     for item_data in purchase_data.items:
         product = await _get_product_by_sku(pharmacy_id, item_data.product_sku, db)
-        ptr = item_data.ptr_per_unit if item_data.ptr_per_unit else item_data.cost_price_per_unit
+        ptr = item_data.cost_price_per_unit
         taxable = int(item_data.qty_units * ptr * 100)
         gst_amount = int(taxable * item_data.gst_percent / 100) if purchase_data.with_gst else 0
         line_total = taxable + gst_amount
@@ -933,7 +931,7 @@ async def update_purchase(
 
     for item_data in purchase_data.items:
         product = await _get_product_by_sku(pharmacy_id, item_data.product_sku, db)
-        ptr = item_data.ptr_per_unit if item_data.ptr_per_unit else item_data.cost_price_per_unit
+        ptr = item_data.cost_price_per_unit
         taxable = int(item_data.qty_units * ptr * 100)
         gst_amount = int(taxable * item_data.gst_percent / 100) if purchase_data.with_gst else 0
         line_total = taxable + gst_amount

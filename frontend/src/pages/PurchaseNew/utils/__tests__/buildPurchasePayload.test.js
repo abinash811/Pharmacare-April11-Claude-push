@@ -28,7 +28,7 @@ describe('buildPurchasePayload — Pack/Unit conversion', () => {
     }];
     const payload = buildPurchasePayload({ ...baseArgs, items });
     expect(payload.items[0]).toMatchObject({
-      qty_units: 100, cost_price_per_unit: 3, ptr_per_unit: 3, mrp_per_unit: 5,
+      qty_units: 100, cost_price_per_unit: 3, mrp_per_unit: 5,
     });
   });
 
@@ -40,7 +40,7 @@ describe('buildPurchasePayload — Pack/Unit conversion', () => {
     }];
     const payload = buildPurchasePayload({ ...baseArgs, items });
     expect(payload.items[0]).toMatchObject({
-      qty_units: 100, cost_price_per_unit: 3, ptr_per_unit: 3, mrp_per_unit: 5,
+      qty_units: 100, cost_price_per_unit: 3, mrp_per_unit: 5,
     });
   });
 
@@ -51,7 +51,7 @@ describe('buildPurchasePayload — Pack/Unit conversion', () => {
     }];
     const payload = buildPurchasePayload({ ...baseArgs, items });
     expect(payload.items[0]).toMatchObject({
-      qty_units: 30, cost_price_per_unit: 3, ptr_per_unit: 3, mrp_per_unit: 5,
+      qty_units: 30, cost_price_per_unit: 3, mrp_per_unit: 5,
     });
   });
 

@@ -70,7 +70,7 @@ class _Base:
                 "product_sku": sku, "product_name": "HQ Buyer Test Medicine",
                 "batch_no": f"HQBUYER-B-{uuid.uuid4().hex[:6]}", "expiry_date": "2030-01-01",
                 "qty_units": 10, "free_qty_units": 0,
-                "cost_price_per_unit": 20, "ptr_per_unit": 20,
+                "cost_price_per_unit": 20,
                 "mrp_per_unit": 40, "gst_percent": 0, "batch_priority": "LIFA",
             }],
         }

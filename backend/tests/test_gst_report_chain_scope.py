@@ -131,7 +131,7 @@ class TestGSTReportChainScope:
                 "product_sku": f"GSTSCOPE-{sku_suffix}", "product_name": "GST Scope Purchase Item",
                 "batch_no": f"GSTSCOPE-B-{sku_suffix}", "expiry_date": "2030-01-01",
                 "qty_units": qty_units, "free_qty_units": 0,
-                "cost_price_per_unit": ptr_per_unit, "ptr_per_unit": ptr_per_unit,
+                "cost_price_per_unit": ptr_per_unit,
                 "mrp_per_unit": ptr_per_unit * 2, "gst_percent": gst_percent, "batch_priority": "LIFA",
             }],
         })

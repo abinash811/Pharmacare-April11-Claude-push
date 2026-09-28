@@ -30,7 +30,7 @@ export default function PurchaseItemsTable({ items, withGst }) {
           <tbody className="divide-y divide-gray-100">
             {(items || []).map((item, index) => {
               const qty = parseInt(item.qty_units) || 0;
-              const ptr = parseFloat(item.ptr_per_unit || item.cost_price_per_unit) || 0;
+              const ptr = parseFloat(item.cost_price_per_unit) || 0;
               const gst = parseFloat(item.gst_percent) || 0;
               const lineTotal  = qty * ptr;
               const taxAmount  = withGst !== false ? lineTotal * (gst / 100) : 0;

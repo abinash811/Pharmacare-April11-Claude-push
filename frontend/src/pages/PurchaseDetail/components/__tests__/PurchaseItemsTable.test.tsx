@@ -9,7 +9,7 @@ import PurchaseItemsTable from '../PurchaseItemsTable';
 const BASE_ITEM = {
   product_name: 'Paracetamol', manufacturer: '', pack_size: '', salt: '',
   batch_no: 'B1', expiry_date: '2027-12-31',
-  qty_units: 100, free_qty_units: 0, ptr_per_unit: 10, mrp_per_unit: 20,
+  qty_units: 100, free_qty_units: 0, cost_price_per_unit: 10, mrp_per_unit: 20,
   gst_percent: 5, batch_priority: 'LIFA',
 };
 

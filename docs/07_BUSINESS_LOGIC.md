@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.25 | Last updated: September 26, 2026
+# Version: 2.26 | Last updated: September 28, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -441,17 +441,20 @@ DRAFT → CONFIRMED
 
 ```python
 # routers/purchases.py::create_purchase
-ptr = item_data.ptr_per_unit if item_data.ptr_per_unit else item_data.cost_price_per_unit
+ptr = item_data.cost_price_per_unit
 cost_price_paise = int(ptr * 100)
 # This becomes batch.cost_price_paise — used for margin calc in billing.
-# There is no separate trade-discount step; whatever PTR (or cost_price_per_unit
-# as a fallback) the pharmacist enters is stored as-is.
+# There is no separate trade-discount step and no separate PTR field —
+# `cost_price_per_unit` IS the PTR the pharmacist typed; whatever they
+# enter is stored as-is. (Until Sep 28, 2026 the request also accepted a
+# redundant `ptr_per_unit` field meant to equal the same value — removed;
+# see docs/02_GLOSSARY.md's PTR entry.)
 ```
 
 `order_type`, `with_gst` (as a *stored* flag — it does control the GST calc at
 creation time), and `batch_priority` (LIFA/LILA) are all accepted on the request
 but **not persisted or echoed back anywhere** — no columns exist for any of the
-three on `Purchase`/`PurchaseItem`. `PurchaseItem` also has no `landing_price_per_unit`
+three on `Purchase`/`PurchaseItem`. `PurchaseItem` also has no landed-cost
 rollup onto `Product` — confirming a purchase updates that *batch's* own cost
 price only. All three are documented as known gaps, not implemented, in
 `backend/tests/test_purchases_module.py`.

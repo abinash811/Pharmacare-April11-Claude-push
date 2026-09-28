@@ -1,5 +1,5 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.11 | Last updated: September 28, 2026
+# Version: 1.12 | Last updated: September 28, 2026
 # Type: Explanation
 # Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
 
@@ -488,11 +488,19 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
    — every PharmaCare pharmacy (chain or standalone) would search the
    same real Eka-sourced list, with per-store manual entry becoming the
    fallback for genuinely novel/local items rather than the default
-   path. **Still open once Eka's data format is known:** the actual
-   schema split (which fields are shared identity vs. per-store
-   commercial/overridable — same pricing question Marg's research
-   raised), and whether/how this interacts with the chain-scoped
-   `Product` question above for a chain's own store-to-store view.
+   path.
+   **Scope confirmed same day, direct instruction: identity only —
+   medicine name, generic name, strength (mg/ml), and similar —
+   explicitly NOT pricing.** This actually answers Marg's pricing
+   sub-question above, cleanly: MRP/cost/PTR/discount%/reorder-level
+   were never going to be in Eka's shared data at all, so they stay
+   per-store entries unconditionally — not "shared then overridden,"
+   just never shared. **Still open once Eka's exact data is in hand:**
+   the full field list beyond name/generic/strength (composition/salt?
+   HSN? GST%? dosage form? manufacturer? schedule classification?),
+   record count, delivery format, and whether/how this interacts with
+   the chain-scoped `Product` question above for a chain's own
+   store-to-store view.
 2. **Customers/Doctors: shared or per-store?** Same problem, retail-facing
    version: a customer who visits Store A and later Store B — one combined
    record (so loyalty/history/credit follow them chain-wide) or two
@@ -587,11 +595,13 @@ version is working and actually used.
       resolved Step 5b by blocking the transfer outright rather than
       building the document/license flow. Confirmed via research this
       matches how eVitalRx actually handles it.
-- [ ] Product catalog shared vs. per-store (Section 7.1) — sourcing
-      decided Sep 28, 2026 (Eka will provide the real medicine
-      database), but format/count unknown and the schema split (shared
-      identity vs. per-store pricing) still needs its own decision once
-      that data is in hand.
+- [ ] Product catalog shared vs. per-store (Section 7.1) — sourcing AND
+      scope decided Sep 28, 2026 (Eka will provide the real medicine
+      database, identity fields only — name/generic name/strength, no
+      pricing — so commercial fields stay per-store unconditionally).
+      Full field list beyond name/generic/strength, record count, and
+      delivery format still unknown; confirm before designing the
+      import.
 - [ ] Customers/Doctors shared vs. per-store (Section 7.2) — laid out
       Sep 27, 2026 (real cross-cutting surface confirmed: billing.py,
       customers.py, reports.py, plus the phone-number dedup question),

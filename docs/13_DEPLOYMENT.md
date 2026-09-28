@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.7 | Last updated: September 28, 2026
+# Version: 1.8 | Last updated: September 28, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
@@ -70,10 +70,18 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    (Abinash, comparing our purchase flow's "add new medicine" against a
    competitor screenshot).
    **Sourcing decided Sep 28, 2026, direct instruction: the real medicine
-   database will be provided by Eka.** Exact record count, field
-   coverage (manufacturer/composition/packing/GST/HSN), delivery format
-   (file export vs. API), and update cadence are not yet known — confirm
-   these before designing the import/integration, per Manifesto rule 14
+   database will be provided by Eka.** **Scope confirmed same day, direct
+   instruction: medicine identity only — name, generic name, strength
+   (mg/ml), and similar — explicitly NOT pricing.** That means every
+   commercial field (MRP, cost price, PTR, discount%, reorder level)
+   always stays a per-store entry, whether or not the catalog itself
+   ends up chain-shared or platform-wide — never something the shared
+   data supplies or that gets overridden, since it's simply never in
+   that data at all. Exact record count, full field list beyond
+   name/generic/strength (manufacturer? composition/salt? HSN? GST%?
+   dosage form? schedule classification?), delivery format (file export
+   vs. API), and update cadence are still not known — confirm these
+   before designing the import/integration, per Manifesto rule 14
    (verify, don't assume). Until Eka's data is in hand and integrated,
    keep manual creation as the primary path — this is still not blocking
    current build work.

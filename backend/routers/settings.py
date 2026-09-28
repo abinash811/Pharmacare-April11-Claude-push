@@ -367,6 +367,20 @@ async def update_settings(settings_data: dict, request: Request, current_user: U
     # has applied, so only fields that actually changed get logged.
     before_settings = _snapshot_settings_fields(ps, pharmacy)
 
+    # near_expiry_days and low_stock_alert_enabled below are ALSO written by
+    # the "notifications" section right after this one — both tabs edit the
+    # same PharmacySettings column on purpose (Inventory groups "rules",
+    # Notifications groups "alerts" with live previews). The frontend
+    # (Settings/hooks/useSettings.js's MIRRORED_FIELDS) keeps both copies of
+    # its local state in sync the moment either is edited, so by the time a
+    # save reaches here both sections already agree and this fixed
+    # processing order is safe. Found Sep 28, 2026 (docs/15_ROADMAP.md RULE
+    # MISSES LOG): before that frontend fix, editing only one tab's copy
+    # left the other tab's stale value in the same full-object PUT, and
+    # notifications' stale value silently overwrote whatever was just
+    # changed on Inventory every time, regardless of which tab the user
+    # actually edited. Adding a new mirrored field here without the
+    # matching frontend sync would reintroduce the same bug.
     inv = settings_data.get("inventory", {})
     if "near_expiry_days" in inv:
         ps.near_expiry_threshold_days = inv["near_expiry_days"]

@@ -16,6 +16,28 @@ const DEFAULT_SETTINGS = {
   notifications: { alert_low_stock_enabled: true, alert_near_expiry_enabled: true, alert_drug_license_enabled: true, low_stock_threshold_days: 30, near_expiry_days: 90, drug_license_alert_days: 90 },
 };
 
+// Some settings are shown in two tabs on purpose (Inventory groups "rules"
+// together, Notifications groups "alerts" with live toast previews) but
+// both map to the same PharmacySettings column on the backend. Found Sep
+// 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG): saveSettings always PUTs
+// the WHOLE settings object, so editing only one tab's copy left the other
+// tab's stale cached value riding along in the same request — the backend
+// applies inventory's section then notifications' in a fixed order
+// (routers/settings.py update_settings), so notifications' stale value
+// silently overwrote whatever was just changed on Inventory, no matter
+// which tab the user actually edited. updateSetting below keeps both
+// copies of local state in sync the moment either is edited, so by save
+// time they always agree and which section the backend processes last no
+// longer matters. low_stock_threshold_days is also duplicated in both
+// sections' shape but isn't editable from any control today
+// (NotificationsTab.tsx deliberately removed its own UI for it — see that
+// file's comment) so it's excluded here; add it if a control for it ever
+// comes back.
+const MIRRORED_FIELDS = [
+  { a: ['inventory', 'near_expiry_days'], b: ['notifications', 'near_expiry_days'] },
+  { a: ['inventory', 'low_stock_alert_enabled'], b: ['notifications', 'alert_low_stock_enabled'] },
+];
+
 export function useSettings() {
   const [settings,        setSettings]        = useState(DEFAULT_SETTINGS);
   const [loading,         setLoading]         = useState(true);
@@ -74,7 +96,19 @@ export function useSettings() {
   }, []);
 
   const updateSetting = useCallback((section, key, value) => {
-    setSettings(prev => ({ ...prev, [section]: { ...prev[section], [key]: value } }));
+    setSettings(prev => {
+      let next = { ...prev, [section]: { ...prev[section], [key]: value } };
+      for (const { a, b } of MIRRORED_FIELDS) {
+        const [aSection, aKey] = a;
+        const [bSection, bKey] = b;
+        if (section === aSection && key === aKey) {
+          next = { ...next, [bSection]: { ...next[bSection], [bKey]: value } };
+        } else if (section === bSection && key === bKey) {
+          next = { ...next, [aSection]: { ...next[aSection], [aKey]: value } };
+        }
+      }
+      return next;
+    });
   }, []);
 
   return {

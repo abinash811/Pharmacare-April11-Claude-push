@@ -47,12 +47,16 @@ export interface AddMedicineSearchRowProps {
   setShowSearchResults: (value: boolean) => void;
   searchMedicines: (query: string) => void;
   onAddItem: (product: SearchProduct, batch: ProductBatch) => void;
+  // From Settings -> Inventory (PharmacySettings.near_expiry_threshold_days).
+  // Falls back to isExpiringSoon's own 90-day default until BillingTable's
+  // own fetch resolves — not a second source of truth.
+  nearExpiryDays?: number;
 }
 
 export default function AddMedicineSearchRow({
   rowNumber, searchInputRef, newItemSearch, setNewItemSearch,
   searchResults, setSearchResults, showSearchResults, setShowSearchResults,
-  searchMedicines, onAddItem,
+  searchMedicines, onAddItem, nearExpiryDays,
 }: AddMedicineSearchRowProps) {
   const handleAddItem = (product: SearchProduct, batch: ProductBatch) => {
     onAddItem(product, batch);
@@ -132,7 +136,7 @@ export default function AddMedicineSearchRow({
                   >
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-mono text-gray-600 w-20 truncate" title={batch.batch_no}>{batch.batch_no}</span>
-                      <span className={`text-xs ${isExpired(batch.expiry_iso || batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_iso || batch.expiry_date) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
+                      <span className={`text-xs ${isExpired(batch.expiry_iso || batch.expiry_date) ? 'text-red-600 font-bold' : isExpiringSoon(batch.expiry_iso || batch.expiry_date, nearExpiryDays) ? 'text-amber-600 font-bold' : 'text-gray-500'}`}>
                         Exp {formatExpiry(batch.expiry_iso || batch.expiry_date)}
                       </span>
                       <span className="text-xs text-gray-400">Stock: <span className={`font-semibold ${batch.qty_on_hand > 20 ? 'text-green-600' : batch.qty_on_hand > 0 ? 'text-amber-600' : 'text-red-500'}`}>{batch.qty_on_hand}</span></span>

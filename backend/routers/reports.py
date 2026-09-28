@@ -1444,12 +1444,19 @@ async def get_dashboard_analytics(
         ps = (await db.execute(
             select(PharmacySettings).where(PharmacySettings.pharmacy_id == pid)
         )).scalars().first()
-        near_expiry_days = getattr(ps, "near_expiry_threshold_days", 30) if ps else 30
+        # Fixed Sep 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG, near_expiry_days
+        # audit): this fallback used to be 30 when ps is missing, while every
+        # other near_expiry_threshold_days consumer (suppliers.py, inventory.py,
+        # billing.py) and the column's own DB default both use 90 — a real
+        # pharmacy always has a PharmacySettings row (create_pharmacy_with_defaults
+        # creates one at signup/store-add), so this branch is defensive-only, but
+        # it should still agree with everyone else rather than silently disagree.
+        near_expiry_days = getattr(ps, "near_expiry_threshold_days", 90) if ps else 90
         alert_near_expiry = getattr(ps, "alert_near_expiry_enabled", True) if ps else True
         alert_low_stock = getattr(ps, "alert_low_stock_enabled", True) if ps else True
         alert_drug_license = getattr(ps, "alert_drug_license_enabled", True) if ps else True
         drug_license_alert_days = getattr(ps, "drug_license_alert_days", 90) if ps else 90
-        thirty_ahead = today + timedelta(days=near_expiry_days)
+        near_expiry_ahead = today + timedelta(days=near_expiry_days)
 
         # Drug license expiry from pharmacy profile
         pharmacy_row = (await db.execute(
@@ -1620,7 +1627,7 @@ async def get_dashboard_analytics(
                 BatchORM.quantity_on_hand)
             .join(BatchORM, BatchORM.product_id == ProductORM.id)
             .where(BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True),
-                   BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead)
+                   BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= near_expiry_ahead)
             .order_by(BatchORM.expiry_date).limit(5)
         )).all()
         # Counts for quick stats
@@ -1639,7 +1646,7 @@ async def get_dashboard_analytics(
         )).scalar()
         exp_total = (await db.execute(select(func.count()).where(
             BatchORM.pharmacy_id.in_(pids), BatchORM.is_active.is_(True),
-            BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= thirty_ahead))).scalar()
+            BatchORM.quantity_on_hand > 0, BatchORM.expiry_date <= near_expiry_ahead))).scalar()
 
         def calc_change(cur, prev):
             if prev == 0:

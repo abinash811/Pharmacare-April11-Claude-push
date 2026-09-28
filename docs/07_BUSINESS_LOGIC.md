@@ -1,5 +1,5 @@
 # PharmaCare — Business Logic
-# Version: 2.26 | Last updated: September 28, 2026
+# Version: 2.27 | Last updated: September 28, 2026
 # Type: Reference
 # Audience: Claude, all developers
 # Rule: Before implementing any feature that touches billing, inventory, purchases,
@@ -102,6 +102,16 @@ no code path writes it today; only `paid` and `due` are ever assigned.
       configured `near_expiry_days` (threaded from `GET /settings` through
       `BillingWorkspace/index.jsx` → `BillingTable`, not the 90-day
       default `isExpiringSoon` silently used before this fix).
+
+      **Cross-cutting audit fix (Sep 28, 2026)** — the Sep 25 fix above
+      only reached the main bill-line's `isExpiringSoon()` call. Two other
+      calls in the same billing screen — the batch-picker panel opened by
+      clicking a bill line's batch chip (`BillingTable.jsx`), and the
+      add-medicine search dropdown (`AddMedicineSearchRow.tsx`, which
+      didn't even receive `nearExpiryDays` as a prop) — still silently
+      used the 90-day default, so a pharmacy with a non-default threshold
+      saw inconsistent amber highlighting across the same screen. All 3
+      call sites now thread the same `nearExpiryDays` value.
    e. Calculate bill totals (all paise):
       - subtotal = sum of taxable_paise per item
       - gst = sum of gst_paise per item (split equally into CGST + SGST,

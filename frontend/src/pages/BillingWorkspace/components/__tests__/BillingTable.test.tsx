@@ -146,6 +146,86 @@ describe('BillingTable — out-of-stock search results', () => {
     expect(screen.getByTestId('expiry-warning-1')).toHaveTextContent('Expired');
   });
 
+  it('respects the pharmacy\'s configured near-expiry threshold in the batch-picker panel, not the hardcoded default — Sep 28, 2026 fix', async () => {
+    // Found during a near_expiry_days cross-cutting audit: the main bill-line
+    // highlight (test above) correctly threaded nearExpiryDays through, but
+    // this second isExpiringSoon() call in the SAME file — the batch-picker
+    // panel opened by clicking a bill line's batch chip — silently ignored
+    // it and always used the 90-day default, so the same screen could show
+    // inconsistent "near expiry" styling depending on which part a
+    // pharmacist was looking at.
+    const soon = toISODate(new Date(Date.now() + 10 * 86400000)); // within a 30-day threshold, not within 90
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [{ id: 'b1', batch_no: 'B1', expiry_iso: soon, qty_on_hand: 5, mrp_per_unit: 10 }],
+    });
+
+    renderTable({
+      ...baseProps,
+      nearExpiryDays: 30,
+      billItems: [{
+        id: '1', product_sku: 'X', product_name: 'Dolo 650', batch_no: '999999',
+        qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+        expiry_date: '2027-01-01', discount_percent: 0,
+      }],
+    });
+
+    await userEvent.click(screen.getByTestId('batch-select-0'));
+    await screen.findByText('B1');
+
+    // The panel's expiry cell must carry the amber "near expiry" class once
+    // nearExpiryDays=30 is actually respected (10 days out is within 30,
+    // but well within the old hardcoded 90-day default too — the real
+    // proof is the symmetric "not near expiry" case below).
+    const panelExpiryCell = screen.getByText('B1').parentElement?.querySelector('span:nth-child(2)');
+    expect(panelExpiryCell).toHaveClass('text-amber-600');
+  });
+
+  it('does NOT flag a batch as near-expiry in the panel when it is outside the configured threshold', async () => {
+    // Symmetric check: 60 days out is within the old hardcoded 90-day
+    // default but outside a pharmacy-configured 30-day threshold — proves
+    // the panel reads the real setting, not just always highlighting.
+    const notSoon = toISODate(new Date(Date.now() + 60 * 86400000));
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [{ id: 'b1', batch_no: 'B1', expiry_iso: notSoon, qty_on_hand: 5, mrp_per_unit: 10 }],
+    });
+
+    renderTable({
+      ...baseProps,
+      nearExpiryDays: 30,
+      billItems: [{
+        id: '1', product_sku: 'X', product_name: 'Dolo 650', batch_no: '999999',
+        qty: 1, unit_price: 20, cost_price: 7, gst_percent: 5, net_amount: 21,
+        expiry_date: '2027-01-01', discount_percent: 0,
+      }],
+    });
+
+    await userEvent.click(screen.getByTestId('batch-select-0'));
+    await screen.findByText('B1');
+
+    const panelExpiryCell = screen.getByText('B1').parentElement?.querySelector('span:nth-child(2)');
+    expect(panelExpiryCell).not.toHaveClass('text-amber-600');
+  });
+
+  it('threads nearExpiryDays through to the add-medicine search dropdown (AddMedicineSearchRow) too', async () => {
+    // Same audit, third and last call site: this dropdown's isExpiringSoon()
+    // call never even received nearExpiryDays as a prop before this fix —
+    // always the hardcoded 90-day default, regardless of the pharmacy's
+    // real setting.
+    const notSoon = toISODate(new Date(Date.now() + 60 * 86400000)); // outside a 30-day threshold
+    (api.get as jest.Mock).mockResolvedValue({
+      data: [{
+        sku: 'IN-STOCK-1', name: 'Available Med', has_stock: true,
+        batches: [{ batch_no: 'B1', qty_on_hand: 5, mrp_per_unit: 10, expiry_iso: notSoon }],
+      }],
+    });
+
+    renderTable({ ...baseProps, nearExpiryDays: 30 });
+    await userEvent.type(screen.getByTestId('new-item-search'), 'Available');
+
+    const expiryLabel = await screen.findByText(/Exp /);
+    expect(expiryLabel).not.toHaveClass('text-amber-600');
+  });
+
   it('still allows billing an in-stock batch normally', async () => {
     (api.get as jest.Mock).mockResolvedValue({
       data: [{

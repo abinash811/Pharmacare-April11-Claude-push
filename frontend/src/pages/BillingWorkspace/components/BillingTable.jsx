@@ -107,6 +107,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                 setShowSearchResults={setShowSearchResults}
                 searchMedicines={searchMedicines}
                 onAddItem={onItemAdded}
+                nearExpiryDays={nearExpiryDays}
               />
             )}
 
@@ -157,7 +158,7 @@ export default function BillingTable({ viewMode, billItems = [], onUpdateItem, o
                               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectBatch(index, batch); } }}
                               className={`grid grid-cols-9 gap-1 px-3 py-2 text-xs cursor-pointer border-b border-gray-100 last:border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${batch.batch_no === item.batch_no ? 'bg-brand-subtle text-brand' : 'hover:bg-gray-50'}`}>
                               <span className="font-mono font-medium">{batch.batch_no}</span>
-                              <span className={isExpiringSoon(batch.expiry_iso || batch.expiry_date) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_iso || batch.expiry_date)}</span>
+                              <span className={isExpiringSoon(batch.expiry_iso || batch.expiry_date, nearExpiryDays) ? 'text-amber-600 font-semibold' : ''}>{formatExpiry(batch.expiry_iso || batch.expiry_date)}</span>
                               <span className="text-right font-semibold">{formatCurrency(batch.mrp_per_unit||0)}</span>
                               <span className="text-right">{(batch.discount_percent||0).toFixed(1)}%</span>
                               <span className="text-right">{formatCurrency(batch.cost_price_per_unit||0)}</span>

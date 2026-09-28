@@ -1,5 +1,5 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.10 | Last updated: September 27, 2026
+# Version: 1.11 | Last updated: September 28, 2026
 # Type: Explanation
 # Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
 
@@ -467,13 +467,32 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
 
 ## 7. GAPS FOUND ON A SECOND PASS, Sep 26, 2026 — none of these were in the original 4 questions
 
-1. **Product catalog: shared or per-store?** Today `Product` is a fully
-   independent table per `pharmacy_id` — two stores in the same chain
-   would each re-enter the same medicine separately. For "centralized
-   purchasing" to mean anything, the catalog (name/SKU/GST%) almost
-   certainly needs to be **shared chain-wide**, with only stock/batches
-   staying per-store. Not yet in the schema sketch — needs its own
-   decision, same weight as Section 2's.
+1. **Product catalog: shared or per-store? Sourcing decided Sep 28,
+   2026 — reframes this beyond just multi-chain.** Today `Product` is a
+   fully independent table per `pharmacy_id` — two stores in the same
+   chain would each re-enter the same medicine separately. Researched
+   how real competitors do this first (Sep 27, 2026): Marg, eVitalRx,
+   and Pharmasoft **unanimously** ship one shared master catalog
+   (medicine identity: name, composition/salt, HSN, dosage form,
+   sometimes images) with only stock/inventory kept per-branch —
+   eVitalRx names theirs explicitly ("400,000+ medicines... centralized
+   product catalog"). Marg's wording ("customize Price Lists" per
+   branch) flags a real sub-question: pricing/MRP likely needs to stay
+   per-store overridable even on top of a shared catalog, not locked
+   identical everywhere.
+   **Direct instruction, Sep 28, 2026: the real medicine database will
+   be provided by Eka** (see `docs/13_DEPLOYMENT.md`'s pre-launch
+   blocker #8, updated same day) — count/field-coverage/delivery format
+   not yet known, to be confirmed before designing the import. This
+   makes the catalog naturally **platform-wide**, not just chain-scoped
+   — every PharmaCare pharmacy (chain or standalone) would search the
+   same real Eka-sourced list, with per-store manual entry becoming the
+   fallback for genuinely novel/local items rather than the default
+   path. **Still open once Eka's data format is known:** the actual
+   schema split (which fields are shared identity vs. per-store
+   commercial/overridable — same pricing question Marg's research
+   raised), and whether/how this interacts with the chain-scoped
+   `Product` question above for a chain's own store-to-store view.
 2. **Customers/Doctors: shared or per-store?** Same problem, retail-facing
    version: a customer who visits Store A and later Store B — one combined
    record (so loyalty/history/credit follow them chain-wide) or two
@@ -568,7 +587,11 @@ version is working and actually used.
       resolved Step 5b by blocking the transfer outright rather than
       building the document/license flow. Confirmed via research this
       matches how eVitalRx actually handles it.
-- [ ] Product catalog shared vs. per-store (Section 7.1).
+- [ ] Product catalog shared vs. per-store (Section 7.1) — sourcing
+      decided Sep 28, 2026 (Eka will provide the real medicine
+      database), but format/count unknown and the schema split (shared
+      identity vs. per-store pricing) still needs its own decision once
+      that data is in hand.
 - [ ] Customers/Doctors shared vs. per-store (Section 7.2) — laid out
       Sep 27, 2026 (real cross-cutting surface confirmed: billing.py,
       customers.py, reports.py, plus the phone-number dedup question),

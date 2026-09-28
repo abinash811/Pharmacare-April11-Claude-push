@@ -1,5 +1,5 @@
 # PharmaCare — Deployment
-# Version: 1.6 | Last updated: September 19, 2026
+# Version: 1.7 | Last updated: September 28, 2026
 # Type: How-To
 # Audience: Claude, all developers
 # Rule: Never ship without reading the pre-deploy checklist. Never touch production DB directly.
@@ -60,18 +60,32 @@ Phase 1 is single-instance. All pharmacies share one database, separated by `pha
    `@types/jest`/`@testing-library/react`/`@testing-library/jest-dom` are
    installed (`package.json`) and `npx tsc --noEmit` passes with zero
    errors (also a standing `design-guard.sh` Rule 10 gate since Sep 5).
-8. **No real master medicine database** — `frontend/src/constants/
-   medicineSeedList.js` has 75 demo entries, only used for name-autocomplete
-   hints when a pharmacist manually creates a product. Real competitors
-   (Marg ERP, eVitalRx) ship with a database of tens of thousands of actual
-   Indian medicines (manufacturer, composition, packing, GST pre-filled) so
-   a pharmacist almost never types one in by hand — they search and pick.
-   Found Aug 26, 2026 during manual UAT (Abinash, comparing our purchase
-   flow's "add new medicine" against a competitor screenshot): the right
-   long-term fix is sourcing/licensing a real drug database and switching
-   "add new medicine" from the default path to a fallback for genuinely
-   novel items — explicitly deferred until pre-launch, not blocking current
-   build work. Until then, keep manual creation as the primary path.
+8. **No real master medicine database — sourcing decided, not yet built.**
+   `frontend/src/constants/medicineSeedList.js` has 75 demo entries, only
+   used for name-autocomplete hints when a pharmacist manually creates a
+   product. Real competitors (Marg ERP, eVitalRx) ship with a database of
+   tens of thousands of actual Indian medicines (manufacturer, composition,
+   packing, GST pre-filled) so a pharmacist almost never types one in by
+   hand — they search and pick. Found Aug 26, 2026 during manual UAT
+   (Abinash, comparing our purchase flow's "add new medicine" against a
+   competitor screenshot).
+   **Sourcing decided Sep 28, 2026, direct instruction: the real medicine
+   database will be provided by Eka.** Exact record count, field
+   coverage (manufacturer/composition/packing/GST/HSN), delivery format
+   (file export vs. API), and update cadence are not yet known — confirm
+   these before designing the import/integration, per Manifesto rule 14
+   (verify, don't assume). Until Eka's data is in hand and integrated,
+   keep manual creation as the primary path — this is still not blocking
+   current build work.
+   **This also reframes `docs/26_MULTI_CHAIN_SCOPE.md` Section 7.1**
+   ("product catalog shared vs. per-store, chain-scoped or platform-wide")
+   — a real, Eka-sourced medicine database is naturally platform-wide
+   (every PharmaCare pharmacy searches the same real-world drug list, not
+   just stores in one owner's chain), so once built, per-store product
+   entry becomes the fallback path for genuinely novel/local items, not
+   the default. See that doc for the full design questions this still
+   leaves open (schema split between shared identity fields and
+   per-store commercial fields like MRP/pricing).
 9. **Backend has no explicit timezone — must run with `TZ=Asia/Kolkata`,
    or the server's "today" will drift from the pharmacist's real "today."**
    Found Sep 19, 2026 fixing the same bug on the frontend (`docs/

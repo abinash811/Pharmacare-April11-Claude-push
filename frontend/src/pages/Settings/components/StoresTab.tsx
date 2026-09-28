@@ -93,6 +93,10 @@ export default function StoresTab() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add Store</DialogTitle></DialogHeader>
+          <p className="text-xs text-gray-500 -mt-2">
+            This store's branding, GST defaults, and thresholds will be copied to the new
+            store — invoice and return numbering always starts fresh there, as GST requires.
+          </p>
           <form onSubmit={handleAdd} className="space-y-4 mt-2">
             <div><label htmlFor="store-name" className="block text-xs font-medium text-gray-700 mb-1">Store Name *</label>
               <input id="store-name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} required /></div>

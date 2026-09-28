@@ -2,12 +2,14 @@
  * Reports — orchestrator
  * Route: /reports
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, AlertCircle, Clock, PieChart, Undo2, Truck, LineChart, Stethoscope, Wallet, Users, PackageX, Layers } from 'lucide-react';
 import { InlineLoader, PageHeader, PageTabs, FilterPills } from '@/components/shared';
 import { formatCurrency } from '@/utils/currency';
 import { toISODate } from '@/utils/dates';
+import api from '@/lib/axios';
+import { apiUrl } from '@/constants/api';
 
 import { useReports }  from './hooks/useReports';
 import ReportFilters   from './components/ReportFilters';
@@ -81,6 +83,20 @@ const toApiDate = (d) => toISODate(d);
 export default function Reports() {
   const navigate = useNavigate();
   const [activeReport, setActiveReport] = React.useState('sales');
+  // Only Dashboard and GST Report got a chain-wide "All Stores" rollup
+  // (docs/26_MULTI_CHAIN_SCOPE.md Steps 4/6b) — every report type on this
+  // page still always shows the caller's own active store only. Found by
+  // the Sep 28, 2026 persona audit: nothing told a multi-store admin that
+  // boundary exists, so they'd have no reason to expect it (RULE MISSES
+  // LOG). This note is the fix — not a chain-scope build for these 12
+  // report types, which would be its own, much larger piece of work.
+  const [hasChain, setHasChain] = useState(false);
+
+  useEffect(() => {
+    api.get(apiUrl.chainStores())
+      .then((res) => setHasChain((res.data || []).length > 1))
+      .catch(() => setHasChain(false));
+  }, []);
 
   const {
     loading, reportData,
@@ -115,6 +131,12 @@ export default function Reports() {
       />
 
       <div className="bg-white rounded-xl border border-gray-200">
+        {hasChain && (
+          <p className="px-6 pt-4 text-xs text-gray-500" data-testid="reports-chain-scope-note">
+            Showing your active store only — chain-wide view isn't available for these reports
+            yet (Dashboard and GST Report have it).
+          </p>
+        )}
         {/* Filter bar */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-4 flex-wrap">
           <FilterPills options={REPORT_TYPES} active={activeReport} onChange={setActiveReport} />

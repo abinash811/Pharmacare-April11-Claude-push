@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from deps import get_db
 from models.chains import Chain as ChainORM
-from models.pharmacy import Pharmacy as PharmacyORM
+from models.pharmacy import Pharmacy as PharmacyORM, PharmacySettings as PharmacySettingsORM
 from models.users import AuditLog, Role as RoleORM
 from routers.auth_helpers import User, get_current_user, require_admin_or_super
 from services.provisioning import create_pharmacy_with_defaults, sync_user_store_role
@@ -107,10 +107,20 @@ async def create_chain_store(body: StoreCreate, request: Request, current_user: 
     else:
         chain = None  # already in a chain, nothing to create
 
+    # Fixed Sep 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG): a new store
+    # used to always get bare PharmacySettings defaults, silently discarding
+    # the admin's own branding/GST/threshold setup with no warning. Copy the
+    # caller's own current settings onto the new store instead (excluding
+    # per-store invoice-numbering counters — see
+    # services/provisioning.py's _SETTINGS_NEVER_COPY).
+    settings_result = await db.execute(
+        select(PharmacySettingsORM).where(PharmacySettingsORM.pharmacy_id == pharmacy_id))
+    source_settings = settings_result.scalar_one_or_none()
+
     new_store = await create_pharmacy_with_defaults(
         db, name=body.name, address=body.address, city=body.city, state=body.state,
         pincode=body.pincode, phone=body.phone, email=body.email, gstin=body.gstin,
-        drug_license_number=body.drug_license_number,
+        drug_license_number=body.drug_license_number, source_settings=source_settings,
     )
     new_store.chain_id = pharmacy.chain_id
     await db.flush()

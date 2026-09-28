@@ -65,6 +65,55 @@ class TestAddStore(_Base):
         stores = self.session.get(f"{BASE_URL}/api/pharmacies/stores").json()
         assert len(stores) == 3
 
+    def test_new_store_inherits_settings_but_never_the_invoice_sequence(self):
+        """Regression for the Sep 28, 2026 fix (docs/15_ROADMAP.md RULE
+        MISSES LOG): "Add Store" used to give the new store bare
+        PharmacySettings defaults with zero carryover from the store the
+        admin was standing in. Branding/GST/threshold settings must now
+        copy over — but bill_sequence_number/return_sequence_number never
+        should, since GST requires each store's own gapless series."""
+        put_resp = self.session.put(f"{BASE_URL}/api/settings", json={
+            "inventory": {"low_stock_threshold_days": 45},
+        })
+        assert put_resp.status_code == 200, put_resp.text
+
+        sku = f"CHAINSETTINGS-{self.suffix}"
+        prod = self.session.post(f"{BASE_URL}/api/products", json={
+            "sku": sku, "name": "Chain Settings Test Medicine", "category": "medicine",
+            "gst_percent": 0, "units_per_pack": 1,
+        })
+        assert prod.status_code == 200, prod.text
+        batch_no = f"CHAINSETTINGS-B-{self.suffix}"
+        batch = self.session.post(f"{BASE_URL}/api/stock/batches", json={
+            "product_sku": sku, "batch_no": batch_no,
+            "expiry_date": "2030-01-01", "qty_on_hand": 10,
+            "cost_price_per_unit": 5, "mrp_per_unit": 10,
+        })
+        assert batch.status_code == 200, batch.text
+        bill = self.session.post(f"{BASE_URL}/api/bills", json={
+            "status": "paid", "tax_rate": 0, "payment_method": "cash",
+            "items": [{
+                "product_sku": sku, "batch_no": batch_no, "quantity": 1, "unit_price": 10,
+                "disc_percent": 0, "gst_percent": 0,
+            }],
+        })
+        assert bill.status_code == 200, bill.text
+
+        home_settings = self.session.get(f"{BASE_URL}/api/settings").json()
+        assert home_settings["billing"]["bill_sequence_number"] > 1, \
+            "the bill above should have advanced the home store's own sequence"
+
+        second_store = self._add_store()
+        switch = self.session.post(f"{BASE_URL}/api/users/me/switch-store", json={
+            "pharmacy_id": second_store["pharmacy_id"]})
+        assert switch.status_code == 200, switch.text
+
+        new_store_settings = self.session.get(f"{BASE_URL}/api/settings").json()
+        assert new_store_settings["inventory"]["low_stock_threshold_days"] == 45, \
+            "a real business setting should have been copied from the store that created it"
+        assert new_store_settings["billing"]["bill_sequence_number"] == 1, \
+            "invoice numbering must always start fresh per store, never copied"
+
     def test_cashier_cannot_add_a_store(self):
         cashier_email = f"chaincashier_{self.suffix}@pharmacy.com"
         create = self.session.post(f"{BASE_URL}/api/users", json={

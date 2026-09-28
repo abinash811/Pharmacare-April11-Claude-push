@@ -28,6 +28,14 @@ describe('StoresTab', () => {
     await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
   });
 
+  it('tells the admin settings will be copied but numbering starts fresh', async () => {
+    (api.get as jest.Mock).mockResolvedValue({ data: ONE_STORE });
+    render(<StoresTab />);
+    await waitFor(() => expect(screen.getByText('Main Store')).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId('add-store-btn'));
+    expect(screen.getByText(/branding, GST defaults, and thresholds will be copied/)).toBeInTheDocument();
+  });
+
   it('adding a store posts the form and refreshes the list', async () => {
     (api.get as jest.Mock)
       .mockResolvedValueOnce({ data: ONE_STORE })

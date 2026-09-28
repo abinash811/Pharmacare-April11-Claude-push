@@ -1,7 +1,7 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.13 | Last updated: September 28, 2026
+# Version: 1.14 | Last updated: September 28, 2026
 # Type: Explanation
-# Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs) and a Sep 28 security fix on Steps 4/6b (see below — scope=chain no longer leaks other branches' data past a real access grant). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
+# Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs), a Sep 28 security fix on Steps 4/6b (scope=chain no longer leaks other branches' data past a real access grant), and 3 Sep 28 persona-audit follow-ons (settings inherit on Add Store, Reports chain-scope boundary note, Transfer history + Reverse UI) — see below. Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
 
 ## STEP 4/6b SECURITY FIX — chain-scope now checks real store access, Sep 28, 2026
 
@@ -27,12 +27,48 @@ Full detail, including the process fix (CLAUDE.md rule 11 addendum: a
 multi-step feature's last step is a fresh persona audit, not just that
 step's own tests) in `docs/15_ROADMAP.md`'s RULE MISSES LOG, Sep 28, 2026.
 
-**Also found by the same audit, not yet fixed — tracked as follow-on work:**
-"Add Store" resets every `PharmacySettings` field with no carryover and no
-warning (§7 #4 was logged OPEN and shipped past regardless); only Dashboard
-and GST Report have the chain-scope toggle, the other 12 report types don't
-and nothing says so; `POST /stock-transfers/{id}/reverse` has no frontend
-surface at all despite being fully built and tested on the backend.
+**Also found by the same audit — all 3 fixed same day, Sep 28, 2026:**
+- **§7 #4 (settings not carried over) resolved, not just warned about.**
+  `create_pharmacy_with_defaults` (`services/provisioning.py`) now accepts
+  an optional `source_settings` and copies every `PharmacySettings` field
+  from it except `bill_sequence_number`/`return_sequence_number` (GST
+  requires each store's own gapless series, never inherited). `chains.py`'s
+  `create_chain_store` passes the caller's own current settings. The "Add
+  Store" dialog also tells the admin this up front. Live-verified end-to-end
+  (not just pytest): set `near_expiry_days` to 77 on a real store via the
+  real API, added a third store, confirmed its `GET /settings` showed 77
+  while `bill_sequence_number` stayed at 1.
+- **Reports chain-scope boundary now visible.** `Reports/index.jsx` shows
+  "Showing your active store only — chain-wide view isn't available for
+  these reports yet (Dashboard and GST Report have it)" whenever the
+  account has more than one store — gated the same way the Dashboard/GST
+  toggles already are, so it stays invisible for the common single-store
+  case. Deliberately NOT a chain-scope build for the other 12 report
+  types — that would be its own project comparable in size to Steps 4/6b,
+  not a small follow-on.
+- **Transfer history + Reverse now has a frontend.** New `Transfers` tab
+  on Inventory (`TransferHistory.tsx`, `/inventory/transfers`) — lists
+  every transfer via `GET /stock-transfers` (already existed, already
+  correctly scoped to the caller's own pharmacy on either side) with an
+  admin-only Reverse action wired to `POST /stock-transfers/{id}/reverse`
+  (also already existed, already tested — only the UI was missing).
+  Live-verified: created a real transfer via the API, saw it appear with
+  the right direction/status, clicked Reverse in the browser, watched the
+  status flip to "Reversed" and the button disappear.
+
+New/updated tests: 1 backend (`test_chain_store_management.py`), 3
+frontend suites (`StoresTab.test.tsx` addition, `Reports/__tests__/index.test.tsx`
+new, `__tests__/TransferHistory.test.tsx` new — 6 cases). Full suites green
+(frontend 424/424; backend 658 passed, non-deterministic pre-existing
+flakiness on a subset confirmed via repeated isolated reruns, none in
+touched files), `tsc`/flake8/`design-guard.sh` all clean.
+
+**Also found live during this verification, unrelated to multi-chain,
+not fixed here:** the Settings page's "Near Expiry Alert" field doesn't
+actually send its value when saved through the UI form — confirmed via
+direct API call that `PUT /settings` itself round-trips correctly, so this
+is a pre-existing frontend bug isolated to that one control, flagged
+separately rather than fixed as part of this change.
 
 ## STEP 6b STATUS — GST report chain-wide rollup built, Sep 27, 2026
 
@@ -549,10 +585,16 @@ of it. **Correction, same day: Customers/Suppliers moved out of this list
    before allowing a transfer at all; a missing GSTIN on either side is
    rejected too ("not proven different" isn't "confirmed same"). See
    STEP 5b STATUS below.
-4. **How does a second store actually get added?** No flow exists yet for
-   "turn my one pharmacy into a chain HQ and create store #2" — who's
-   allowed to do it, and does the new store inherit the chain's existing
-   Settings (bill header/footer, GST defaults) or start blank?
+4. **RESOLVED Sep 28, 2026 — new store now inherits Settings, not blank.**
+   Built Step 3 (Settings → Stores tab, admin-only, creator auto-granted).
+   The settings-inheritance half was left blank on purpose then, logged
+   open here, and shipped past without resolving — caught by the Sep 28
+   persona audit. Fixed same day: `create_pharmacy_with_defaults` copies
+   the caller's current `PharmacySettings` onto the new store (branding,
+   GST defaults, thresholds, print/receipt prefs), excluding
+   `bill_sequence_number`/`return_sequence_number`, which always start
+   fresh per store as GST requires. See the STEP 4/6b SECURITY FIX section
+   above for the live-verified detail.
 5. **Two stores sharing one GSTIN — not built, and not a small follow-on
    to Step 6b's rollup.** Added Sep 27, 2026, direct question before
    approving Step 6b's build ("if we get a pharmacy that has same GSTIN
@@ -622,6 +664,7 @@ version is working and actually used.
       major competitor does that either).
 - [x] New-store onboarding flow — built Step 3 (Settings → Stores tab,
       creator auto-granted admin, Team-page grant/revoke for others).
+      Settings-inheritance half resolved Sep 28, 2026 (Section 7 #4).
 - [x] Cross-store stock transfer's different-GSTIN risk (Section 7.3) —
       resolved Step 5b by blocking the transfer outright rather than
       building the document/license flow. Confirmed via research this

@@ -44,6 +44,7 @@ const ScheduleH1Register = lazy(() => import('@/pages/ScheduleH1Register'));
 const AuditLog = lazy(() => import('@/pages/AuditLog'));
 const StockMovementLog = lazy(() => import('@/pages/StockMovementLog'));
 const ReorderList = lazy(() => import('@/pages/ReorderList'));
+const TransferHistory = lazy(() => import('@/pages/TransferHistory'));
 
 // Auth Context
 export const AuthContext = React.createContext(null);
@@ -159,6 +160,7 @@ function AppRoutes({ user }) {
           <Route path="inventory/edit/:sku" element={<MedicineDetail />} />
           <Route path="inventory/stock-movements" element={<StockMovementLog />} />
           <Route path="inventory/reorder" element={<ReorderList />} />
+          <Route path="inventory/transfers" element={<TransferHistory />} />
           <Route path="purchases" element={<PurchasesList />} />
           <Route path="purchases/create" element={<PurchaseNew />} />
           <Route path="purchases/edit/:id" element={<PurchaseNew />} />

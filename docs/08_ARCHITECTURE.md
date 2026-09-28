@@ -1,5 +1,5 @@
 # PharmaCare — Architecture
-# Version: 1.11 | Last updated: September 26, 2026
+# Version: 1.12 | Last updated: September 28, 2026
 # Type: Explanation
 # Audience: Claude, all developers
 # Rule: Every architectural decision is recorded here with its reasoning.
@@ -466,6 +466,7 @@ existed. That's the exact shape this section exists to stop repeating.
 | Every mutating endpoint has a role/permission check | **Automated** — Rule 15 / `scripts/check_permission_coverage.py` | Call the module's `_require_<module>_permission()` (or `has_permission()`/`require_admin_or_super()`). Reviewed exception: `# permission-exempt: <reason>` comment. |
 | Every mutating endpoint writes an audit trail | **Automated** — Rule 16 / `scripts/check_audit_log_coverage.py` | Call the module's `_record_audit()` (or `_record_movement()` for a stock-quantity change). Reviewed exception: `# audit-exempt: <reason>` comment. |
 | Every `*_paise` column is Integer, never Float/Numeric | **Automated** — Rule 17 / `scripts/check_money_paise_columns.py` | Runs against `backend/models/*.py` on every commit that touches a model file. No exception marker exists — there is no legitimate case for a non-integer money column. |
+| A multi-pharmacy `?scope=chain` rollup only includes stores the caller holds a real `user_store_roles` grant at, never every store sharing a `chain_id` | **Automated** — Rule 21 / `scripts/check_chain_scope_safety.py` | Call `resolve_chain_scope_pids(current_user, scope, db)` from `routers/auth_helpers.py` — never build a pharmacy_id list from raw `.chain_id ==`/`.in_(` yourself. Reviewed exception: trailing `# chain-scope-safe: <reason>` comment (reserved for a single-target chain-membership gate, not a data rollup — see `users.py`'s `_same_chain_or_self`). Found Sep 28, 2026: Dashboard/GST/Purchases analytics summed every chain-member store regardless of grant, for the same reason permissions and audit logging recurred above — the fix wired into one endpoint (Step 4) was never re-checked against the sibling endpoints (Step 6b, purchases analytics) that copied its pattern. |
 | No magic strings — a status/domain value comes from `constants.py`, not a bare literal | **Manual** — no automated check exists; assessed twice (Sep 7, Sep 12) and judged too false-positive-prone to lint safely (a legitimate local string is indistinguishable from a magic one without more type information than a static check has here) | Read `constants.py` before writing a status check or assignment; grep for the same literal already used correctly elsewhere in the same router before introducing a new one. |
 
 **The meta-rule this section exists to state explicitly:** when you build a

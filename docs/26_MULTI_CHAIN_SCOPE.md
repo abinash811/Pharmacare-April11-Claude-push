@@ -1,7 +1,38 @@
 # PharmaCare — Multi-Chain Scope Document
-# Version: 1.12 | Last updated: September 28, 2026
+# Version: 1.13 | Last updated: September 28, 2026
 # Type: Explanation
-# Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
+# Status: ✅ All 6 items of Section 6's original build sequence are built on branch `phase-2-multi-chain-pharmacy`, plus a Step 5b compliance fix (stock transfer now blocked between stores with different GSTINs) and a Sep 28 security fix on Steps 4/6b (see below — scope=chain no longer leaks other branches' data past a real access grant). Remaining open items are all follow-on scope, not part of the original sequence — see Section 9.
+
+## STEP 4/6b SECURITY FIX — chain-scope now checks real store access, Sep 28, 2026
+
+A fresh cross-persona (pharmacist/admin/owner) audit of this whole finished
+feature — run on direct request, not part of the original build sequence —
+found that Steps 4 and 6b's `?scope=chain` toggle (Dashboard, Purchases
+analytics, GST report) summed **every** pharmacy sharing the caller's
+`chain_id`, full stop. It never checked `user_store_roles`. A team member
+granted access to only some of a chain's stores could still see every
+other branch's revenue/GST/purchase totals under `scope=chain` — the exact
+class of bug Step 6's `resolve_store_override`/`resolve_store_override_for_write`
+were built to prevent for writes, never applied to this read-rollup path.
+
+Fixed by a new canonical `resolve_chain_scope_pids(current_user, scope, db)`
+in `routers/auth_helpers.py`, replacing the inline, ungated version that
+used to live in `reports.py` — it now intersects chain membership with the
+caller's real grants. 2 new regression tests, each confirmed to fail
+against the pre-fix code via `git stash`. A new automated gate
+(`scripts/check_chain_scope_safety.py`, `design-guard.sh` Rule 21) now
+blocks any future raw `.chain_id` query outside this helper — confirmed it
+would have caught the original bug by running it against the pre-fix code.
+Full detail, including the process fix (CLAUDE.md rule 11 addendum: a
+multi-step feature's last step is a fresh persona audit, not just that
+step's own tests) in `docs/15_ROADMAP.md`'s RULE MISSES LOG, Sep 28, 2026.
+
+**Also found by the same audit, not yet fixed — tracked as follow-on work:**
+"Add Store" resets every `PharmacySettings` field with no carryover and no
+warning (§7 #4 was logged OPEN and shipped past regardless); only Dashboard
+and GST Report have the chain-scope toggle, the other 12 report types don't
+and nothing says so; `POST /stock-transfers/{id}/reverse` has no frontend
+surface at all despite being fully built and tested on the backend.
 
 ## STEP 6b STATUS — GST report chain-wide rollup built, Sep 27, 2026
 

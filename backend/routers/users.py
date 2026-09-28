@@ -369,8 +369,11 @@ async def _same_chain_or_self(target_pharmacy_id: uuid.UUID, admin_pharmacy_id: 
     admin_chain_id = result.scalar_one_or_none()
     if admin_chain_id is None:
         raise HTTPException(status_code=400, detail="Your pharmacy is not part of a chain yet")
+    # chain-scope-safe: single-target membership gate before a grant, not a multi-pharmacy rollup
     target_result = await db.execute(
-        select(PharmacyORM).where(PharmacyORM.id == target_pharmacy_id, PharmacyORM.chain_id == admin_chain_id))
+        select(PharmacyORM).where(
+            PharmacyORM.id == target_pharmacy_id,
+            PharmacyORM.chain_id == admin_chain_id))  # chain-scope-safe: see above
     if not target_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="That store is not in your chain")
 

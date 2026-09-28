@@ -236,6 +236,56 @@ async def resolve_store_override_for_write(
     return target_pharmacy_id
 
 
+async def resolve_chain_scope_pids(current_user: User, scope: str, db: AsyncSession) -> list[uuid.UUID]:
+    """The canonical way to turn a `?scope=store|chain` toggle (Dashboard,
+    GST report, Purchases analytics — docs/26_MULTI_CHAIN_SCOPE.md Steps 4
+    and 6b) into the list of pharmacy_ids a query should sum across.
+
+    "store" (default) = just the caller's own pharmacy, unchanged behavior.
+    "chain" = every pharmacy in the caller's chain the caller actually
+    holds a real user_store_roles grant at.
+
+    Fixed Sep 28, 2026 (docs/15_ROADMAP.md RULE MISSES LOG): the original
+    version of this logic (duplicated inline in reports.py) summed every
+    pharmacy sharing the caller's chain_id, full stop — it never checked
+    user_store_roles. That meant a user whose home store merely happened
+    to sit in a multi-store chain could pull every other branch's
+    revenue/GST/purchase totals under scope=chain, even with zero grant
+    at those branches — the exact class of bug resolve_store_override /
+    resolve_store_override_for_write above exist to prevent for WRITEs,
+    never applied to this read-rollup path. This version intersects chain
+    membership with the caller's own real grants, so "All Stores" means
+    "all stores I actually have access to," never "every store in the
+    company." The caller's own home store is always included even if its
+    own user_store_roles row is somehow missing (pre-dates the Step 1
+    backfill) — this can only ever narrow the chain-membership list, never
+    grant access beyond it.
+    """
+    from models.pharmacy import Pharmacy as PharmacyORM  # local import avoids a circular import at module load
+    from models.users import UserStoreRole as UserStoreRoleORM
+
+    own_pid = uuid.UUID(current_user.pharmacy_id)
+    if scope != "chain":
+        return [own_pid]
+
+    pharmacy = (await db.execute(select(PharmacyORM).where(PharmacyORM.id == own_pid))).scalar_one()
+    if pharmacy.chain_id is None:
+        return [own_pid]
+
+    chain_pids_result = await db.execute(
+        select(PharmacyORM.id).where(PharmacyORM.chain_id == pharmacy.chain_id))
+    chain_pids = set(chain_pids_result.scalars().all())
+
+    granted_result = await db.execute(
+        select(UserStoreRoleORM.pharmacy_id).where(
+            UserStoreRoleORM.user_id == uuid.UUID(current_user.id),
+            UserStoreRoleORM.pharmacy_id.in_(chain_pids)))
+    granted_pids = set(granted_result.scalars().all())
+    granted_pids.add(own_pid)
+
+    return sorted(granted_pids, key=str)
+
+
 async def has_permission(user: User, permission: str, db: AsyncSession) -> bool:
     """Check if a user's role has the given permission (e.g. 'billing:create')."""
     result = await db.execute(

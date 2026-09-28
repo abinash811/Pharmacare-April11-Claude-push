@@ -166,6 +166,14 @@ if [ -n "$ROUTER_FILES_TOUCHED" ]; then
     reason "Found Sep 2026: sales_returns.py shipped with zero _record_audit() calls for months. Add a call to the module's _record_audit() helper, or mark a reviewed exception with a '# audit-exempt: <reason>' comment."
     ERRORS=$((ERRORS+1))
   fi
+
+  CHAIN_SCOPE_OUTPUT=$(python3 scripts/check_chain_scope_safety.py 2>&1) || true
+  if ! echo "$CHAIN_SCOPE_OUTPUT" | grep -q "^Chain-scope safety check: OK"; then
+    red "BLOCKED: raw chain_id-based pharmacy list(s) found in backend/routers"
+    echo "$CHAIN_SCOPE_OUTPUT" | while read -r l; do file "$l"; done
+    reason "Found Sep 28, 2026: scope=chain summed every pharmacy sharing the caller's chain_id, never checking user_store_roles — a user could see other branches' revenue/GST with zero grant there. Use resolve_chain_scope_pids() from routers/auth_helpers.py, or mark a reviewed exception with a '# chain-scope-safe: <reason>' comment."
+    ERRORS=$((ERRORS+1))
+  fi
 fi
 
 MODEL_FILES_TOUCHED=$(echo "$STAGED" | grep -E '^backend/models/.*\.py$' || true)

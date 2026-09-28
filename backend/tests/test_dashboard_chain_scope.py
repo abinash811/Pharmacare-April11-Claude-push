@@ -128,6 +128,63 @@ class TestDashboardChainScope:
         })
         assert purchase.status_code == 200, purchase.text
 
+    def test_chain_scope_only_sums_stores_the_caller_has_a_grant_at(self):
+        """Regression for the Sep 28, 2026 fix (docs/15_ROADMAP.md RULE
+        MISSES LOG): scope=chain used to sum every pharmacy sharing the
+        caller's chain_id, full stop — a user whose home store merely sat
+        in a chain could see every other branch's revenue even with zero
+        user_store_roles grant there. A team member granted access to only
+        SOME of the chain's stores must see scope=chain sum only those,
+        never a store they were never granted."""
+        second_pharmacy_id = self._add_second_store_and_switch()
+        self._create_paid_bill(unit_price=250)  # at the second store
+
+        third = self.session.post(f"{BASE_URL}/api/pharmacies/stores", json={
+            "name": f"Dash Scope Third {self.suffix}", "address": "3 St",
+            "city": "Testville", "state": "Karnataka", "pincode": "560003",
+            "phone": "9877700006", "drug_license_number": f"DL-DASHSCOPE-3-{self.suffix}",
+        })
+        assert third.status_code == 200, third.text
+        third_pharmacy_id = third.json()["pharmacy_id"]
+        switch = self.session.post(f"{BASE_URL}/api/users/me/switch-store", json={
+            "pharmacy_id": third_pharmacy_id})
+        assert switch.status_code == 200, switch.text
+        self._create_paid_bill(unit_price=1000)  # at the third store — never granted below
+
+        switch_home = self.session.post(f"{BASE_URL}/api/users/me/switch-store", json={
+            "pharmacy_id": self.home_pharmacy_id})
+        assert switch_home.status_code == 200, switch_home.text
+        self._create_paid_bill(unit_price=100)  # at home
+
+        member_email = f"dashscope_member_{self.suffix}@pharmacy.com"
+        member = self.session.post(f"{BASE_URL}/api/users", json={
+            "email": member_email, "name": "Limited Member",
+            "password": "MemberPass123", "role": "manager",
+        })
+        assert member.status_code == 200, member.text
+        member_id = member.json()["id"]
+        grant = self.session.post(f"{BASE_URL}/api/users/{member_id}/store-access", json={
+            "pharmacy_id": second_pharmacy_id, "role": "manager",
+        })
+        assert grant.status_code == 200, grant.text
+        # Deliberately NOT granted access to third_pharmacy_id.
+
+        member_session = requests.Session()
+        member_session.headers.update({"Content-Type": "application/json"})
+        login = member_session.post(f"{BASE_URL}/api/auth/login", json={
+            "email": member_email, "password": "MemberPass123",
+        })
+        assert login.status_code == 200, login.text
+        member_session.headers.update({"Authorization": f"Bearer {login.json()['token']}"})
+
+        resp = member_session.get(f"{BASE_URL}/api/analytics/dashboard?scope=chain")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        # Home (100, granted by default — own store) + second (250, granted
+        # above) = 350. Third's 1000 must never appear — no grant there.
+        assert data["store_count"] == 2, "should only count granted stores, not the whole chain"
+        assert data["metrics"]["total_sales"] == pytest.approx(350)
+
     def test_purchases_analytics_chain_scope_sums_every_store(self):
         self._create_confirmed_cash_purchase(f"P1-{self.suffix}", qty_units=10, cost_price_per_unit=20)
 

@@ -31,7 +31,9 @@ from models.purchases import (
 from models.pharmacy import Pharmacy, PharmacySettings
 from models.suppliers import Supplier as SupplierORM
 from models.users import AuditLog, User as UserORM
-from routers.auth_helpers import User, get_current_user, has_permission, require_admin_or_super
+from routers.auth_helpers import (
+    User, get_current_user, has_permission, require_admin_or_super, resolve_chain_scope_pids,
+)
 
 router = APIRouter(prefix="/api", tags=["reports"])
 logger = logging.getLogger(__name__)
@@ -1134,12 +1136,12 @@ async def get_gst_report(
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
     await _require_reports_permission(current_user, db)
-    pid = current_user.pharmacy_id
     # "chain" sums every store's own already-independently-filed GST numbers
-    # for display only (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #6) — assumes
-    # every store has its own separate GSTIN, same as _resolve_chain_scope_pids
-    # itself documents. Never merges an actual filing.
-    pids = await _resolve_chain_scope_pids(pid, scope, db)
+    # for display only (docs/26_MULTI_CHAIN_SCOPE.md Section 6 #6), and only
+    # across stores the caller actually holds a grant at (resolve_chain_scope_pids,
+    # routers/auth_helpers.py) — assumes every store has its own separate
+    # GSTIN. Never merges an actual filing.
+    pids = await resolve_chain_scope_pids(current_user, scope, db)
     start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
 
     # Sales side — bill items. GST liability arises at the point of supply,
@@ -1393,27 +1395,12 @@ async def get_daily_analytics(days: int = 7, db: AsyncSession = Depends(
 
 
 # ── dashboard analytics ───────────────────────────────────────────────────────
-
-
-async def _resolve_chain_scope_pids(pid: str, scope: str, db: AsyncSession) -> list:
-    """"store" (default) = just the caller's own pharmacy, unchanged
-    behavior. "chain" = every pharmacy in the caller's chain, or just
-    their own if they aren't in one yet (docs/26_MULTI_CHAIN_SCOPE.md
-    Section 6 #3 — Dashboard chain rollup, Sep 26, 2026; reused Sep 27,
-    2026 by the GST report's own store/chain toggle, Section 6 #6).
-    Only a report's own summable numbers use this list — single-pharmacy
-    config (settings, drug license) always stays on the caller's own
-    home store, and this assumes every store in the chain has its own
-    separate GSTIN (docs/26_MULTI_CHAIN_SCOPE.md's documented common
-    case) — it is a display-only sum, never a real merged GST filing."""
-    if scope != "chain":
-        return [pid]
-    # tenant-safe: pid is current_user's own pharmacy_id, not caller-supplied
-    pharmacy = (await db.execute(select(Pharmacy).where(Pharmacy.id == uuid.UUID(pid)))).scalar_one()
-    if pharmacy.chain_id is None:
-        return [pid]
-    rows = await db.execute(select(Pharmacy.id).where(Pharmacy.chain_id == pharmacy.chain_id))
-    return [str(r) for r in rows.scalars().all()]
+# _resolve_chain_scope_pids moved to routers/auth_helpers.py Sep 28, 2026 and
+# renamed resolve_chain_scope_pids (no leading underscore, now a shared
+# cross-router helper like resolve_store_override) — it now intersects chain
+# membership with the caller's real user_store_roles grants instead of
+# trusting chain_id alone. See its docstring for why (docs/15_ROADMAP.md
+# RULE MISSES LOG).
 
 
 @router.get("/analytics/dashboard")
@@ -1424,7 +1411,7 @@ async def get_dashboard_analytics(
         db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
         pid = current_user.pharmacy_id
-        pids = await _resolve_chain_scope_pids(pid, scope, db)
+        pids = await resolve_chain_scope_pids(current_user, scope, db)
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
@@ -1734,8 +1721,7 @@ async def get_purchase_analytics(
         scope: Literal["store", "chain"] = Query("store"),
         db: AsyncSession = Depends(get_db),
         current_user: User = Depends(get_current_user)):
-    pid = current_user.pharmacy_id
-    pids = await _resolve_chain_scope_pids(pid, scope, db)
+    pids = await resolve_chain_scope_pids(current_user, scope, db)
     pconds = [PurchaseORM.pharmacy_id.in_(pids), PurchaseORM.status.notin_(
         ["cancelled", "draft"]), PurchaseORM.deleted_at.is_(None)]
     if from_date:

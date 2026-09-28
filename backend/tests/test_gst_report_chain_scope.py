@@ -4,10 +4,14 @@ Regression tests for the Sep 27, 2026 multi-chain Phase 2, Step 6b
 
 GET /reports/gst now accepts ?scope=store (default, unchanged behavior) or
 ?scope=chain (sums every store's own already-independently-filed GST
-numbers into one display-only view — same _resolve_chain_scope_pids
-helper Step 4's Dashboard rollup uses). A standalone (non-chain) pharmacy
-behaves identically either way. This never merges an actual filing — each
-store still generates its own separate return, unaffected.
+numbers into one display-only view — same resolve_chain_scope_pids
+helper, routers/auth_helpers.py, Step 4's Dashboard rollup uses). A
+standalone (non-chain) pharmacy behaves identically either way. This
+never merges an actual filing — each store still generates its own
+separate return, unaffected. "chain" only ever sums stores the caller
+holds a real user_store_roles grant at, not every store sharing the
+caller's chain_id (fixed Sep 28, 2026 — see
+test_chain_scope_only_sums_stores_the_caller_has_a_grant_at below).
 """
 import os
 import uuid
@@ -110,6 +114,62 @@ class TestGSTReportChainScope:
         data = self._gst_report(scope="chain")
         assert data["scope"] == "chain"
         assert data["store_count"] == 2
+        assert data["sales_summary"]["total_gst"] == pytest.approx(360)
+
+    def test_chain_scope_only_sums_stores_the_caller_has_a_grant_at(self):
+        """Regression for the Sep 28, 2026 fix (docs/15_ROADMAP.md RULE
+        MISSES LOG): scope=chain used to sum every pharmacy sharing the
+        caller's chain_id, full stop, ignoring user_store_roles entirely.
+        A team member granted access to only some of the chain's stores
+        must see scope=chain sum only those."""
+        second_pharmacy_id = self._add_second_store_and_switch()
+        self._create_paid_bill(unit_price=2000, gst_percent=12)  # second store, gst=240
+
+        third = self.session.post(f"{BASE_URL}/api/pharmacies/stores", json={
+            "name": f"GST Scope Third {self.suffix}", "address": "3 St",
+            "city": "Testville", "state": "Karnataka", "pincode": "560003",
+            "phone": "9877700008", "drug_license_number": f"DL-GSTSCOPE-3-{self.suffix}",
+        })
+        assert third.status_code == 200, third.text
+        third_pharmacy_id = third.json()["pharmacy_id"]
+        switch = self.session.post(f"{BASE_URL}/api/users/me/switch-store", json={
+            "pharmacy_id": third_pharmacy_id})
+        assert switch.status_code == 200, switch.text
+        self._create_paid_bill(unit_price=9000, gst_percent=12)  # third store, gst=1080 — never granted below
+
+        switch_home = self.session.post(f"{BASE_URL}/api/users/me/switch-store", json={
+            "pharmacy_id": self.home_pharmacy_id})
+        assert switch_home.status_code == 200, switch_home.text
+        self._create_paid_bill(unit_price=1000, gst_percent=12)  # home store, gst=120
+
+        member_email = f"gstscope_member_{self.suffix}@pharmacy.com"
+        member = self.session.post(f"{BASE_URL}/api/users", json={
+            "email": member_email, "name": "Limited Member",
+            "password": "MemberPass123", "role": "manager",
+        })
+        assert member.status_code == 200, member.text
+        member_id = member.json()["id"]
+        grant = self.session.post(f"{BASE_URL}/api/users/{member_id}/store-access", json={
+            "pharmacy_id": second_pharmacy_id, "role": "manager",
+        })
+        assert grant.status_code == 200, grant.text
+        # Deliberately NOT granted access to third_pharmacy_id.
+
+        member_session = requests.Session()
+        member_session.headers.update({"Content-Type": "application/json"})
+        login = member_session.post(f"{BASE_URL}/api/auth/login", json={
+            "email": member_email, "password": "MemberPass123",
+        })
+        assert login.status_code == 200, login.text
+        member_session.headers.update({"Authorization": f"Bearer {login.json()['token']}"})
+
+        params = f"start_date={START_DATE}&end_date={END_DATE}&scope=chain"
+        resp = member_session.get(f"{BASE_URL}/api/reports/gst?{params}")
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        # Home (120, own store) + second (240, granted) = 360. Third's
+        # 1080 must never appear — no grant there.
+        assert data["store_count"] == 2, "should only count granted stores, not the whole chain"
         assert data["sales_summary"]["total_gst"] == pytest.approx(360)
 
     def _create_confirmed_cash_purchase(self, sku_suffix, qty_units, ptr_per_unit, gst_percent):

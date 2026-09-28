@@ -368,6 +368,22 @@ else
   green "Rule 20 PASS: No quoted-route acceptance-spec claims contradicted by real code"
 fi
 
+# ── Rule 21: Chain-scope pharmacy_id lists must go through the checked
+# canonical helper, never raw .chain_id membership ─────────────────────
+# Found Sep 28, 2026: GET /analytics/dashboard, GET /analytics/purchases,
+# and GET /reports/gst's scope=chain toggle summed every pharmacy sharing
+# the caller's chain_id, full stop — never checked user_store_roles, so a
+# user whose home store merely sat in a chain could see other branches'
+# revenue/GST/purchase totals with zero grant there. See docs/15_ROADMAP.md
+# RULE MISSES LOG and routers/auth_helpers.py's resolve_chain_scope_pids().
+if python3 scripts/check_chain_scope_safety.py > /tmp/chain_scope_safety_output 2>&1; then
+  green "Rule 21 PASS: Chain-scope pharmacy lists go through the grant-checked helper"
+else
+  red "Rule 21 FAIL: raw chain_id-based pharmacy list(s) found in $BACKEND_ROUTERS"
+  cat /tmp/chain_scope_safety_output | while read -r line; do warn "$line"; done
+  ERRORS=$((ERRORS + 1))
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
